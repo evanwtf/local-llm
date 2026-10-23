@@ -25,6 +25,7 @@ it with `--set`):
 
     {"issue": 711, "task": "#711 (glm53fexl3dual2xrcctx), 12/30 trials",
      "next": "...", "notes": ["What changed: ...", "..."],
+     "single_node": "head",
      "updated": "2026-09-24T09:40:00-0400"}
 
 Format: §3a of hardware/agent-opener-prompt.md -- the same field order and the
@@ -200,9 +201,17 @@ def disk_critical(n: Node) -> bool:
     return n.disk_free_gb is not None and n.disk_free_gb < DISK_CRITICAL_GB
 
 
-def power_reason(head: Node, worker: Node, occupant: str) -> str:
+def power_reason(
+    head: Node, worker: Node, occupant: str, single_node: str | None = None
+) -> str:
     """Why the GPU power reads what it does. A reading without its reason is
-    unreadable a day later (opener §3a), and an asymmetric pair is a finding."""
+    unreadable a day later (opener §3a), and an asymmetric pair is a finding.
+
+    `single_node` ("head" or "worker", from the state file) names the one node
+    a single-Spark task runs on. Then the other node at the idle floor is the
+    design, not a finding: the S4 refresh and #1208 each raised "Asymmetric"
+    every half hour for a split that did not exist (operator, 2026-10-23).
+    """
     idle = occupant.lower().startswith("idle")
     lost = [name for name, n in (("head", head), ("worker", worker)) if not n.reachable]
     if lost:
@@ -232,9 +241,14 @@ def power_reason(head: Node, worker: Node, occupant: str) -> str:
             " or between requests."
         )
     if any(low):
+        working = "head" if not low[0] else "worker"
+        if single_node == working:
+            other = "worker" if working == "head" else "head"
+            return f"Single-Spark task on the {working}: the {other} is idle by design."
         return (
             "**Asymmetric:** one GPU is working and the other is at the idle floor."
             " The split is not doing what it should, unless this sample fell between kernels."
+            " (A task on one Spark: set `single_node` in the state.)"
         )
     return "Both GPUs are drawing working power."
 
@@ -317,7 +331,7 @@ def render(
             f" RTT {_f(rtt_ms, '{:.2f}')} ms"
         ),
         inlet_line(ambient_f, head, worker),
-        power_reason(head, worker, occupant),
+        power_reason(head, worker, occupant, state.get("single_node")),
     ]
     extra = []
     if serving:
