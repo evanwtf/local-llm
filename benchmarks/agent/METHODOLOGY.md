@@ -656,7 +656,9 @@ the leader on the same task set and client in the machine's ledger
 - **The stop is on for every run, re-checks of standing picks included**
   (operator, 2026-10-16). A re-check that trips it has lost its place as a
   pick, and its remaining trials would only buy timeouts. The #1086 refresh
-  ran its first re-checks with the stop off. S4's replay set then spent
+  ran its first re-checks with the stop off. S4's replay set (S1–S8 are the
+  single-Spark picks; the key is in
+  `hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md`) then spent
   3.5 hours on 7 timeouts in its first 15 trials, at 145.5% of S3's time on
   the same trials: under the stop, but only a run with the stop on is held
   to it.
