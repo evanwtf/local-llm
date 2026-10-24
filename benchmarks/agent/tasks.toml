@@ -4356,6 +4356,7 @@ opencode_model = "tfmia8888/GLM-5.3-Flash-EXL3"
 context_tokens = 262144
 topology = "remote"
 smoke_protocol = "openai"
+engine_tree = "~/tensorfold-native/tensorfold-1.1.3-linux-aarch64"
 
 # #1032 (operator-approved 2026-10-24): the speed candidate from the 2026-10-24 two-Spark sweep.
 [backend.mimov26flashrlexl3tfdflashdual2x]
