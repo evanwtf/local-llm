@@ -63,3 +63,19 @@ def test_detached_records_the_pid_and_returns() -> None:
     line = t.detached("echo hi", "/tmp/x.log", "/tmp/x.pid")
     assert line.startswith("setsid nohup sh -c ")
     assert line.endswith("echo $! > /tmp/x.pid")
+
+
+def test_stop_signals_every_group_in_the_session_not_only_the_leader() -> None:
+    # timeout runs the server in its own process group; signalling the
+    # leader's group alone left the server running (2026-10-24).
+    cmd = t.stop_command("/tmp/x.pid")
+    assert "ps -o pgid= --sid $sid" in cmd
+    assert "kill -TERM -- -$g" in cmd
+
+
+def test_stop_keeps_the_pid_file_while_the_session_lives() -> None:
+    cmd = t.stop_command("/tmp/x.pid")
+    assert cmd.index("rm -f /tmp/x.pid") > cmd.index(
+        '[ -z "$(ps -o pid= --sid $sid)" ]; then'
+    )
+    assert "exit 1" in cmd
