@@ -158,6 +158,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `vllm_compat_proxy.py` | any | Strip non-standard fields from a vLLM fork's chat responses so a strict |
 | `vllm_load.py` | nvidia | Aggregate throughput against a vLLM server at a given concurrency (#334). |
 | `vllm_prefix_hits.py` | any | Measure prefix-cache hits on a running vLLM server, by prompt length (#626). |
+| `vllm_two_node.py` | any | Serve one vLLM model across both DGX Sparks, tensor parallel over the fabric. |
 | `weights_report.py` | any | Advisory report: every model on disk, its size, and a verdict with a reason. #464 |
 | `ds4-fast.sh` | mac | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |
 | `ds4-vanilla.sh` | mac | Reference kernels: bit-exact, slower. See scripts/ds4_serve.py. |
