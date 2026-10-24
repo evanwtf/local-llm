@@ -225,6 +225,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `nemotron35supervldflashrcdgx` | #1109 screen: NVIDIA Nemotron 3.5 Super VL 120B-A12B NVFP4 + LiLiCorr DFlash, the card's Spark recipe, reasoning on, remote client | vLLM nightly 3f1bcfd | 71.1 GiB | 0 |
 | `nemotron35supervldflashnothinkrcdgx` | #1109 screen: Super VL, reasoning off, same recipe, remote client | vLLM nightly 3f1bcfd | 71.1 GiB | 0 |
 | `nemotron35supervldflashnothinkdual2xv032` | #1231: Super VL NVFP4 + LiLiCorr DFlash, reasoning off, both Sparks (TP=2), remote client | vLLM v0.32.0 | 70 GB | 0 |
+| `mimov26flashrlexl3tfdflashdual2x` | #1032: MiMo-V2.6-Flash-RL EXL3 3.0 bpw + DFlash, TensorFold python-0.6, both Sparks (TP=2), remote client | TensorFold | 114 GB | 0 |
 | `qwen38fnfp4localrcdgx` | #1108 screen: nvidia Qwen3.8-Flash-Next-FP4-Local (QAD FP4), the card's Spark recipe, thinking on, remote client | vLLM in eugr/spark-vllm-b12x | 95.2 GiB | 0 |
 | `qwen38fnfp4localnothinkrcdgx` | #1108 screen: FP4-Local, thinking off, same recipe, remote client | vLLM in eugr/spark-vllm-b12x | 95.2 GiB | 0 |
 | `qwen38fnfp4localtfnothinkrcdgx` | the #1108 FP4-Local weights on TensorFold's Zig engine via MiaAI's single-Spark TensorFold recipe @656879f, thinking off, head Spark, remote client (#1143) | TensorFold zig db281878 + 15 patches, built locally, CUDA sm_121 | 96 GiB | 0 |
