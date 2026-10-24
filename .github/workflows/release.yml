@@ -28,7 +28,10 @@ jobs:
       - name: scope the uv cache to this run
         run: echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
 
+      # Run-scoped uv cache on the shared runner; see test.yml.
       - uses: astral-sh/setup-uv@v5
+        with:
+          cache-local-path: ${{ runner.temp }}/uv-${{ github.run_id }}-${{ github.run_attempt }}
 
       - run: uv sync --frozen
 
