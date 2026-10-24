@@ -116,15 +116,36 @@ def start(args: argparse.Namespace) -> int:
     return 0
 
 
+def stop_command(pidfile: str) -> str:
+    """Signal every process group in the recorded session, then wait for it.
+
+    The pid file holds the session leader. GNU `timeout` moves itself and the
+    server into a group of their own, so signalling the leader's group alone
+    missed the server on 2026-10-24 and left it holding the GPU. The pid file
+    stays until the session is empty, so a miss stays visible.
+    """
+    pf = shlex.quote(pidfile)
+    return (
+        f"[ -f {pf} ] || exit 0; sid=$(cat {pf}); "
+        "for g in $(ps -o pgid= --sid $sid | sort -u); do kill -TERM -- -$g; done; "
+        'for i in $(seq 1 30); do [ -z "$(ps -o pid= --sid $sid)" ] && break; '
+        "sleep 1; done; "
+        f'if [ -z "$(ps -o pid= --sid $sid)" ]; then rm -f {pf}; '
+        'else echo "session $sid still running" >&2; exit 1; fi'
+    )
+
+
 def stop(args: argparse.Namespace) -> int:
+    status = 0
     for host, rank in (("localhost", 0), (WORKER_IP, 1)):
-        pf = pid_file(args.name, rank)
-        # The pid is the session leader; signal its group so `timeout` and the
-        # server stop together.
-        cmd = f"[ -f {pf} ] && kill -TERM -- -$(cat {pf}) 2>/dev/null; rm -f {pf}"
-        subprocess.run(["ssh", "-n", "-o", "BatchMode=yes", host, cmd], check=False)
-        logger.info("stopped %s rank %d on %s", args.name, rank, host)
-    return 0
+        cmd = stop_command(pid_file(args.name, rank))
+        r = subprocess.run(["ssh", "-n", "-o", "BatchMode=yes", host, cmd], check=False)
+        if r.returncode:
+            logger.error("%s rank %d on %s did not stop", args.name, rank, host)
+            status = 1
+        else:
+            logger.info("stopped %s rank %d on %s", args.name, rank, host)
+    return status
 
 
 def main(argv: list[str] | None = None) -> int:
