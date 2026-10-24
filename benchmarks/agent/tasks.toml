@@ -4342,6 +4342,22 @@ topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/miaai-tf-glm"
 
+# #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
+[backend.glm53fexl3tfnative113dual2x]
+description = "#1095: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the fast option's weights) across TWO DGX Sparks on STOCK TensorFold native 1.1.3 (ashhart/TensorFold release tensorfold-1.1.3-linux-aarch64, sha256 checked; no MiaAI patches), launched by scripts/tensorfold_native_two_node.py: TF_GLM_WORLD=2, NCCL on all four fabric paths, libnccl 2.29.7 from vllm/vllm-openai:v0.32.0. Serve flags chosen to match the leader glm53fexl3tfqmiaai20261010dual2xrc: --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768; drafts the engine default (on); sampling the engine default (temperature 1.0, top_p 0.95); reasoning_effort low sent by the client. REMOTE CLIENT"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "GLM-5.3-Flash-EXL3"
+active_params_b = 18
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "tfmia8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+engine_tree = "~/tensorfold-native/tensorfold-1.1.3-linux-aarch64"
+
 # #1032 (operator-approved 2026-10-24): the speed candidate from the 2026-10-24 two-Spark sweep.
 [backend.mimov26flashrlexl3tfdflashdual2x]
 description = "#1032: Xiaomi MiMo-V2.6-Flash-RL (309B MoE, 15B active) EXL3 3.0 bpw (ajensenwaud/MiMo-V2.6-Flash-RL-exl3-3.0bpw @139d9a4e1e; the same 34 weight files as the recipe pin f2d8d10010) across TWO DGX Sparks, tensor parallel 2, via ajensenwaud/MiMo-V2.6-2x-DGX-Spark-TensorFold @a6292a2f92: TensorFold python-0.6 @ed78d6f + 30 patches, exllamav3 1.6.0, image built locally (mimo-tf:4df8c51482). Recipe defaults: DFlash drafter on (the pack's, 8-token blocks), 4 streams, context sized from free memory; only local overrides are the worker, the fabric addresses, the model path, and NCCL named on all four fabric paths; REMOTE CLIENT"
