@@ -4342,6 +4342,22 @@ topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/miaai-tf-glm"
 
+# #1032 (operator-approved 2026-10-24): the speed candidate from the 2026-10-24 two-Spark sweep.
+[backend.mimov26flashrlexl3tfdflashdual2x]
+description = "#1032: Xiaomi MiMo-V2.6-Flash-RL (309B MoE, 15B active) EXL3 3.0 bpw (ajensenwaud/MiMo-V2.6-Flash-RL-exl3-3.0bpw @139d9a4e1e; the same 34 weight files as the recipe pin f2d8d10010) across TWO DGX Sparks, tensor parallel 2, via ajensenwaud/MiMo-V2.6-2x-DGX-Spark-TensorFold @a6292a2f92: TensorFold python-0.6 @ed78d6f + 30 patches, exllamav3 1.6.0, image built locally (mimo-tf:4df8c51482). Recipe defaults: DFlash drafter on (the pack's, 8-token blocks), 4 streams, context sized from free memory; only local overrides are the worker, the fabric addresses, the model path, and NCCL named on all four fabric paths; REMOTE CLIENT"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8891"
+auth_token = "local"
+engine = "tensorfold"
+model = "MiMo-V2.6-Flash"
+active_params_b = 15
+aider_model = "openai/MiMo-V2.6-Flash"
+opencode_model = "tf8891/MiMo-V2.6-Flash"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/mimo-tf"
+
 # #940 (operator-approved 2026-10-05): the abliterated quant on the #912 v1.8 build. Its
 # control is glm53fexl3tfqmiaaiv18dual2xrc, the parent quant on the same build and client.
 [backend.glm53fexl3tfablitmiaaiv18dual2xrc]

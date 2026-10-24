@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 # Every port a DGX backend in tasks.toml serves on, except Ollama's 11434 (a
 # system daemon, always bound). tests/test_machine_health.py fails when a new
 # backend port is missing here: 8888 was missed for weeks (#680, finding 18).
-PORTS = (8000, 8002, 8020, 8021, 8022, 8023, 8030, 8888, 8893)
+PORTS = (8000, 8002, 8020, 8021, 8022, 8023, 8030, 8888, 8891, 8893)
 # A departing server's memory outlives its PID on this box: the unified pool is
 # shared between CPU and GPU, so a stopped server can hold ~115 GiB for seconds
 # after its PID is gone. Launching the next server then profiles a partly-full
