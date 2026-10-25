@@ -12,7 +12,10 @@ reads them. It reports, per backend:
   - error text that belongs to the client or its environment, not the model
     (`HARNESS_SIGNATURES`), or an OpenCode session error of the same kind
     (`UnknownError`, an HTTP 5xx from the model server);
-  - a trial that ends within `--quick-exit-seconds` with no tool call;
+  - a trial that ends within `--quick-exit-seconds` with no tool call, unless
+    its row records output tokens. Then the model answered and stopped: a
+    **model stop**, reported but not a fault, and the trial scores as a FAIL
+    (the operator's ruling of 2026-10-19, #1177);
 - **model format breaks**: assistant text that holds raw tool-call markup
   (`FORMAT_MARKERS`), and calls OpenCode records as the `invalid` tool.
   Reported, but they do not fail the command: they are a model result;
@@ -212,6 +215,9 @@ class Trial:
     session_errors: list[SessionError] = dataclasses.field(default_factory=list)
     #: Seconds between the first and last event, or the row's wall time.
     duration_s: float = 0.0
+    #: True when the trial's row records output tokens: the model answered.
+    #: A quick exit with an answer is a model stop, not a dead client (#1177).
+    model_answered: bool = False
     bad_lines: int = 0
 
 
@@ -316,6 +322,7 @@ def load_trial(
     started: datetime.datetime | None = None,
     joined: bool = False,
     wall_seconds: float | None = None,
+    model_answered: bool = False,
 ) -> Trial:
     """Read one transcript. Raises NotOpenCodeError on a non-JSONL file."""
     trial = Trial(
@@ -324,6 +331,7 @@ def load_trial(
         started=started,
         joined=joined,
         partial="partial" in path.name.split("."),
+        model_answered=model_answered,
     )
     first: int | None = None
     last: int | None = None
@@ -408,6 +416,7 @@ def audit_group(
     session_errors: collections.Counter[str] = collections.Counter()
     markup: collections.Counter[str] = collections.Counter()
     quick_exits: list[str] = []
+    model_stops: list[str] = []
     format_break_trials = 0
     model_errors = 0
     sandbox = 0
@@ -450,7 +459,12 @@ def audit_group(
             and not trial.markup
             and trial.duration_s < thresholds.quick_exit_seconds
         ):
-            quick_exits.append(trial.path.name)
+            # The operator's ruling of 2026-10-19 (#1177): when the model
+            # answered and called no tool, the trial is the model's FAIL.
+            if trial.model_answered:
+                model_stops.append(trial.path.name)
+            else:
+                quick_exits.append(trial.path.name)
 
     fault_tools = sorted(
         tool
@@ -501,6 +515,8 @@ def audit_group(
         "harness_signatures": dict(sorted(signatures.items())),
         "quick_exits": len(quick_exits),
         "quick_exit_trials": quick_exits,
+        "model_stops": len(model_stops),
+        "model_stop_trials": model_stops,
         "session_errors": dict(sorted(session_errors.items())),
         "format_break_trials": format_break_trials,
         "format_break_markup": dict(sorted(markup.items())),
@@ -608,6 +624,12 @@ class MissingTranscriptError(Exception):
     pass
 
 
+def _row_answered(row: Mapping[str, Any]) -> bool:
+    """Did the row record model output? A dead client records none (#1177)."""
+    tokens = row.get("output_tokens")
+    return isinstance(tokens, int | float) and tokens > 0
+
+
 def select_from_ledgers(
     ledgers: Sequence[pathlib.Path],
     selection: Selection,
@@ -650,6 +672,7 @@ def select_from_ledgers(
                     started=started,
                     joined=True,
                     wall_seconds=float(wall) if isinstance(wall, int | float) else None,
+                    model_answered=_row_answered(row),
                 )
             )
         except NotOpenCodeError as exc:
@@ -709,6 +732,7 @@ def select_from_dirs(
                         wall_seconds=(
                             float(wall) if isinstance(wall, int | float) else None
                         ),
+                        model_answered=row is not None and _row_answered(row),
                     )
                 )
             except NotOpenCodeError as exc:
