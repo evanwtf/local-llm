@@ -5097,3 +5097,20 @@ context_tokens = 262144
 topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/dsv41_recipe"
+
+# #1244: the pick's stack at its v2.0 release. Same server settings as #1160
+# (PORT 8888, the same served name, reasoning_effort low) so the comparison
+# changes the weights and the engine build only.
+[backend.dsv41f1017exl3sudov2dual2xrc]
+description = "#1244: DeepSeek V4.1 Flash 1017 EXL3 2.8 bpw (sudoingx/DeepSeek-V4.1-Flash-1017-EXL3-2.8bpw @aba08ea002, 189.9 GiB) plus the native 1017 Engram shards (deepseek-ai/DeepSeek-V4.1-Flash-1017 @1bae0e10) across TWO DGX Sparks: vLLM TP=2 + ExLlamaV3 via sudoingX/dgx-spark-deepseek-v41 v2.0 @f8f20b37 (image dsv41-serve:v5 built locally by install.sh), the launcher's defaults (DSpark speculation k=5, 262144 context, max-num-seqs 2, GPU util 0.88, KV pool 2.5 GiB per rank) with PORT 8888 and reasoning_effort low server-side, as #1160 ran. REMOTE CLIENT: the Core i9-13900H; OpenCode context 262,144, output cap 16,384"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "DeepSeek-V4.1-Flash-1017-EXL3"
+aider_model = "openai/DeepSeek-V4.1-Flash-1017-EXL3"
+opencode_model = "vllm8888/DeepSeek-V4.1-Flash-1017-EXL3"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/dsv41_recipe"
