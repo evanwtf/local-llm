@@ -76,7 +76,8 @@ class Item:
     name: str
     installed: str | None
     latest: str | None
-    state: str  # current / behind / ahead / unknown / grace (tag builds)
+    # current / behind / ahead / unknown / grace (tag builds) / pinned
+    state: str
     fix: str = ""
 
     @property
@@ -85,7 +86,10 @@ class Item:
         # install); it is not stale, so it passes.
         # "grace" is a tag build whose first newer tag is under
         # TAG_GRACE_HOURS old (#1089).
-        return self.state in ("current", "ahead", "grace")
+        # "pinned" is a recipe at the commit its backend declares, with a
+        # reason: an older build that wins stays the winner (operator,
+        # 2026-10-25, #1255).
+        return self.state in ("current", "ahead", "grace", "pinned")
 
 
 def _run(argv: list[str], timeout: int = 30) -> str | None:
@@ -212,12 +216,13 @@ def pin_items(pins: dict[str, str], run: Runner = _run) -> list[Item]:
     return items
 
 
-def recipe_item(path: pathlib.Path, run: Runner = _run) -> Item:
+def recipe_item(path: pathlib.Path, run: Runner = _run, pin: str | None = None) -> Item:
     """A recipe checkout against its upstream default branch, freshly fetched.
 
     Local, uncommitted edits are allowed: several recipes carry a local patch
     (the #664 flags in the NVFP4 start.sh). What must be current is the commit
-    they sit on.
+    they sit on. With `pin`, it must be that commit instead, and the item
+    still names how far upstream has moved.
     """
     name = f"recipe {path}"
     if not (path / ".git").exists():
@@ -234,6 +239,20 @@ def recipe_item(path: pathlib.Path, run: Runner = _run) -> Item:
     if head is None or tip is None or behind is None or not behind.isdigit():
         return Item(
             name, head, tip, "unknown", f"could not compare HEAD with {default}"
+        )
+    if pin is not None:
+        upstream = (
+            tip if int(behind) == 0 else f"{tip} ({behind} commits ahead of HEAD)"
+        )
+        if head.startswith(pin) or pin.startswith(head):
+            return Item(name, head, upstream, "pinned")
+        return Item(
+            name,
+            head,
+            upstream,
+            "behind",
+            f"the backend pins {pin}: `git -C {path} checkout --detach {pin}`, "
+            "then relaunch the server",
         )
     if int(behind) == 0:
         return Item(name, head, tip, "current")
@@ -565,8 +584,18 @@ def backend_items(backend: dict, run: Runner = _run) -> list[Item]:
     """The recipe, image and engine a backend declares. None declared, none
     checked."""
     items = []
+    pin = backend.get("recipe_pin")
+    if pin and not backend.get("recipe_pin_reason"):
+        # A pin with no reason is the forgotten bump this gate exists to stop.
+        raise ValueError("a backend with recipe_pin must give recipe_pin_reason")
     if backend.get("recipe_dir"):
-        items.append(recipe_item(pathlib.Path(backend["recipe_dir"]).expanduser(), run))
+        items.append(
+            recipe_item(
+                pathlib.Path(backend["recipe_dir"]).expanduser(),
+                run,
+                pin=str(pin) if pin else None,
+            )
+        )
     if backend.get("image"):
         items.append(image_item(backend["image"], run))
         engine_item = engine_release_item(backend["image"], run)

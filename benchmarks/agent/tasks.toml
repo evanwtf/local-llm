@@ -5097,6 +5097,11 @@ context_tokens = 262144
 topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/dsv41_recipe"
+# The pick is this build, not the recipe's latest: v2.0 (#1244) re-graded
+# lower and ran slower. Operator, 2026-10-25: an older build that wins stays
+# the winner; the client stays the latest.
+recipe_pin = "cc59c36"
+recipe_pin_reason = "the two-Spark pick (#1160) is v1.1; v2.0 (#1244) re-graded 345/380 hidden tests against 369/380 and took 111.8% of the replay + hard time"
 
 # #1244: the pick's stack at its v2.0 release. Same server settings as #1160
 # (PORT 8888, the same served name, reasoning_effort low) so the comparison

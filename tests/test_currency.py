@@ -158,6 +158,30 @@ def test_a_recipe_at_upstream_passes(tmp_path):
     assert currency.recipe_item(tmp_path, run).state == "current"
 
 
+def test_a_recipe_at_its_declared_pin_passes_and_still_names_upstream(tmp_path):
+    # Operator, 2026-10-25: an older build that wins stays the winner, so a
+    # backend may pin its recipe to the measured commit (#1255).
+    (tmp_path / ".git").mkdir()
+    item = currency.recipe_item(tmp_path, recipe_runner("2"), pin="943912c")
+    assert item.state == "pinned"
+    assert item.ok
+    assert item.latest == "94ae731 (2 commits ahead of HEAD)"
+
+
+def test_a_recipe_off_its_declared_pin_refuses(tmp_path):
+    (tmp_path / ".git").mkdir()
+    item = currency.recipe_item(tmp_path, recipe_runner("2"), pin="1234567")
+    assert item.state == "behind"
+    assert not item.ok
+    assert "checkout --detach 1234567" in item.fix
+
+
+def test_a_pin_without_a_reason_refuses():
+    backend = {"recipe_dir": "/r", "recipe_pin": "943912c"}
+    with pytest.raises(ValueError, match="recipe_pin_reason"):
+        currency.backend_items(backend, recipe_runner("2"))
+
+
 def test_a_recipe_that_cannot_fetch_is_unknown(tmp_path):
     (tmp_path / ".git").mkdir()
     item = currency.recipe_item(tmp_path, recipe_runner("0", fetch_ok=False))
