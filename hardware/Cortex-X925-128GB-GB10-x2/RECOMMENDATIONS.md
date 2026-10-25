@@ -40,6 +40,15 @@
 > (sections 2 and 3). Section 7 lists what moved upstream since the
 > measurements.
 >
+> **Updated 2026-10-25.** Ledger read: 3,183 rows, the last one finished at
+> 2026-10-25T17:20:08-0400. Two more DeepSeek-1017 runs on OpenCode 2.1.4,
+> and neither moves the pick (section 2):
+> - [#1244][i1244], the pick's stack at its v2.0 release with sudoingx's
+>   2.8 bpw weights: equal on the visible suite, behind on the hidden re-grade
+>   and on time.
+> - [#1246][i1246], #1168's stack again on one recipe commit: 281 of 281
+>   hidden tests again, but 35 of 39 visible and 143.1% of the pick's time.
+>
 > **The ledger has two halves that do not compare.** Until 2026-10-06 09:14 EDT,
 > OpenCode's `grep` and `glob` tools failed on every call in the client
 > ([#968][i968]): 1,993 rows. After the fix: 632 rows. A transcript audit of
@@ -54,7 +63,7 @@
 |---|---|---|
 | **A coding agent (the pick)** | **DeepSeek-V4.1-Flash-1017 EXL3 2.7 bpw ([0xSero][w-sero1017]) on vLLM + ExLlamaV3**, [sudoingX stack][r-sudoingx] @`cc59c360` with the [sybil-solutions recipe][r-sybil] ([#1160][i1160]) | The best correctness with no model fault and no server fault. Replay + hard: 41 of 41 counted (1 excluded), sum of medians 4,782.4 s. Hidden re-grade ([#726][i726]): 17 of 20 whole tasks, 369 of 380 tests (97.1%). Standard set: 30 of 30, sum of medians 504.4 s. One run of each set, on OpenCode 2.0.32. |
 | The fast option | **GLM-5.3-Flash EXL3 4bpw TensorFold quant on TensorFold v0.6.0**, [MiaAI-Lab recipe][r-tf-mia] (the pick until 2026-10-19; [#1095][i1095], [#1018][i1018]) | On the same client: standard set 30 of 30 in 266.6 s, 52.9% of the pick's time. A second standard run on OpenCode 2.1.4 took 262.4 s. Replay + hard 42 of 42 in 4,358.7 s, 91.1% of the pick's time. **But it misses held-out tests:** 1 of 21 whole hidden tasks, 284 of 390 hidden tests (72.8%). Use it when the visible test suite covers the whole job. |
-| The most hidden tests passed | DeepSeek-V4.1-Flash-1017 EXL3-EAQ-v1 2.9 bpw on TensorFold, [MiaAI-Lab recipe][r-dsv41-1017-mia] ([#1168][i1168]) | Hidden: 19 of 21 whole tasks, 361 of 361 tests (100.0%), 1 trial with no result. Visible: 38 of 42. Two trials stopped on the first turn with no tool call, one timed out, and one edited a test file. Replay + hard 6,226.4 s, 130.2% of the pick's time. The standard set hit the early time stop after round 1: 10 of 10, 660.4 s. |
+| The most hidden tests passed | DeepSeek-V4.1-Flash-1017 EXL3-EAQ-v1 2.9 bpw on TensorFold, [MiaAI-Lab recipe][r-dsv41-1017-mia] ([#1168][i1168]) | Hidden: 19 of 21 whole tasks, 361 of 361 tests (100.0%), 1 trial with no result. Visible: 38 of 42. Two trials stopped on the first turn with no tool call, one timed out, and one edited a test file. Replay + hard 6,226.4 s, 130.2% of the pick's time. The standard set hit the early time stop after round 1: 10 of 10, 660.4 s. A second run on one recipe commit ([#1246][i1246], 2026-10-25) re-graded 281 of 281 hidden tests, with 35 of 39 visible and one first-turn stop in 42. |
 | Image input, or more than 262k tokens of context | Images: DeepSeek-V4-Flash-Vision-Exp on vLLM, [MiaAI-Lab DSpark recipe][r-dsv4v]. Text only: DeepSeek-1017 on TensorFold ([#1142][i1142] or [#1168][i1168]) | Vision-Exp: 1M context, vision. Standard set on OpenCode 2.1.4 ([#1097][i1097]): 10 of 10 in 871.2 s, 332.0% of GLM's 262.4 s on the same client, stopped early after round 1. On the broken client, 63 of 63 replay trials, at 272% of TensorFold's replay time (section 4). It has no replay + hard run on the fixed client. The pick on vLLM serves 262,144 tokens. On TensorFold, #1142's profile serves 1,048,576 tokens, and #1168's recipe has a 1M-token pool with 512K a stream as its stated practical limit. Our client sends at most 262,144, so long context is not measured. DeepSeek-1017 does not take images. |
 | One Spark, not two | See the [single-Spark picks](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) | Qwen3.8-Flash-Next NVFP4 fits one node. |
 
@@ -294,6 +303,36 @@ like one, but it is slower than the fast option:
 Its one visible failure is `replay-span-web-ui` trial 1. The screen keeps it on
 the replay + hard set, at rank 4 of 4, but one run cannot separate it from
 #1168 at rank 3. Neither earns more runs.
+
+**Two more 1017 runs, 2026-10-25, on OpenCode 2.1.4.** Neither changes the
+order. The rule for #1244 was fixed before it ran: it replaces #1160 if it is
+no worse on the visible verdict and on the hidden re-grade, and its replay +
+hard sum is at most 5,021.5 s (105% of #1160's).
+
+| | #1160, the pick | [#1244][i1244]: v2.0 | [#1246][i1246]: #1168 again |
+|---|---|---|---|
+| stack | sudoingX @`cc59c360`, 0xSero 2.7 bpw @`e34ef55bda` | sudoingX v2.0 @`f8f20b37` (`dsv41-serve:v5`), sudoingx 2.8 bpw @`aba08ea002` | MiaAI recipe @`27741e1`, EAQ-v1 2.9 bpw (revision `45ee5d0f`, the same blobs as `6d54be4fca`) |
+| backend | `dsv41f1017exl3serodual2xrc` | `dsv41f1017exl3sudov2dual2xrc` | `dsv41f1017eaqtfmiaaidual2xrc` |
+| replay + hard, passed | 41/41 (1 excluded) | 41/41 (1 excluded) | 35/39 (3 excluded) |
+| 95% CI (Wilson) | 91.4–100% | 91.4–100% | 76.4–95.9% |
+| replay + hard, sum of medians | **4,782.4 s** | 5,348.7 s (111.8%) | 6,843.9 s (143.1%) |
+| hidden tests: whole tasks | **17/20** | 14/20 | 15/18, 1 invalid, 2 no result |
+| hidden tests: tests | 369/380 (97.1%) | 345/380 (90.8%) | **281/281 (100.0%)** |
+| standard set | 30/30, 504.4 s | 29/29 (1 excluded), **438.7 s** | 10/10, time-stopped after round 1: 574.9 s, 211.5% of GLM's 271.8 s on the same trials |
+
+- **#1244 fails two of the three tests.** Its visible verdict equals the
+  pick's. Its hidden re-grade is lower, and its time is 111.8%. Most of the
+  hidden gap is one task: `replay-span-web-ui-no-test-names` passed its visible
+  suite 3 of 3 but restored 61 of 87 hidden tests, against 87 of 87, in a
+  median of 1,459.5 s against 464.2 s. It is the faster stack on the standard
+  set (87.0% of the pick's time). It had no timeout, no first-turn stop and a
+  clean transcript audit.
+- **#1246 repeats #1168's pattern.** The hidden re-grade is perfect again.
+  The visible failures are three 1,800 s timeouts, on tasks that passed in
+  their other two trials, and one first-turn stop (`finish=stop`, no tool
+  call), against two in #1168. The transcript audit excluded the batch for that
+  stop, and the rows were reinstated under the 2026-10-19 ruling
+  ([#1177][i1177]).
 
 ### #1160: the pick
 
@@ -817,15 +856,15 @@ recipe has no server default for reasoning effort, so the client must send
 
 | component | measured | latest | what changed |
 |---|---|---|---|
-| sudoingX DeepSeek V4.1 stack (the pick) | @`cc59c360` | v2.0 @`f8f20b37`, 2026-10-22 | new default quant (2.8 bpw) and engine (v5); not measured (section 8) |
+| sudoingX DeepSeek V4.1 stack (the pick) | @`cc59c360` | v2.0 @`f8f20b37`, 2026-10-22 | new default quant (2.8 bpw) and engine (v5); measured as [#1244][i1244], which does not replace the pick (section 2) |
 | 0xSero 1017 EXL3 2.7 bpw (the pick) | @`e34ef55bda` | @`e34ef55bda` | none |
 | vLLM | `6e517b15` in the pick's image; v0.32.0 for #1231 | [v0.32.0][vllm-rel], 2026-10-18 | current |
 | MiaAI TensorFold GLM recipe (the fast option) | `main` @`3fd60df` (#1095) | @`b0435796`, 2026-10-24 | docs, credits, a `prepare.sh` warning and the image-token budget; no text-serving default changed |
 | Mia-AiLab GLM 4bpw TensorFold quant | @`76c0b517` | @`76c0b517` | none |
 | TensorFold | v0.6.0 + 107 patches (fast option); native 1.1.3 (#1095) | [v1.1.4][tf-rel], 2026-10-24 | 1.1.4 lists Qwen3.8-27B, Gemma 4 and Flash Next work, not GLM; not measured |
-| MiaAI DeepSeek-1017 TensorFold recipe (#1168) | `2b906fd` / `e65785c` | @`27741e17`, 2026-10-24 | not read; #1168 is not a pick |
+| MiaAI DeepSeek-1017 TensorFold recipe (#1168) | `2b906fd` / `e65785c` | @`27741e17`, 2026-10-24 | measured as [#1246][i1246] (section 2) |
 | OpenCode | 2.0.32, 2.1.2, 2.1.4 | 2.1.4 in use | 2.1.4 did not move the fast option (section 1) |
-| uv, in the client image | 0.13.1 → 0.13.2 | [0.13.5][uv-rel], 2026-10-22 | behind |
+| uv, in the client image | 0.13.1 → 0.13.2; 0.13.5 for #1244 and #1246 | [0.13.5][uv-rel], 2026-10-22 | current |
 
 ### Everything else, checked 2026-10-08
 
@@ -855,18 +894,16 @@ was built and measured on it.
 
 ## 8. Open, and what would change this page
 
-- **More runs of the 1017 arms.** Each has one run on OpenCode 2.0.32. Two
-  more runs of #1160 would make the pick firm. A second #1168 run on one recipe
-  commit would show whether its first-turn stops repeat.
-- **[#1177][i1177]:** closed 2026-10-19. By the operator's decision, a quick
-  exit that the model answered with `finish=stop` and no tool call counts as a
-  model FAIL, not a harness fault. #1168's two such trials score that way.
-- **The pick's stack moved to v2.0.** `sudoingX/dgx-spark-deepseek-v41` is
-  at v2.0 @`f8f20b37` (2026-10-22): a 2.8 bpw 1017 build and the v5 engine are
-  its new defaults. #1160 measured @`cc59c360` with 0xSero's 2.7 bpw weights
-  (still @`e34ef55bda`, unchanged on the Hub). The runs that would firm up the
-  pick should run on v2.0. The quant then changes as well as the engine, so
-  those runs would be a new arm, not a second run of #1160.
+- **More runs of the pick.** #1160 has one run on OpenCode 2.0.32. Two more
+  on @`cc59c360` would make it firm. Its stack's v2.0 release is measured
+  ([#1244][i1244]) and does not replace it, so a second run stays on
+  @`cc59c360` with 0xSero's weights. #1168's stack has two runs now
+  ([#1246][i1246]); its first-turn stops repeat, once in 42 trials.
+- **[#1177][i1177]:** reopened 2026-10-25. By the operator's decision of
+  2026-10-19, a quick exit that the model answered with `finish=stop` and no
+  tool call counts as a model FAIL, not a harness fault. The transcript audit
+  does not know that rule yet, so it excluded #1246's whole replay batch for
+  one such trial, and the rows were reinstated by hand.
 - **[#986][i986]:** closed. TensorFold's native engine now serves GLM on two
   Sparks with no recipe: 1.1.3 was measured, at 162.1% of the recipe stack's
   standard-set time (section 2). 1.1.4 (2026-10-24) is not measured.
@@ -989,6 +1026,8 @@ was built and measured on it.
 [i1160]: https://github.com/evanwtf/local-llm/issues/1160
 [i1168]: https://github.com/evanwtf/local-llm/issues/1168
 [i1177]: https://github.com/evanwtf/local-llm/issues/1177
+[i1244]: https://github.com/evanwtf/local-llm/issues/1244
+[i1246]: https://github.com/evanwtf/local-llm/issues/1246
 [i1032]: https://github.com/evanwtf/local-llm/issues/1032
 [i1097]: https://github.com/evanwtf/local-llm/issues/1097
 [i1128]: https://github.com/evanwtf/local-llm/issues/1128
