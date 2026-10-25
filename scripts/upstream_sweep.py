@@ -161,6 +161,16 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
         "GLM-5.3-Flash NVFP4 on vLLM, cut by the screen (#896)",
         (DGX,),
     ),
+    # The pick's own stack was unwatched: its v2.0 (2026-10-22) surfaced only
+    # in a page audit two days later (#1244).
+    "sudoingX/dgx-spark-deepseek-v41": (
+        "the two-Spark pick's stack: DeepSeek-1017 EXL3 on vLLM (#1160, #1244)",
+        (DGX,),
+    ),
+    "MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks": (
+        "DeepSeek-1017 EAQ on TensorFold, the best hidden re-grade (#1168, #1246)",
+        (DGX,),
+    ),
 }
 
 

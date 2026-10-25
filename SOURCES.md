@@ -246,6 +246,8 @@ Watched repos (rendered from `WATCHED` in `scripts/upstream_sweep.py`):
 * [jayleaton/glm53-tensorfold-spark](https://github.com/jayleaton/glm53-tensorfold-spark) — GLM-5.3-Flash on TensorFold, a kept arm (#840)
 * [jayleaton/deepseek-v41-tensorfold-spark](https://github.com/jayleaton/deepseek-v41-tensorfold-spark) — DeepSeek-V4.1-Flash on TensorFold: a lead, unapproved (#919)
 * [kindlingai/glm-5.3-flash-gx10](https://github.com/kindlingai/glm-5.3-flash-gx10) — GLM-5.3-Flash NVFP4 on vLLM, cut by the screen (#896)
+* [sudoingX/dgx-spark-deepseek-v41](https://github.com/sudoingX/dgx-spark-deepseek-v41) — the two-Spark pick's stack: DeepSeek-1017 EXL3 on vLLM (#1160, #1244)
+* [MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks](https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks) — DeepSeek-1017 EAQ on TensorFold, the best hidden re-grade (#1168, #1246)
 
 **They ship new recipe repos often, sometimes several a day.** A DGX sweep also
 lists the account's recently pushed repos, because a new model's recipe is a new
