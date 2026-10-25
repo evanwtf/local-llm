@@ -286,7 +286,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 3153 rows, sha256 12d63eb9336a.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 3183 rows, sha256 d6e2e1b840a6.*
 
 #### Every stack measured under OpenCode
 
@@ -297,6 +297,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.1) | 30/30 | 30s | 50s | 1.9x | 1.2x | 2.4x |
 | glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 30/30 | 30s | 50s | 1.5x | 1.2x | 2.6x |
 | glm53ffp4localdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.2 uv=0.13.4) | 30/30 | 34s | 77s | 2.9x | 1.5x | 4.1x |
+| dsv41f1017exl3sudov2dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 29/29 | 44s | 108s | 2.2x | 1.3x | 3.5x |
 | glm53fexl3tfnative113dual2x @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 30/30 | 47s | 78s | 1.9x | 1.4x | 3.5x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.32) | 30/30 | 48s | 96s | 2.0x | 1.5x | 4.0x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.31) | 30/30 | 49s | 123s | 2.2x | 1.5x | 4.0x |
@@ -453,10 +454,10 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | dsv4flashvisiondspark2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 29s |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image (uv=0.12.20) | 31s |
+| dsv41f1017exl3sudov2dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 36s |
 | dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.1) | 36s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
 | glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.1) | 38s |
-| dsv41f1017exl3sudov2dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 38s |
 | glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.13.0 python=3.14.8 ripgrep=15.2.0) | 39s |
 | glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image (uv=0.12.20) | 39s |
 | glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 40s |
