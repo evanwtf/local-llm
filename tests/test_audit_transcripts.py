@@ -403,6 +403,49 @@ def test_a_fast_end_on_unparsed_tool_markup_is_a_format_break_not_a_fault(
     assert report["format_break_markup"]["<tool_call>"] == 1
 
 
+def _quick_exit_row(tmp_path: pathlib.Path, **row_fields: Any) -> list[audit.Trial]:
+    # #1177, 2026-10-25: #1246's replay-search-operators-hidden #3 printed only
+    # a step_start, yet its row recorded 214 output tokens from the OpenCode
+    # export. The server answered with finish=stop and no tool call.
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    path = write(logs, [step(0)])
+    row = {
+        "backend": "b",
+        "started": "2026-10-25T12:14:12+0000",
+        "client_log": str(path),
+        "wall_seconds": 7.7,
+        **row_fields,
+    }
+    ledger = tmp_path / "results.jsonl"
+    ledger.write_text(json.dumps(row) + "\n")
+    return audit.select_from_ledgers([ledger], audit.Selection(), home=tmp_path)
+
+
+def test_a_quick_exit_whose_row_shows_model_output_is_a_model_stop_not_a_fault(
+    tmp_path: pathlib.Path,
+) -> None:
+    trials = _quick_exit_row(tmp_path, output_tokens=214, token_source="export")
+    report = audit.audit_group("b", trials, audit.Thresholds())
+    assert report["quick_exits"] == 0
+    assert report["model_stops"] == 1
+    assert report["harness_fault"] is False
+
+
+def test_a_quick_exit_with_no_model_output_is_still_a_fault(
+    tmp_path: pathlib.Path,
+) -> None:
+    # A client that died before the model answered records no output tokens.
+    for fields in ({"output_tokens": 0, "token_source": "export"}, {}):
+        sub = tmp_path / str(len(fields))
+        sub.mkdir()
+        trials = _quick_exit_row(sub, **fields)
+        report = audit.audit_group("b", trials, audit.Thresholds())
+        assert report["quick_exits"] == 1
+        assert report["model_stops"] == 0
+        assert report["harness_fault"] is True
+
+
 def test_a_long_trial_with_no_tool_call_is_not_a_quick_exit(
     tmp_path: pathlib.Path,
 ) -> None:
