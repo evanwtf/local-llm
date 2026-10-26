@@ -683,6 +683,26 @@ def gate(
     return why
 
 
+def recipe_record(items: Iterable[Item], backend: dict) -> dict | None:
+    """The recipe a server ran, for the rows' env: commit, state, upstream.
+
+    A pinned recipe also carries its reason, so a reader of the ledger can
+    tell a deliberate old build from a forgotten one (#1257). No local path:
+    the ledger is public.
+    """
+    for item in items:
+        if item.name.startswith("recipe "):
+            rec = {
+                "commit": item.installed,
+                "state": item.state,
+                "upstream": item.latest,
+            }
+            if item.state == "pinned":
+                rec["pin_reason"] = backend.get("recipe_pin_reason")
+            return rec
+    return None
+
+
 def facts_record(backend: str, items: Iterable[Item]) -> dict:
     """What `server_facts.py` stores in the facts file for the client to check."""
     return {

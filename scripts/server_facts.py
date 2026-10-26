@@ -150,7 +150,12 @@ def main(argv: list[str] | None = None) -> int:
     data = collect(args.backend, args.tasks_file, args.cluster_peer)
     # Checked by client_container.py before every client batch, so a facts
     # file reused from an earlier batch cannot skip this server's gate.
-    data["currency"] = currency.facts_record(args.backend, currency.backend_items(spec))
+    items = currency.backend_items(spec)
+    data["currency"] = currency.facts_record(args.backend, items)
+    # Copied into each row's env by remote.stamp: which recipe commit ran, and
+    # whether it was pinned on purpose (#1257).
+    if (recipe := currency.recipe_record(items, spec)) is not None:
+        data["env"]["recipe"] = recipe
     args.out.write_text(json.dumps(data, indent=2, default=str) + "\n")
     print(
         json.dumps(

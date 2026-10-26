@@ -674,3 +674,51 @@ def test_an_injected_runner_answers_for_gh_even_without_gh_installed(monkeypatch
     monkeypatch.setattr(shutil, "which", lambda name: None)
     got = currency.latest_release("vllm-project/vllm", fake({"release view": "v9"}))
     assert got == "v9"
+
+
+def test_the_recipe_record_carries_the_pin_and_no_local_path(tmp_path):
+    # #1257: a row should say a deliberate old build is pinned, and why.
+    (tmp_path / ".git").mkdir()
+    spec = {
+        "recipe_dir": str(tmp_path),
+        "recipe_pin": "943912c",
+        "recipe_pin_reason": "the pick (#1255)",
+    }
+    items = currency.backend_items(spec, recipe_runner("2"))
+    rec = currency.recipe_record(items, spec)
+    assert rec == {
+        "commit": "943912c",
+        "state": "pinned",
+        "upstream": "94ae731 (2 commits ahead of HEAD)",
+        "pin_reason": "the pick (#1255)",
+    }
+    assert str(tmp_path) not in json.dumps(rec)
+
+
+def test_an_unpinned_current_recipe_records_no_reason(tmp_path):
+    (tmp_path / ".git").mkdir()
+    spec = {"recipe_dir": str(tmp_path)}
+    run = fake(
+        {
+            "fetch --quiet origin": "",
+            "rev-parse --short HEAD": "94ae731",
+            "rev-parse --abbrev-ref origin/HEAD": "origin/main",
+            "rev-parse --short origin/main": "94ae731",
+            "rev-list --count HEAD..origin/main": "0",
+        }
+    )
+    rec = currency.recipe_record(currency.backend_items(spec, run), spec)
+    assert rec == {"commit": "94ae731", "state": "current", "upstream": "94ae731"}
+
+
+def test_a_backend_with_no_recipe_has_no_record():
+    assert currency.recipe_record([], {"image": "x"}) is None
+
+
+def test_the_recipe_record_reaches_the_row_env():
+    """server_facts.py writes it into the facts env; remote.stamp copies it."""
+    import remote
+
+    recipe = {"commit": "cc59c36", "state": "pinned", "upstream": "f8f20b3"}
+    facts = {"directory": "srv", "env": {"recipe": recipe}, "facts": {}}
+    assert remote.stamp({}, facts)["recipe"] == recipe
