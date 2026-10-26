@@ -1,0 +1,21 @@
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a] 2026-10-26T14:47:17Z (10:47:17 EDT) | harness 19167e6-dirty
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement bwrap
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a] 2114552592923758740  VERIFIED reply  @jayleaton  Mon Oct 26 02:59:59 +0000 2026  via fxtwitter
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]     Recipe: https://github.com/jayleaton/minimax-m31-tensorfold-spark Weights (EXL3 3.55 bpw, ~200 GB): https://huggingface.co/jayleaton/MiniMax-M3.1-Flash-EXL3-3.55bpw-mm31
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a] 2114552471330972011  VERIFIED post  @jayleaton  Mon Oct 26 02:59:30 +0000 2026  via fxtwitter
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]     This one feels a bit disappointing, honestly.  @MiniMax_AI MiniMax-M3.1-Flash on two DGX Sparks ALPHA:  29.4 tok/s on code 27.8 on tool calls 131K context.  My DeepSeek recipe does ~90 on the same TP=
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a] 2114711292489683077  VERIFIED post  @jayleaton  Mon Oct 26 13:30:36 +0000 2026  via fxtwitter
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]     Minimax 3.1 Flash TP=2 update.  tool calls 27.8 → 33.4 tok/s (+20%) code 29.4 → 30.4 65 tok/s across 4 users Repeat a 70K prompt, first token in 0.67 s  Single stream is still ~31 tok/s tool tests 42/
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a] 2114637323929575499  VERIFIED post  @plotarmordev  Mon Oct 26 08:36:40 +0000 2026  via fxtwitter
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]     ‼️ Your DGX Spark might be saving RAM for a monitor that you don't use.  If it runs headless, set Display Reserved Memory to Auto in UEFI. With no display connected it keeps 0.5 GB instead of 2 GB. St
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a] 2114637326400033128  VERIFIED reply  @plotarmordev  Mon Oct 26 08:36:41 +0000 2026  via fxtwitter
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]     On NVIDIA's DGX Spark (October 2026 release):  1) Plug in a keyboard and monitor, restart, and hold Esc or Del to open UEFI. 2) Advanced > Advanced Menu > Display Reserved Memory > Auto. 3) Save & Exi
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a] 
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a] Verified 5: 5 confirmed, 0 not.
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a] Paste onto the issue:
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]   **Verified** 2026-10-26: post exists, authored by @jayleaton, posted Mon Oct 26 02:59:59 +0000 2026.
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]   **Verified** 2026-10-26: post exists, authored by @jayleaton, posted Mon Oct 26 02:59:30 +0000 2026.
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]   **Verified** 2026-10-26: post exists, authored by @jayleaton, posted Mon Oct 26 13:30:36 +0000 2026.
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]   **Verified** 2026-10-26: post exists, authored by @plotarmordev, posted Mon Oct 26 08:36:40 +0000 2026.
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a]   **Verified** 2026-10-26: post exists, authored by @plotarmordev, posted Mon Oct 26 08:36:41 +0000 2026.
+2026-10-26T10:47:17-0400 INFO [19167e6-dirty@Cortex-X925-GB10 none pld=n/a] log: /home/evan/git/local-llm/logs/sweeps/verify-posts-Cortex-X925-GB10-20261026T144717Z.log
