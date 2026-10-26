@@ -60,3 +60,16 @@ def test_row_without_started_sorts_as_empty_string() -> None:
     assert [r["tag"] for r in since] == ["new"]
     until = report.window(rows, until="2026-09-30T00:00:00-0400")
     assert [r["tag"] for r in until] == ["nostart", "new"]
+
+
+def test_bounds_compare_instants_not_strings() -> None:
+    """#1259: the i9 client writes `started` in UTC. 23:00:24+0000 is 19:00
+    EDT, before a 22:10 EDT floor, though it sorts after it as a string."""
+    rows = [
+        {"started": "2026-10-25T23:00:24+0000", "tag": "before"},
+        {"started": "2026-10-26T02:11:34+0000", "tag": "after"},
+    ]
+    since = report.window(rows, since="2026-10-25T22:10:00-04:00")
+    assert [r["tag"] for r in since] == ["after"]
+    until = report.window(rows, until="2026-10-25T22:10:00-0400")
+    assert [r["tag"] for r in until] == ["before"]
