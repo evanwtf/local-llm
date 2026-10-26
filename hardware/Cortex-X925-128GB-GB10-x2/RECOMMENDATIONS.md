@@ -40,9 +40,12 @@
 > (sections 2 and 3). Section 7 lists what moved upstream since the
 > measurements.
 >
-> **Updated 2026-10-25.** Ledger read: 3,236 rows, the last one finished at
-> 2026-10-25T22:23:33-0400. Three more DeepSeek-1017 runs on OpenCode 2.1.4,
-> and none moves the pick (section 2):
+> **Updated 2026-10-26.** Ledger read: 3,288 rows, the last one finished at
+> 2026-10-26T03:11:44-0400. Four more DeepSeek-1017 runs on OpenCode 2.1.4,
+> and none moves the pick (section 2). The pick now has three runs that agree,
+> so it meets the three-run bar:
+> - [#1262][i1262], the pick's third run: 39 of 39 visible, 354 of 360 hidden
+>   tests, and 88.9% of run 1's replay + hard time.
 > - [#1255][i1255], the pick's second run, on its measured v1.1 build: 40 of
 >   40 visible, 361 of 370 hidden tests, and 85.7% of run 1's replay + hard
 >   time. The pick reproduces. The operator ruled the same day that an older
@@ -283,10 +286,10 @@ shards 47 and 48. The quants differ.
 
 **Keep the claim small.**
 
-- **Two runs of the pick, one of each other 1017 arm.** We ask for three
-  runs before a firm claim. The GLM gap rests on four runs. The pick has two
-  that agree ([#1255][i1255]); the other 1017 arms have one each, and #1168's
-  stack two.
+- **Three runs of the pick, fewer of each other 1017 arm.** We ask for three
+  runs before a firm claim. The GLM gap rests on four runs, and the pick on
+  three that agree ([#1255][i1255], [#1262][i1262]). The other 1017 arms
+  have one run each, and #1168's stack two.
 - **Recall.** #1160 and #1168 wrote back 43% of the replay files verbatim,
   against 1.0% for GLM (section 1). The commits are public, so part of the
   hidden-test lead may be recall.
@@ -365,6 +368,16 @@ effort `low` set on the server. The 1017 template defaults to high.
   `replay-search-operators-hidden` (2 of 3, 37/42). The standard set hit the
   early time stop after round 1: 11 of 11, sum of medians 536.5 s, 209.0% of
   GLM's time on the same trials.
+- **Third run ([#1262][i1262], 2026-10-26, OpenCode 2.1.4).** Replay + hard
+  39 of 39 counted (three passing trials excluded for answer exposure), sum
+  of medians 4,252.3 s, 88.9% of run 1's. Hidden 354/360 (98.3%), 15 of 18
+  whole. The misses: `replay-relative-dates-hidden` (2 of 3, 47/51),
+  `replay-defang-hidden` (2 of 3, 29/30) and `replay-web-auth-hidden` (2 of
+  3, 68/69). The standard set hit the early time stop after round 1: 10 of
+  10, sum 546.2 s, 201.0% of GLM's 271.8 s on the same trials.
+- **Across the three runs.** No trial failed, timed out or stopped on its
+  first turn. Replay + hard took 4,782.4 s, 4,098.8 s and 4,252.3 s; the
+  hidden re-grade was 97.1%, 97.6% and 98.3%.
 - **Pinned.** The recipe has moved to v2.0, which re-graded lower and ran
   slower ([#1244][i1244]). The backend pins the recipe at `cc59c36`
   (`recipe_pin`, [PR #1256][pr1256]), and preflight reads it as `pinned`. Its
@@ -913,9 +926,10 @@ was built and measured on it.
 
 ## 8. Open, and what would change this page
 
-- **A third run of the pick.** #1160 and [#1255][i1255] agree. A third on
-  @`cc59c360` would meet the three-run bar. #1168's stack has two runs
-  ([#1246][i1246]); its first-turn stops repeat, once in 42 trials.
+- **The pick is firm.** #1160, [#1255][i1255] and [#1262][i1262] agree. What
+  would move it is a new stack that beats it on the hidden re-grade and on
+  time. #1168's stack has two runs ([#1246][i1246]); its first-turn stops
+  repeat, once in 42 trials.
 - **Pinned winners ([#1257][i1257]).** The pin covers the recipe checkout
   only. Rows, reports and the daily preflight do not show it yet.
 - **[#1177][i1177]:** reopened 2026-10-25. By the operator's decision of
@@ -1049,6 +1063,7 @@ was built and measured on it.
 [i1246]: https://github.com/evanwtf/local-llm/issues/1246
 [i1255]: https://github.com/evanwtf/local-llm/issues/1255
 [i1257]: https://github.com/evanwtf/local-llm/issues/1257
+[i1262]: https://github.com/evanwtf/local-llm/issues/1262
 [pr1254]: https://github.com/evanwtf/local-llm/pull/1254
 [pr1256]: https://github.com/evanwtf/local-llm/pull/1256
 [i1032]: https://github.com/evanwtf/local-llm/issues/1032
