@@ -40,9 +40,14 @@
 > (sections 2 and 3). Section 7 lists what moved upstream since the
 > measurements.
 >
-> **Updated 2026-10-25.** Ledger read: 3,183 rows, the last one finished at
-> 2026-10-25T17:20:08-0400. Two more DeepSeek-1017 runs on OpenCode 2.1.4,
-> and neither moves the pick (section 2):
+> **Updated 2026-10-25.** Ledger read: 3,236 rows, the last one finished at
+> 2026-10-25T22:23:33-0400. Three more DeepSeek-1017 runs on OpenCode 2.1.4,
+> and none moves the pick (section 2):
+> - [#1255][i1255], the pick's second run, on its measured v1.1 build: 40 of
+>   40 visible, 361 of 370 hidden tests, and 85.7% of run 1's replay + hard
+>   time. The pick reproduces. The operator ruled the same day that an older
+>   build that wins stays the pick, so its recipe is pinned at `cc59c36`; the
+>   client stays the latest.
 > - [#1244][i1244], the pick's stack at its v2.0 release with sudoingx's
 >   2.8 bpw weights: equal on the visible suite, behind on the hidden re-grade
 >   and on time.
@@ -278,8 +283,10 @@ shards 47 and 48. The quants differ.
 
 **Keep the claim small.**
 
-- **One run per 1017 arm.** We ask for three runs before a firm claim. The
-  GLM gap rests on four runs; the order among the 1017 arms does not.
+- **Two runs of the pick, one of each other 1017 arm.** We ask for three
+  runs before a firm claim. The GLM gap rests on four runs. The pick has two
+  that agree ([#1255][i1255]); the other 1017 arms have one each, and #1168's
+  stack two.
 - **Recall.** #1160 and #1168 wrote back 43% of the replay files verbatim,
   against 1.0% for GLM (section 1). The commits are public, so part of the
   hidden-test lead may be recall.
@@ -350,6 +357,18 @@ effort `low` set on the server. The 1017 template defaults to high.
   `replay-defang-hidden` (1 of 2 whole, 17/20 tests),
   `replay-search-operators-hidden` (2 of 3, 40/42) and `replay-span-web-ui`
   (2 of 3, 81/87).
+- **Second run ([#1255][i1255], 2026-10-25, OpenCode 2.1.4).** Replay + hard
+  40 of 40 counted (two passing trials excluded for answer exposure), sum of
+  medians 4,098.8 s against run 1's 4,782.4 s. Hidden 361/370 (97.6%), 17 of
+  19 whole, against 369/380 (97.1%), 17 of 20. The misses moved:
+  `replay-relative-dates-hidden` (2 of 3, 47/51) and
+  `replay-search-operators-hidden` (2 of 3, 37/42). The standard set hit the
+  early time stop after round 1: 11 of 11, sum of medians 536.5 s, 209.0% of
+  GLM's time on the same trials.
+- **Pinned.** The recipe has moved to v2.0, which re-graded lower and ran
+  slower ([#1244][i1244]). The backend pins the recipe at `cc59c36`
+  (`recipe_pin`, [PR #1256][pr1256]), and preflight reads it as `pinned`. Its
+  `install.sh` still builds `dsv41-serve:v4` from pinned sources.
 - **Memory.** MemAvailable held at 4.3–6.5 GiB on the head and 6.2–7.3 GiB on
   the worker. The GPUs peaked at 85 °C with no throttle reasons (#1160).
 - **Text only.** The launcher stubs out the vision tower by default.
@@ -894,16 +913,16 @@ was built and measured on it.
 
 ## 8. Open, and what would change this page
 
-- **More runs of the pick.** #1160 has one run on OpenCode 2.0.32. Two more
-  on @`cc59c360` would make it firm. Its stack's v2.0 release is measured
-  ([#1244][i1244]) and does not replace it, so a second run stays on
-  @`cc59c360` with 0xSero's weights. #1168's stack has two runs now
+- **A third run of the pick.** #1160 and [#1255][i1255] agree. A third on
+  @`cc59c360` would meet the three-run bar. #1168's stack has two runs
   ([#1246][i1246]); its first-turn stops repeat, once in 42 trials.
+- **Pinned winners ([#1257][i1257]).** The pin covers the recipe checkout
+  only. Rows, reports and the daily preflight do not show it yet.
 - **[#1177][i1177]:** reopened 2026-10-25. By the operator's decision of
   2026-10-19, a quick exit that the model answered with `finish=stop` and no
   tool call counts as a model FAIL, not a harness fault. The transcript audit
-  does not know that rule yet, so it excluded #1246's whole replay batch for
-  one such trial, and the rows were reinstated by hand.
+  applies it since [PR #1254][pr1254]: such a trial is a model stop, and the
+  batch is not excluded. Before that, #1246's rows were reinstated by hand.
 - **[#986][i986]:** closed. TensorFold's native engine now serves GLM on two
   Sparks with no recipe: 1.1.3 was measured, at 162.1% of the recipe stack's
   standard-set time (section 2). 1.1.4 (2026-10-24) is not measured.
@@ -1028,6 +1047,10 @@ was built and measured on it.
 [i1177]: https://github.com/evanwtf/local-llm/issues/1177
 [i1244]: https://github.com/evanwtf/local-llm/issues/1244
 [i1246]: https://github.com/evanwtf/local-llm/issues/1246
+[i1255]: https://github.com/evanwtf/local-llm/issues/1255
+[i1257]: https://github.com/evanwtf/local-llm/issues/1257
+[pr1254]: https://github.com/evanwtf/local-llm/pull/1254
+[pr1256]: https://github.com/evanwtf/local-llm/pull/1256
 [i1032]: https://github.com/evanwtf/local-llm/issues/1032
 [i1097]: https://github.com/evanwtf/local-llm/issues/1097
 [i1128]: https://github.com/evanwtf/local-llm/issues/1128
