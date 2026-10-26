@@ -26,10 +26,12 @@ from __future__ import annotations
 import argparse
 import collections
 import dataclasses
+import datetime
 import logging
 import pathlib
 import statistics
 import sys
+import zoneinfo
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "benchmarks" / "agent"))
@@ -488,21 +490,32 @@ def render(by_cell, backends) -> list[str]:
     return out
 
 
+def _instant(text):
+    """`text` as an aware datetime; a bound with no offset is New York time."""
+    when = datetime.datetime.fromisoformat(text)
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=zoneinfo.ZoneInfo("America/New_York"))
+    return when
+
+
 def window(rows, since=None, until=None):
     """Rows whose `started` falls in the half-open-ish range (since, until].
 
     `since` is exclusive and `until` inclusive, matching the original --since.
-    Both are ISO 8601 strings compared lexically -- valid because every row in
-    this repo carries the same America/New_York offset, so the string order is
-    the time order. A row missing `started` sorts as "", so `since` drops it
-    ("" is not > any bound) while `until` keeps it ("" <= any bound); real rows
-    always carry `started`. The two together isolate one build of a
-    force-pushed backend (#328).
+    Both sides are parsed and compared as instants: rows from the i9 client
+    carry `+0000` and the rest `-0400`, so string order is not time order
+    (#1259). A row missing `started` is dropped by `since` and kept by
+    `until`; real rows always carry `started`. The two together isolate one
+    build of a force-pushed backend (#328).
     """
     if since:
-        rows = [r for r in rows if (r.get("started") or "") > since]
+        floor = _instant(since)
+        rows = [r for r in rows if r.get("started") and _instant(r["started"]) > floor]
     if until:
-        rows = [r for r in rows if (r.get("started") or "") <= until]
+        ceiling = _instant(until)
+        rows = [
+            r for r in rows if not r.get("started") or _instant(r["started"]) <= ceiling
+        ]
     return rows
 
 
