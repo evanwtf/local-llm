@@ -286,7 +286,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 3236 rows, sha256 bac1e75fe465.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 3288 rows, sha256 12fb47536c59.*
 
 #### Every stack measured under OpenCode
 
@@ -300,10 +300,10 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | dsv41f1017exl3sudov2dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 29/29 | 44s | 108s | 2.2x | 1.3x | 3.5x |
 | glm53fexl3tfnative113dual2x @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 30/30 | 47s | 78s | 1.9x | 1.4x | 3.5x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.32) | 30/30 | 48s | 96s | 2.0x | 1.5x | 4.0x |
+| dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 21/21 | 49s | 129s | 3.3x | 1.3x | 3.9x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.31) | 30/30 | 49s | 123s | 2.2x | 1.5x | 4.0x |
 | dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.1) | 30/30 | 50s | 115s | 2.3x | 1.4x | 4.2x |
 | dsv41f1017tfzigjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.1) | 28/28 | 53s | 77s | 2.1x | 1.7x | 2.7x |
-| dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 11/11 | 54s | 111s | 3.3x | 3.3x | 3.3x |
 | nemotron35supervldflashnothinkdual2xv032 @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 14/14 | 57s | 104s | 2.0x | 1.2x | 5.2x |
 | dsv41f1017eaqtfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 10/10 | 59s | 122s | — | — | 3.9x |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 30/30 | 62s | 130s | 2.9x | 1.5x | 4.3x |
@@ -356,9 +356,9 @@ Excision tasks only; `script-*` excluded because they are a different class.
 | glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 21/21 | 162s | 328s | 1.8x | 1.2x | 17.8x |
 | glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 21/21 | 162s | 319s | 2.4x | 1.4x | 16.9x |
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image (uv=0.12.21) | 20/21 | 189s | 548s | 2.3x | 1.3x | 19.0x |
+| dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 42/42 | 193s | 648s | 2.4x | 1.8x | 28.4x |
 | dsv41f1017exl3sudov2dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 21/21 | 198s | 687s | 2.3x | 1.2x | 30.7x |
 | dsv41f1017tfzigjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1) | 21/21 | 201s | 845s | 5.0x | 1.5x | 37.4x |
-| dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 21/21 | 210s | 648s | 2.1x | 1.7x | 24.7x |
 | dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1) | 21/21 | 213s | 775s | 2.3x | 1.5x | 32.3x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 63/63 | 216s | 608s | 2.6x | 1.9x | 23.9x |
 | dsv41ftfzigjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 21/21 | 228s | 475s | 2.3x | 1.4x | 21.1x |
@@ -408,7 +408,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53fexl3tfmiaaiv17dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 21/21 | 3/21 | 298s | 1388s | 1.7x | 1.4x | 11.7x |
 | glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 20/21 | 3/21 | 302s | 1130s | 1.4x | 1.3x | 10.9x |
 | glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 21/21 | 2/21 | 310s | 1030s | 1.4x | 1.3x | 18.5x |
-| dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 19/19 | 17/19 | 317s | 953s | 2.4x | 1.7x | 6.3x |
+| dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 37/37 | 32/37 | 317s | 953s | 6.0x | 1.8x | 7.1x |
 | dsv41f1017eaqtfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1) | 19/21 | 19/21 | 319s | 1206s | 3.6x | 1.4x | 6.3x |
 | glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 21/21 | 2/21 | 332s | 1120s | 1.9x | 1.4x | 14.2x |
 | glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1) | 21/21 | 1/21 | 336s | 1244s | 2.5x | 1.4x | 13.5x |
@@ -459,10 +459,10 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image (uv=0.12.20) | 31s |
 | dsv41f1017exl3sudov2dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 36s |
 | dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.1) | 36s |
-| dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 37s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
 | glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.1) | 38s |
 | glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.13.0 python=3.14.8 ripgrep=15.2.0) | 39s |
+| dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 39s |
 | glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image (uv=0.12.20) | 39s |
 | glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 40s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image (opencode=1.18.31) | 40s |
