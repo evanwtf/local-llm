@@ -82,3 +82,59 @@ def test_a_retired_backend_is_not_a_daily_target(tmp_path):
     recipes, images = pd.targets(cfg)
     assert recipes == {recipe}
     assert images == {"vllm/vllm-openai:v0.31.0"}
+
+
+def _recipe_at(behind: str) -> currency.Runner:
+    """A recipe checkout at 943912c, `behind` commits short of upstream."""
+    answers = {
+        "fetch --quiet origin": "",
+        "rev-parse --short HEAD": "943912c",
+        "rev-parse --abbrev-ref origin/HEAD": "origin/main",
+        "rev-parse --short origin/main": "94ae731",
+        "rev-list --count HEAD..origin/main": behind,
+    }
+
+    def run(argv: list[str], timeout: int = 30) -> str | None:
+        return answers.get(" ".join(argv[3:]))
+
+    return run
+
+
+def test_recipe_pins_name_each_live_backends_pin(tmp_path):
+    recipe = tmp_path / "recipe"
+    recipe.mkdir()
+    cfg = {
+        "backend": {
+            "pick": {
+                "recipe_dir": str(recipe),
+                "recipe_pin": "943912c",
+                "recipe_pin_reason": "the pick (#1255)",
+            },
+            "latest": {"recipe_dir": str(recipe)},
+            "gone": {
+                "recipe_dir": str(recipe),
+                "recipe_pin": "0000000",
+                "retired": "x",
+            },
+        }
+    }
+    assert pd.recipe_pins(cfg) == {recipe: {"943912c"}}
+
+
+def test_a_recipe_at_a_backends_pin_passes_the_daily_gate(tmp_path):
+    # #1257: the pick pins ~/dsv41_recipe at cc59c36 while v2.0 is upstream.
+    (tmp_path / ".git").mkdir()
+    assert pd.recipe_refusal(tmp_path, {"943912c"}, _recipe_at("2")) is None
+
+
+def test_a_recipe_behind_and_off_every_pin_refuses(tmp_path):
+    (tmp_path / ".git").mkdir()
+    why = pd.recipe_refusal(tmp_path, {"1234567"}, _recipe_at("2"))
+    assert why is not None
+    assert "behind" in why.lower()
+
+
+def test_an_unpinned_recipe_behind_upstream_still_refuses(tmp_path):
+    (tmp_path / ".git").mkdir()
+    assert pd.recipe_refusal(tmp_path, set(), _recipe_at("2")) is not None
+    assert pd.recipe_refusal(tmp_path, set(), _recipe_at("0")) is None

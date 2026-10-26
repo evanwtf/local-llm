@@ -59,6 +59,34 @@ def targets(cfg: dict) -> tuple[set[pathlib.Path], set[str]]:
     return recipes, images
 
 
+def recipe_pins(cfg: dict) -> dict[pathlib.Path, set[str]]:
+    """Each recipe checkout's pins, from the live backends that declare one.
+
+    One checkout can serve a pinned backend and an unpinned one, as
+    ~/dsv41_recipe serves the pick at cc59c36 and its v2.0 arm (#1257).
+    """
+    pins: dict[pathlib.Path, set[str]] = {}
+    for spec in cfg.get("backend", {}).values():
+        raw, pin = spec.get("recipe_dir"), spec.get("recipe_pin")
+        if raw and pin and not spec.get("retired"):
+            pins.setdefault(pathlib.Path(raw).expanduser(), set()).add(str(pin))
+    return pins
+
+
+def recipe_refusal(
+    path: pathlib.Path, pins: set[str], run: currency.Runner = currency._run
+) -> str | None:
+    """None when the checkout is at upstream or at a live backend's pin."""
+    latest = currency.recipe_item(path, run)
+    if latest.ok:
+        return None
+    for pin in sorted(pins):
+        if currency.recipe_item(path, run, pin=pin).ok:
+            logger.info("recipe %s: pinned at %s (%s)", path, pin, latest.latest)
+            return None
+    return currency.gate(f"recipe:{path}", [latest])
+
+
 def client_images(
     run: currency.Runner = currency._run,
     which: Callable[[str], str | None] = shutil.which,
@@ -99,9 +127,10 @@ def main(argv: list[str] | None = None) -> int:
     logs.configure()
     cfg = tomllib.loads(args.tasks_file.read_text())
     recipes, images = targets(cfg)
+    pins = recipe_pins(cfg)
     refusals = []
     for path in sorted(recipes):
-        why = currency.gate(f"recipe:{path}", [currency.recipe_item(path)])
+        why = recipe_refusal(path, pins.get(path, set()))
         if why:
             refusals.append(why)
     for ref in sorted(images):
