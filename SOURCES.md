@@ -314,6 +314,70 @@ wall time — leads to test on our own Spark, not numbers to repeat. And a
 company/marketing account (e.g. @apikey_official, @MiaAI_lab) needs the "read
 the repo, not the feed" filter before it earns a tier.
 
+### Added 2026-10-27 from the contributor scan (#1275, operator request)
+
+Found from both sides. On GitHub: the contributors and issue/PR authors of
+`ashhart/TensorFold`, the MiaAI-Lab recipe repos, sudoingX's and jayleaton's
+recipes and `NVIDIA/flare-local-inference`, plus repository search for
+`dgx spark`, `gb10` and `sm121`. On X: three `xurl` recent searches and one
+user lookup (`logs/sweeps/xurl-dgx-sources-20261027T110018Z.txt`).
+
+**An X handle and a GitHub account are paired only where one names the other**:
+a GitHub `twitter_username`, an X bio or URL that links the GitHub, or a website
+that links both. Where nothing links them, the column is blank, even when a
+same-named account exists. Ten posts were checked with `scripts/verify_posts.py`
+(`logs/sweeps/verify-posts-Cortex-X925-GB10-20261027T110301Z.log`). That proves
+the author, not the number. Stars and follower counts are as read on 2026-10-27.
+
+**Two-Spark recipe authors** (our topology):
+
+| who | X | GitHub | website | why |
+|---|---|---|---|---|
+| Joey | [@aijoey](https://x.com/aijoey) | [joeynyc](https://github.com/joeynyc) | [joeyprd.com](https://joeyprd.com/) | Runs frontier open models on 2x Spark and posts configs; ships Spark Doctor and Hermes HUD, and a measured one-Spark MiniMax H3 SM121 recipe ([joeynyc/MiniMax-H3-DGX-Spark](https://github.com/joeynyc/MiniMax-H3-DGX-Spark)). 4,909 X followers. |
+| Tech2Wild | [@Tech2Wild](https://x.com/Tech2Wild) | [tonyd2wild](https://github.com/tonyd2wild) | — | [DeepSeek-V4.1-Flash TP2 and TP4](https://github.com/tonyd2wild/DeepSeek-V4.1-Flash-TP2-and-TP4-DGX-Sparks) (150★), [GLM-5.3-Flash NVFP4 + DFlash2 on 2x Spark](https://github.com/tonyd2wild/GLM-5.3-Flash-NVFP4-DFlash2-2x-DGX-Spark) (240★), a DeepSeek-V4 DSpark 2x recipe (494★) and a MiniMax-M3.1 EXL3 TP2. Credits upstream recipes by name ([post](https://x.com/Tech2Wild/status/2114866354612228293)). |
+| Luis Catacora | [@lucataco](https://x.com/lucataco) | [lucataco](https://github.com/lucataco) | [lucataco.dev](https://lucataco.dev) | [DeepSeek-V4.1-Flash on 2x Spark](https://github.com/lucataco/DeepSeek-V4.1-Flash-2x-DGX-Spark), the TensorFold TP2 recipe filed as #1163. Models at Cloudflare, before that Replicate; 11,557 X followers. |
+| Bertholomus AI | [@bertholomusai](https://x.com/bertholomusai) | [bertholomus](https://github.com/bertholomus) | — | [deepseek-v4.1-tensorfold-tp2-2xgb10](https://github.com/bertholomus/deepseek-v4.1-tensorfold-tp2-2xgb10) (56★, #930) and a Ling-3.1 TP2 port; v0.7.3 doubled to 8 streams, 154 → 168 tok/s, "same replies" ([post](https://x.com/bertholomusai/status/2114078035280597455)). |
+| Anders | [@andersjw_](https://x.com/andersjw_) | [ajensenwaud](https://github.com/ajensenwaud) | — | 2x Spark pull-and-run recipes on TensorFold: [MiMo-V2.6](https://github.com/ajensenwaud/MiMo-V2.6-2x-DGX-Spark-TensorFold), [Kolibri-1](https://github.com/ajensenwaud/Kolibri-1-2x-DGX-Spark-TensorFold), plus `spark-bench`. Says an M5 Max vs Spark comparison is next, which would cross both lanes. |
+| Wei Wang | [@wei_wang](https://x.com/wei_wang) | [Lesilva](https://github.com/Lesilva) | — | 2x Spark + RTX PRO 6000; [qwen38-flashnext-nvfp4-kv](https://github.com/Lesilva/qwen38-flashnext-nvfp4-kv). Satirized a 702 tok/s, 100%-acceptance claim whose 16 test users each asked the model to print zeros ([post](https://x.com/wei_wang/status/2114917754683678938)): he reads the test script before the number. 7,068 X followers; posts in Chinese. |
+| Entrpi | — | [Entrpi](https://github.com/Entrpi) | — | [ds4-on-spark](https://github.com/Entrpi/ds4-on-spark) (411★), [glm-5.3-flash-exl3-2x-spark](https://github.com/Entrpi/glm-5.3-flash-exl3-2x-spark) (43★) and a vLLM branch with GLM-5.3-Flash `glm5_next` and SM121 fixes. GitHub only. |
+| raspy135 | — | [raspy135](https://github.com/raspy135) | — | [tideLM](https://github.com/raspy135/tideLM) (26★, #1169): full GLM-5.3 and DeepSeek-1017 on two Sparks by adaptive expert loading. An X @raspy135 exists (created 2026-10-12) but nothing links it. |
+| ciprianveg | [@ciprianveg](https://x.com/ciprianveg) | [ciprianveg](https://github.com/ciprianveg) | — | [gb10-vllm](https://github.com/ciprianveg/gb10-vllm) (67★: Kimi-K3 B12X_MLA + DSpark, GLM), [gb10-glm-5.2](https://github.com/ciprianveg/gb10-glm-5.2) (39★) and [gb10-tensorfold](https://github.com/ciprianveg/gb10-tensorfold) (GLM-5.3 EXL3, world 8). His X bio links gb10-vllm. |
+| Craig Petronella | [@PetronellaTech](https://x.com/PetronellaTech) | [capetron](https://github.com/capetron) | [petronellatech.com](https://petronellatech.com) | [gb10-cluster-guide](https://github.com/capetron/gb10-cluster-guide) (two nodes, then a three-node ring) with `gb10-cluster-bench` and `gb10-cluster-check`, and a Qwen3.8-Flash-Next dual-Spark repo. Cluster operations, the part of #307 the recipes skip. |
+
+**Engines, kernels and tooling that two-Spark recipes build on:**
+
+| who | X | GitHub | website | why |
+|---|---|---|---|---|
+| eugr | — | [eugr](https://github.com/eugr) | — | [spark-vllm-docker](https://github.com/eugr/spark-vllm-docker) (2,450★: vLLM on dual DGX Sparks; the most-starred Spark repo the search found, NVIDIA's playbooks included), [llama-benchy](https://github.com/eugr/llama-benchy) (764★), and 95 commits to NVIDIA Flare. The @eugr on X has 2 posts and nothing links it. |
+| Spark Arena | [@spark_arena](https://x.com/spark_arena) | [spark-arena](https://github.com/spark-arena) | [spark-arena.com](https://spark-arena.com) | A community org, not a person: [sparkrun](https://github.com/spark-arena/sparkrun) (551★) launches and stops Spark inference workloads, and [recipe-registry](https://github.com/spark-arena/recipe-registry) (66★) collects recipes. A place to catch new recipes before their authors are known. |
+| Local Inference Lab | — | [local-inference-lab](https://github.com/local-inference-lab) | — | Its [vLLM fork](https://github.com/local-inference-lab/vllm) (b12x) is what Spark recipes build against (`mlow/vllm-gb10`), with [llm-inference-bench](https://github.com/local-inference-lab/llm-inference-bench) (121★). A Hugging Face org of the same name published the GLM-5.3-Flash NVFP4-MXFP8 checkpoint in the Flare post (2026-10-22 sweep); nothing yet links the two. |
+| mr-r0b0t | [@mr_r0b0t](https://x.com/mr_r0b0t) | [r0b0tlab](https://github.com/r0b0tlab) | [HF r0b0tlab](https://huggingface.co/r0b0tlab) | SM121 builds: [GLM-5.3-Flash EXL3 + DFlash2](https://github.com/r0b0tlab/glm53-flash-exl3-dflash2-sm121) with fused EXL3 MoE kernels, [MiMo-V2.6 NVFP4 on 2x GB10](https://github.com/r0b0tlab/mimo26-nvfp4-sm121), MiniCPM-V EXL3, and `r0b0bench`. 11,574 X followers. |
+| Jürgen Schmied | — | [jschmied](https://github.com/jschmied) | — | The most active TensorFold issue author (62) with 187 commits, and [qwen38-flash-next-gb10](https://github.com/jschmied/qwen38-flash-next-gb10) (21★). The X @jschmied is someone else. |
+| BadAd84 | — | [BadAd84](https://github.com/BadAd84) | — | The most active outside author on MiaAI-Lab's repos (26 issues and PRs); wrote the DSA prompt indexer in CUDA for the GLM zig engine (MiaAI PR #231). |
+| ビーズちゃん (Bizuayeu) | [@Bizuayeu](https://x.com/Bizuayeu) | [Bizuayeu](https://github.com/Bizuayeu) | [meguru-construction.com](https://meguru-construction.com/) | 111 commits to TensorFold, [GLM-5.3-Flash-DGX-Sparks-BIZ](https://github.com/Bizuayeu/GLM-5.3-Flash-DGX-Sparks-BIZ), and the `GLM-5.3-Flash-XSFP4` quant on Hugging Face. Posts the full stack with links ([post](https://x.com/Bizuayeu/status/2114490243244261509)); in Japanese. |
+| Hector Isaza | [@hecisaza](https://x.com/hecisaza) | [hecisaza](https://github.com/hecisaza) | [networkingdev.com](https://networkingdev.com) | 23 issues and PRs on MiaAI-Lab's repos, and a repo that takes the GLM-5.3 EXL3 TensorFold recipe from two Sparks to three. |
+| Techno Tim | [@TechnoTimLive](https://x.com/TechnoTimLive) | [timothystewart6](https://github.com/timothystewart6) | [technotim.com](https://technotim.com) | [vllm-gb10](https://github.com/timothystewart6/vllm-gb10) (57★) and [ubuntu-gb10](https://github.com/timothystewart6/ubuntu-gb10), an Ubuntu 24.04 + NVIDIA stack guide for GB10. A general homelab channel (28,287 X followers), so read the repos first and the feed second. |
+| Sebastian Christiansen | [@CerebralCoding_](https://x.com/CerebralCoding_) | [CerebralCoding](https://github.com/CerebralCoding) | [cerebralcoding.com](https://cerebralcoding.com) | 93 commits to TensorFold; also contributes to mlx-serve and ds4, so his posts cross both lanes. |
+
+**Measurers** (they publish the method beside the number):
+
+| who | X | GitHub | website | why |
+|---|---|---|---|---|
+| Niklas Lenz | [@niklaslenz_ai](https://x.com/niklaslenz_ai) | — | [niklaslenz.com](https://niklaslenz.com) | **Agent wall time, not tok/s**: one prompt, one try, timed to a finished build. DeepSeek-V4.1-Flash-1017 built the same voxel world in 45.7 min on one Mac Studio, 88.1 min on two Sparks and 49.7 min on four ([post](https://x.com/niklaslenz_ai/status/2114658298851205185)). Owns 4 Sparks, an M5 Ultra and a 5090, so both lanes. The closest method to ours we have found on X. |
+| Gael | [@Gael_DDOS](https://x.com/Gael_DDOS) | — | — | Runs TensorFold, Flare and vLLM side by side on one Spark: under batched long prompts vLLM answers mid-prefill, while the other two read every prompt first ([post](https://x.com/Gael_DDOS/status/2114809347499086335)). Spec-decode experiments. |
+| Steven Kramp | [@SelfHostedSI](https://x.com/SelfHostedSI) | — | [stevenkramp.de/lab](http://stevenkramp.de/lab) | Measures vLLM proposals on one Spark and reports what did not improve: 12-bit BF16 storage gave about 11% faster decode, but a cold 19K-token prompt still took 7.6–7.7 s to first token ([post](https://x.com/SelfHostedSI/status/2114801752784748907)). Publishes raw data. |
+
+**Four Sparks or more** (not our topology, but the engine work transfers):
+
+| who | X | GitHub | website | why |
+|---|---|---|---|---|
+| Kevin Theo | [@kevintheoo](https://x.com/kevintheoo) | [kevintheo-ai](https://github.com/kevintheo-ai) | [kevintheo.com](http://kevintheo.com) | 4x Spark switchless ring; compares engines at fixed streams: TensorFold 90.6 vs MiaAI's SGLang line 90.5, stock SGLang 61.2 ([post](https://x.com/kevintheoo/status/2115024623867715652)). Repo `DeepSeek-v4.1-Flash-DGX-Sparks`. |
+| Zbigniew Majewski | [@majewskizby](https://x.com/majewskizby) | [knapcio](https://github.com/knapcio) | — | [DeepSeek-V4.1-Flash 4x TP4](https://github.com/knapcio/DeepSeek-V4.1-Flash-4x-DGX-Spark-TP4) (81★) and GLM-5.3 on the `gr8` engine at TP4 and TP6, but also **two-Spark runs with the one-Spark baseline beside them** (MiniMax H3: 643 s against 1,399 s, [post](https://x.com/majewskizby/status/2115014189316002260)). |
+
+**Considered, not added:** @hisxo (`DeepSeek-V4.1-Flash-2x-DGX-Spark`, one repo so far), ZackO2o (a TensorFold TP2 recipe, no other output), nkavassalis (`spark-tuning`, no stars yet), @voipmonitor (Martin Vit, 120 Flare commits; the X account is his company's), lukealonso (Flare's top committer; watch the repo, not a person), @tenhkspark, @HandwerkAiLab, @latentone_ and @dextune (thin so far). Re-check these at the next contributor scan.
+
+**Already in this file, and now in this lane too:** [@ashxhart](https://x.com/ashxhart) ([ashhart](https://github.com/ashhart)), TensorFold's author, sits in the Mac tiers. TensorFold runs the cluster's GLM arms, so read his posts on a DGX sweep as well.
+
 ### Vendor sources for this lane (operator-defined, 2026-09-17)
 
 The DGX Spark runs NVIDIA's own formats, so NVIDIA is a **primary** source here
