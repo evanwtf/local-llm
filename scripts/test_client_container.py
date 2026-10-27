@@ -263,7 +263,7 @@ def _batch(tmp_path, monkeypatch, smoke_failures):
 def _audited(monkeypatch, verdict):
     calls = []
 
-    def audit(backend, since, home, log):
+    def audit(backend, since, home, log, facts):
         calls.append((backend, since, home, log))
         return verdict
 
@@ -412,8 +412,15 @@ def test_the_audit_summary_lands_beside_the_batch_log(tmp_path, monkeypatch):
 
     monkeypatch.setattr(audit_transcripts, "main", fake_main)
     log = tmp_path / "1018-r1-client.log"
-    assert mod.audit_batch("b", "2026-10-10T09:40:00-04:00", tmp_path, log) == 0
+    facts = tmp_path / "facts.json"
+    facts.write_text(json.dumps({"directory": "box"}))
+    ledger = tmp_path / "git" / "local-llm" / "hardware" / "box" / "results.jsonl"
+    ledger.parent.mkdir(parents=True)
+    ledger.touch()
+    assert mod.audit_batch("b", "2026-10-10T09:40:00-04:00", tmp_path, log, facts) == 0
     [argv] = seen
+    # #1283: without the ledger no row joins, and a model stop reads as a fault.
+    assert argv[argv.index("--results") + 1] == str(ledger)
     assert argv[argv.index("--json") + 1] == str(tmp_path / "1018-r1-client-audit.json")
     assert argv[argv.index("--logs") + 1] == str(tmp_path / "bench-logs")
     assert argv[argv.index("--backend") + 1] == "b"

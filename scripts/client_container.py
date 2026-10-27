@@ -486,29 +486,60 @@ def docker_argv(
 DEFAULT_IMAGE = f"local-llm-client:{build_client_image.PINS['opencode']}"
 
 
-def audit_batch(backend: str, since: str, home: pathlib.Path, log: pathlib.Path) -> int:
+def batch_ledger(home: pathlib.Path, facts: pathlib.Path) -> pathlib.Path | None:
+    """The ledger this batch's rows land in, named by the facts file, or None."""
+    try:
+        directory = json.loads(facts.read_text())["directory"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    import remote
+
+    return remote.results_path(home / "git" / "local-llm", {"directory": directory})
+
+
+def audit_batch(
+    backend: str,
+    since: str,
+    home: pathlib.Path,
+    log: pathlib.Path,
+    facts: pathlib.Path,
+) -> int:
     """Audit the batch's OpenCode transcripts for harness faults (#969).
 
     Reads every transcript under the host's bench-logs for `backend` from
     `since`, and writes the summary beside the batch log as
     `<log stem>-audit.json`. Returns audit_transcripts' exit status: 0 clean,
     1 a harness fault, 2 nothing readable.
+
+    #1283: the batch's ledger goes in too. A quick exit whose row records model
+    output is a model stop (#1177), and only the row says so. Without it every
+    quick answer looked like a dead client and excluded the batch.
     """
     import audit_transcripts
 
-    return audit_transcripts.main(
-        [
-            "--logs",
-            str(home / "bench-logs"),
-            "--backend",
-            backend,
-            "--since",
-            since,
-            "--markdown",
-            "--json",
-            str(log.with_name(f"{log.stem}-audit.json")),
-        ]
-    )
+    argv = [
+        "--logs",
+        str(home / "bench-logs"),
+        "--backend",
+        backend,
+        "--since",
+        since,
+        "--home",
+        str(home),
+        "--markdown",
+        "--json",
+        str(log.with_name(f"{log.stem}-audit.json")),
+    ]
+    ledger = batch_ledger(home, facts)
+    if ledger is not None and ledger.exists():
+        argv += ["--results", str(ledger)]
+    else:
+        logger.warning(
+            "no ledger found from %s; the audit cannot tell a model stop "
+            "from a dead client (#1283)",
+            facts,
+        )
+    return audit_transcripts.main(argv)
 
 
 def prepare_ledger_lock(home: pathlib.Path, facts: pathlib.Path) -> pathlib.Path | None:
@@ -518,14 +549,11 @@ def prepare_ledger_lock(home: pathlib.Path, facts: pathlib.Path) -> pathlib.Path
     file root-owned, so the host-side quarantine could not open it and a
     faulted batch stayed unexcluded. A lock that already exists is left alone.
     """
-    try:
-        directory = json.loads(facts.read_text())["directory"]
-    except (OSError, ValueError, KeyError, TypeError):
+    ledger = batch_ledger(home, facts)
+    if ledger is None:
         return None
-    import remote
     import results
 
-    ledger = remote.results_path(home / "git" / "local-llm", {"directory": directory})
     lock = results.lock_path(ledger)
     lock.parent.mkdir(parents=True, exist_ok=True)
     lock.touch(exist_ok=True)
@@ -559,9 +587,8 @@ def quarantine_batch(
         summary["override_fault"] = override
         audit_json.write_text(json.dumps(summary, indent=2) + "\n")
         return 0
-    try:
-        directory = json.loads(facts.read_text())["directory"]
-    except (OSError, ValueError, KeyError, TypeError):
+    ledger = batch_ledger(home, facts)
+    if ledger is None:
         logger.error(
             "cannot find this batch's ledger in %s, so its rows are NOT excluded; "
             "exclude them with scripts/exclude_rows.py before they land",
@@ -569,9 +596,7 @@ def quarantine_batch(
         )
         return 0
     import exclude_rows
-    import remote
 
-    ledger = remote.results_path(home / "git" / "local-llm", {"directory": directory})
     newly, _ = exclude_rows.mark(
         ledger,
         backend=backend,
@@ -757,7 +782,7 @@ def main(argv: list[str] | None = None) -> int:
     # #969: the transcript audit ran only when someone remembered it. It runs
     # here, after every batch, so a broken tool cannot hide behind model
     # failures again (#968 ran two weeks unseen).
-    verdict = audit_batch(backend, since, args.home, args.log)
+    verdict = audit_batch(backend, since, args.home, args.log, args.facts)
     if verdict == 1:
         until = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
         audit_json = args.log.with_name(f"{args.log.stem}-audit.json")
