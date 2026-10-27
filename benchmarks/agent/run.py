@@ -6470,6 +6470,20 @@ def main():
                 f"the rows would name a tree that exists nowhere."
             )
 
+    # #1281: PRs squash-merge, so a branch commit never reaches main, and a
+    # live run from one stamps a harness_head that main does not hold -- #355's
+    # orphans, on every PR. A dry run runs no agent and marks its rows, so a
+    # branch may still try one.
+    if not args.dry_run and not provenance.on_main(HERE):
+        raise SystemExit(
+            f"harness is at {provenance.head(HERE)}, which is not on "
+            f"{provenance.MAIN_REF}. PRs squash-merge, so main never receives "
+            f"this commit, and every row would stamp a harness_head that main "
+            f"does not hold (#355, #1281). Merge the PR, then run from main. "
+            f"To try the branch first, pass --dry-run. If the commit is on "
+            f"main already, run git fetch and retry."
+        )
+
     provenance.configure()
     if early_stop_off:
         logger.warning("early stop OFF by request (#762): %s", early_stop_off)

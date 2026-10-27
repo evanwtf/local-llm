@@ -328,16 +328,17 @@ git checkout -b <kind>/<issue>-<slug>     # docs/24-..., analysis/26-..., tasks/
 # ... work, commit as you go ...
 git push -u origin <branch>
 gh pr create --fill                       # title/body from the commits
-gh pr merge --auto --merge                # merges when `pytest` is green; deletes the branch
+gh pr merge <n> --auto --squash           # merges when `pytest` is green; deletes the branch
 ```
 
 The protection enforces: the required `pytest` check must pass, and the branch
-must be up to date with `main` first (`strict`). **Merge with a merge commit
-(`--merge`), never squash or rebase.** Squash and rebase rewrite commit shas, so
-a `harness_head` a run stamped on the branch would no longer be an ancestor of
-`main` — the #355 orphaning failure, systematized onto every PR. A merge commit
-keeps the branch's commits reachable, which is why linear history is **not**
-required here.
+must be up to date with `main` first (`strict`). **Squash every PR** (the
+operator, 2026-10-27: "I want to make sure we always squash before merging
+PRs"). The repo settings allow no other merge method, so a stale `--merge`
+fails with an error. Until 2026-10-27 this repo required merge commits, because
+a squash drops the branch's commits and orphans a `harness_head` a run stamped
+on one (#355). That risk is now closed at launch: `run.py` refuses a live run
+from a commit that is not on `main` (see below, #1281).
 
 **The protection is a guardrail, not a permission boundary.** Every agent
 session and the operator push as the same GitHub account, an admin, and the
@@ -358,8 +359,12 @@ fourteen commits behind the code its own README described.
 The branches here are often a stack -- each built on the last, because the next
 task starts before the previous is merged. With protected `main` and `strict`
 checks, a dependent branch must be **rebased onto `main` after its parent's PR
-merges** (its parent's commits are then already in `main`); open and auto-merge
-the PRs bottom-up. Do not try to merge a branch whose base has not landed yet.
+merges**. The squash put the parent's work on `main` as one new commit, so
+replay only the child's own commits:
+`git rebase --onto origin/main <parent-branch-tip> <child-branch>`. A plain
+`git rebase origin/main` replays the parent's commits too and conflicts with
+their squashed copy. Open and auto-merge the PRs bottom-up. Do not try to merge
+a branch whose base has not landed yet.
 
 **Once a run stamps a commit's sha into rows, that sha must stay an ancestor of
 `main`.** `harness_head` is a row's answer to "which harness produced this", and
@@ -368,12 +373,21 @@ a sha that is no longer in the history -- `git gc` then collects it and the
 provenance is a dangling pointer. On 2026-09-14 this orphaned 65 GB10 rows
 (#355): the measurements were sound, the trees identical, only the parents
 changed, but the rows would have wrongly classified as pre---`--dir` and been
-dropped. So, from the moment a run starts:
+dropped.
 
-- **Push the harness commit before launching**, so a later rebase is not
-  tempting. This fixes the common case for free.
-- **If the push is rejected mid-run, merge -- do not rebase.** A merge keeps the
-  stamped sha reachable; a rebase guarantees it is not.
+**So a live run starts only from a commit on `main`, and `run.py` enforces it**
+(#1281). Before it writes a row, `run.py` checks that `HEAD` is `origin/main`
+or one of its ancestors (`provenance.on_main`), and refuses otherwise. PRs
+squash-merge, so a branch commit never reaches `main`; a run from one would
+stamp a sha that `main` does not hold, on every PR. Merge the PR first, then
+run from `main`. `--dry-run` runs no agent and marks its rows, so it may run
+from a branch. The check reads the local `origin/main` and does not fetch: if
+it refuses a commit that is on `main`, run `git fetch` and retry.
+
+The ledgers before the switch are safe. On 2026-10-27, 1,858 of 13,459 stamped
+rows (48 commits) named a commit that reached `main` only inside a merged
+branch. The merge commits that brought those branches in still hold them, so
+they stay ancestors of `main`.
 
 Recovering the orphans without rewriting a recorded row is
 `dirfix.REBASED_AFTER_FIX`: it maps each orphaned sha to the reachable ancestor

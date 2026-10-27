@@ -3584,3 +3584,38 @@ def test_outcome_word_names_every_failed_guard():
 
 def test_outcome_word_dry_run_has_no_verdict():
     assert run.outcome_word({"dry_run": True, "passed": True}) == "DRY RUN"
+
+
+def _stop_at_configure(*args, **kwargs):
+    raise SystemExit("reached configure")
+
+
+def test_a_live_run_off_main_is_refused(monkeypatch):
+    """#1281: PRs squash-merge, so a live run from a branch commit stamps a
+    harness_head that main never receives -- #355's orphans, on every PR."""
+    monkeypatch.setattr(run.provenance, "on_main", lambda cwd: False)
+    monkeypatch.setattr(run.provenance, "configure", _stop_at_configure)
+    monkeypatch.setattr(sys, "argv", ["run.py"])
+    with pytest.raises(SystemExit) as got:
+        run.main()
+    assert "not on origin/main" in str(got.value)
+
+
+def test_a_live_run_on_main_is_not_refused(monkeypatch):
+    monkeypatch.setattr(run.provenance, "on_main", lambda cwd: True)
+    monkeypatch.setattr(run.provenance, "configure", _stop_at_configure)
+    monkeypatch.setattr(sys, "argv", ["run.py"])
+    with pytest.raises(SystemExit) as got:
+        run.main()
+    assert str(got.value) == "reached configure"
+
+
+def test_a_dry_run_off_main_is_not_refused(monkeypatch):
+    """A dry run runs no agent and marks its rows dry_run, so a branch may
+    try one before its PR merges."""
+    monkeypatch.setattr(run.provenance, "on_main", lambda cwd: False)
+    monkeypatch.setattr(run.provenance, "configure", _stop_at_configure)
+    monkeypatch.setattr(sys, "argv", ["run.py", "--dry-run"])
+    with pytest.raises(SystemExit) as got:
+        run.main()
+    assert str(got.value) == "reached configure"
