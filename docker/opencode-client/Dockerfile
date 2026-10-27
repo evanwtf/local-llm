@@ -13,7 +13,7 @@
 # installers both resolve it themselves, and every other component comes from
 # the base image's own arch.
 #
-#   docker build -t local-llm-client:2.1.4 docker/opencode-client
+#   docker build -t local-llm-client:2.2.0 docker/opencode-client
 #
 # Build with scripts/build_client_image.py, not by hand: it checks the pinned
 # versions from inside the image and runs every OpenCode tool the trials use
@@ -22,7 +22,7 @@
 FROM ubuntu:26.04
 
 # Pins. Every one of these is a variable a row would otherwise carry silently.
-ARG OPENCODE_VERSION=2.1.4
+ARG OPENCODE_VERSION=2.2.0
 ARG UV_VERSION=0.13.6
 # The interpreter uv hands the trial's venv. Pinned so the same target commit
 # resolves the same Python on every client.
