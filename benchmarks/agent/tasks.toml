@@ -5119,3 +5119,22 @@ context_tokens = 262144
 topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/dsv41_recipe"
+
+# #1245 (operator 2026-10-26 21:01: approved for a screen; "no heat check"):
+# MiniMax-M3.1-Flash on jayleaton's TensorFold recipe, both Sparks. The recipe
+# clone carries one local commit (1319abe) that turns its heat guard off; the
+# server binds 0.0.0.0:8888 like every DGX engine.
+[backend.mm31fexl3jaydual2xrc]
+description = "#1245: MiniMax-M3.1-Flash EXL3 3.55 bpw (jayleaton/MiniMax-M3.1-Flash-EXL3-3.55bpw-mm31 @4576da0c1d, 186.2 GiB) across TWO DGX Sparks: TensorFold v1.1.2 + the minimax_m3_vl family via jayleaton/minimax-m31-tensorfold-spark @7ff046b8 (image tensorfold-minimax-m3:v1.1.2 built locally; heat checks off by a local commit), TP=2, the recipe's profile (114,688-token window, 1 stream, FP8 KV, dspark drafts), :8888. REMOTE CLIENT: the Core i9-13900H; OpenCode context 114,688, output cap 16,384"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "MiniMax-M3.1-Flash-EXL3"
+aider_model = "openai/MiniMax-M3.1-Flash-EXL3"
+opencode_model = "tf8888/MiniMax-M3.1-Flash-EXL3"
+context_tokens = 114688
+topology = "remote"
+# TensorFold serves no /v1/messages; OpenCode-only (#798).
+smoke_protocol = "openai"
+recipe_dir = "~/minimax_m31_recipe"
