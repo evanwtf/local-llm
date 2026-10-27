@@ -119,7 +119,7 @@ this project turning into a pile of findings nobody can act on.
 | **GitHub issues** | every piece of work, one per issue, until closed |
 | the P0/P1 labels, printed by `scripts/make_next.py --platform {macos,nvidia}` | the agenda: what order to work in, per machine (#463) |
 | `benchmarks/*/RESULTS.md` | the numbers, and how they were obtained (append-only) |
-| [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) | the top 1–3 picks, and how to run them |
+| [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) | the top 1–3 picks, and how to run them; at most 2,000 words a page (`tests/test_recommendations_budget.py`) |
 | [`docs/changelog.md`](docs/changelog.md) · [`docs/history.md`](docs/history.md) | what shipped and why (before v1.0.0: history, frozen) |
 | `AGENTS.md`, `CONVENTIONS.md`, `METHODOLOGY.md` | lessons that outlive the task |
 
