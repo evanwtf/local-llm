@@ -23,10 +23,10 @@ FROM ubuntu:26.04
 
 # Pins. Every one of these is a variable a row would otherwise carry silently.
 ARG OPENCODE_VERSION=2.1.4
-ARG UV_VERSION=0.13.5
+ARG UV_VERSION=0.13.6
 # The interpreter uv hands the trial's venv. Pinned so the same target commit
 # resolves the same Python on every client.
-ARG PYTHON_VERSION=3.14.9
+ARG PYTHON_VERSION=3.14.10
 # The `rg` OpenCode's grep and glob tools run (#968). See the RUN below.
 ARG RIPGREP_VERSION=15.2.0
 
