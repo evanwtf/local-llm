@@ -5059,6 +5059,30 @@ topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/miaai-dsv41-1017"
 
+# #930 (operator 2026-10-27: "Yes"): bertholomus's two-node TensorFold build of
+# DeepSeek-V4.1-Flash-1017, its own 2.5 bpw EXL3 pack. Engine
+# bertholomus/TensorFold deepseek-v41-zig-tp2 @a57deb9d47 plus one local commit
+# (c5d3964d: the RDMA GID index from TF_RDMA_GID_INDEX; ours is 3, upstream
+# hard-codes 5), built locally with Zig 0.17.0 in nvcr.io/nvidia/pytorch:26.07.
+[backend.dsv41f1017tfbertdual2xrc]
+description = "#930: DeepSeek V4.1 Flash 1017 EXL3 2.5 bpw (bertholomus/DeepSeek-V4.1-Flash-1017-EXL3-2.5bpw @b8054f701a, 172.0 GiB) plus unquantized 1017 Engram shards 47/48 on bertholomus's TensorFold TP2 recipe (bertholomus/deepseek-v4.1-tensorfold-tp2-2xgb10 @503b64e + local GID commit; engine deepseek-v41-zig-tp2 @a57deb9d47 + local GID commit, built locally), BOTH Sparks over RoCE (GID index 3), 1M-token context, 2M-position pool, 8 streams, reasoning_effort low server-side, :8888. REMOTE CLIENT: the Core i9-13900H"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "DeepSeek-V4.1-Flash-1017-TP2"
+aider_model = "openai/DeepSeek-V4.1-Flash-1017-TP2"
+opencode_model = "tf8888/DeepSeek-V4.1-Flash-1017-TP2"
+context_tokens = 262144
+topology = "remote"
+# TensorFold serves no /v1/messages; OpenCode-only (#798).
+smoke_protocol = "openai"
+recipe_dir = "~/bert-dsv41-tp2"
+# Approval (#930) covers recipe 503b64e only; e5cc36f is it plus one local
+# commit that sets the GID index from config.env.
+recipe_pin = "e5cc36f"
+recipe_pin_reason = "the approved recipe commit 503b64e plus one local commit: the RoCE GID index from config.env (ours is 3; upstream hard-codes 5); later commits are not approved"
+
 
 # #1160 (operator 2026-10-18 20:40: approved, build locally): the same
 # 1017 checkpoint as #1142 on a different engine. 0xSero's EXL3 2.7 bpw quant

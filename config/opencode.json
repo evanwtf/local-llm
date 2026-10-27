@@ -462,6 +462,13 @@
             "context": 114688,
             "output": 16384
           }
+        },
+        "DeepSeek-V4.1-Flash-1017-TP2": {
+          "name": "DeepSeek-V4.1-Flash-1017 EXL3 2.5 bpw (TensorFold TP2, two Sparks, #930)",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
         }
       }
     }
