@@ -127,6 +127,22 @@ def head(cwd: pathlib.Path = HERE) -> str:
     return f"{sha}-dirty" if code_is_dirty(cwd) else sha
 
 
+#: The ref a live run's commit must be reachable from. PRs squash-merge
+#: (2026-10-27, #1281), so a branch commit never reaches main: a row stamped
+#: with one names a commit main does not hold -- #355's orphans, on every PR.
+MAIN_REF = "origin/main"
+
+
+def on_main(cwd: pathlib.Path = HERE) -> bool:
+    """True when HEAD is `origin/main` or one of its ancestors.
+
+    False outside a repo, with no `origin/main`, or on a commit main does not
+    hold. It reads the local ref and does not fetch, so a stale `origin/main`
+    refuses a newer commit of main; `git fetch` fixes that.
+    """
+    return _git("merge-base", "--is-ancestor", "HEAD", MAIN_REF, cwd=cwd) is not None
+
+
 @functools.cache
 def machine_slug() -> str:
     """A compact machine token, e.g. `M5-Max-128GB` or `Ryzen9-7900X-RTX3080Ti`.

@@ -424,3 +424,56 @@ def test_a_runs_own_files_in_a_tracked_output_dir_are_not_dirty(tmp_path) -> Non
     (out / "summary.json").write_text('{"tps": 1}\n')
     (out / "notes.txt").write_text("run 2\n")
     assert provenance.code_is_dirty(repo) is False
+
+
+def _pushed_repo(tmp_path: pathlib.Path) -> pathlib.Path:
+    """_repo, with its one commit pushed to an `origin` whose main holds it."""
+    repo = _repo(tmp_path)
+    origin = tmp_path / "origin.git"
+    run = functools.partial(subprocess.run, cwd=repo, check=True, capture_output=True)
+    run(["git", "init", "-q", "--bare", str(origin)])
+    run(["git", "remote", "add", "origin", str(origin)])
+    run(["git", "push", "-q", "origin", "HEAD:main"])
+    run(["git", "fetch", "-q", "origin"])
+    return repo
+
+
+def test_a_commit_main_holds_is_on_main(tmp_path) -> None:
+    assert provenance.on_main(_pushed_repo(tmp_path)) is True
+
+
+def test_a_commit_main_does_not_hold_is_not_on_main(tmp_path) -> None:
+    """#1281: PRs squash-merge, so a branch commit never reaches main. A run
+    from one would stamp a harness_head that main does not hold -- #355's
+    orphans, on every PR."""
+    repo = _pushed_repo(tmp_path)
+    (repo / "code.py").write_text("x = 2\n")
+    subprocess.run(
+        ["git", "commit", "-qam", "branch work"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    assert provenance.on_main(repo) is False
+
+
+def test_an_older_commit_of_main_is_on_main(tmp_path) -> None:
+    """A run pinned to an earlier commit of main is fine: main still holds it."""
+    repo = _pushed_repo(tmp_path)
+    run = functools.partial(subprocess.run, cwd=repo, check=True, capture_output=True)
+    first = run(["git", "rev-parse", "HEAD"], text=True).stdout.strip()
+    (repo / "code.py").write_text("x = 2\n")
+    run(["git", "commit", "-qam", "second"])
+    run(["git", "push", "-q", "origin", "HEAD:main"])
+    run(["git", "fetch", "-q", "origin"])
+    run(["git", "checkout", "-q", "--detach", first])
+    assert provenance.on_main(repo) is True
+
+
+def test_a_repo_without_origin_main_is_not_on_main(tmp_path) -> None:
+    """With no origin/main, nothing vouches for the commit: refuse, never guess."""
+    assert provenance.on_main(_repo(tmp_path)) is False
+
+
+def test_a_directory_outside_a_repo_is_not_on_main(tmp_path) -> None:
+    assert provenance.on_main(tmp_path) is False

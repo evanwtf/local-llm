@@ -34,7 +34,7 @@ FIX = "7356460"  # opencode_argv gained --dir
 # so the provenance is still followable. This annotates the classifier, never
 # the rows (append-only; annotate, never rewrite). The rule that prevents new
 # entries -- keep a stamped sha an ancestor of main -- is in
-# docs/agent-workflow.md.
+# docs/agent-workflow.md, and run.py enforces it (provenance.on_main, #1281).
 REBASED_AFTER_FIX = {
     "6f56a28": "2b734f2",  # #355, hardware/Cortex-X925-128GB-GB10 (5 rows)
     "62d7de1": "29fee77",  # (30 rows)

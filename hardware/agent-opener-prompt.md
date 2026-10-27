@@ -406,10 +406,11 @@ The machine sections add their own. Never break these.
   off, so GitHub will not stop you. The rule is yours to keep.
 - Use a branch per piece of work, `<kind>/<issue>-<slug>`, then:
   `git push -u origin <branch>` → `gh pr create --fill` →
-  `gh pr merge <n> --auto --merge`. Pass the PR number; a bare `gh pr merge`
+  `gh pr merge <n> --auto --squash`. Pass the PR number; a bare `gh pr merge`
   fails when the checkout is on `main`.
-- Use merge commits only. Squash and rebase rewrite shas and orphan a stamped
-  `harness_head` (#355).
+- Squash every PR; the repo allows no other method. A squash drops the
+  branch's commits, so start a live run only from a commit on `main`, after
+  its PR merges. `run.py` refuses any other commit (#355, #1281).
 - Never bypass a failing check; read it and fix the cause. When a PR shows
   BEHIND, run `gh pr update-branch <n>`. Rebase a stacked branch onto `main`
   after its parent merges.
@@ -740,7 +741,7 @@ pushes: two sessions have fixed the same red `main` in parallel before.
    registry and script-index tests read git-tracked files.
 4. Never union-merge a ledger; a union restores archived rows. Re-run the
    archivers after any ledger merge.
-5. Branch, open a PR, `gh pr merge <n> --auto --merge`, and watch it to MERGED.
+5. Branch, open a PR, `gh pr merge <n> --auto --squash`, and watch it to MERGED.
    Update the branch when it is BEHIND.
 6. Post the verdict on the issue: absolute numbers, the run window's thermal and
    power envelope, versions, and the PR link. Sign it. **Then launch the next
