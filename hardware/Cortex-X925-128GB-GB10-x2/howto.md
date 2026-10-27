@@ -100,7 +100,7 @@ opencode run --dir "$PWD" "add a --verbose flag to the CLI and a test for it"
 Disk: about 430 GB on each node, at the same path. Measured: 41/41 on replay
 + hard, 30/30 on the standard set, 369 of 380 hidden tests
 ([#1160](https://github.com/evanwtf/local-llm/issues/1160)).
-Source: [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) section 6; `tasks.toml` →
+Source: [`recommendations-archive-2026-10-27.md`](recommendations-archive-2026-10-27.md) section 6; `tasks.toml` →
 `[backend.dsv41f1017exl3serodual2xrc]`; the recorded argv; the stack's README
 and `scripts/launch/dsv41_tp2.sh` at `cc59c360`.
 
@@ -197,7 +197,7 @@ Disk: about 176 GB on each node. Measured: 42/42 on replay + hard, 30/30 on
 the standard set, but only 284 of 390 hidden tests
 ([#1095](https://github.com/evanwtf/local-llm/issues/1095)). Use it when the
 visible tests cover the whole job.
-Source: [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) section 6; `tasks.toml` →
+Source: [`recommendations-archive-2026-10-27.md`](recommendations-archive-2026-10-27.md) section 6; `tasks.toml` →
 `[backend.glm53fexl3tfqmiaai20261010dual2xrc]`; the recorded argv.
 
 The recipe is
@@ -360,7 +360,7 @@ section 2). `tasks.toml` names `1afc891`. This page uses `e65785c`.
 
 Disk: about 157 GiB on each node (or on the head only, with NFS). Measured:
 63/63 replay trials, on the earlier client that had broken `grep` and `glob`
-tools ([`RECOMMENDATIONS.md`](RECOMMENDATIONS.md), section 4). It is the only
+tools ([`recommendations-archive-2026-10-27.md`](recommendations-archive-2026-10-27.md), section 4). It is the only
 stack here that takes images, and it serves a 1,048,576-token window.
 Source: `tasks.toml` → `[backend.dsv4flashvisiondspark2xrc]`; the recorded
 argv; the recipe README.
