@@ -5138,3 +5138,8 @@ topology = "remote"
 # TensorFold serves no /v1/messages; OpenCode-only (#798).
 smoke_protocol = "openai"
 recipe_dir = "~/minimax_m31_recipe"
+# Approval (#1245) covers recipe 7ff046b8 only. 1319abe is that commit plus
+# the local heat-check change. Upstream b6e5e82 (a new engine build and two
+# attention switches) waits on its own approval.
+recipe_pin = "1319abe"
+recipe_pin_reason = "the approved recipe commit 7ff046b8 plus the local heat-check-off commit (operator, 2026-10-26); upstream b6e5e82 is not yet approved"
