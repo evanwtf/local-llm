@@ -453,6 +453,17 @@
         "chunkTimeout": 900000,
         "timeout": false
       }
+    },
+    "tf8888": {
+      "models": {
+        "MiniMax-M3.1-Flash-EXL3": {
+          "name": "MiniMax-M3.1-Flash-EXL3 (TensorFold, two Sparks, #1245)",
+          "limit": {
+            "context": 114688,
+            "output": 16384
+          }
+        }
+      }
     }
   }
 }
