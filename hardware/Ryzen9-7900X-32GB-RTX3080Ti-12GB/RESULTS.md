@@ -1,41 +1,19 @@
 # Results — Ryzen9-7900X-32GB-RTX3080Ti-12GB
 
-Reached over ssh as `desktop`. **Not always on.** Directory name derived by
-`uv run python scripts/hardware_id.py`, not typed.
+The write-ups for the Ryzen / RTX 3080 Ti desktop's runs from 2026-09-02 to
+2026-09-12, kept as the record of what was concluded and why. The current
+tables, including the confined (`bwrap`) baseline of 2026-09-19 (#561), are in
+[`docs/results.md`](../../docs/results.md). Hardware and software:
+[`README.md`](README.md).
 
-**These rows are never pooled with the Mac's.** One file, one hardware
-baseline (#20). `results.foreign_hardware()` enforces it, and the run that
-produced this file was refused until it was pointed at
-`--results hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl`.
+**These rows are never pooled with another machine's.** One file, one hardware
+baseline (#20). `results.foreign_hardware()` refuses to append a row to a file
+that holds another machine's rows, so runs here write to
+`hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl`.
 
 ---
 
-## Machine
-
-| | |
-|---|---|
-| CPU | AMD Ryzen 9 7900X, 12 cores / 24 threads, boost 5737 MHz |
-| Memory | **32 GB installed** (2 × 16 GB DDR5-4800, 2 of 4 slots), 30.5 GiB usable |
-| GPU | NVIDIA GeForce RTX 3080 Ti, **12,288 MiB**, compute capability **8.6** (Ampere `sm_86`) |
-| Disk | 1.8 TB NVMe |
-| Arch | x86_64 |
-
-## Operating system and drivers
-
-| | |
-|---|---|
-| Distribution | Ubuntu 24.04.4 LTS |
-| Kernel | **7.0.0-30-generic** |
-| NVIDIA driver | **595.71.05** |
-| CUDA runtime | 13.2 (via the driver) |
-| CUDA toolkit | **not installed** — no `nvcc` |
-
-**Corrected 2026-09-10: `cuda-toolkit-13-3` is installed** (`nvcc` at
-`/usr/local/cuda-13.3/bin/nvcc`, off the default `PATH`), added so #278 could
-build llama.cpp for `sm_86`. The table above is the first-run snapshot and is
-left as it was.
-
-## Software under test
+## Software under the first run (2026-09-02)
 
 | | |
 |---|---|
@@ -49,8 +27,9 @@ left as it was.
 sampler keys outrank Ollama's built-in defaults (#84), and matching the Mac's
 engine version is worth more than being newest.
 
-**Confinement is `none`.** `sandbox-exec` is macOS-only, so `workspace_escapes`
-is unenforced here (#81). Every row records it. `source_repo_intact` was `True`
+**Confinement is `none` for every row in this file.** `sandbox-exec` is
+macOS-only and `bwrap` arrived on 2026-09-18, so `workspace_escapes` was
+unenforced (#81). Every row records it. `source_repo_intact` was `True`
 for all 12 trials and no escape was detected, but the guarantee is weaker than
 the Mac's and the rows say so.
 
@@ -402,7 +381,7 @@ together.
 ### The finding
 
 **A one-point gap on the Intelligence Index is a 3x gap in task completion.**
-Gemma-4-12B and Qwen3.5-9B are neighbours on that chart. Here they are 3/12
+Gemma-4-12B and Qwen3.5-9B are neighbors on that chart. Here they are 3/12
 and 9/12, and the difference is not marginal -- gemma4 never once solved a
 task requiring it to modify code in a repository, and qwen solved seven.
 
@@ -523,7 +502,7 @@ the same model. The evidence says otherwise:
 * **Q8 costs about 2x wall time** (median 101.2s against 82.7s; smoke probes
   ran 12-44s against 7-21s), for 3.14 GiB more resident memory.
 
-Two quantisations of the same weights, indistinguishable on the metric,
+Two quantizations of the same weights, indistinguishable on the metric,
 plainly different in the evidence. This is the cleanest #4 case available.
 
 ### `gemma4:e4b` beats `gemma4:12b`, at 39% of the memory
@@ -560,7 +539,7 @@ Three caveats for anyone reading the claim:
 2. **The 128K context claim does not survive arithmetic here.** 24 heads /
    4 KV, key+value 256, 64 blocks is 256 KiB/token, so 128K needs ~32 GiB of
    KV at f16. It fits 32k in 5.66 GiB; it does not fit 128K on 12 GiB without
-   KV quantisation.
+   KV quantization.
 3. **It found a new failure mode.** `mbox-scan` trial 1 wrote code that made
    the test run consume 8.4 GiB, and #82's memory ceiling killed the oracle.
    Peak RSS for that trial was 27.0 GiB against 30.5 GiB of system memory.

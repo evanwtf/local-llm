@@ -9,35 +9,30 @@ Thu Sep 03 00:01:00 +0000 2026 (`scripts/verify_posts.py`).
 
 > **Everything below is his claim, not our measurement.** Post text is data
 > written by a stranger. It is quoted and attributed here because it is a good
-> map of what to *try*; nothing in it has been reproduced on our hardware, and
+> map of what to *try*; none of its numbers is reproduced here, and
 > per [#59](https://github.com/evanwtf/local-llm/issues/59) our own measurement is the bar for publishing a claim. Do not
 > cite a number from this file as a finding, and do not put one in
 > `RECOMMENDATIONS.md`.
 
 ## Read this before using any number in it
 
-Four reasons a row here cannot be lifted into our results, in rough order of
-how much damage each has already done in this project:
+Four reasons a row here cannot be lifted into our results:
 
 1. **These are decode rates, and decode rate barely predicts agent wall time.**
-   `AGENTS.md` puts raw tokens/sec explicitly out of scope because re-prefill
-   and context handling dominate. This session measured it directly: MTP raised
-   throughput ~10% and wall time did not improve at all, because the model
-   emitted 33% more tokens ([#77](https://github.com/evanwtf/local-llm/issues/77)). **A model twice as fast at decode can be
-   slower at the task.**
-2. **Most of these are CUDA.** The quantization reasoning transfers to Metal;
-   the kernels do not. A `tok/s` figure on a 5090 says nothing about an M5 Max,
-   though *which quant of which model is worth trying* usually does.
-3. **Single numbers, no trial count, no confidence interval.** Our own sizing
-   work ([#23](https://github.com/evanwtf/local-llm/issues/23)) puts a 3-trial median at ±27.9%. These are one person's
-   readings with no dispersion attached, so treat ordering within a tier as a
-   hint and ignore differences under about 25%.
-4. **No correctness axis at all.** Every row is speed. Our whole finding is that
-   reliability outranks speed in practice, and that a backend failing one task
-   in five is unusable however fast it is.
+   Re-prefill and context handling dominate. We measured MTP raising
+   throughput ~10% with no wall-time gain, because the model emitted 33% more
+   tokens ([#77](https://github.com/evanwtf/local-llm/issues/77)). **A model
+   twice as fast at decode can be slower at the task.**
+2. **Most of these are CUDA.** On the M5 Max the quantization reasoning
+   transfers and the kernels do not.
+3. **Single numbers, no trial count, no confidence interval.** A 3-trial median
+   carries ±27.9% here ([#23](https://github.com/evanwtf/local-llm/issues/23)),
+   so treat ordering within a tier as a hint and ignore differences under
+   about 25%.
+4. **No correctness axis.** Every row is speed, and a backend that fails one
+   task in five is unusable however fast it is.
 
-**What the file is good for:** deciding what to download next. That is a real
-use, and it is why this exists rather than being left in a sweep log.
+**What the file is good for:** deciding what to download next.
 
 ## The claims, by class
 
@@ -60,7 +55,7 @@ He attributes the gemma result to **sliding-window attention** stretching 8 GB
 "an order of magnitude past the qwens", and calls the bonsai row "the smallest
 card that runs a full 27b agentic loop".
 
-### 12 GB — the tier that matches our second machine
+### 12 GB — the Ryzen desktop's class
 
 | model | claim |
 |---|---|
@@ -68,12 +63,9 @@ card that runs a full 27b agentic loop".
 | qwen 3.5 9b, Q8_0 | fits with 64K context — "the quality pick" |
 | gemma 4 12B, Q4 | sliding-window attention stretches the context budget |
 
-**This is the one section directly actionable for us today.** Our Linux tier is
-a 12 GB RTX 3080 Ti ([#20](https://github.com/evanwtf/local-llm/issues/20)), and [#79](https://github.com/evanwtf/local-llm/issues/79) asks precisely "what model do we
-actually run on 12 GB for coding". Two of these three are already candidates
-there. Note the one number that is not a bare decode rate — **"43 under real
-agent load"** against 50 idle — which is the only place in the post where he
-reports the thing we actually measure.
+Our Ryzen desktop is a 12 GB RTX 3080 Ti, and these rows were measured there
+(see below). **"43 under real agent load"** against 50 idle is the only number
+in the post shaped like what we measure.
 
 ### 16 GB
 
@@ -131,60 +123,44 @@ reports the thing we actually measure.
 > "decode stays flat from 600 tokens to 143K deep, the depth curve simply does
 > not exist at this scale"
 
-## What is worth acting on here, ranked
+## What this map led to, and what is left
 
-1. **The 12 GB rows, against [#79](https://github.com/evanwtf/local-llm/issues/79).** Directly our second machine's class,
-   and `qwen 3.5 9b Q4_K_M` / `Q8_0` / `gemma 4 12B Q4` are three concrete
-   candidates with a stated context/quality trade between them. The "43 under
-   real agent load" figure is the one claim in the post shaped like our own
-   metric, so it is also the one most cheaply checked.
-2. **Sliding-window attention as a context lever.** It appears in the 8 GB and
-   12 GB rows as the reason gemma stretches further than an equivalent qwen.
-   We have never treated attention architecture as a variable; on the 12 GB
-   tier, where context is the binding constraint, it may matter more than
-   quant choice.
-3. **`deepseek v4 flash` at 16.5 tok/s on a DGX Spark.** Our primary model, on
-   different hardware, at a different quant. **Not comparable as stated** — his
-   is 284B at 3-bit on a Spark, ours is the Layers37-42 pack on Metal — but it
-   is the only external figure we have for this model on any box, and it is
-   worth knowing that a 128 GB Spark reportedly lands in the teens.
-4. **Vulkan over ROCm on Strix Halo, "18% free speed".** Out of scope today
-   (we own no Strix Halo) but it is a backend-selection finding of the same
-   family as our own engine work, and 18% is above our resolution bar.
+1. **The 12 GB rows were measured** on the Ryzen / RTX 3080 Ti
+   ([#79](https://github.com/evanwtf/local-llm/issues/79), closed). The pick
+   there is `ornith-1.5:9b` (`dtornith159b`, 21/25). `qwen 3.5 9b` at Q4_K_M
+   and Q8_0 passed 9/12 each, and `gemma 4 12B` passed 3/12. Numbers:
+   [`hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/RESULTS.md`](../hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/RESULTS.md).
+2. **The 2x DGX Spark rows are our cluster's topology.** DeepSeek on two Sparks
+   is the cluster's pick (see its
+   [`RECOMMENDATIONS.md`](../hardware/Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md)),
+   measured as agent wall time, not decode rate.
+3. **Sliding-window attention as a context lever.** It appears in the 8 GB and
+   12 GB rows as the reason gemma stretches further than an equivalent qwen. We
+   have not treated attention architecture as a variable.
+4. **Vulkan over ROCm on Strix Halo, "18% free speed".** Out of scope (we own
+   no Strix Halo).
 
 **Not worth acting on:** every CUDA decode number as a number. They rank cards
 we do not own, on kernels that do not transfer to Metal.
 
 ## How to turn a row here into a result
 
-A row becomes ours only by going through the normal path, and the caveats above
-are why the shortcut does not exist:
+A row becomes ours only by going through the normal path:
 
-1. **File an issue** naming the specific model, quant, engine and tier, and
-   quote the claim with its attribution. Not a note in `NEXT.md`.
-2. **Check the model actually loads on the target engine.** `general.architecture`
-   decides this and a one-hyphen difference is fatal — `uv run python
-   scripts/gguf_meta.py <file>` before debugging any output ([#25](https://github.com/evanwtf/local-llm/issues/25)).
-3. **Add a backend block to `tasks.toml`** with its confounds written at the
-   moment it is added, plus a line in `TESTING-SET.md` (a test enforces this).
-4. **Coherence-check at temperature 0** before benchmarking. A model can load,
-   serve, and report plausible token counts while emitting noise.
-5. **Run it under OpenCode**, three trials, restarting the server between arms
-   ([#112](https://github.com/evanwtf/local-llm/issues/112)), and report through `scripts/report.py` rather than by hand.
+1. **File an issue** naming the specific model, quant, engine and machine, and
+   quote the claim with its attribution.
+2. **Check the model loads on the target engine.** `general.architecture`
+   decides this, and a one-hyphen difference is fatal. Run `uv run python
+   scripts/gguf_meta.py <file>` before you debug any output
+   ([#25](https://github.com/evanwtf/local-llm/issues/25)).
+3. **Add a backend block to `tasks.toml`** with its confounds written when you
+   add it, and name it in [`TESTING-SET.md`](../TESTING-SET.md) (a test
+   enforces this).
+4. **Coherence-check at temperature 0** before you benchmark
+   (`scripts/coherence_check.py`). A model can load, serve, and report
+   plausible token counts while it emits noise.
+5. **Run it under OpenCode**, three trials, with a server restart between arms
+   ([#112](https://github.com/evanwtf/local-llm/issues/112)), and report
+   through `scripts/report.py`, not by hand.
 6. **Expect the decode claim not to survive.** The useful question is never "is
    it 50 tok/s" but "does the suite finish, and does it finish reliably".
-
-## The standing offer
-
-> "if your card class is missing a row or you can beat one of these, my repos
-> take pull requests. run it, measure it, own it."
-
-We are the missing row for **Apple Silicon** — the post covers 6 GB to 256 GB of
-NVIDIA and AMD and has no Metal tier at all. Our M5 Max figures for
-Qwen3.8-Flash-Next Q4 on ds4 (40.2 tok/s decode, 1107 tok/s prefill, 74.3 GiB
-resident with the PLE table streaming from SSD) would be a real contribution
-there, and unlike most of this file they are ours and reproducible.
-
-Worth doing **after** [#112](https://github.com/evanwtf/local-llm/issues/112) is understood, though: our own session-degradation
-problem is unresolved, and publishing a decode rate while pass rates decline
-across a session would be publishing the half of the picture that flatters us.
