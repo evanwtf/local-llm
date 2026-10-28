@@ -16,10 +16,6 @@ station and write the log. In the morning the openers read the log, check the
 station for themselves, and start service. A good close leaves the openers
 little to clean up.
 
-**Terms.** The **closer** is this prompt. The **opener** is the start prompt
-every machine shares, which was called the handoff prompt until #556 and was
-one file per machine until 2026-09-30.
-
 - **The closer ends a session.** The departing session stops taking new work.
   It accounts for everything in flight, puts each piece in a durable place, and
   writes a closer log.
@@ -62,7 +58,7 @@ a live run has frozen.
 Find this machine with `uv run python scripts/machines.py --check`, then use
 its column below wherever a step says "the server status command" or similar.
 
-| step | M5 Max | DGX Spark | Ryzen / RTX 3080 Ti |
+| step | M5 Max | DGX cluster | Ryzen / RTX 3080 Ti |
 |---|---|---|---|
 | queue | `make_next.py --platform macos` | `make_next.py --platform nvidia` | `make_next.py --platform nvidia` |
 | server status | `scripts/unitctl.py status` | `scripts/dgx_server.py status <name>` for `llamacpp ds4 vllm omni clip ollama`; `docker ps` | `ps -Ao pid,ppid,etime,command`; `ollama ps` |
@@ -103,8 +99,7 @@ gh run list --limit 10 --json conclusion,status,headBranch,displayTitle
 In Claude Code, also run `CronList`, `TaskList`, and `ListAgents`, and
 `uv run python scripts/heartbeat.py --dry-run` (the DGX:
 `scripts/cluster_heartbeat.py --dry-run`) for the state the next session will
-read. Print the
-queue with this machine's queue command.
+read. Print the queue with this machine's queue command.
 
 Then go back through this conversation. List every item that is not finished:
 
@@ -159,7 +154,7 @@ Work that lives only in your context or in an uncommitted file is lost.
 - An operator decision about an issue goes on that issue.
 
 **Rules and lessons:**
-- A rule for the repo or for every agent goes into `AGENTS.md` or the openers,
+- A rule for the repo or for every agent goes into `AGENTS.md` or the opener,
   through a PR.
 - A fact about the operator, or about how to work with them, goes into your
   memory folder (the path your system prompt names). Update an existing memory
@@ -185,8 +180,8 @@ Work that lives only in your context or in an uncommitted file is lost.
   Then record the close, so the heartbeat names it instead of flagging an idle
   machine:
   `uv run python scripts/heartbeat.py --set '{"task": "idle: session closed, closer log <path>", "questions": []}'`.
-  On the DGX cluster the timer keeps recording sensors; it posts nowhere
-  (2026-10-19), so the next session's first heartbeat is the operator's signal.
+  On the DGX cluster the timer keeps recording sensors but posts nowhere, so
+  the next session's first heartbeat is the operator's signal.
 - Leave `~/git/local-llm` on `main`. Do not switch it under a live run.
 - Do not run `git stash`, `git clean`, or `git reset --hard` to tidy up.
 
