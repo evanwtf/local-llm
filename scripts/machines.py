@@ -88,7 +88,9 @@ MACHINES: tuple[Machine, ...] = (
     Machine(
         slug="Cortex-X925-GB10",
         directory="Cortex-X925-128GB-GB10",
-        name="the DGX Spark (GB10, 128 GB)",
+        # Retired as a lane: single-Spark testing stopped 2026-10-23 and the
+        # label is closed-issues-only. The box is node A of the -x2 cluster.
+        name="the single DGX Spark (GB10, 128 GB; retired, now cluster node A)",
         os="Linux",
         arch="aarch64",
         accelerator="NVIDIA GB10 Grace Blackwell GPU",
