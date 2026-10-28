@@ -1,0 +1,190 @@
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 2026-10-28T07:32:36Z (03:32:36 EDT) | harness b7bfb25
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement bwrap
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] Hugging Face sweep since 2026-10-27T07:32:36Z (24h)
+
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] == Qwen3.8-Flash-Next -- our fastest stack (llama.cpp Q3, and the 112 GB MLX build)
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     intel-ai/Qwen3.8-Flash-Next-MXFP4-BF16Attn-MXFP8MTP-PLEMXF 2026-10-28T07:04         dl=65
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     intel-ai/Qwen3.8-Flash-Next-MXFP4-BF16Attn-MXFP8MTP-CT-Aut 2026-10-28T07:04         dl=51
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     intel-ai/Qwen3.8-Flash-Next-MXFP4-BF16Attn-PLEMXFP8-CT-Aut 2026-10-28T07:04         dl=215
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     intel-ai/Qwen3.8-Flash-Next-MXFP4-BF16Attn-CT-AutoRound    2026-10-28T07:04         dl=103
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     intel-ai/Qwen3.8-Flash-Next-MXFP4-BF16SharedExperts-CT-Aut 2026-10-28T07:03         dl=92
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     intel-ai/Qwen3.8-Flash-Next-MXFP8-CT-AutoRound             2026-10-28T07:03         dl=145
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? intel-ai/Qwen3.8-Flash-Next-MXFP4-Mixed-CT-AutoRound       2026-10-28T07:03         dl=1535
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     jakeatx/Swift-1.5-Qwen3.8-Flash-Next-MTP-Drafter-GGUF      2026-10-28T00:58         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? azampatti/Qwen3.8-Flash-Next-FP4-Local-AZ                  2026-10-28T00:41         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     fairfieldt/Qwen3.8-Flash-Next-trashcan-G-iq4-GGUF          2026-10-28T00:09         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? umixer/ThinkingCap-Qwen3.8-Flash-Next-oq4-mix6-mtp         2026-10-27T23:58         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     adriandj3/Swift-1.5-Qwen3.8-Flash-Next-MTP-for-GGUF-and-NV 2026-10-27T23:47         dl=1589
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     JRamirez-UAB/Swift-1.5-Qwen3.8-Flash-Next-EXL3-3.75bpw-96G 2026-10-27T23:40         dl=165
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     JRamirez-UAB/Swift-1.5-Qwen3.8-Flash-Next-EXL3-2.25bpw-48G 2026-10-27T23:40         dl=226
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     JRamirez-UAB/Qwen3.8-Flash-Next-EXL3-2.25bpw-48GB          2026-10-27T23:40         dl=205
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     drowzeys/keys-Qwen3.8-Flash-Next-NVFP4-FP4-QAD-house-qsa-L 2026-10-27T23:37         dl=361
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     turboderp/Qwen3.8-Flash-Next-exl3                          2026-10-27T22:37         dl=3561
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? Tylogi/Qwen3.8-Flash-Next-TQ                               2026-10-27T20:20         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     yemara/Qwen3.8-Flash-Next-NVFP4-sharar-w3-qad              2026-10-27T20:07         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     loscrossos/Huihui-Qwen3.8-Flash-Next-abliterated-v2-GGUF   2026-10-27T20:03         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? XopMC513/Swift-1.5-Qwen3.8-Flash-Next-Heretic              2026-10-27T18:52         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? TheCacheIsALie/RidgeFill-Projector-Qwen3.8-Flash-Next-i8   2026-10-27T18:49         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     Shockem/Qwen3.8-Flash-Next-GSQ-RCO-abliterated-IQ3_S-Q8PLE 2026-10-27T18:26         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     doth4580/Qwen3.8-Flash-Next-EXL3-4.05bpw                   2026-10-27T17:20         dl=12631
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     Shockem/Qwen3.8-Flash-Next-GSQ-RCO-IQ3_S-Q8PLE-Basalt      2026-10-27T17:04         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? Samfisheryu/Qwen3.8-flash-next-nowag-2bit                  2026-10-27T16:16         dl=0
+2026-10-28T03:32:36-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] == DeepSeek-V4-Flash -- our only independent lineage; ds4 serves it
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? intel-ai/DeepSeek-V4.1-Flash-MXFP4-Mixed-CT-AutoRound      2026-10-28T07:03         dl=102
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? intel-ai/DeepSeek-V4-Flash-0731-MXFP4-Mixed-CT-AutoRound   2026-10-28T07:03         dl=895
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? intel-ai/DeepSeek-V4-Flash-MXFP4-Mixed-CT-AutoRound        2026-10-28T06:39         dl=257
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     darkknight25/DeepSeek-V4.1-Flash-UNCENSORED-FP8            2026-10-28T06:25         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     AtomicChat/DeepSeek-V4.1-Flash-1017-Uncensored-GSQ-RCO-GGU 2026-10-28T04:52         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     HumanjavaEnterprises/DeepSeek-V4.1-Flash-1017-GSQ-RCO-upst 2026-10-28T04:47         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? Hoax-wo/DeepSeek-V4.1-Flash-1017                           2026-10-28T03:56         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? PrblyElect/DeepSeek-V4-Flash-Vision-TP3-3x-DGX-Spark       2026-10-28T02:03         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     Harsha001/DeepSeek-V4.1-Flash-1017-GSQ-RCO-StrixHalo-GGUF  2026-10-28T01:26         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     aarontmaher/DeepSeek-V4.1-Flash-1017-Q4-GGUF-Mirror        2026-10-28T01:04         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     shad0wsh00ck/DeepSeek-V4.1-Flash-1017-UNCENSORED-VQ-GGUF   2026-10-28T00:30         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? andre1231/DeepSeek-V4-Flash-Base                           2026-10-27T23:43         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     ISTA-DASLab/DeepSeek-V4.1-Flash-1017-GSQ-RCO-GGUF          2026-10-27T23:16         dl=1105751
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? ProprietaryLegal/DeepSeek-V4.1-Flash-2xDGX-Spark-x86-offlo 2026-10-27T21:43         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? ProprietaryLegal/deepseek-v4.1-flash-sm70                  2026-10-27T21:42         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? ProprietaryLegal/DeepSeek-V4-Flash-V100                    2026-10-27T21:41         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     ProprietaryLegal/DeepSeek-V4.1-Flash-1017-EXL3-2.75bpw-Leg 2026-10-27T21:40         dl=49
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     WaveCut/DeepSeek-V4.1-Flash-1017-GSQ-RCO-IQ1_M-NInfer-v3   2026-10-27T20:44         dl=1956
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? XopMC513/DeepSeek-V4.1-Flash-1017-Heretic                  2026-10-27T20:26         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     daemonix/DeepSeek-V4.1-Flash-1017-abliterated-MXFP4-GGUF   2026-10-27T19:57         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? Sherpa/DeepSeek-V4.1-Flash-1017-native-e7c5c2b3890e9a69972 2026-10-27T19:18         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? distributedcognition/DeepSeek-V4.1-Flash-abliterated       2026-10-27T19:03         dl=413
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? distributedcognition/DeepSeek-V4.1-Flash-1017-abliterated  2026-10-27T19:03         dl=23
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     neuralll/DeepSeek-V4.1-Flash-1017-GSQ-RCO-DSPARK-GGUF      2026-10-27T18:48         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     Solstice-AI/DeepSeek-V4.1-Flash-UNCENSORED-Protium-GGUF    2026-10-27T15:48         dl=17423
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? manateelazycat/DeepSeek-V4.1-Flash-1017-TensorFold-Zig-Tho 2026-10-27T15:18         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     BoldingBuilds/DeepSeek-V4.1-Flash-1017-Abliteration-LoRA-G 2026-10-27T15:07         dl=203
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? rax4901/DeepSeek-V4.1-Flash-Abliterated                    2026-10-27T14:10         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     rax4901/DeepSeek-V4-Flash-0731-Abliterated-FP8             2026-10-27T14:10         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     rax4901/Huihui-DeepSeek-V4-Flash-abliterated-ds4-GGUF      2026-10-27T14:09         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] == GLM-5.3-Flash -- the other non-Qwen on ds4
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? intel-ai/GLM-5.3-Flash-MXFP4-Mixed-CT-AutoRound            2026-10-28T07:05         dl=237
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     intel-ai/GLM-5.3-Flash-MXFP8-CT-AutoRound                  2026-10-28T07:03         dl=155
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     nvidia/GLM-5.3-Flash-NVFP4                                 2026-10-28T06:23         dl=132428
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     12fn/GLM-5.3-Flash-NVFP4-W4A16-2x-RTX-PRO-6000             2026-10-28T05:43         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     lapadatbogdan/GLM-5.3-Flash-Coder-RCO-152E-GGUF            2026-10-28T04:27         dl=24303
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     RedHatAI/GLM-5.3-Flash-NVFP4                               2026-10-27T21:48         dl=23845
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? Tylogi/GLM-5.3-Flash-TQ                                    2026-10-27T20:14         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? b2z/GLM-5.3-Flash-Uncensored-oQ5e                          2026-10-27T19:57         dl=3
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? test24675/GLM-5.3-Flash-UNCENSORED-321B                    2026-10-27T18:43         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     Yyyssd/Huihui-GLM-5.3-Flash-abliterated-GGUF               2026-10-27T17:48         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     BioDec/GLM-5.3-Flash-GSQ-RCO-MTP-GGUF                      2026-10-27T17:23         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     rax4901/Huihui-GLM-5.3-Flash-abliterated-GGUF              2026-10-27T14:09         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? eniga/GLM-5.3-Flash-radiance-MXFP4                         2026-10-27T08:27         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] == Qwen3.6-27B -- the 31 GB 'start here' pick
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? positron-ai/Qwen3.6-27B                                    2026-10-28T03:13         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     positron-ai/Qwen_Qwen3.6-27B-ingest-best-gptq              2026-10-27T23:44         dl=37
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? CaaretAI/Qwen3.6-27B-caaret                                2026-10-27T13:22         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     prithivMLmods/Qwen3.6-27B-NVFP4-GGUF                       2026-10-27T10:10         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     prithivMLmods/Qwen3.6-27B-abliterated-NVFP4-GGUF           2026-10-27T10:08         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] == Ornith-1.5 -- fastest measured backend
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     gbuzhf/Ornith-1.5-35B-A3B-Huihui-Sangreal-MTP-ICE-GGUF     2026-10-28T07:30         dl=10987
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? TeamIDE/Ornith-1.5-9B-Pantheon-TT                          2026-10-28T00:35         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? raahemnabeel/ornith-1.5-122b                               2026-10-28T00:04         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     JRamirez-UAB/Ornith-1.5-9B-EXL3-16GB-12GB                  2026-10-27T23:40         dl=300
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     JRamirez-UAB/Ornith-1.5-35B-A3B-EXL3-4.00bpw-24GB          2026-10-27T23:40         dl=292
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? raahemnabeel/ornith-1.5-35b-a3b                            2026-10-27T19:12         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? SpiritKing/VISION-Ornith-1.5-9B                            2026-10-27T18:51         dl=36
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? resolvo-cloud/Ornith-1.5-35B-A3B-DFlash2                   2026-10-27T18:49         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? resolvo-cloud/Ornith-1.5-9B-DFlash2                        2026-10-27T15:29         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? resolvo-cloud/Ornith-1.5-DFlash2                           2026-10-27T15:25         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     rax4901/Ornith-1.5-122B-Uncensored-GGUF                    2026-10-27T13:58         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? skryptersi/Ornith-1.5-35B-A3B-oQ4e-mtp                     2026-10-27T11:09         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? 3MPER0RR/Ornith-1.5-35B-A3B-3MPER0RR-abliterated           2026-10-27T09:25         dl=333
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? 3MPER0RR/Ornith1.5-9B-3MPER0RR-abliterated                 2026-10-27T09:17         dl=306
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     ToPo-ToPo/Ornith-1.5-122B-MTP-bf16                         2026-10-27T08:35         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] == gemma-4-26b -- the MLX Fast leaderboard model; measured 11/11
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/gemma-4-26B-A4B-it-qat-q4_0-unquantized-GGUF  2026-10-28T03:04         dl=213
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     Advantech-EIOT/gemma-4-26B-A4B-it-GGUF                     2026-10-28T02:03         dl=40
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? milkshake721/Gemma-4-26B-A4B-HybridAgent-4bit              2026-10-28T02:03         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? milkshake721/Gemma-4-26B-A4B-HybridAgent                   2026-10-28T02:02         dl=280
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     Yiriru/gemma-4-26B-A4B-it-qat-GGUF                         2026-10-28T01:06         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/gemma-4-26B-A4B-GGUF                          2026-10-27T21:26         dl=4059
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/gemma4-26b-a4b-laos-GGUF                      2026-10-27T20:18         dl=508
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     MaxResDefault001/gemma-4-26B-A4B-opus-reasoning-GGUF       2026-10-27T10:32         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? james58899/gemma-4-26B-A4B-it-qat-ONNX                     2026-10-27T08:25         dl=209
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? t-firefly/gemma4-26b-xh2-m50                               2026-10-27T08:01         dl=21
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] == gemma-4-31b -- the Google-lineage backend, measured 12/12
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? khazic/gemma4_31b_sea3_2ep_sft                             2026-10-28T07:32         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     QuantaPlanta/Gemma-4-Dark-Orthia-Untied-31B-GGUF           2026-10-28T07:10         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     QuantaPlanta/Gemma-4-Dark-Orthia-31B-GGUF                  2026-10-28T06:56         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED 2026-10-28T05:23         dl=3077
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? khazic/gemma4_31b_mergedmala8_seaweak_2ep_sft              2026-10-28T04:46         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/gemma-4-31B-it-Mystery-Fine-Tune-HERETIC-UNCE 2026-10-28T04:16         dl=2489
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/gemma-4-31B-it-Grand-Horror-X-INTENSE-HERETIC 2026-10-28T04:16         dl=554
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? Nimbz/Gemma-4-Dark-Orthia-Untied-31B                       2026-10-28T04:13         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? Nimbz/Gemma-4-Dark-Orthia-31B                              2026-10-28T04:12         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Gemma-4-Novelist-Eclipse-31B-GGUF             2026-10-27T23:43         dl=1425
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/gemma-4-31B-it-uncensored-heretic-GGUF        2026-10-27T21:27         dl=862
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     kmoore0/gemma-4-31b-test-tune-2-GGUF                       2026-10-27T17:32         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? kmoore0/gemma-4-31b-test-tune-2                            2026-10-27T17:29         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     Yiriru/gemma-4-31B-it-qat-GGUF                             2026-10-27T15:18         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? OceanZ/gemma4-31b-ecab-mf-f2-frac-colnorm-skip15-s0p75     2026-10-27T14:41         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? 3MPER0RR/gemma-4-31b-it-3MPER0RR-abliterated               2026-10-27T09:18         dl=33
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     Joakimpalm-Zen/gemma-4-31B-it-attn48-removed-Q4_0-GGUF     2026-10-27T07:39         dl=464
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] == nvidia -- NVIDIA's own HF org: Nemotron, NVFP4/FP8 builds, DGX-loadable
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     nvidia/GLM-5.3-Flash-NVFP4                                 2026-10-28T06:23         dl=132428
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/Nemotron-3.5-Parse                                  2026-10-28T04:31         dl=9406
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/Metatron-v1                                         2026-10-28T03:47         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/NVIDIA-NemotronLabs-AI-for-Media-Sports-Tennis      2026-10-28T01:27         dl=1357
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/NLD-Uni                                             2026-10-28T00:45         dl=24
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/Muse-Spark-Open-816B-A42B-DFlash2                   2026-10-28T00:34         dl=1488
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/Cosmos3-Nano-Transfer-Auto                          2026-10-28T00:14         dl=1601
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/Cosmos3-Nano-Sim-Auto                               2026-10-28T00:14         dl=723
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/Cosmos3-Nano-Sim-Transfer                           2026-10-28T00:14         dl=759
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/Cosmos3-Nano-Sim-Bimanual                           2026-10-28T00:13         dl=766
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/Kumo-Forecast                                       2026-10-27T21:03         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/Kumo-Anomaly                                        2026-10-27T21:00         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/EgoHand-v1                                          2026-10-27T18:16         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/RT-DETR-Hand-Detector-v1                            2026-10-27T18:15         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/nemotron-labs-unified-asr-0.6b                      2026-10-27T13:33         dl=4
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] == Nemotron -- NVIDIA's Nemotron lineage; NVFP4/FP8 for Blackwell
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? NapYang/ThinkingCap-NVIDIA-Nemotron-3.5-Lightning-30B-A3B- 2026-10-28T07:23         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? TriLinSL/nemotron-3.5-asr-streaming-si-ta-en-165h-modes-co 2026-10-28T06:48         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/Nemotron-3.5-Parse                                  2026-10-28T04:31         dl=9406
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     frankmorales2020/nemotron-3.5-bolt-e4b-topo-governed-finew 2026-10-28T03:35         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? loom-fun/nvidia-NVIDIA-Nemotron-3.5-Bolt-E4B-4GB-loom      2026-10-28T01:32         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/NVIDIA-NemotronLabs-AI-for-Media-Sports-Tennis      2026-10-28T01:27         dl=1357
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     JRamirez-UAB/Nemotron-3.5-Super-VL-120B-A12B-EXL3-2.25bpw- 2026-10-27T23:40         dl=105
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     somenetworktrouble/NVIDIA-Nemotron-Labs-Dory1.0-4B-heretic 2026-10-27T23:10         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     OfflineBase/Nemotron-3.5-Bolt-E4B-Vision-GGUF              2026-10-27T21:35         dl=110
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? harshbhx/ratchet-nemotron-nano-4b-toolcall                 2026-10-27T21:18         dl=67
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? harshbhx/ratchet-nemotron-nano-4b-text2sql                 2026-10-27T21:18         dl=67
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? harshbhx/ratchet-nemotron-nano-4b-text2sql-nebius          2026-10-27T21:18         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3-Embed-1B-BF16-i1-GGUF              2026-10-27T20:21         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3.5-Embed-1B-BF16-i1-GGUF            2026-10-27T20:00         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? KCIP/qwen3.5-9b-nemotron-grpo-lora-step211                 2026-10-27T19:18         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3.5-Embed-1B-BF16-GGUF               2026-10-27T19:14         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? EYEDOL/nemotron-3.5-asr-streaming-yoruba                   2026-10-27T17:50         dl=42
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? zachperlman20/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-jpp-le 2026-10-27T17:13         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Llama-3.1-Nemotron-70B-Instruct-HF-abliterate 2026-10-27T16:55         dl=508
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? BtbAgent/nemotron-3.5-Bolt-E4B-specialiste-financier       2026-10-27T16:24         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3.5-Embed-8B-BF16-GGUF               2026-10-27T14:47         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3-Embed-8B-BF16-GGUF                 2026-10-27T14:47         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Rombos-LLM-V2.6-Nemotron-70b-GGUF             2026-10-27T14:40         dl=44
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3.5-Embed-8B-BF16-i1-GGUF            2026-10-27T14:35         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]   ? nvidia/nemotron-labs-unified-asr-0.6b                      2026-10-27T13:33         dl=4
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     apande-TT/nemotron-3-5-lightning-30b-a3b-bf16-tt           2026-10-27T12:50         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3-Embed-8B-BF16-i1-GGUF              2026-10-27T12:18         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3.5-Bolt-E4B-Heretic-GGUF            2026-10-27T09:57         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3-Embed-1B-BF16-GGUF                 2026-10-27T08:03         dl=0
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     Joakimpalm-Zen/NVIDIA-Nemotron-Nano-9B-v2-Q8_0-GGUF        2026-10-27T07:39         dl=506
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] == RedHatAI -- Red Hat's FP8/NVFP4 requants of the NVIDIA models, built for vLLM
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a]     RedHatAI/GLM-5.3-Flash-NVFP4                               2026-10-27T21:48         dl=23845
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 5 result(s) hidden as unloadable on gb10 (mlx, rocm, exl2). Re-run with --all to see them.
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] 
+Legend:  (blank) loads here   ? unclassified, check it   x hidden
+2026-10-28T03:32:37-0400 INFO [b7bfb25@Cortex-X925-GB10 none pld=n/a] log: /home/evan/git/local-llm/logs/sweeps/hf-sweep-Cortex-X925-GB10-20261028T073236Z.log
