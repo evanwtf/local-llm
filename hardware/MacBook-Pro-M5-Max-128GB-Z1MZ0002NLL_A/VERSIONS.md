@@ -5,22 +5,20 @@ the OS version — firmware, Metal toolchain, the wired-memory ceiling — none 
 which `sw_vers` reports and none of which is reconstructable after an OS
 upgrade.
 
-The file now holds two captures, on each side of the macOS 27 boundary (#306):
+It holds two captures, one on each side of the macOS 27 upgrade
+([#306](https://github.com/evanwtf/local-llm/issues/306)):
 
-- **macOS 27.0 (26A428)** — captured **2026-09-20 06:04 EDT**. This is the
-  current record, re-taken on 27 for #499.
-- **macOS 26.6.2 (25G83)** — captured **2026-09-11 09:15 EDT**, before the
-  upgrade. Kept as the pre-27 boundary record.
+- **macOS 27.0 (26A428)**, captured **2026-09-20T06:04-0400**: the current
+  record ([#499](https://github.com/evanwtf/local-llm/issues/499)).
+- **macOS 26.6.2 (25G83)**, captured **2026-09-11T09:15-0400**: the pre-27
+  record.
 
-This mirrors the DGX Spark's inventory (#304). Like that one, it is a snapshot
-that nothing regenerates or verifies; #305 proposes a per-machine collector and
-an in-ledger header record so a firmware boundary becomes a lookup rather than
-a hand-taken file. Until that ships, this is the record.
+Nothing regenerates or verifies this file. A per-machine collector is
+[#305](https://github.com/evanwtf/local-llm/issues/305), still open.
 
-**Redaction.** This repo is public. The machine serial number, hardware UUID
-and provisioning UDID from `system_profiler` are omitted deliberately; they
-identify the physical unit and say nothing about performance. Everything that
-bears on a benchmark is kept.
+**Redaction.** This repo is public. The serial number, hardware UUID and
+provisioning UDID are omitted: they identify the unit and say nothing about
+performance.
 
 ## Facts
 

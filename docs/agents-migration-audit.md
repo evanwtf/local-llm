@@ -1,5 +1,9 @@
 # Migration audit: AGENTS.md restructure
 
+> **Status: a frozen record.** It maps where each rule went when PR #339
+> (merged 2026-09-12) split `AGENTS.md` into topic docs. The docs it names have
+> changed since; read them for current rules.
+
 This records where every distinct rule and fact from the old root `AGENTS.md`
 went when it was reduced from an entry point plus everything else (17,826 words)
 to a slim entry point (1,794 words) plus task-triggered topic docs. It exists so

@@ -7,7 +7,7 @@ namespace**, and creating one needs a uid/gid map.
 
 ## The problem this fixes (#516)
 
-This box runs Ubuntu 24.04, which restricts unprivileged user namespaces
+The Ryzen runs Ubuntu 24.04, which restricts unprivileged user namespaces
 through AppArmor:
 
 ```
@@ -61,6 +61,6 @@ back to `confinement: none` with a warning (#517).
 ## The blunter alternative
 
 Setting `kernel.apparmor_restrict_unprivileged_userns=0` also makes `bwrap`
-work, but it relaxes the restriction for **every** binary on the box, not just
+work, but it relaxes the restriction for **every** binary on the machine, not just
 `bwrap`. The profile keeps the restriction on and exempts one binary, so prefer
 it.

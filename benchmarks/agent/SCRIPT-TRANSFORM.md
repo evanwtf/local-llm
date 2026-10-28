@@ -1,10 +1,9 @@
 # `script-transform` — spec
 
 A second script task, harder than [`script-reverse`](PROMPTS.md) by design.
-`script-reverse` now passes 3/3 on every backend and client measured, so it
-distinguishes only speed. This one asks for argument parsing, three operations
-in one file, and **composition** — where an agent can be subtly wrong rather
-than simply absent.
+`script-reverse` separates backends almost only on speed. This one asks for
+argument parsing, three operations in one file, and **composition** — where an
+agent can be subtly wrong rather than simply absent.
 
 Still greenfield: the agent starts in an empty directory. No repository, no
 excision, no fixture, nothing to leak.
@@ -96,13 +95,15 @@ for text, ops in [("banana",["sort"]), ("abc",["sha256"]),
 PY
 ```
 
-## What this is expected to show
+## What it showed
 
-**Prediction, recorded before running:** most backends will still pass. This is
-more typing, not more thinking, and every model measured so far cleared
-`script-reverse`. If that holds, it is evidence for [#4](https://github.com/evanwtf/local-llm/issues/4) — the ceiling is not
-about task size — and the task that actually discriminates will be one where a
-*wrong* answer is plausible, not merely a longer one.
+The prediction recorded before the first run was that most backends would
+still pass, because this is more typing, not more thinking. It held: across
+the four machine ledgers on 2026-10-28, 820 of 873 `script-transform` trials
+pass, against 877 of 896 for `script-reverse`. That supports
+[#4](https://github.com/evanwtf/local-llm/issues/4): the ceiling is not about
+task size, and a task that discriminates needs a plausible *wrong* answer, not
+only a longer one.
 
 The failure modes worth watching for, none of which `script-reverse` can produce:
 
@@ -116,41 +117,40 @@ The failure modes worth watching for, none of which `script-reverse` can produce
 
 ## Running it by hand against a local model
 
-The harness is not required. To drive it yourself with OpenCode against
-**Qwen3.8-Flash-Next `UD-Q3_K_XL`** on llama.cpp:
+The harness is not required. To drive it yourself on the M5 Max with OpenCode
+2.x against **Qwen3.8-Flash-Next `UD-Q3_K_XL`** on llama.cpp. Run the
+commands from the repo root:
 
 ```sh
-# 1. Free the GPU. Only one large model fits at a time.
-pkill -f ds4-server; pkill -f llama-server; sleep 4
+# 1. Free the GPU. Only one large model fits at a time. Stop any server with
+#    its own launcher, then confirm nothing is resident.
+uv run python benchmarks/agent/preflight.py
 
 # 2. Start llama.cpp on the Q3 weights. The launcher defaults to Q2, so name
-#    the model explicitly. Samplers are already Unsloth's thinking-mode preset:
+#    the model explicitly. Its samplers are Unsloth's thinking-mode preset:
 #    --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
+LLAMACPP_UP=hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/llamacpp/llamacpp-up
 MODEL=~/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00003.gguf \
 ALIAS=qwen3.8-flash-next-q3 \
-  benchmarks/llamacpp/llamacpp-up start
+  "$LLAMACPP_UP" start
 
 # 3. Wait for a real completion. /health answers "ok" while the model is still
 #    loading, and curl exits 0 on a 503 -- do not trust either.
 uv run python benchmarks/agent/wait_ready.py \
     --base-url http://127.0.0.1:8020 --model qwen3.8-flash-next-q3
 
-# 4. Work in a scratch directory, never the repo.
+# 4. Work in a scratch directory, never the repo. OpenCode 2.x works in its
+#    process's cwd; --standalone keeps it off the shared background service.
+PROMPT="$(sed -n '/^```text$/,/^```$/p' benchmarks/agent/SCRIPT-TRANSFORM.md | sed '1d;$d')"
 mkdir -p /tmp/transform && cd /tmp/transform
+opencode run --standalone --model llamacpp/qwen3.8-flash-next-q3 --auto "$PROMPT"
 
-# 5. --dir is REQUIRED. `opencode run` attaches to a persistent server that
-#    holds its own working directory and ignores your shell's cwd. Without it
-#    the file lands wherever that server started -- this cost us four backends
-#    of results (#67).
-opencode run --dir /tmp/transform --model llamacpp/qwen3.8-flash-next-q3 --auto \
-  "$(sed -n '/^```text$/,/^```$/p' ~/git/local-llm/benchmarks/agent/SCRIPT-TRANSFORM.md | sed '1d;$d')"
-
-# 6. Check it.
+# 5. Check it.
 python3 transform.py --input banana --sort                       # aaabnn
 python3 transform.py --input abc --reverse --sha256              # 6d970874...
 python3 transform.py --input Benchmarking --reverse --sort --sha256   # 4e5c331b...
 python3 transform.py --input plain                               # plain
 ```
 
-Stop the server with `benchmarks/llamacpp/llamacpp-up stop` when you are done —
-it holds ~60 GiB whether or not anyone is using it.
+Stop the server with `"$LLAMACPP_UP" stop` when you are done. It holds its
+weights whether or not anyone is using it.

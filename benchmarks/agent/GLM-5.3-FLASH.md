@@ -5,11 +5,13 @@
 [#63](https://github.com/evanwtf/local-llm/issues/63) (thinking default),
 [#64](https://github.com/evanwtf/local-llm/issues/64) (KV prefix stall).
 
-GLM-5.3-Flash drives a coding agent on this machine. It solves two tasks our
-DeepSeek primary cannot, and it is the first result in this project that looks
-like a **model** difference rather than a plumbing artifact.
+A measurement record. GLM-5.3-Flash drove a coding agent on the M5 Max. It
+solved two tasks the DeepSeek primary of the time could not, and it was the
+first result in this project that looked like a **model** difference rather
+than a plumbing artifact.
 
-It is not a recommendation. Read the caveats before quoting a number.
+It is not a recommendation. Read the caveats before quoting a number. Current
+GLM-5.3-Flash numbers, per machine, are in [`docs/results.md`](../../docs/results.md).
 
 ---
 
@@ -30,14 +32,13 @@ numbers, because a previous run of this same cell recorded the wrong engine.
 | clients | Claude Code 2.1.251 (via shim on `:8100`), aider 0.86.2 (direct on `:8000`) |
 | thinking | **on** — ds4's default, and the setting #63 endorses |
 
-`glm-5.3-flash` is now on `upstream/main`; the `glm-5.3-flash` branch merged on
-2026-08-31. The engine binary was built in a **separate worktree** so the pinned
-`399acbb` binary that every earlier ds4 number depends on stays reproducible.
+The engine binary was built in a **separate worktree** so the pinned `399acbb`
+binary that every earlier ds4 number depends on stays reproducible.
 
 **The Metal ceiling is required.** `sudo sysctl iogpu.wired_limit_mb=114688`
 lifts the working set to 112.00 GiB. A 94.09 GiB plan does not fit the stock
-107.52 GiB budget once ds4's own GLM guard applies. **Persisted since 2026-09-01** by
-`scripts/install-metal-ceiling.sh`; before that a reboot reverted it.
+107.52 GiB budget once ds4's own GLM guard applies.
+`scripts/install-metal-ceiling.sh` persists the setting across reboots.
 
 ---
 
@@ -112,8 +113,8 @@ entirely.
 
 ### 3. GLM is not intrinsically slow — the client was
 
-**`mbox-scan`: 193s median on Aider, 931s on Claude Code. Same model, same task,
-4.8x.** Aider's three trials span 6%, so the gap is not scatter.
+**`mbox-scan`: 193 s median on Aider against 931 s on Claude Code.** Same model,
+same task. Aider's three trials span 6%, so the gap is not scatter.
 
 Through Aider, GLM runs `mbox-strip-envelope` in **106s** against DeepSeek's
 90-97s — within 10%. The "GLM is much slower" impression formed earlier in the
@@ -135,9 +136,8 @@ n=1 per task and every one of its wall times is inflated by #64.
 pass or fail. `mbox-scan`'s DeepSeek failures were *near misses* — 10 of 13 tests
 fixed — which this suite scores identically to writing nothing.
 
-**Nothing about GLM at any other quantization.** This is one Q2 GGUF. antirez has
-said new checkpoints are coming; a refreshed checkpoint gets a new row, not an
-edit to this one.
+**Nothing about GLM at any other quantization.** This is one Q2 GGUF. Another
+checkpoint gets a new row, not an edit to this one.
 
 ---
 
@@ -199,10 +199,9 @@ grows with the conversation.
 correctly, so `tasks.toml`'s comment blaming it is wrong); and `cache_control`
 markers (stripping them changed nothing — still 20,398, still 0/8 reusing).
 
-**Open lead:** `messages[1]` (role `system`) alternates between a list of content
-blocks and a bare string across turns. Character offsets were never mapped to
-token 20,398, so this is a lead, not a finding — the two hypotheses asserted
-before that mapping were both wrong.
+**Closed as moot (#64).** The stall appeared only on Claude Code trials, and
+Claude Code is no longer a trial client. Under OpenCode the plateau showed in
+0 of 23 logs (2026-09-07). The general re-prefill cost is tracked on #340.
 
 **Aider is unaffected.** It uses the OpenAI path, sends no `cache_control`, and
 shows small contexts (`ctx=0..1224`). That makes it the control, and it is why
@@ -251,20 +250,12 @@ uv run python run.py --backend glm53ds4shim --client claude --trials 3
 ```
 
 The smoke gate runs first and refuses the batch if the backend cannot write three
-trivial functions. That check costs 7 seconds and would have saved four trials
-and ninety minutes on 2026-08-31.
+trivial functions (7 seconds; it would have saved four trials and ninety minutes
+on 2026-08-31).
 
 ---
 
-## Open questions
+## Status
 
-1. **#64's cause.** One experiment left: normalize `content` shape in the shim,
-   re-run one traced trial, check whether `live_prompt_common` advances. If GLM's
-   Claude Code times collapse, the whole cell is worth re-running.
-2. **A full Claude Code cell**, 15 trials, once #64 is understood.
-3. **Why `storage-blob-put` needs many turns.** GLM+Aider spent 16,871 tokens
-   over 4 turns and wrote nothing; Claude Code passed it in 21 turns. That is the
-   sharpest example of client structure deciding a model's reach.
-4. **A mixed-precision GLM quant.** antirez's own guidance — routed experts
-   low-bit, everything else Q8 — is the recipe our DeepSeek primary already uses.
-   No GLM GGUF built that way has been tested here.
+#62, #63 and #64 are closed. The full Claude Code cell was never run: #64
+became moot when Claude Code stopped being a trial client.

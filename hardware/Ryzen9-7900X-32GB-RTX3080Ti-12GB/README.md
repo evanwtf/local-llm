@@ -1,13 +1,14 @@
 # Ryzen9-7900X-32GB-RTX3080Ti-12GB
 
-**First measured run: 2026-09-02.** See [`RESULTS.md`](RESULTS.md) —
-`gemma4:12b-it-q4_K_M` scored **0/12** under OpenCode.
+**Status: registered, idle since 2026-09-19.** The operator powers the box on
+for a window; it is not always on. Its last rows are the first confined
+(`bwrap`) baseline of the 9B tier on the 10-task suite
+([#561](https://github.com/evanwtf/local-llm/issues/561)). Its open queue is
+the issues labeled `hardware:Ryzen9-7900X-RTX3080Ti` (all P2 or P3). How an agent operates
+it: §11 of [`hardware/agent-opener-prompt.md`](../agent-opener-prompt.md).
 
-The 2026-09-01 preliminary run was discarded: it was taken while the
-environment was still being stood up, on Ollama 0.32.15 and with an incomplete
-client config.
-
-Reached over ssh as `desktop`. **Not always on.**
+Results: [`docs/results.md`](../../docs/results.md) holds the current tables;
+[`RESULTS.md`](RESULTS.md) holds the 2026-09-02 to 09-12 write-ups.
 
 ## Hardware
 
@@ -19,33 +20,23 @@ Reached over ssh as `desktop`. **Not always on.**
 | Disk | 1.8 TB NVMe |
 | Arch | x86_64 |
 
-## Software, as of 2026-09-01
+## Software
+
+Snapshot of 2026-09-01, with later changes noted. Every row carries the
+versions it ran on (`machine_facts()`), so the directory name stays stable.
 
 | | |
 |---|---|
 | OS | Ubuntu 24.04.4 LTS, kernel 7.0.0-30-generic |
 | NVIDIA driver | 595.71.05 (CUDA 13.2 runtime) |
-| CUDA toolkit | **not installed** — no `nvcc` |
-| Ollama | 0.32.15 |
+| CUDA toolkit | `cuda-toolkit-13-3`, added 2026-09-10 for #278. `nvcc` is at `/usr/local/cuda-13.3/bin/nvcc`, not on the default `PATH` |
 | Python | 3.12.3 |
-| OpenCode | 1.18.26 (the Mac runs 1.18.25) |
 
-These are recorded here rather than in the directory name so the name stays
-stable across updates. Every row also carries them via `machine_facts()`.
-
-**Changed since, 2026-09-10: the CUDA toolkit is installed.** `cuda-toolkit-13-3`
-was added so #278 could build llama.cpp for `sm_86`; `nvcc` is at
-`/usr/local/cuda-13.3/bin/nvcc` and is not on the default `PATH`. The line above
-is the 2026-09-01 snapshot and stays as it was. Two blockers written down while
-it was absent are therefore spent -- #269's "this box has the driver but no
-`nvcc`" is the one that mattered.
-
-The tier now serves **two llama.cpp builds beside Ollama**, and they are not
-interchangeable: PrismML `d8f26ee` in `~/git/llama.cpp` carries the 2-bit
-kernels the bonsai arms need, and upstream `91f6a6c` in
-`~/git/llama.cpp-upstream` is the only one that knows the `spark2_5`
-architecture. Each backend in `tasks.toml` names its own `engine_tree`, so a
-row can say which build answered.
+**Two llama.cpp builds serve beside Ollama, and they are not
+interchangeable.** PrismML `d8f26ee` in `~/git/llama.cpp` carries the 2-bit
+kernels the Bonsai arms need. Upstream `91f6a6c` in `~/git/llama.cpp-upstream`
+is the only one that knows the `spark2_5` architecture. Each backend in
+`tasks.toml` names its own `engine_tree`, so a row says which build answered.
 
 ## What this machine can and cannot do
 
@@ -54,19 +45,15 @@ row can say which build answered.
 
 **No MLX**, so most of the model list in `TESTING-SET.md` is Mac-only.
 
-**Confinement is `bwrap`, once the profile is loaded.** `sandbox-exec` is
-macOS-only, so the harness confines Linux trials with `bwrap` instead (#476,
-#477): a private `/tmp`, a PID namespace, and tmpfs covers over the answer
-paths. Rows before 2026-09-18 predate `bwrap` and record `confinement: none`
-(#81); `workspace_escapes` was unenforced for them. Ubuntu 24.04 restricts the
-user namespaces `bwrap` needs, so it requires an AppArmor profile to run here —
-without it every trial silently scored as a model failure (#516). Load the
-profile in [`setup/`](setup/README.md); rows then record `confinement: bwrap`,
-and `run.py` falls back to `confinement: none` with a warning if `bwrap` cannot
-start (#517).
+**Confinement is `bwrap`, once the AppArmor profile is loaded** (#476, #477).
+Ubuntu 24.04 restricts the user namespaces `bwrap` needs; without the profile
+every trial silently scored as a model failure (#516). Load the profile in
+[`setup/`](setup/README.md). Rows then record `confinement: bwrap`; if `bwrap`
+cannot start, `run.py` falls back to `confinement: none` with a warning.
+Rows before 2026-09-18 predate `bwrap` and record `confinement: none` (#81).
 
 **12 GiB of VRAM against 32 GB of system RAM** is the shape that makes MoE
-CPU-offload interesting: the live experiment is `ornith-1.5:35b` — 22 GB with
-3B active — streamed with `--n-cpu-moe`. It is the only candidate where the
-model is already proven (21/21 on the Mac) and only the hardware is in
-question. See #20 and #79.
+CPU offload worth measuring (#20). The candidate named for it is
+`ornith-1.5:35b` (22 GB, 3B active) streamed with `--n-cpu-moe`: the model is
+proven on the Mac (21/21), so only the hardware is in question. No row has
+measured it on this box yet.

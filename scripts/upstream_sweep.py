@@ -48,11 +48,11 @@ BOTH = (MAC, DGX)
 # MLX repos that cannot run on it, and `--platform mac` does not walk vLLM.
 WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
     "antirez/ds4": (
-        "our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3",
+        "DwarfStar: the M5 Max's DeepSeek-V4-Flash and lighter Flash-Next picks",
         BOTH,  # built `make cuda-spark` on the DGX, Metal on the Mac
     ),
     "ggml-org/llama.cpp": (
-        "our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next",
+        "the mainline engine pick; `qwen4exp` IS Qwen3.8-Flash-Next",
         BOTH,  # CUDA build on the DGX, Metal on the Mac
     ),
     "ollama/ollama": (
@@ -62,15 +62,17 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
     "anomalyco/opencode": ("our only client", BOTH),
     "evanwtf/local-llm": ("this project", BOTH),
     "evanwtf/gmail-archive": ("the excision tasks' target repository", BOTH),
-    "evanwtf/ds4": ("our ds4 fork (#27 asks whether it can be retired)", BOTH),
     # Mac-only: Metal and MLX have no meaning on the DGX.
     "ml-explore/mlx": ("the framework everything MLX sits on", (MAC,)),
     "ml-explore/mlx-lm": (
         "reference MLX server; new architectures land here first",
         (MAC,),
     ),
-    "jundot/omlx": ("oMLX -- prefill leader, untested here (#60)", (MAC,)),
-    "ddalcu/mlx-serve": ("benchmarked on our exact machine; llmprobe's author", (MAC,)),
+    "jundot/omlx": ("oMLX -- prefill leader, unmeasured here (#737)", (MAC,)),
+    "ddalcu/mlx-serve": (
+        "the M5 Max's fastest pick; its author benchmarks on our machine",
+        (MAC,),
+    ),
     # Operator, 2026-09-26: tier 1. Five releases in two days (v1.0.0-v1.0.4),
     # and #749 measured it at 52% of mlx-serve's pooled time on the M5 Max.
     "beamivalice/sushi": (
@@ -104,7 +106,7 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
     # which Ollama on Linux cannot (#293). The DGX's emphasis is aggregate
     # multi-stream throughput, so these matter more here than a single-stream Mac.
     "vllm-project/vllm": (
-        "NVFP4/FP8 serving on Blackwell; the #299 single-Spark recipe",
+        "NVFP4/FP8 serving on Blackwell; the two-Spark pick's engine (#1160)",
         (DGX,),
     ),
     "NVIDIA/TensorRT-LLM": (
@@ -135,7 +137,7 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
         (DGX,),
     ),
     "MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks": (
-        "DeepSeek V4.1 Flash EXL3 on two Sparks: a candidate arm, not yet run",
+        "DeepSeek V4.1 Flash EXL3 on two Sparks, measured (#685)",
         (DGX,),
     ),
     # TensorFold: the engine under the cluster's leading arms (#892), and the
@@ -146,7 +148,7 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
         (DGX,),
     ),
     "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold": (
-        "the cluster pick's recipe: GLM-5.3-Flash EXL3 on TensorFold (#892)",
+        "the two-Spark fast option's recipe: GLM-5.3-Flash EXL3 on TensorFold (#892)",
         (DGX,),
     ),
     "jayleaton/glm53-tensorfold-spark": (
@@ -154,7 +156,7 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
         (DGX,),
     ),
     "jayleaton/deepseek-v41-tensorfold-spark": (
-        "DeepSeek-V4.1-Flash on TensorFold: a lead, unapproved (#919)",
+        "DeepSeek-V4.1-Flash on TensorFold, measured (#919)",
         (DGX,),
     ),
     "kindlingai/glm-5.3-flash-gx10": (
