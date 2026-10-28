@@ -2,10 +2,10 @@
 
 **Machine:** MacBook Pro, Apple M5 Max, 128 GiB unified memory, macOS 26.6.2.
 **Measured:** 2026-08-28, quiet machine, no model server running.
-**Tool:** [`scripts/disk_baseline.py`](../../scripts/disk_baseline.py). Re-runnable.
+**Tool:** [`scripts/disk_baseline.py`](../../../../scripts/disk_baseline.py). Re-runnable.
 
-Issue #34 asks what SSD offload costs. Every answer rests on this table, and
-nothing in this repo recorded it before today.
+Issue [#34](https://github.com/evanwtf/local-llm/issues/34) asked what SSD
+offload costs. Every answer rests on this table.
 
 ## The numbers
 
@@ -34,17 +34,18 @@ That splits the three implementations in #34 cleanly:
 block is hundreds of KiB to a few MiB, which lands in the 1 MiB row at 6.32 GiB/s
 and 198 µs. With 10 of 512 experts used per token, a fully-cold token costs
 ~2 ms of I/O — a 500 tok/s ceiling before any compute, comfortably above the
-28–40 tok/s these models decode at. Cache hits remove most of that. **The
-arithmetic does not rule it out**, which is the first real evidence for it here.
+28–40 tok/s these models decode at. Cache hits remove most of that. Measured
+later: −60% resident memory for +76% agent wall time
+([`RESULTS-agent.md`](../../RESULTS-agent.md), "Memory and offload").
 
 **The n-gram PLE table is the hard case.** ~100 bytes per token at a random
 offset cannot cost less than one block: **61 µs, not 100 bytes' worth of
 bandwidth.** One lookup per token is fine (16,400/s ceiling). The question that
 decides it is how many lookups a token actually needs — at 8 per token the
 ceiling falls to ~2,000/s, and at prefill rates of 600 tok/s that is 30% of the
-budget spent waiting on the disk. **Unmeasured, and it is the number that
-matters.** Measure lookups per token before trusting the "lossless" claim in #33:
-lossless in *output* is not free in *time*.
+budget spent waiting on the disk. The GGUF later answered it:
+`heads_per_ngram = 8`. Lossless in *output* is not free in *time*
+([#33](https://github.com/evanwtf/local-llm/issues/33)).
 
 **Latency, not bandwidth, is the tail risk.** p99 sits within 20% of the median
 at every block size, so this device does not have a nasty tail. A stall during
