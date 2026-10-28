@@ -16,7 +16,7 @@ description: Re-prioritize the open issues so each machine's live queue (scripts
 
 **The labels are the queue.** `scripts/make_next.py --platform {macos,nvidia}`
 prints each machine's queue live — P0 before P1, then by issue number. There is
-no committed queue file (#463 retired `NEXT.md` on 2026-09-17).
+no committed queue file (#463 retired `NEXT.md`).
 
 **A priority is a judgment made on the day it was applied, and it goes stale.**
 A `P1` filed during an incident stays `P1` after the incident is fixed. A `P0`
@@ -91,7 +91,7 @@ work**:
 | the work | platform | machine label |
 |---|---|---|
 | Metal / MLX / oMLX / ds4-metal, M5 Max thermals | `platform:macOS` | `hardware:M5-Max-128GB` |
-| CUDA / vLLM / TRT-LLM / SGLang / NVFP4, GB10 ops, the DGX's OOM layers | `platform:Nvidia` | `hardware:Cortex-X925-GB10-x2` (the cluster; the single-Spark `hardware:Cortex-X925-GB10` is retired, #646) |
+| CUDA / vLLM / TRT-LLM / SGLang / NVFP4, GB10 ops, the DGX's OOM layers | `platform:Nvidia` | `hardware:Cortex-X925-GB10-x2` (the cluster) |
 | the Ryzen / RTX 3080 Ti desktop | `platform:Nvidia` | that machine's `hardware:` slug (`hardware/MACHINES.md`) |
 | genuinely both (a model to measure on each, a cross-machine doc) | both platform labels | both machine labels |
 | repo, CI, harness code that runs anywhere | none | none — a type label instead |
@@ -125,8 +125,8 @@ Its findings, and what to do with each:
   cross-machine work, otherwise pick the machine.
 - **Platform but no hardware label** — the class label names a vendor, not the
   box.
-- **Retired** — `hardware:Cortex-X925-GB10` on open work. Every DGX test runs
-  on both Sparks now; use `hardware:Cortex-X925-GB10-x2`.
+- **Retired** — `hardware:Cortex-X925-GB10` (the single Spark) on open work.
+  Every DGX test runs on both Sparks (#646); use `hardware:Cortex-X925-GB10-x2`.
 - **Family** — the title names a model or engine and the `model:*` or
   `engine:*` label is missing (#465). Add it; the family labels are how a
   person or a script finds a model's history.
@@ -139,13 +139,13 @@ below show the shape; they are illustrative, not a standing verdict):
     nvidia (P0 0, P1 5 -> P0 0, P1 4)
     #370 P1 -> P2   SSD streaming: 200% download cap limits it to 122-243 GiB models; nothing queued fits
     #406 P2 -> P1   operator asked for the MTP arm today; run in progress
-    #459 +hardware:Cortex-X925-GB10   (hygiene)
+    #459 +hardware:Cortex-X925-GB10-x2   (hygiene)
     #92  -platform:macOS -hardware:M5-Max-128GB   harness runs on the Linux runner only (platform)
 
 Every change carries its reason in one line — a re-ranking nobody can argue
-with is worse than none. Mark which rows are **priority**, which are **platform**
-(which queue an issue belongs in), and which are **hygiene** (missing labels); the operator may approve one set and not the
-other.
+with is worse than none. Mark which rows are **priority**, which are
+**platform** (which queue an issue belongs in), and which are **hygiene**
+(missing labels); the operator may approve one set and not the other.
 
 **Never relabel just to silence the cap.** If more than 20 things really are
 P1, say that the bar has slipped and ask which to drop.
@@ -167,15 +167,16 @@ A priority change without a comment is a ranking nobody can trace. Then
 re-print both queues with `make_next.py` and confirm they read the way the
 operator intends.
 
-## 8. Record it
+## 8. Report the counts
 
-When the queue changed, add a short entry to `docs/changelog.md`:
+End the sweep with the per-platform P0/P1/P2/P3 counts before and after, and
+the open-issue total, so a later sweep can diff them:
 
     issue sweep YYYY-MM-DD: nvidia P0/P1 0/5 -> 0/4 (#370 down: download cap),
-    macos 5/2 unchanged; hardware label on #459.
+    macos 5/2 unchanged; hardware label on #459; 212 open.
 
-**Record the per-platform P0/P1/P2/P3 counts and the open-issue total** so a
-later sweep can diff them.
+Do not put it in `docs/changelog.md`: that file holds one section per release,
+and `scripts/release_notes.py` publishes it.
 
 ---
 

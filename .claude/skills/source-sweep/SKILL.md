@@ -14,8 +14,6 @@ description: Use when the user asks to sweep sources, check for updates, "what's
 > ```sh
 > ln -sfn "$PWD/.claude/skills/source-sweep" ~/.claude/skills/source-sweep
 > ```
->
-> It was written on 2026-09-02 and was not loadable until this was done.
 
 Seven surfaces, in this order. **Do the cheap and certain ones first**, so the
 expensive and uncertain one (X) is filtered by what you already know.
@@ -24,17 +22,16 @@ The output is not a digest. It is **issues in our own repo**, or nothing.
 
 ## Which machine: the `--platform` argument (#307)
 
-This project runs two machines with different fields, so a sweep must say which
+The two active machines watch different fields, so a sweep must say which
 one it is for. Pass a platform when you invoke the skill; default to **`mac`**
 when none is given.
 
 - **`mac`** — the M5 Max, 128 GB, Metal. The Apple-Silicon lane: MLX, oMLX,
-  llama.cpp Metal, single-stream tok/s. This is the historical default and the
-  primary coding-agent machine.
-- **`dgx`** — the DGX Spark (GB10, CUDA, 128 GB unified). A different field:
-  NVFP4/FP8, vLLM and TensorRT-LLM, and **aggregate multi-stream throughput**,
-  not single-stream. Broader too — VLMs for the camera and general agent models,
-  not only coding (see the machine README).
+  llama.cpp Metal, single-stream tok/s. The primary coding-agent machine.
+- **`dgx`** — the two-Spark cluster (2x GB10, CUDA, 128 GB unified each). A
+  different field: NVFP4/FP8, vLLM and TensorRT-LLM, and **aggregate
+  multi-stream throughput**, not single-stream. Broader too — VLMs for the
+  camera and general agent models, not only coding (see the machine README).
 - **`all`** — both, when you want one pass over everything.
 
 The platform changes three things, and nothing else about the order:
@@ -46,8 +43,11 @@ The platform changes three things, and nothing else about the order:
 2. **The tools** — `upstream_sweep.py --platform` and `hf_sweep.py --profile`
    take the lane (see surfaces 2 and 5).
 3. **The X accounts** — the Mac list is Tiers 1-3 in SOURCES.md; the DGX list is
-   its **DGX Spark sources** section, still being vetted. On a `dgx` sweep,
-   gather from there and verify before promoting, exactly as the Mac list was.
+   its **DGX Spark sources** section. On a `dgx` sweep, gather from there and
+   verify a candidate before you promote it.
+
+**X runs at most once a day per lane**, because grok has a budget. Surfaces 1-6
+may run more often; a sweep record says when it held X back.
 
 Everything else — the seven surfaces, filing before verifying, the sweep record
 — is identical.
@@ -73,17 +73,15 @@ Three parts carry the whole command, and each one was learned by getting it
 wrong:
 
 - **`all=true`, or you see nothing.** `gh api notifications` returns **unread
-  only**. Opening a notification on a phone marks it read and removes it from
-  the sweep. On 2026-09-04 a sweep reported "no mentions, no review requests, no
-  comments" from a 128-entry inbox; with `all=true` there were **eight
-  mentions**, three of them from that day, and two became issues within the
-  hour. A read mention is not a handled mention.
+  only**, and opening a notification on a phone marks it read. A sweep without
+  it once reported no mentions from an inbox that held eight. A read mention is
+  not a handled mention.
 - **`since=`, or you re-read the same year.** The window is the sweep's window,
   normally 24 hours. Without it the list reaches back months and the recent item
   is buried.
 - **Drop `ci_activity`, or you read nothing else.** It is typically **90% of the
-  inbox** — 128 of 140 entries on 2026-09-04, across seven repos. It buries
-  every mention, and 1b covers what it was supposed to tell you.
+  inbox**. It buries every mention, and 1b covers what it was supposed to tell
+  you.
 
 **A notification title is not the news.** It names the thread, not what was
 said. Open the thread and find the comment that tagged you:
@@ -93,11 +91,9 @@ gh api "repos/<owner>/<repo>/issues/<n>/comments?per_page=100" \
   --jq '.[] | select(.body | test("evandhoffman";"i")) | "@\(.user.login) \(.created_at)\n\(.body)"'
 ```
 
-That is where the substance lives. ds4#964 arrived titled *"Over 30% faster GLM
-5.3 Flash decode on Metal"* — already tracked as #118 and apparently nothing
-new. The comment underneath carried the Q2 table, a requantization recipe worth
-+35% that nobody had measured for quality, and a bare `@evandhoffman` asking for
-an M5 Max run.
+That is where the substance lives: a thread whose title looks already tracked
+can carry a new table, a recipe, and a direct request for a run (ds4#964,
+#118).
 
 **Then apply the relevance filter — the lane's, the same one as 7b.** On a
 `mac` sweep: *would this change a number on an M5 Max, 128 GB, Metal?* On a
@@ -117,17 +113,12 @@ relevant:
 gh run list --repo evanwtf/local-llm --limit 10 --json conclusion,headSha,displayTitle
 ```
 
-**Do not learn this from the inbox.** A wall of `ci_activity` is real news the
-first time — on 2026-09-02 a sweep found CI had failed **40 of its last 40 runs**
-on a shallow-clone bug, and nobody had looked — but it is unreadable as a
-running signal, and stale entries look exactly like fresh ones. Ask for the
-conclusions instead. See #129: both red streaks this repo has had were found by
-a person looking, and a 20-run streak took 17 hours to notice and 7 minutes to
-fix.
+**Do not learn this from the inbox.** There, stale `ci_activity` looks exactly
+like fresh. Ask for the conclusions instead (#129: a 20-run red streak took 17
+hours to notice and 7 minutes to fix).
 
-The local suite passing is **not** evidence CI is green. `d9a223e` broke only on
-hosts that are not this laptop, because the results file is where the tests
-expect it here and nowhere else.
+The local suite passing is **not** evidence CI is green: a test can depend on a
+file that exists on only one host.
 
 ## 2. Watched repositories
 
@@ -141,19 +132,13 @@ uv run python scripts/upstream_sweep.py --hours 24 --platform dgx   # DGX lane
 reports releases and commit subjects and says explicitly when a repo is
 **unreachable** — a renamed or private repo looks exactly like a quiet one.
 
-**It also reports open PRs updated in the window, and that is the half that
-was missing.** A fix can sit in an open PR from a fork for days without
-touching main or cutting a release. `ddalcu/mlx-serve#383` fixed a
-speculative-decoding bug that drops the prefix cache — on our exact model, on
-our exact machine — while #191 spent three and a half hours benchmarking the
-five-day-old release that carried it. The repo was already watched; only its
-main branch was. PRs rather than branches, because a fork PR's branch lives in
-the fork and listing branches upstream would not have shown it either.
+**It also reports open PRs updated in the window.** A fix can sit in an open
+PR from a fork for days without touching main or cutting a release, and the
+fork's branch does not show upstream. A fix for our exact model sat in
+`ddalcu/mlx-serve#383` while #191 benchmarked the release that had the bug.
 
-**Read commits, not activity counts.** A branch can be busy with vision and
-ROCm work that is out of scope here, and a two-commit day can carry the one
-change that moves our numbers. This is how `qwen4exp IS Qwen3.8-Flash-Next` was
-found — the commits said so and the activity count did not.
+**Read commits, not activity counts.** A busy branch can be all out-of-scope
+work, and a two-commit day can carry the one change that moves our numbers.
 
 ## 3. Branches
 
@@ -171,20 +156,17 @@ not an increment, and "14 behind" understated a branch whose base had changed.
 
 ## 4. Issues and PRs on the engines we run
 
-**Surface 2 now lists open PRs for every watched repo, so this surface is for
+**Surface 2 lists open PRs for every watched repo, so this surface is for
 reading the ones it named, not for discovering them.** Do not re-enumerate by
-hand and do not rely on the two examples below being the right repos — the
-repo that mattered most was neither.
+hand; the repos in the examples below are only examples.
 
 ```sh
 gh pr view <n> --repo <owner>/<repo> --json title,body,files,additions,deletions
 gh issue list --repo antirez/ds4 --limit 15 --state open --search "sort:updated-desc"
 ```
 
-**Read the diff summary, not the title.** `#383 fix(qwen4): NUL-truncated
-prompts, ...` reads like a parser fix. Its body carries an EOS-first
-speculative bug that leaves the whole prompt prefix uncommitted to the cache,
-which is a mechanism for a 23-minute agent turn.
+**Read the diff summary, not the title.** `mlx-serve#383` reads like a parser
+fix; its body carries a cache bug that explains a 23-minute agent turn.
 
 **Never post to a repository outside `evanwtf` or `evandhoffman`.** Read, and
 file in our own repo.
@@ -210,11 +192,8 @@ exactly what it is looking for. On the DGX lane the profile also watches
 NVIDIA's own HF org (Nemotron, NVFP4/FP8 builds).
 
 **It hides what cannot load on the chosen machine, and says how many.** Most new
-quants target one vendor: on 2026-09-02 the two most recent builds of our
-fastest model were `ROCMFP4_STRIX` and `NVFP4-QSA-FP8` — both hidden on the Mac,
-one of them loadable on the DGX. A count of hidden results is the difference
-between "nothing shipped" and "nothing that runs here shipped", which are very
-different facts.
+quants target one vendor. A count of hidden results is the difference between
+"nothing shipped" and "nothing that runs here shipped".
 
 **`?` means unclassified, not uninteresting.** A bare name, or a scheme the
 classifier has not seen (`VQ-4.4bpw`, `JANG_4M`), is a question to answer, not
@@ -222,16 +201,15 @@ noise to skip.
 
 **What to look for**, beyond a newer build of the same thing:
 - a quant format we have never measured (ternary, VQ, mixed-quant),
-- **MTP or PLE in the name** — #77 is blocked on mainline llama.cpp having no
-  `qwen4exp` MTP graph, so a GGUF that carries one is a direct unblock,
-- expert-offload or SSD-streaming builds, which bear on #20's 12 GiB tier,
+- **MTP or PLE in the name** — a draft head for speculative decoding,
+- expert-offload or SSD-streaming builds, which bear on the Ryzen's 12 GiB tier,
 - download counts: a build with thousands of pulls has been exercised by
   people, which a fresh upload has not.
 
 ## 6. Project websites and release notes
 
-Several sources ship their real news on a site, not a repo or a feed. SOURCES.md
-links them and nothing checked them until this surface existed.
+Several sources ship their real news on a site, not a repo or a feed.
+SOURCES.md links them.
 
 | site | why |
 |---|---|
@@ -260,9 +238,8 @@ prefill or a Desktop UI change that cannot.
 **7a. Gather with grok, into a file, and assume every word is unverified.**
 
 **Always write the output to a temp file.** A sweep's value is in the post ids,
-and piping through `tail` throws away the ones that scrolled off — that has
-already cost a second grok call to recover two threads that were in the first
-one. The file is also what step 7d verifies against.
+and piping through `tail` throws away the ones that scrolled off. The file is
+also what step 7d verifies against.
 
 **The file must record what was asked for.** A digest with no window and no
 timestamp cannot be re-read later: "the last 24 hours" is meaningless without
@@ -278,10 +255,8 @@ for a fixed line shape instead:
 
 Four rules make that line worth having, and the last one is the important one:
 
-- **One line per post, no preamble and no closing summary.** On 2026-09-05 a
-  gather returned exactly one line -- *"I'll search X for posts and replies
-  from those accounts..."* -- and nothing else. It had announced the search and
-  never reported it.
+- **One line per post, no preamble and no closing summary.** A gather once
+  returned only its announcement of the search, and no results.
 - **Fixed field order**, so `cut -d'|'` works and the file is greppable.
 - **Omit any item lacking both a URL and a timestamp.** An item with neither
   cannot be verified in 7d and is not evidence of anything.
@@ -320,11 +295,8 @@ echo "wrote $OUT"
 Then read the file — `grep -oE 'https://x\.com/[A-Za-z0-9_]+/status/[0-9]+' "$OUT" | sort -u`
 gives every post id it found, and the whole file can be piped to the verifier.
 
-**Give it at least five minutes, and do not kill it early.** grok searches,
-pulls thread context, then re-searches the remaining accounts; the first thing
-it emits is a sentence saying what it is about to do, and the bullets arrive
-minutes later. On 2026-09-05 a gather was killed at ~3 minutes holding only
-that preamble and read as a failed search -- it was a search still running. A
+**Give it at least five minutes, and do not kill it early.** grok first emits
+a sentence saying what it is about to do; the bullets arrive minutes later. A
 file with only the preamble means **not finished**, not empty.
 
 Set the Bash timeout to `400000`. Never use `--json-schema` — it makes grok
@@ -403,9 +375,9 @@ Mac tiers:
 - **Not for us** — MLX and Metal-only kernels (no Linux arm64 runtime, #293),
   and single-stream tok/s quoted as the headline when the machine's job is
   concurrent serving.
-- **A lead, not noise** — a single-Spark result from another owner. The Spark
-  is one machine with one memory budget, so someone else's Spark number usually
-  transfers more directly than a cross-Apple-chip one does.
+- **A lead, not noise** — a two-Spark result from another owner: it usually
+  transfers directly. A single-Spark result is not a lead: single-Spark testing
+  stopped on 2026-10-23.
 
 **Either way, a headline decode rate is a reason to test, not a result** — this
 project has measured three times that it does not predict agent wall time.
@@ -437,7 +409,7 @@ billing problem and is not.
 
 **7e. Record the verification on the issue.**
 
-> **Verified** 2026-09-02: post exists, authored by @handle, posted <UTC>, text
+> **Verified** <date>: post exists, authored by @handle, posted <UTC>, text
 > matches as quoted. — or —
 > **Could not verify**: <what happened>. Treat the claim as unsourced.
 
@@ -457,11 +429,9 @@ docs/sources/$(date +%Y-%m-%d-%H-%M-%S).md         # America/New_York
 Seconds are in the name deliberately: two sweeps can land in the same minute
 while chasing something, and a collision would overwrite the earlier one.
 
-A sweep's value compounds only if the previous one is readable. Without a local
-record, each sweep re-derives what the last already established, and "the
-leaderboard improved" or "that branch moved" is unmeasurable because nothing
-wrote down where it stood before. Two sweeps on 2026-09-02 both had to re-check
-the same ds4 branches and the same MLX Fast standing.
+A sweep's value compounds only if the previous one is readable. Without a
+record, each sweep re-derives what the last one established, and "that branch
+moved" is unmeasurable.
 
 **The file is the sweep's own output, not a copy of the issues.** Issues carry
 the reasoning; this carries the *state* — what each surface looked like at a
