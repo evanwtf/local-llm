@@ -81,13 +81,13 @@ reasoning: send a larger `max_tokens`
 
 ### Run the agent
 
-Every stack ends with the same command. **`--dir` is not optional.** Without
-it, OpenCode writes the files somewhere else
+Every stack ends with the same command. Run it from the project directory, with `--standalone` (OpenCode 2; on
+OpenCode 1.x, pass `--dir "$PWD"` instead)
 ([`RECOMMENDATIONS.md`](RECOMMENDATIONS.md), section 1):
 
 ```sh
 cd ~/some/project
-opencode run --dir "$PWD" "add a --verbose flag to the CLI and a test for it"
+opencode run --standalone "add a --verbose flag to the CLI and a test for it"
 ```
 
 ---

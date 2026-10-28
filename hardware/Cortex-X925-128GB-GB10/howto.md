@@ -137,12 +137,12 @@ send a larger `max_tokens` ([#349](https://github.com/evanwtf/local-llm/issues/3
 
 ### Run the agent
 
-On the laptop. **`--dir` is not optional.** Without it, OpenCode writes the
-files somewhere else:
+On the laptop. Run it from the project directory, with `--standalone` (OpenCode 2; on
+OpenCode 1.x, pass `--dir "$PWD"` instead):
 
 ```sh
 cd ~/some/project
-opencode run --dir "$PWD" "add a --verbose flag to the CLI and a test for it"
+opencode run --standalone "add a --verbose flag to the CLI and a test for it"
 ```
 
 ### Build llama.cpp for GB10 (rows 3, 4, 5 and 9)

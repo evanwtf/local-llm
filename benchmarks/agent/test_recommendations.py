@@ -80,8 +80,11 @@ def test_the_markers_survive() -> None:
 
 
 def test_the_dir_flag_is_taught() -> None:
-    """Omitting --dir is silent and ruins the run; a reader must be told."""
-    assert "--dir" in DOC.read_text()
+    """The wrong working directory is silent and ruins the run; a reader must be
+    told. OpenCode 2 has no --dir and needs --standalone (#1086); 1.x needs --dir."""
+    text = DOC.read_text()
+    assert "--standalone" in text
+    assert "--dir" in text
 
 
 def test_the_document_carries_a_valid_dated_marker() -> None:
