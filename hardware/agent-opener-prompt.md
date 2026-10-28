@@ -6,17 +6,15 @@ cluster, and the Ryzen / RTX 3080 Ti desktop. The operator pastes the short
 stub below into a fresh Claude Code or Codex session. The stub arms the work
 loop, then sends the session here.
 
-One file, not one per machine (2026-09-30). Three copies drifted: each fixed
-the heartbeat its own way, and none fixed it for the others. The common part
-below applies everywhere. A **machine section** (§9–§11) adds what differs.
+One file serves every machine, because per-machine copies drifted apart. The
+common part applies everywhere. A **machine section** (§9–§11) adds what
+differs.
 
-This prompt is one half of a shift change (#556). Before the operator ends a
-session, they give it the **closer**,
-[`hardware/agent-closer-prompt.md`](agent-closer-prompt.md), which every
-machine shares. That session leaves a closer log in
-`~/.local-llm-bench/closer-logs/`. This prompt reads the log in §1, step 8,
-and never depends on it: §1 brings the machine to a working state from any
-starting point (#558).
+This prompt is one half of a shift change (#556). The other half is the
+**closer**, [`hardware/agent-closer-prompt.md`](agent-closer-prompt.md). A
+closed session leaves a closer log in `~/.local-llm-bench/closer-logs/`. §1,
+step 8 reads the log but never depends on it: §1 brings the machine to a
+working state from any starting point (#558).
 
 Where this file and `AGENTS.md` on `origin/main` disagree, `AGENTS.md` wins.
 Fix this file in the same PR that changes the rule.
@@ -70,11 +68,10 @@ table before each task.
 The stub armed the loop. Step 0 checks it. Do step 0 before §1, and before any
 other tool call except the clone.
 
-**Why first.** Until 2026-09-30 every opener armed the heartbeat at the end of
-its opening routine. A routine that stalled, or a session that went straight to
-work, had no loop at all. On 2026-09-19 the M5 Max went six hours without a
-heartbeat. On 2026-09-30 the DGX cluster sat idle from 03:20 to 06:05 EDT
-with a ready server (§3, "The failure this loop prevents").
+**Why first.** A loop armed at the end of the routine is never armed when the
+routine stalls. That cost the M5 Max six hours without a heartbeat, and the
+DGX cluster 2 h 40 min idle beside a ready server (§3, "The failure this loop
+prevents").
 
 ### Claude Code
 
@@ -86,8 +83,7 @@ with a ready server (§3, "The failure this loop prevents").
      interval, `ScheduleWakeup`): delete it and arm the fixed `/loop 10m`.
      **Never drive this loop with `ScheduleWakeup` or a chain of one-shot
      jobs.** One missed firing, or one turn that ends without re-arming,
-     ends that chain silently. That is exactly how the DGX cluster lost
-     2 h 40 min on 2026-09-30.
+     ends that chain silently.
 2. Record when the loop was armed. A recurring job expires after 7 days, and
    the heartbeat warns on day 6. This also records the first tick, which the
    watchdog needs:
@@ -107,14 +103,11 @@ with a ready server (§3, "The failure this loop prevents").
    wakes you: run a tick now, run `CronList`, re-arm the loop if it is gone,
    and start a new watchdog. Keep **one** watchdog per session.
 
-   Some Claude Code harnesses kill a background task after about 30 minutes
-   (the DGX head, 2026-09-30); the M5 Max's does not. Where the harness kills
-   it, the watchdog ends by that kill before its 35-minute threshold. The kill
-   still wakes the session, so it still works as a second wake path, but it
-   prints no "no tick since" line. Treat that wake like a watchdog wake: run a
-   tick, check `CronList`, and start a new watchdog. Do not lower
-   `--stale-min` to the loop's 10 minutes or less, or it fires before every
-   normal tick.
+   The DGX head's harness kills a background task after about 30 minutes; the
+   M5 Max's does not. There the kill ends the watchdog before its 35-minute
+   threshold, with no "no tick since" line. The kill still wakes the session:
+   treat it as a watchdog wake. Do not lower `--stale-min` to 10 minutes or
+   less, or it fires before every normal tick.
 4. On the DGX cluster, also check the heartbeat timer (§10, step 0).
 
 ### Codex
@@ -170,20 +163,19 @@ for this reason.
 
 ## 1. The opening routine: the same steps, every time
 
-The first tick runs §1. Openers mop, cut the vegetables, and set the tables,
-whatever state the restaurant is in. It can be Opening Day (a new machine or a
-fresh clone), a morning after a good close, or the morning after a crash where
+The first tick runs §1. Openers set up the kitchen whatever state it is in: a
+new machine, a morning after a good close, or a morning after a crash where
 nobody closed. **Run every step, every time, in order.** Each step is a check
 followed by a fix. A step with nothing to fix costs seconds. Do not skip a step
 because a closer log says it is done.
 
 **Find out who owns a thing before you clean it.** Another session may still be
-alive and using it. Decide that with `ListAgents` (local rows),
-`scripts/machine_state.py`, and the process table (the DGX: its systemd
+alive and using it. In Claude Code, run `ListAgents` (local rows) first, then
+`scripts/machine_state.py` and the process table (the DGX: its systemd
 `--user` units). Throwing out another cook's prep is worse than leaving the
-mess. In Claude Code, run `ListAgents` first. Another session on this machine
-shares the GPU, the run lock, and the checkouts, and that includes a fork of a
-session. Agree a split with it before you touch the GPU (§3b).
+mess. Another session on this machine, a fork included, shares the GPU, the
+run lock, and the checkouts. Agree a split with it before you touch the GPU
+(§3b).
 
 Each step below gives the common commands, then the machine's own commands in
 its section (§9 M5 Max, §10 DGX cluster, §11 Ryzen). Write down what each step
@@ -440,8 +432,7 @@ already scheduled.
 
 **Tick updates never go to a GitHub issue** (operator, 2026-10-19). The
 heartbeat goes to the operator in chat only. An issue carries the work log:
-results, a failure or blocker, a decision. The DGX timer that once commented
-the heartbeat on the task's issue now posts nowhere (§10).
+results, a failure or blocker, a decision.
 
 ### The tick
 
@@ -476,8 +467,7 @@ Do these in order, every tick:
 7. **The state.** Write what is true now with `heartbeat.py --set`. Rewrite
    `task` in full every tick (issue, model slug, N/M trials, start time),
    even when you changed only another key: the heartbeat prints `task`
-   verbatim, and on 2026-09-30 it showed the previous issue's task beside the
-   new occupant. Also `started_at` and `eta` (when this task started, and
+   verbatim, and a stale one names the previous task. Also `started_at` and `eta` (when this task started, and
    when it should finish; an idle task's `eta` is when the idle ends), `next`,
    `notes` (what changed, counts read from the log), `questions`, and for a
    wait, `expect_by` and `log`. Clear `expect_by` when the wait ends. Change
@@ -492,26 +482,15 @@ Do these in order, every tick:
 
 **After you launch a run, confirm that it started measuring.** Within a few
 minutes, check that its first sweep passed preflight and that the client
-process exists. A gate refusal fails every sweep in minutes. On 2026-09-19 an
-M5 Max A/B exited 8 of 8 at 00:35 on a preflight refusal. Nobody read the exit,
-and the GPU sat idle until 06:42.
+process exists. A gate refusal fails every sweep in minutes: an M5 Max A/B once
+exited 8 of 8 on a preflight refusal, and nobody read the exit for six hours.
 
 ### The failure this loop prevents
 
-On 2026-09-30, from 03:20 to 06:05 EDT, the DGX cluster sat idle. The
-session's own post-mortem, from its transcript:
-
-- The TensorFold server was ready 34 s after launch, at about 03:21.
-- The session did not launch the client in that turn. It armed a one-shot
-  wakeup for 03:32 ("check the server is ready, then launch the client") and
-  ended the turn.
-- The one-shot never re-invoked the session. There was no recurring job, so
-  nothing else woke it. The operator's unrelated message at 05:41 did.
-- For those 2 h 40 min the heartbeat timer posted on time. The task still read
-  "server compiling, then remote-client 3 trials". Both GPUs read 10–14 W, the
-  idle floor. The "stale notes" line fired four times, and no agent read it.
-
-Three causes, three rules:
+On 2026-09-30 the DGX cluster sat idle for 2 h 40 min beside a server that was
+ready 34 s after launch. The session had parked the client launch on a
+one-shot wakeup that never fired. The heartbeat kept posting a stale task, and
+no agent read its "stale notes" flag. Three causes, three rules:
 
 1. **A chain of one-shot wakeups is not a loop.** Use the recurring job and the
    watchdog (step 0).
@@ -554,17 +533,16 @@ The heartbeat flags, and what each tick does about them:
 
 "Idle power" does not use GPU utilization. Utilization reads 96% while a model
 loads and 0% mid-trial; power and temperature tell you whether work is
-happening (the operator, 2026-09-30). Loading weights is disk-bound and reads
-near idle too, so check whether a server process exists and does not answer
-yet before you call it stuck.
+happening. Loading weights is disk-bound and reads near idle too, so check
+whether a server process exists and does not answer yet before you call it
+stuck.
 
 **Outlet power is the idleness signal where a plug reads it** (operator,
 2026-10-22). On the DGX cluster, each node's 30-minute outlet peak decides it,
 and the line is 90 W (`cluster_heartbeat.OUTLET_IDLE_W`). GPU watts fall to the
-idle floor between requests, and a one-Spark run leaves the other GPU at the
-floor by design. On 2026-10-22 that called a working pair idle for hours while
-the worker's outlet read 131-173 W. GPU watts are the fallback when a plug
-gives no reading.
+idle floor between requests, so they once called a working pair idle while the
+worker's outlet read 131–173 W. GPU watts are the fallback when a plug gives no
+reading.
 
 ### When the loop stops
 
@@ -583,9 +561,8 @@ long run, or 30 heartbeats in a row with nothing to report do not stop it.
 A tick ends with it when it is due: none sent yet, or the last one sent 29
 minutes ago or more (`heartbeat.SEND_EVERY_MIN`; `heartbeat.py --due` says
 which). Send it to the operator in chat as **regular text**, as **the last
-message of the turn**. Never post it to an issue. Text written between tool calls
-may never reach the operator: on 2026-09-24 they saw none of three heartbeats
-sent that way. No code block.
+message of the turn**. Never post it to an issue. Text written between tool
+calls may never reach the operator. No code block.
 
 **Generate it; do not write it by hand.** Run the script, and send its output
 as your final message, unedited: do not reword, reorder, trim or reformat it.
@@ -596,20 +573,19 @@ uv run python scripts/heartbeat.py            # M5 Max and Ryzen: renders, and r
 uv run python scripts/heartbeat.py --tick && uv run python scripts/cluster_heartbeat.py --dry-run   # the DGX cluster
 ```
 
-The script reads every field fresh and puts them in the operator's order
-(2026-09-30):
+The script reads every field fresh and puts them in the operator's order:
 
 1. **The time**, bold, `YYYY-MM-DD HH:MM`, from this machine's `date`, with
    the machine's name.
 2. **Task:** the current task (issue, model slug, progress) and what is on
    the GPU, or `idle: <reason>`. **Timing** follows it: when the task started
-   and its ETA, from `started_at` and `eta` (operator, 2026-09-30). Any flag
-   follows at once; a missing or passed ETA is a flag.
+   and its ETA, from `started_at` and `eta`. Any flag follows at once; a
+   missing or passed ETA is a flag.
 3. **Sensors:** power in watts (the GPU or SoC, and the outlet or input where
    the machine has one), temperature, fans, and CPU busy. **No GPU
-   utilization.** On the DGX cluster the wall-outlet reading (gcx) is the
-   most accurate measure of load, so it is always in the heartbeat when it
-   can be read (operator, 2026-09-30).
+   utilization.** On the DGX cluster the wall-outlet reading is the most
+   accurate measure of load, so it is always in the heartbeat when it can be
+   read.
 4. **Disk:** free space in GB and as a percentage, and the machine's
    threshold.
 5. **PRs:** every open PR, with its merge state and auto-merge.
@@ -622,10 +598,8 @@ The hash covers the body. **A Stop hook checks it:** `scripts/heartbeat_gate.py`
 refuses to end a tick turn whose final message has no heartbeat while one is
 due, or whose heartbeat body differs from its signature. When it passes a
 heartbeat it records `sent_at`, which starts the next 29-minute gap; a tick
-inside the gap may end with no message. On 2026-09-30 the DGX session hand-wrote its
-08:04 tick and dropped the outlet power, the questions and the timing; the
-M5 Max session reworded its 08:11 tick. Each machine wires the hook in its
-user settings:
+inside the gap may end with no message. The hook exists because hand-written
+heartbeats dropped fields. Each machine wires it in its user settings:
 
 ```json
 {"hooks": {"Stop": [{"hooks": [{"type": "command",
@@ -828,15 +802,14 @@ the operator's working laptop.
 - Claude sessions commit and push as `evan-agent[bot]` over HTTPS.
   `~/.claude/settings.json` sets the git environment for this. Do not change
   it.
-- System cron is not used for the loop. On 2026-09-24 the permission
-  classifier refused a cron job that types into the session's tmux pane, and
-  `crontab` hung on a macOS permission prompt (#704).
+- System cron is not used for the loop: the permission classifier refused the
+  job, and `crontab` hung on a macOS permission prompt (#704).
 
 **The heartbeat, on this machine:** `scripts/heartbeat.py` reads the exporter
 on this machine (via `scripts/mac_dash.py`): SoC and input watts, GPU and CPU
-°C, both fans, and CPU busy from `top`. The disk is `/Volumes/Models`. The
-monitor app's CSVs under `~/Library/Logs/monitor/` stopped updating on
-2026-09-14; do not quote them.
+°C, both fans, and CPU busy from `top`. The disk is `/Volumes/Models`. Do not
+quote the monitor app's CSVs under `~/Library/Logs/monitor/`: they stopped
+updating on 2026-09-14.
 
 **Measurement, on this machine:** record every run's envelope with
 `uv run python scripts/mac_dash.py --window <duration>`. A run that read
@@ -844,23 +817,19 @@ monitor app's CSVs under `~/Library/Logs/monitor/` stopped updating on
 multi-arm A/B with `scripts/stack_agent_ab.py`; keep any shim or proxy it
 depends on up for the whole run, and note a restart on the issue.
 
-**Standing contracts** (as of 2026-09-30; the issues are current):
+**Standing contracts** (the issues are current):
 
-- #212 (Qwen on ds4) is the main program. Continue it from the issue's latest
-  comment.
-- #158 decides whether the ds4 fork row in the root `RECOMMENDATIONS.md` stays.
-  Read its latest comment before changing that row.
-- #531 (Inco Splash) is **paused**. Install nothing from its tap.
-- #440 (Time Machine space) needs the operator for `sudo` and a delete. Prepare;
-  do not do them.
+- #531 (Inco Splash) is **paused**: its source is not approved. Install
+  nothing from its tap.
 
 ## 10. The dual DGX Spark cluster
 
 Label `hardware:Cortex-X925-GB10-x2` (class `platform:Nvidia`). Two GB10
 Sparks, 128 GB unified each, aarch64, sm_121, joined by 200 Gb/s ConnectX-7
-RoCE. This session runs on the **head** (node A). The single Spark is node A;
-it has no separate queue. **Keep the GPUs busy**: idle GPUs with work in the
-queue are a failure of this role.
+RoCE. This session runs on the **head** (node A). Single-Spark testing stopped
+on 2026-10-23, so the single Spark (`hardware:Cortex-X925-GB10`) has no queue.
+**Keep the GPUs busy**: idle GPUs with work in the queue are a failure of this
+role.
 
 **What this pair is for:** a network coding backend served to other machines,
 agent runtimes, camera and vision, video generation. It favors
@@ -875,9 +844,8 @@ on the head only is half a check.
 
 **Read** [`docs/dgx-cluster-setup.md`](../docs/dgx-cluster-setup.md) before
 you touch the fabric or blame it (its numbered gotchas mostly fail silently),
-and [`docs/dgx-spark-runbook.md`](../docs/dgx-spark-runbook.md) before a
-single-node server. The history of the single-Spark opener is in
-[`Cortex-X925-128GB-GB10/history-opener-dgx-spark.md`](Cortex-X925-128GB-GB10/history-opener-dgx-spark.md).
+and [`docs/dgx-spark-runbook.md`](../docs/dgx-spark-runbook.md) for each
+node's ports, metrics and safe launches.
 
 | | node A (head) | node B (worker) |
 |---|---|---|
@@ -895,9 +863,7 @@ NCCL, Ray and engine configuration must name **all** the fabric interfaces and
 **A `systemd --user` timer keeps the sensor book fresh; it posts nowhere.**
 `local-llm-cluster-heartbeat.timer` runs `scripts/cluster_heartbeat.py` at
 :07 and :37. It reads every field fresh on both nodes and records the readings
-in `~/.local-llm-bench/heartbeat.json`. Until 2026-10-19 it also commented the
-heartbeat on the task's issue; the operator does not want tick updates in
-issues, so it no longer does.
+in `~/.local-llm-bench/heartbeat.json`.
 
 ```sh
 systemctl --user is-enabled local-llm-cluster-heartbeat.timer   # install steps are in the unit file
@@ -914,7 +880,7 @@ the turn with the chat heartbeat when it is due (§3a).
   (`Cortex-X925-GB10`). That is expected: both nodes probe identically. Then:
   `ssh <peer fabric name> 'uptime; nvidia-smi --query-gpu=name --format=csv,noheader'`.
   **A peer that does not answer means there is no cluster this session.** Say
-  so in the first heartbeat and work single-node items.
+  so in the first heartbeat, and take non-GPU work until the peer answers.
   **Verify SSH by the exact names a launcher will use**, in both directions:
   the worker's LAN name, its CX7 name (`spark-b-cx7`), both fabric addresses,
   and the reverse set from the worker. A 157 GiB download once finished and
@@ -990,14 +956,15 @@ the turn with the chat heartbeat when it is due (§3a).
   ```
 
   **Under 600 GB free on either node is critical** (operator, 2026-09-24). Do
-  not start a download, pull or copy that would cross it. Free space from the
-  audited list on #697, and only with the operator's go: the approved set goes
-  into a script the operator runs. **Plan every download up front**: list what
-  the next arms need on both nodes, and fetch it between runs, never during a
-  measurement. A recipe with its checkpoint on the head and not the worker
-  downloads 157 GiB again at launch unless the recipe's NFS option is set
-  first. Copies between the nodes go over the CX7 names with `aes128-gcm` and
-  parallel streams.
+  not start a download, pull or copy that would cross it. Free space only with
+  the operator's go: the approved set goes into a script the operator runs
+  (#697 is the last audit). **Plan every download up front**: list what the
+  next arms need on both nodes, and fetch it between runs, never during a
+  measurement. Get weights in the `AGENTS.md` order: the NAS archive, then one
+  download on one node, then a copy to the other. A recipe with its checkpoint
+  on the head and not the worker downloads it again at launch unless the
+  recipe's NFS option is set first. Copies between the nodes go over the CX7
+  names with `aes128-gcm` and parallel streams.
 - **Step 9.** `make_next.py --platform nvidia`; keep the issues with
   `hardware:Cortex-X925-GB10-x2`.
 - **Step 10.** Write the state with `cluster_heartbeat.py --set` (the same
@@ -1060,8 +1027,7 @@ the turn with the chat heartbeat when it is due (§3a).
    utilization through a per-launch override, not the shared `.env`, and record
    the value in its backend.
    **Which client.** The cluster's client is the **Core i9-13900H laptop**
-   (20 threads, 64 GB). It has been the client since 2026-09-30, and every
-   MiaAI #892 row ran on it. The Core i3-7100 is the fallback only. Run every
+   (20 threads, 64 GB). The Core i3-7100 is the fallback only. Run every
    arm of one comparison on the same client: a row's times compare only with
    rows from the same client. Before the launch, check that the client's
    OpenCode config defines the backend's `opencode_model` provider (#956);
@@ -1112,9 +1078,9 @@ A row cannot be repaired afterwards: nothing in it records the topology.
   single-node name. Both `server_facts.py` and `run.py` also refuse a
   `gb10-spark-x2` backend whose facts lack `--cluster-peer`, and a
   `gb10-spark` backend whose facts have it.
-- **A run on the head alone** goes to `hardware/Cortex-X925-128GB-GB10/`,
-  beside the 4,000+ rows it is comparable to. Do not "upgrade" it to the
-  cluster ledger.
+- **A run on the head alone** (none since single-Spark testing stopped) goes
+  to `hardware/Cortex-X925-128GB-GB10/`, beside the rows it compares with. Do
+  not "upgrade" it to the cluster ledger.
 - A backend that needs two nodes carries tier `gb10-spark-x2`; a single-node
   backend keeps `gb10-spark`.
 - **Remote-client rows land from the head, between runs.** They are in the
@@ -1130,8 +1096,8 @@ A row cannot be repaired afterwards: nothing in it records the topology.
 - **Both fabric cages are cabled.** The second cable is worth +4.8% on the
   collective, not a doubling ([`docs/second-cable-dgx-spark-cluster.md`](../docs/second-cable-dgx-spark-cluster.md)).
   Do not tune for more; do not remove it without saying so.
-- **Both nodes run kernel 7.0.0-1019-nvidia with `kho=off`** (checked
-  2026-09-24). `full-upgrade` can install a kernel that moves the NVIDIA
+- **Both nodes run kernel 7.0.0-1019-nvidia with `kho=off`.** `full-upgrade`
+  can install a kernel that moves the NVIDIA
   driver, which leaves the GPU dead until a reboot. Check
   `apt-cache policy linux-nvidia-hwe-24.04` on both before you blame a version
   difference.
