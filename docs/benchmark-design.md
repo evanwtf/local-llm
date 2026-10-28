@@ -1,8 +1,7 @@
 # Why the benchmark is shaped this way
 
-Design rationale and the findings that produced it. Moved out of the root
-README on 2026-09-06 to keep that file to a usable length; the content is
-unchanged except where noted.
+Design rationale and the findings that produced it. How each task kind works:
+[`benchmarks/agent/METHODOLOGY.md`](../benchmarks/agent/METHODOLOGY.md).
 
 ## What this is for
 
@@ -13,14 +12,17 @@ failure, and left to run an implement-test-verify loop to a green test suite.
 ### The target stack is open end to end
 
 **OpenCode + an open model + an open engine, on hardware we own.** All three
-have to be things that survive a vendor deciding otherwise:
+have to be things that survive a vendor deciding otherwise, and so does the
+hardware:
 
-| layer | what it must be | current candidate |
+| layer | what it must be | examples measured |
 |---|---|---|
 | **agent** | open source, installable from source | **OpenCode** |
 | **model** | open weights, on local disk | DeepSeek V4 Flash, Qwen3.8-Flash-Next, GLM-5.3-Flash |
-| **engine** | open source, runs offline | llama.cpp, ds4/DwarfStar, Ollama |
-| **hardware** | owned, not rented | M5 Max 128 GB |
+| **engine** | open source, runs offline | llama.cpp, ds4, Ollama, vLLM, SGLang |
+| **hardware** | owned, not rented | M5 Max 128 GB; two DGX Sparks, clustered |
+
+The current picks per machine are in [`RECOMMENDATIONS.md`](../RECOMMENDATIONS.md).
 
 **An open model on an open engine driven by a proprietary client is not a
 fallback — it fails with the vendor.** That is why the agent layer is now held
@@ -29,26 +31,22 @@ harness this project measures.** Claude Code and Codex remain in the suite as
 *reference points*: they establish what a task's ceiling looks like, and a gap
 between them and OpenCode is a defect to chase rather than a result to publish.
 
-This is a change of priority, made 2026-08-30. Earlier results ranked clients
-neutrally and the recommendation followed whichever scored best. It now follows
-the stack that still works when a vendor stops answering — and "OpenCode runs
-this suite reliably" is a project goal, not an observation to record.
+This priority dates from 2026-08-30. Before it, results ranked clients
+neutrally and the recommendation followed whichever scored best.
 
-**Status: it does not yet.** OpenCode's measured results here are under
-investigation and none of them should be cited (#54, #55). The short version:
-`opencode run` is headless, `external_directory` defaults to `ask`, and with
-nobody to ask, agents were observed reading — and in one case destructively
-editing — repositories outside the trial checkout. Every OpenCode number
-predates that discovery and has to be re-measured under confinement.
+OpenCode runs headless, so an unanswered permission prompt once let agents
+read, and in one case edit, repositories outside the trial checkout (#54).
+OpenCode results from before confinement cannot be cited. Every trial now runs
+confined, and its row records how (#477).
 
 ## Two target repositories, two languages
 
-The benchmark excises a function from a real repository and asks the agent to
-restore it. There are two:
+An excision task removes a function from a real repository and asks the agent
+to restore it. The excision tasks use two repositories:
 
 | repo | language | size | tests | oracle |
 |---|---|---|---|---|
-| `~/git/gmail-archive` | Python | 1,833 lines | 71 | `uv run pytest -q`, ~0.85 s |
+| `~/git/gmail-archive` | Python | 1,833 lines | 166, plus 20 that skip without a database | `uv run pytest -q`, ~5 s |
 | `~/git/monitor` | Swift | 11,265 lines | 215 | `swift test`, 0.705 s |
 
 **The second exists because the first ran out of things to find.** gmail-archive
@@ -72,13 +70,14 @@ What it exposed instead is a measurement Python cannot produce here:
 
 - **`swift test` has a build step**, so an agent can fail by emitting code that
   does not compile. A Python syntax error is a pytest collection error; there is
-  no separate build to fail. One trial in 53 has failed this way.
-- **How much more a pair writes on unfamiliar ground varies 2.3x**, from 1.19x
-  to 2.73x moving Python → Swift. Wall time tracks output tokens at r=0.98, so
-  this is a practical number, not a curiosity.
-- **That gap widens with difficulty** (#45): between the terse and verbose pairs
-  it went 5.42x → 8.26x on tokens when the tasks got harder. Measuring inflation
-  on easy tasks *under*-estimates the spread on hard work.
+  no separate build to fail. One trial in 53 failed this way.
+- **How much more a pair writes on unfamiliar ground varies widely**: moving
+  Python → Swift, pairs wrote 1.19 to 2.73 times as many output tokens. Wall
+  time tracks output tokens at r=0.98, so this is a practical number, not a
+  curiosity.
+- **That gap widens with difficulty** (#45): the verbose pair wrote 5.42 times
+  the terse pair's tokens on the first set and 8.26 times on the harder set.
+  Measuring inflation on easy tasks *under*-estimates the spread on hard work.
 
 **Caveat carried on every one of those numbers:** the Swift tasks are not
 difficulty-matched to the Python ones, so the ordering is sound and the absolute
