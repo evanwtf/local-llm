@@ -1,10 +1,10 @@
 # Stand up a two-Spark pick, step by step
 
-**Written 2026-10-22T08:40:00-0400 for [#1202](https://github.com/evanwtf/local-llm/issues/1202).**
-This page covers the four stacks in "The short answer" of
-[`RECOMMENDATIONS.md`](RECOMMENDATIONS.md): the pick, the fast option, the
-stack with the most hidden tests passed, and the image-input stack. Each
-section is a numbered procedure for two NVIDIA DGX Sparks joined by their
+This page covers the four stacks in section 2 of
+[`RECOMMENDATIONS.md`](RECOMMENDATIONS.md): the best all-around choice (here,
+"the pick"), the fast option, the stack with the most hidden tests passed, and
+the image-input stack ([#1202](https://github.com/evanwtf/local-llm/issues/1202)).
+Each section is a numbered procedure for two NVIDIA DGX Sparks joined by their
 ConnectX-7 ports. The shared steps are in
 [`docs/howto.md`](../../docs/howto.md).
 
@@ -125,8 +125,8 @@ vLLM `6e517b15` for sm_121, exllamav3 1.6.0 and its patch series. Its
    HEAD=<head-node> WORKER=<worker-node> ./check.sh     # read-only; PASS / WARN / FAIL per check
    ```
 
-3. On **both** nodes, download the weights to the same absolute path. The
-   Engram tables stay in DeepSeek's own shards 47 and 48:
+3. On the head, download the weights. The worker needs them at the same
+   absolute path. The Engram tables stay in DeepSeek's own shards 47 and 48:
 
    ```sh
    hf download 0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw \
@@ -136,8 +136,11 @@ vLLM `6e517b15` for sm_121, exllamav3 1.6.0 and its patch series. Its
      --revision 1bae0e1088993b9b82de08f59de5be5a34e42170 --local-dir ~/models/dsv41-1017-exl3
    ```
 
-   Instead of a second download, you can copy the folder to the worker over
-   the link with `rsync` (the stack's README).
+   Then copy the folder to the worker over the fabric with `rsync` (the
+   stack's README;
+   [`docs/dgx-cluster-howto.md`](../../docs/dgx-cluster-howto.md), section 9).
+   Do not download on both nodes at once: two parallel downloads saturated
+   the home internet link.
 4. On the head, start both ranks. The launcher starts rank 1 on the worker,
    then rank 0 on the head, and waits for `/v1/models`. Set reasoning effort
    `low` on the server, because the 1017 template defaults to high.
@@ -295,7 +298,8 @@ It builds TensorFold's native engine into an image, and the worker reads the
 checkpoint from the head over NFS.
 
 **Which recipe commit.** The replay + hard run used `2b906fd` and the
-standard run used `e65785c` ([`RECOMMENDATIONS.md`](RECOMMENDATIONS.md),
+standard run used `e65785c`
+([`recommendations-archive-2026-10-27.md`](recommendations-archive-2026-10-27.md),
 section 2). `tasks.toml` names `1afc891`. This page uses `e65785c`.
 
 1. On the head, export the Hugging Face cache to the worker over NFS
@@ -456,9 +460,8 @@ the recipes' own memory guards
 - The recipe commit that served the image-input stack's rows, and the exact
   `.env.dspark` beyond the values the row's argv shows.
 - Which of `1afc891`, `2b906fd` and `e65785c` to treat as the #1168 recipe:
-  `tasks.toml` and `RECOMMENDATIONS.md` disagree.
-- The role of the sybil-solutions recipe in the pick. `RECOMMENDATIONS.md`
-  names it, but the steps it records use only the sudoingX stack.
+  `tasks.toml` and the archived recommendations page disagree.
+- The role of the sybil-solutions recipe in the pick. The archived page names
+  it, but the steps it records use only the sudoingX stack.
 - Disk sizes for the fast option and the image stack come from the recipes'
-  own downloads as `RECOMMENDATIONS.md` reports them, not from a measurement
-  here.
+  own downloads, not from a measurement here.

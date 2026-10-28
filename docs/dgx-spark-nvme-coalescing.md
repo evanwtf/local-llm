@@ -53,10 +53,11 @@ files, read-only, with O_DIRECT. It toggles the setting with
 after every toggle, and always ends with the setting back where it started. It
 refuses to run while a GPU process is active.
 
+Give it files larger than memory, so reads come from the drive:
+
 ```sh
-FILES="--file $HOME/dsv41-exl3/engram-src/model-00047-of-00048.safetensors --file $HOME/dsv41-exl3/engram-src/model-00048-of-00048.safetensors"
-uv run python scripts/nvme_coalescing_ab.py $FILES            # dry run: prints the plan
-uv run python scripts/nvme_coalescing_ab.py $FILES --apply    # 18 min, cluster idle
+uv run python scripts/nvme_coalescing_ab.py --file <shard> --file <shard>           # dry run: prints the plan
+uv run python scripts/nvme_coalescing_ab.py --file <shard> --file <shard> --apply   # 18 min, cluster idle
 ```
 
 The script toggles the service. With the service masked, `systemctl start`
@@ -66,7 +67,7 @@ fails. To repeat the test, unmask first and mask again after (see
 - **Run:** 2026-09-30T19:25 to 19:44 EDT, on the head, with the cluster idle.
 - **fio:** 3.36, libaio, 60 s per job, six arms (on/off × 3).
 - **Files:** the two DeepSeek V4.1 Engram shards, 2 × 101.5 GB, more than memory.
-- **Results:** the raw output is in `~/bench-logs/nvme-coalescing-20260930T232547Z/` on the head.
+- **Raw output:** `~/bench-logs/nvme-coalescing-20260930T232547Z/` on the head.
 
 ## The result
 

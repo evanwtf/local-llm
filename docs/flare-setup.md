@@ -2,8 +2,13 @@
 
 This page is the setup record for NVIDIA Flare
 ([`NVIDIA/flare-local-inference`](https://github.com/NVIDIA/flare-local-inference))
-on the two-Spark cluster (#1207, #1210). It is written as the install happens,
-from the commands that actually ran. A step that has not run yet says so.
+on the two-Spark cluster (#1207, #1210), from the commands that ran.
+
+**Status: stopped after step 5.** Flare did not serve two-Spark GLM on this
+cluster at any of three pins (see "Problems hit"), and #1207 closed on
+2026-10-22. Flare could at best make the GLM fast option faster; it cannot
+close GLM's hidden-test gap. A new issue is worth filing when an upstream
+release says two-Spark GLM works.
 
 Flare is not NVIDIA FLARE, the federated-learning SDK at
 https://developer.nvidia.com/flare. The two share a name only.
@@ -22,12 +27,12 @@ is node B, rank 1. The steps never use a host name from this cluster.
 
 | part | version |
 |---|---|
-| Flare | `main` at `947a5a6d` (2026-10-22). The morning pin `5f37bd1406` cannot load the GLM checkpoint (see "Problems hit") |
+| Flare | `main` at `947a5a6d` (2026-10-22); also tried `5f37bd1` and `df8c2ab6` (see "Problems hit") |
 | FlashInfer fork (pinned by Flare's `pyproject.toml`) | `local-inference-lab/flashinfer` at `03de0b663abe8f5dc69d4e10118587ab459b13eb` |
 | Python | 3.12 (Flare's `.python-version`) |
 | Rust | 1.99.1 (rustup; the same on both nodes) |
 | OS packages | protoc 3.21.12, ninja 1.11.1 (Ubuntu 24.04) |
-| weights | `nvidia/GLM-5.3-Flash-FP4-Local` at `76348ddb2b`, 166 GiB, already in `~/models` on both nodes (#1128) |
+| weights | `nvidia/GLM-5.3-Flash-FP4-Local` at `76348ddb2b`, 166 GiB (#1128); the last tests used `5b865baa` (165.5 GiB). Both revisions are now in the NAS archive, not on the nodes |
 
 ## 1. Install the build packages (both nodes)
 
@@ -134,26 +139,14 @@ one difference before it can matter.
 **Do not build while a benchmark runs.** A compile loads the CPU of the node
 that serves the run.
 
-*Steps 6 onward have not run yet.*
-
-## 6. Prepare a TP2 GLM package across both nodes
-
-## 7. Serve with Orbit
-
-## 8. Check that it works
-
-## 9. Point OpenCode at it
-
-## 10. Stop and clean up
-
 ## Problems hit, and their fixes
 
 **`GLM linear_num_heads requires 64, got None`** (Flare `5f37bd1`). The
 recipe pins `nvidia/GLM-5.3-Flash-FP4-Local@76348ddb`, but that loader cannot
 read the checkpoint's config or quantization layout. Upstream fixed it on
-2026-10-22 (NVIDIA/flare-local-inference#17). Use a later `main`. A config
-patch is not enough: the next failure is
-`f_b_proj: missing quantized_layers declaration`.
+2026-10-22 (NVIDIA/flare-local-inference#17); a later `main` loads it and
+fails at the weight transfer (below). A config patch is not enough: the next
+failure is `f_b_proj: missing quantized_layers declaration`.
 
 **`AttributeError: module 'flare_heliopause' has no attribute ...`.** The
 native extension is older than the checkout. Run step 4.2 again.
@@ -170,7 +163,14 @@ sudo chown -R "$USER:$USER" ~/.cache ~/.triton
 differ, even by one local line. Make `git status` clean and the commit equal on
 both nodes.
 
-**`BrokenPipeError` at "Load weights"** (Flare `947a5a6d` and `fea9d61d`,
-2026-10-22). Not solved yet. Rank 1's checkpoint reads fail about 11 s after
-inspection. Each side reports that the other closed. One transfer stream fails
-the same way. See #1207.
+**`BrokenPipeError` at "Load weights"** (Flare `947a5a6d`, `fea9d61d` and
+`df8c2ab6`, 2026-10-22). Not solved. The ranks connect and the checkpoint is
+inspected; then rank 1's weight load from rank 0 over a socket
+(`RemoteWeightSession`) fails, even with its own copy on disk. Rank 0 logs
+only `a tensor-parallel peer disconnected before shutdown`. See #1207.
+
+**`RuntimeError: tuning races differ across ranks`** (Flare `5f37bd1`, with
+FlashInfer reverted to `622cec10`, checkpoint `5b865baa`). Not solved. The
+weights load in 50 s; then the two ranks' sets of 17 tuning-race keys do not
+overlap. It is deterministic: clearing `~/.cache/flare` and `~/.cache/b12x`
+and freeing memory did not change it. See #1207.

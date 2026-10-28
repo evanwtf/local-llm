@@ -12,19 +12,17 @@ Grace-based NVIDIA systems, and Arm server parts generally. Check with:
 cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver
 ```
 
-**This is a known upstream bug with a fix in flight. It was not found here.**
+**This is a known upstream bug. It was not found here.**
 
-- <https://github.com/prometheus/node_exporter/issues/3791> — opened
-  2026-08-18 by `pablohoffman`, on this same hardware class (GB10 / DGX Spark,
-  `cppc_cpufreq`, 20 CPUs). Open.
-- <https://github.com/prometheus/procfs/pull/861> — proposed fix: bound the
-  per-policy sysfs reads with `SetReadDeadline` (5 s) so a stuck read degrades
-  gracefully instead of hanging the collector.
+- <https://github.com/prometheus/node_exporter/issues/3791>: opened
+  2026-08-18 on the same hardware class (GB10 / DGX Spark, `cppc_cpufreq`,
+  20 CPUs). Closed on 2026-10-19 with no fix in a release.
+- <https://github.com/prometheus/procfs/pull/861>: the proposed fix. It
+  bounds each per-policy sysfs read with `SetReadDeadline` (5 s), so a stuck
+  read fails instead of hanging the collector. Still open on 2026-10-28.
 
-Hit independently on `Cortex-X925-GB10` on 2026-09-11T10:30:00-0400 and
-diagnosed from scratch before the upstream issue was known. Everything below
-matches what upstream reports; it is kept because the diagnostic path is the
-useful part, not because anything here is new.
+Hit independently on the DGX Spark on 2026-09-11 and diagnosed before the
+upstream issue was known. The diagnostic path below is the useful part.
 
 ---
 
@@ -94,9 +92,11 @@ v0.21.x**, so anything older than that parallel read path is unaffected.
 
 ### When to revisit
 
-Re-enable `cpufreq` once procfs#861 is merged **and** node_exporter has bumped
-its procfs dependency past it. Neither had happened as of
-2026-09-11T10:30:00-0400. Until then the flag must stay.
+Re-enable `cpufreq` only when procfs#861 (or an equal fix) is merged **and** a
+node_exporter release vendors it. On 2026-10-28 neither had happened: the
+latest release was 1.12.1 (2026-07-14), and a report in the upstream issue
+shows procfs v0.22.0 still hanging on four DGX Sparks. Both nodes here run
+node_exporter 1.12.1 with `--no-collector.cpufreq`. Keep the flag.
 
 ## What the bisection looked like, and the trap in it
 

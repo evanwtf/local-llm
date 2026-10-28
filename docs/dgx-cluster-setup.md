@@ -1,135 +1,86 @@
 # Setting up and operating the dual DGX Spark cluster
 
-How the two Sparks are joined, how to prove each layer works before trusting
-the one above it, and what each layer looks like when it fails. Bring-up is
-tracked in #646; the ledger separation the cluster needs is #647.
+How the two Sparks are joined, how to prove each layer works before you trust
+the layer above it, and what each layer looks like when it fails.
 
-**Read this before touching either node's network configuration, before
-launching anything that spans both nodes, and before concluding that the
-fabric is at fault.**
+**Read this before you change either node's network configuration, before you
+launch anything that spans both nodes, and before you blame the fabric.**
 
-**Building the pair from nothing?** [`dgx-cluster-howto.md`](dgx-cluster-howto.md)
-is the short path: the steps in order, with the check that catches each one
-going wrong. This file is the reasoning behind them and the gotcha
-catalogue — read it when a step there fails.
+- To build the pair from nothing, follow
+  [`dgx-cluster-howto.md`](dgx-cluster-howto.md): the steps in order. This
+  file is the reasoning behind them and the gotcha catalog.
+- The current kernel, driver, firmware and fabric readings of each node are in
+  [`hardware/Cortex-X925-128GB-GB10-x2/README.md`](../hardware/Cortex-X925-128GB-GB10-x2/README.md).
 
-## Status of every claim in this document
-
-The fabric is **up and measured**; nothing has been served across the pair
-yet. To keep that honest, every factual claim is tagged:
-
-- **OBSERVED** — read off the machines, with the date. A fact.
-- **PLANNED** — the intended configuration. Not yet applied, not yet true.
-- **REPORTED** — from a third party's published recipe, on their hardware.
-  A lead, never a result here.
-
-When a PLANNED item is applied, change its tag to OBSERVED **in the same
-commit that applies it**, and put the evidence in #646. A document that
-describes a configuration nobody applied is worse than no document, because
-the next session will act on it.
+Bring-up (#646) closed on 2026-09-23. The pair has served models to a remote
+client since then (#648, #649). Measurements below carry their date.
 
 ## The principle: verify bottom-up, never skip a layer
 
-Every layer below depends on the one under it, and each fails in a way that
-looks like a problem at a higher layer. A model that hangs on load looks like
-a vLLM bug and is usually NCCL; an NCCL hang looks like a fabric outage and is
-usually an unpinned interface. **Prove each layer with its own test before
-moving up.** The whole reason this pair is hard to debug is that the
-interesting failures are silent — a link that passes every ping and still
-stalls the moment a collective runs.
+Each layer fails in a way that looks like a fault one layer up. A model that
+hangs on load looks like a vLLM bug and is usually NCCL. An NCCL hang looks
+like a fabric outage and is usually an unpinned interface. **Prove each layer
+with its own test before you move up.** The hard failures here are silent: a
+link can pass every ping and still stall the moment a collective runs.
 
 | layer | what it is | proof it works |
 |---|---|---|
 | 0 | cable, port | `ethtool` reports a speed and `Link detected: yes` |
 | 1 | ethernet link | both ends agree on 200000Mb/s |
-| 2 | IP addressing | both fabric subnets ping, sub-millisecond |
+| 2 | IP addressing | all four fabric subnets ping, about 1 ms or less |
 | 3 | RoCE / RDMA | `rdma link show` ACTIVE; `ib_write_bw` moves data |
 | 4 | host trust | passwordless SSH both ways; matching OS build and UID |
 | 5 | collectives | `all_reduce_perf` completes across both nodes |
-| 6 | engine | vLLM TP=2 loads and reaches `/health` |
+| 6 | engine | the server loads both ranks and answers |
 | 7 | serving | a real completion, with tool calls, from a remote client |
-
-Layers 6 and 7 are #648 and #649. Everything below them is #646.
 
 ---
 
-## Layer 0–1: physical and link
+## Layers 0–1: physical and link
 
-**OBSERVED 2026-09-22T00:33-0400. Exactly one cable is connected, not two.**
+Each Spark has **two QSFP cages**, `p0` and `p1`. Each cage is reached over
+**two PCIe paths** (domains `0000:01:00.x` and `0002:01:00.x`). So each node
+has four ethernet interfaces and four RoCE devices for two physical cages.
+The interface name does not tell you the cage: read
+`/sys/class/net/<iface>/phys_port_name`.
 
-Each Spark has **two QSFP cages**, `p0` and `p1`. Each cage is reachable over
-**two PCIe paths** (domains `0000:01:00.x` and `0002:01:00.x`), so four
-ethernet interfaces and four RoCE devices exist for two physical cages. Read
-`/sys/class/net/<iface>/phys_port_name` to learn which cage an interface
-speaks for — the interface name does not tell you.
+Both cages are cabled (two NJAAKK-N911 DACs), cage `p0` to `p0` and `p1` to
+`p1`:
 
-| interface | PCI | cage | node A | node B |
-|---|---|---|---|---|
-| `enp1s0f1np1` | `0000:01:00.1` | **p1** | 200000Mb/s, Direct Attach Copper, link yes | 200000Mb/s, link yes |
-| `enP2p1s0f1np1` | `0002:01:00.1` | **p1** | 200000Mb/s, Direct Attach Copper, link yes | 200000Mb/s, link yes |
-| `enp1s0f0np0` | `0000:01:00.0` | p0 | no cable | no cable |
-| `enP2p1s0f0np0` | `0002:01:00.0` | p0 | no cable | no cable |
+| interface | PCI | cage | RoCE device |
+|---|---|---|---|
+| `enp1s0f1np1` | `0000:01:00.1` | p1 | `rocep1s0f1` |
+| `enP2p1s0f1np1` | `0002:01:00.1` | p1 | `roceP2p1s0f1` |
+| `enp1s0f0np0` | `0000:01:00.0` | p0 | `rocep1s0f0` |
+| `enP2p1s0f0np0` | `0002:01:00.0` | p0 | `roceP2p1s0f0` |
 
-**Both live interfaces are the same physical wire.** They are two PCIe paths
-to cage `p1`, and cage `p1` on node A is cabled to cage `p1` on node B. Cage
-`p0` reports "No cable" on both nodes, so the second NJAAKK-N911 cable in hand
-is **not plugged in**. Connecting it needs physical access to both chassis.
-
-The consequence that matters: **the ceiling is one 200 Gb/s link, not two.**
-Traffic over `enp1s0f1np1` and `enP2p1s0f1np1` shares one wire. Using both
-can help saturate the wire if a single PCIe path cannot, but it cannot exceed
-it, and nothing here should be described as 400 Gb/s.
-
-**The NIC does not exist until a cable is attached.** Before cabling, node A
-showed no Mellanox device on the PCI bus at all, an empty
-`/sys/class/infiniband/`, and `mlx5_ib` bound to zero devices. This was an
-open question in #641 and looked like a firmware problem. It was not. With a
-cable attached the device enumerates normally. **Do not debug a missing
-ConnectX-7 on an uncabled Spark** — that is its documented-by-experiment
-resting state.
+An uncabled cage has no NIC on the PCI bus at all (gotcha 2).
 
 ```sh
-# what to run
 sudo ethtool <iface> | grep -Ei 'speed|link detected'
-sudo lshw -c net -short
+cat /sys/class/net/<iface>/phys_port_name
 ```
 
-### Which cage pairs with which — resolved
-
-**OBSERVED.** Cage `p1` on node A to cage `p1` on node B. It is not an
-inference: `p1` is the only cage showing a link on either node, and a cable
-has two ends.
-
-This was open while the topology was assumed to be two cables. It is worth
-keeping the method, because it returns the moment the second cable goes in:
-with no addresses configured, the interfaces carry no IPv6 link-local either,
-so a multicast neighbour probe returns nothing and neither node can say which
-of its cages reaches which of the peer's. Resolve it by addressing one pair,
-pinging, and swapping if it fails — then **record the answer here**, because
-every NCCL and Ray configuration afterwards names interfaces explicitly and a
-wrong pairing hangs rather than errors.
-
-Do not assume a straight-through pairing when the second cable is added.
-MiaAI-Lab's published two-Spark topology (REPORTED) cables `enp1s0f1np1` on
-the head to `enp1s0f0np0` on the worker — different cages at the two ends —
-and their recipe works. A cross-cage pairing is normal, not a miscabling.
+**Which cage pairs with which.** With no addresses configured, the interfaces
+carry no IPv6 link-local, so a neighbor probe returns nothing. Address one
+pair, ping, and swap if it fails. Then record the answer, because every NCCL
+and Ray configuration names interfaces, and a wrong pairing hangs rather than
+errors. Do not assume straight-through: MiaAI-Lab's published two-Spark
+topology cables `enp1s0f1np1` on the head to `enp1s0f0np0` on the worker, and
+their recipe works.
 
 ## Layer 2: addressing
 
-**OBSERVED 2026-09-22T00:43-0400. Applied and verified.**
+Static point-to-point addresses through `nmcli`. NetworkManager is the
+renderer on DGX OS, so do not add a netplan stanza (gotcha 8). MTU 9000, no
+default route, IPv6 off, autoconnect on. One /24 per interface pair:
 
-Static point-to-point addressing through `nmcli` — NetworkManager is the
-renderer on DGX OS, so this is deliberately *not* a netplan stanza (see the
-gotchas). MTU 9000, no default route, IPv6 off, autoconnect on.
-
-| profile | interface | cage | node A | node B |
-|---|---|---|---|---|
-| `cx7-p1-path0` | `enp1s0f1np1` | p1 | 10.0.0.1/24 | 10.0.0.2/24 |
-| `cx7-p1-path1` | `enP2p1s0f1np1` | p1 | 10.0.1.1/24 | 10.0.1.2/24 |
-
-Both subnets traverse **the same wire** — they are two PCIe paths to cage p1,
-not two links. Two subnets on one segment is intentional: it is how both PCIe
-paths get driven at once, which is the only way to reach line rate (Layer 3).
+| profile | interface | node A | node B |
+|---|---|---|---|
+| `cx7-p1-path0` | `enp1s0f1np1` | 10.0.0.1/24 | 10.0.0.2/24 |
+| `cx7-p1-path1` | `enP2p1s0f1np1` | 10.0.1.1/24 | 10.0.1.2/24 |
+| `cx7-p0-path0` | `enp1s0f0np0` | 10.0.2.1/24 | 10.0.2.2/24 |
+| `cx7-p0-path1` | `enP2p1s0f0np0` | 10.0.3.1/24 | 10.0.3.2/24 |
 
 ```sh
 sudo nmcli con mod <profile> \
@@ -138,113 +89,60 @@ sudo nmcli con mod <profile> \
   ipv6.method disabled 802-3-ethernet.mtu 9000 connection.autoconnect yes
 ```
 
-`/etc/hosts` on both nodes carries `spark-a-cx7` / `spark-b-cx7` for the
-10.0.0.0/24 pair, so nothing resolves a fabric peer through mDNS.
+`/etc/hosts` on both nodes names every fabric address, so nothing resolves a
+fabric peer through mDNS (gotcha 11). The names are in
+[`dgx-cluster-howto.md`](dgx-cluster-howto.md), step 4; the older aliases
+`spark-a-cx7` and `spark-b-cx7` also point at 10.0.0.1 and 10.0.0.2.
 
-**Verified:** both subnets ping with 0% loss (10.0.0.0/24 min/avg/max
-0.661/1.016/1.645 ms; 10.0.1.0/24 1.100/1.297/1.484 ms), and jumbo frames
-pass end-to-end — `ping -M do -s 8972`, 3/3, no fragmentation.
+**Two subnets on one cage is intentional.** It is how both PCIe paths of a
+cage are driven at once, which is the only way to reach line rate (Layer 3).
 
-**The RTT anomaly was the one real warning sign, and it was dismissed.**
-Before the peer reboot, RTT averaged 1.016 ms where a direct DAC should give
-tens of microseconds; it was recorded as probably CPU idle states. After the
-reboot it averaged **0.282 ms**. The same reboot took the all-reduce from
-24.20 to 187.10 Gb/s (Layer 5). An unexplained order-of-magnitude latency
-anomaly is a blocker, not a footnote.
+**Independent subnets, not a bond.** LACP needs a switch, and there is none.
+NVIDIA's guidance and every third-party recipe read here hand all interface
+names to NCCL and let it use the rails itself. A bond also hides a failed
+rail: it degrades with no error.
 
-### Is the second cable worth it? No, and it is measured
-
-**OBSERVED 2026-09-22.** Both cables are now connected. The second one moved
-the raw link from 196.08 to 218.36 Gb/s (+11.4%) and the two-node all-reduce
-from 187.10 to 196.09 Gb/s (**+4.8%**). It cannot do better: the host-to-NIC
-PCIe budget is about 224 Gb/s and one cable already delivered 196, because
-both cages are served by the same two Gen5 x4 devices.
-
-The demonstration is that every path halves when all four run at once —
-109.3 Gb/s alone, 54.59 Gb/s together, and 4 x 54.59 = 218.36 against
-2 x 109.3 = 218.6, agreeing to 0.1%.
-
-Full write-up, aimed at someone deciding whether to buy or connect the second
-cable: [`second-cable-dgx-spark-cluster.md`](second-cable-dgx-spark-cluster.md).
-Working notes in #659.
-
-### Bonding, and why the default is not to
-
-**PLANNED — decision open.** With one cable connected there is nothing to
-bond for bandwidth: the two live interfaces are two PCIe paths to a single
-wire, and no bonding mode makes one cable carry more than 200 Gb/s. Bonding
-them would buy path redundancy against a PCIe-path failure, not throughput.
-
-If the second cable is connected later, two genuinely independent wires
-exist — but see Layer 3 for why that buys far less than it appears to. Even
-then the default should be **two independent subnets, not a bond**. LACP
-needs a switch and there is none, leaving `balance-rr` or `active-backup`.
-NVIDIA's own guidance and every third-party recipe read here configure
-independent interfaces and hand *both* names to NCCL, letting the collective
-library use both rails itself. That is also easier to diagnose: with a bond,
-a single failed rail degrades silently.
+**The second cable** moved the raw link from 196.08 to 218.36 Gb/s and the
+all-reduce from 187.10 to 196.09 Gb/s (+4.8%, 2026-09-22). The PCIe budget
+binds before the wire does. The full write-up:
+[`second-cable-dgx-spark-cluster.md`](second-cable-dgx-spark-cluster.md).
 
 ## Layer 3: RoCE and RDMA
 
-**OBSERVED 2026-09-22T00:06-0400.** RoCE devices exist and the cabled ones are
-live on both nodes:
-
-```
-link rocep1s0f0/1    state DOWN    physical_state DISABLED   netdev enp1s0f0np0
-link rocep1s0f1/1    state ACTIVE  physical_state LINK_UP    netdev enp1s0f1np1
-link roceP2p1s0f0/1  state DOWN    physical_state DISABLED   netdev enP2p1s0f0np0
-link roceP2p1s0f1/1  state ACTIVE  physical_state LINK_UP    netdev enP2p1s0f1np1
-```
-
-Note the naming: the RoCE device `rocep1s0f1` corresponds to the ethernet
-interface `enp1s0f1np1`. **Both names are needed** — NCCL wants the RoCE
-device in `NCCL_IB_HCA` and the ethernet interface in `NCCL_SOCKET_IFNAME`,
-and they are not interchangeable.
-
 ```sh
-rdma link show
-ibdev2netdev          # the mapping, explicitly
+rdma link show        # ACTIVE / LINK_UP on each cabled device
+ibdev2netdev          # the RoCE-to-ethernet mapping
 ```
 
-ACTIVE means the link layer is up. It does **not** mean RDMA can move data.
+**NCCL needs both names.** The RoCE device (`rocep1s0f1`) goes in
+`NCCL_IB_HCA`, and the ethernet interface (`enp1s0f1np1`) goes in
+`NCCL_SOCKET_IFNAME`. They are not interchangeable. ACTIVE means the link
+layer is up. It does **not** mean RDMA can move data.
 
-### Measured throughput, and the PCIe ceiling that shapes everything
+### Throughput, and the PCIe ceiling
 
-**OBSERVED 2026-09-22T00:43-0400.** `ib_write_bw`, 1 MiB messages, 12-15 s,
-`--report_gbits`:
+`ib_write_bw`, 1 MiB messages, 12–15 s, `--report_gbits`, 2026-09-22, one
+cable:
 
 | configuration | Gb/s |
 |---|---|
-| single PCIe path (`rocep1s0f1`), 1 QP | 109.29 |
-| single PCIe path (`rocep1s0f1`), 8 QPs | 111.86 |
-| **both paths concurrently** (`rocep1s0f1` + `roceP2p1s0f1`) | **196.08** (98.04 + 98.04) |
+| one PCIe path (`rocep1s0f1`), 1 QP | 109.29 |
+| one PCIe path (`rocep1s0f1`), 8 QPs | 111.86 |
+| **both paths of cage p1 at once** | **196.08** (98.04 + 98.04) |
 
-TCP for comparison, `iperf3 -P 8` on one path: **111 Gb/s**, zero retransmits.
+TCP for comparison, `iperf3 -P 8` on one path: 111 Gb/s, zero retransmits.
 
-196.08 Gb/s is **98.0% of the port's 200 Gb/s rating**. The link is
-saturated.
+Each PCIe path is **Gen5 x4** (`LnkSta: Speed 32GT/s, Width x4`): about
+126 Gb/s of payload, of which 111.86 is 89%. Eight queue pairs moved it only
+2.4%, so this is a PCIe wall, not a queue-depth limit. Two consequences:
 
-**Each PCIe path is Gen5 x4.** `LnkSta: Speed 32GT/s, Width x4` on both
-`0000:01:00.0` and `0002:01:00.0` — about 126 Gb/s of theoretical payload,
-of which 111.86 is 89%. Raising queue pairs from 1 to 8 moved it 2.4%, so
-this is a **PCIe wall, not a queue-depth limit**.
-
-Two consequences, and they are the most important facts in this document:
-
-1. **One PCIe path cannot saturate the port.** Both must be driven together
-   or 43% of the link is unused. Every NCCL, Ray and engine configuration
-   must name *both* interfaces and *both* HCAs, never one.
-2. **The host-to-NIC PCIe budget is ~224 Gb/s total** (2 paths x ~112), and
-   one cable already delivers 196. So a **second cable cannot come close to
-   doubling throughput** — the wire stopped being the constraint once both
-   PCIe paths were in use. Its ceiling is the PCIe budget, an upper bound of
-   roughly 14% more aggregate, and only with traffic balanced perfectly
-   across both cages. A second cable is worth adding for redundancy, or if a
-   measurement later shows a tensor-parallel split starving on the link — not
-   as a throughput upgrade.
+1. **One PCIe path cannot saturate a port.** Every NCCL, Ray and engine
+   configuration must name **all** interfaces and **all** HCAs.
+2. **The host-to-NIC budget is about 224 Gb/s** (2 paths × ~112). That is why
+   the second cable added only 11.4% raw.
 
 ```sh
-# server on the peer, client here; run one pair per PCIe path, concurrently
+# server on the peer, client here; one pair per PCIe path, at the same time
 ib_write_bw -d <hca> -p <port> -D 15 -s 1048576 --report_gbits [<peer ip>]
 ```
 
@@ -252,98 +150,31 @@ ib_write_bw -d <hca> -p <port> -D 15 -s 1048576 --report_gbits [<peer ip>]
 
 ## Layer 4: host trust and parity
 
-### Passwordless SSH, both directions
-
-**OBSERVED 2026-09-22.** Working in both directions after each node's host key
-was accepted.
-
-Bidirectional is not optional. Collective launchers, Ray, and every
-`docker save | ssh docker load` step in the third-party recipes assume the
-head can reach the worker *and* that the worker can reach back. A one-way
-setup passes a casual test and fails at cluster start.
-
-**Watch for the host-key gap.** Key authentication being configured does not
-mean a given shell can connect: a session whose `known_hosts` lacks the peer
-fails with `Host key verification failed`, which reads like an authentication
-problem and is not one. Accept the key once per account that needs it.
-
-### Matching OS builds
-
-**OBSERVED — mismatched.** Node A is 7.2.3 / kernel 6.17.0-1032-nvidia; node B
-is 7.5.0 / kernel 7.0.0-1019-nvidia. Six months and a major kernel version
-apart.
-
-Bring them to the same build **before** clustering. Debugging a two-node
-collective across mismatched driver and kernel versions means every failure
-has a second candidate cause. Node A is the one that moves; see this
-directory's README for the `nvfanread` consequence.
-
-### Matching account
-
-**OBSERVED — matched.** uid 1000, gid 1000, `sudo` on both.
-
----
+- **Passwordless SSH in both directions.** Collective launchers, Ray, and
+  every `docker save | ssh docker load` step assume the head reaches the
+  worker *and* the worker reaches back. Accept the host key for every name
+  and address a launcher uses (gotchas 13 and 20).
+- **The same OS build, kernel and driver on both nodes.** A mismatch gives
+  every collective failure a second candidate cause. The nodes match since
+  2026-09-23 (the README's software table). To move a node, see gotcha 12.
+- **The same account:** uid 1000, gid 1000, in `sudo`, on both. The NVIDIA
+  Cluster Assistant requires it.
 
 ## Layer 5: collectives
 
-**OBSERVED 2026-09-22T01:40-0400. At line rate, after a reboot — see the
-correction below, it matters more than the number.**
-
 `scripts/cluster_allreduce.py` under `torchrun`, one rank per node, inside the
-serving image. bf16, median of 20 iterations, bus bandwidth by nccl-tests'
-definition (`algbw * 2(n-1)/n`, which equals algbw at two ranks). Three
-consecutive runs at 1 GiB: **184.84, 187.14, 187.10 Gb/s** — median
-**187.10 Gb/s**, which is **95.4% of the 196.08 Gb/s** the link delivers
-under `ib_write_bw`.
+serving image. bf16, median of 20 iterations, bus bandwidth as nccl-tests
+defines it (`algbw * 2(n-1)/n`, equal to algbw at two ranks). The check also
+asserts that an all-reduce of ones returns the world size.
 
-Representative run:
+| date | cables | runs at 1 GiB | median |
+|---|---|---|---|
+| 2026-09-22 | one | 184.84, 187.14, 187.10 | 187.10 Gb/s |
+| 2026-09-22 | two | 196.09, 196.26, 194.12 | 196.09 Gb/s |
+| 2026-09-23 | two, after node A moved to kernel 7.0 | 192.07, 185.60, 179.23 | **185.60 Gb/s** |
 
-| message | latency | busbw |
-|---|---|---|
-| 1 MiB | 1.160 ms | 7.23 Gb/s |
-| 4 MiB | 0.655 ms | 51.23 Gb/s |
-| 16 MiB | 0.894 ms | 150.06 Gb/s |
-| 64 MiB | 3.407 ms | 157.57 Gb/s |
-| 256 MiB | 12.908 ms | 166.37 Gb/s |
-| 1 GiB | 46.473 ms | 184.84 Gb/s |
-
-Correctness passes: an all-reduce of ones returns exactly the world size.
-
-The collective reaches line rate. **Plan around ~187 Gb/s.**
-
-### The correction: a reconfigured node stays degraded until it is rebooted
-
-Before the peer was rebooted, the identical test plateaued at **24.20 Gb/s**
-— 12% of the link — and stayed there across three tuning attempts (default
-24.20, `NCCL_NET_GDR_LEVEL=5` + `NCCL_DMABUF_ENABLE=1` 24.25,
-`NCCL_BUFFSIZE=16M` with 4 QPs per connection 24.02). The consistency made it
-look like a hardware ceiling, and it was written up as one, with GB10's lack
-of GPUDirect RDMA as the explanation.
-
-**That explanation was wrong.** GPUDirect RDMA is still disabled after the
-reboot — `GPU Direct RDMA Disabled for HCA` on both — and the collective now
-runs at 187 Gb/s anyway. Staging through host buffers was never the limiter.
-
-What actually changed: the peer had had its NetworkManager fabric profiles
-created, renamed, re-addressed and re-activated several times during bring-up
-(gotchas 6 and 7). Something in that churn left the node in a state that
-passed **every** functional check — link up, RoCE ACTIVE, both subnets
-pinging, jumbo frames clean, `ib_write_bw` at 196 Gb/s, a numerically correct
-all-reduce — while the collective ran at 13% of its speed. The only visible
-symptom was latency: **ping RTT averaged 1.016 ms before the reboot and
-0.282 ms after**, a 3.6x drop that was noted at the time and dismissed as
-CPU idle states.
-
-The lesson is procedural, not architectural:
-
-- **Reboot both nodes after configuring the fabric, before measuring
-  anything.** Configuration churn leaves state that survives `nmcli con
-  down/up` and is invisible to every functional test.
-- **A consistent number is not a correct number.** Three tuning attempts
-  agreeing within 1% was read as a plateau; they were all measuring the same
-  degraded state.
-- **Treat an unexplained latency anomaly as a blocker, not a footnote.** The
-  1 ms RTT was the only evidence, and it was recorded and set aside.
+The gate is **above 180 Gb/s**. A one-cable run before a reboot read
+24.20 Gb/s; see gotcha 19 before you trust a low number.
 
 ```sh
 torchrun --nnodes 2 --node-rank <0|1> --nproc-per-node 1 \
@@ -352,436 +183,352 @@ torchrun --nnodes 2 --node-rank <0|1> --nproc-per-node 1 \
 ```
 
 Run it inside the serving image with `--device /dev/infiniband`,
-`--ulimit memlock=-1`, `--network host`, `--ipc=host`, and **both** names in
+`--ulimit memlock=-1`, `--network host`, `--ipc=host`, and **all** names in
 `NCCL_SOCKET_IFNAME` and `NCCL_IB_HCA` (gotchas 17 and 18).
 
 ## Layer 6: the engine
 
-**PLANNED.** #648 owns the first model. What is settled is the mechanism: all
-five third-party two-Spark recipes read so far (#650) are **vLLM with
-`tensor-parallel-size 2`**, one GB10 per node, over the ConnectX fabric. Some
-overlay custom kernels or EXL3 on top of vLLM; none use llama.cpp RPC.
+Every stack measured on the pair runs one rank per node, tensor-parallel
+(TP=2) over the fabric: vLLM (with ExLlamaV3 or DSpark on top), or
+TensorFold's own TP2 engine. None uses llama.cpp RPC. What runs, and how:
+[`hardware/Cortex-X925-128GB-GB10-x2/howto.md`](../hardware/Cortex-X925-128GB-GB10-x2/howto.md).
 
-Operational facts common to those recipes (REPORTED):
+The constants across the recipes:
 
-- Docker on both nodes, containers run `--network host --ipc=host`
-- The worker rank starts first, then the head
-- Weights are either copied to both nodes or shared from the head over NFS on
-  the fabric link; budget **~200 GiB free per node** for the largest. Both
-  nodes have 3.7 TiB, so disk is not a constraint here
-- Model load is slow enough that health polling needs a timeout in the
-  thousands of seconds, not the tens. A cluster that has not answered
-  `/health` after two minutes is not necessarily broken
-
-**Host RAM is GPU memory on a Spark.** Every allocation is committed
-immediately and the weights live in driver allocations that are not charged to
-any process's RSS — so the kernel OOM killer, which scores by RSS, cannot see
-the real consumer and will kill something innocent instead. Watch
-`MemAvailable` **after a long prompt**, not after a boot: the floor comes
-during prefill.
-
----
+- Docker on both nodes, containers run `--network host --ipc=host`.
+- The worker rank starts first, then the head.
+- Weights are copied to both nodes at the same path, or shared from the head
+  over NFS on the fabric (gotchas 21, 24 and 25).
+- The health poll needs a timeout in the thousands of seconds. A large MoE
+  took 9 min 7 s from launch to a live API.
+- Memory is the first thing to check (gotchas 1 and 16).
 
 ## Layer 7: serving to a client
 
-**PLANNED.** #649. Two things that differ from the single-Spark case:
-
-- **A two-node deployment has a head**, and only the head serves the API. A
-  client pointed at the worker fails in a way that looks like a network
-  problem. Record which node serves.
-- **`/health` is not proof.** A cluster can pass a health check with a dead
-  peer rank. Wait on a real completion, and make it long enough to cross the
-  point where the inter-node hop shows up — a short reply can succeed on a
-  deployment that stalls on sustained decode.
+- **Only the head serves the API.** A client pointed at the worker fails in a
+  way that looks like a network problem.
+- **`/health` is not proof.** A cluster passes a health check with a dead
+  peer rank. Wait on a real completion, long enough to cross the inter-node
+  hop: a short reply can succeed on a deployment that stalls on sustained
+  decode.
 
 ---
 
 ## Gotchas — the full list
 
-Every one of these either bit during this bring-up (**HIT**), was checked and
-found already correct (**CLEAR**), was avoided by a deliberate choice
-(**AVOIDED**), or is carried from a third party and not yet met here
-(**REPORTED**). Read the whole list before redoing this; several are silent
-and several cost real time.
+Each one bit during bring-up (**HIT**), was checked and found correct
+(**CLEAR**), was avoided by a choice (**AVOIDED**), or comes from a third
+party and has not been met here (**REPORTED**). Several are silent. The
+numbers are stable: scripts and other docs cite them.
 
 ### 1. Memory: check it before anything significant, and stop at 50% — **HIT**
 
-*Symptom:* background jobs on the head killed for critical memory pressure,
-7 GiB of swap in use, a resident server one allocation away from the OOM
-killer taking `sshd`. No error from the jobs themselves.
+*Symptom:* background jobs on the head killed for memory pressure, 7 GiB of
+swap in use, a resident server one allocation from the OOM killer taking
+`sshd`. No error from the jobs themselves.
 
-*Cause:* 2026-09-22 (#672). GLM-5.3-Flash was left resident across both
-nodes at `GPU_MEM_UTIL=0.86` after its verdict was posted, leaving the head
-3–8 GiB of `MemAvailable`. On top of it went a 161 GiB `hf download`, a
-`docker pull` of a ~20 GB image, and a throughput sweep. On a Spark the
-128 GB pool is shared between CPU and GPU: a resident model is host memory,
-and page cache, image extraction and the load test all compete for what is
-left.
+*Cause (#672, 2026-09-22):* GLM-5.3-Flash stayed resident on both nodes after
+its result was posted, leaving the head 3–8 GiB available. A 161 GiB
+download, a ~20 GB image pull and a throughput sweep went on top. A resident
+model is host memory; page cache, image extraction and load tests compete for
+what is left.
 
-*Fix:* before anything significant (a download, an image pull, a launch, a
-load test, a trial run), read `MemAvailable` and swap on **every node it
-touches**. **If more than 50% of memory is in use, stop and evaluate**: what
-holds it, what the new job adds, and the right course, which is usually to stop
-a server whose result is already posted, with its own wrapper, before
-starting. A model is never kept "warm until the next one is ready" when the
-next one needs a download. After a server stops, confirm `earlyoom` is running on both nodes and run
-preflight (`scripts/machine_health.py check`, `scripts/machine_state.py`,
-`MemAvailable` and swap on both nodes) before resuming. Stopping the server
-freed 107.5 GiB on the head (8.7 to 116.2 GiB available) and 112.2 GiB on the worker (4.4 to 116.6).
+*Fix:* before a download, an image pull, a launch, a load test or a run,
+read `MemAvailable` and swap on **every node the job touches**. **If more than
+50% of memory is in use, stop and evaluate** what holds it. Usually the right
+course is to stop a server whose result is already posted, with its own
+wrapper. Never keep a model "warm" while the next one downloads. After a stop,
+confirm `earlyoom` runs on both nodes, then run
+`scripts/machine_health.py check` and `scripts/machine_state.py`.
 
-**The #1 DGX rule.** Every other entry in this list costs time. This one can
-cost the node: when the pool runs out, the OOM killer takes small daemons
-first, and on the worker that means losing it with no console
+**The #1 DGX rule.** The other entries cost time. This one can cost the node:
+when the pool runs out, the OOM killer takes small daemons first, and the
+worker can be lost with no console
 ([`incidents/2026-09-13-oom-lockup.md`](incidents/2026-09-13-oom-lockup.md)).
 
 ### 2. The ConnectX-7 does not exist until a cable is plugged in — **HIT**
 
-*Symptom:* no Mellanox device in `lspci`, `/sys/class/infiniband/` empty,
+*Symptom:* no Mellanox device in `lspci`, an empty `/sys/class/infiniband/`,
 `ibdev2netdev` and `rdma link show` print nothing, `mlx5_ib` bound to zero
-devices. Looks exactly like a NIC disabled in firmware.
+devices. It looks like a NIC disabled in firmware.
 
-*Cause:* the port does not enumerate on the PCI bus with no cable attached.
-This is normal for this integrated NIC and is **not** how ordinary PCIe
-devices behave, which is why it reads as a fault.
+*Cause:* the port does not enumerate on the PCI bus with no cable. That is
+normal for this integrated NIC.
 
 *Fix:* attach the cable. Do not debug a missing ConnectX-7 on an uncabled
-Spark. This cost #641 an open question for weeks.
+Spark (it cost #641 weeks).
 
 ### 3. Four interfaces, two physical cages — **HIT**
 
-*Symptom:* `enp1s0f0np0`, `enp1s0f1np1`, `enP2p1s0f0np0`, `enP2p1s0f1np1`
-for what is obviously a two-port NIC.
+*Cause:* each QSFP cage is reached over two PCIe paths, so a two-port NIC
+shows four interfaces, and the name does not say which cage.
 
-*Cause:* each QSFP cage is reachable over **two PCIe paths** (domains
-`0000:01:00.x` and `0002:01:00.x`). The interface name does not tell you
-which cage it speaks for.
-
-*Fix:* `cat /sys/class/net/<iface>/phys_port_name` — `p0` or `p1`. Binding a
-static address to an interface on the uncabled cage produces a silent
-blackhole: the config applies, nothing moves.
+*Fix:* `cat /sys/class/net/<iface>/phys_port_name` (`p0` or `p1`). A static
+address on an uncabled cage's interface is a silent blackhole: the config
+applies, and nothing moves.
 
 ### 4. Two interfaces up does **not** mean two cables — **HIT**
 
-*Symptom:* two interfaces at 200000Mb/s with `Link detected: yes`, two
-reporting `No cable`, and two cables sitting in the box. Reads as "both
-cables are in."
-
-*Cause:* one cable lights **both PCIe paths to one cage**. This bring-up
-recorded "both cables are in" and was wrong; it was a single cable between
-cage `p1` on each node.
+*Cause:* one cable lights **both PCIe paths to one cage**. Bring-up recorded
+"both cables are in" with one cable connected.
 
 *Fix:* count *cages* with a link, not interfaces. Group interfaces by
-`phys_port_name` first, then count.
+`phys_port_name` first.
 
 ### 5. One PCIe path cannot saturate the port — **HIT**
 
-*Symptom:* a correctly configured 200 Gb/s link benchmarks at ~110 Gb/s and
-more queue pairs do not help.
+*Symptom:* a 200 Gb/s link benchmarks at ~110 Gb/s, and more queue pairs do
+not help.
 
-*Cause:* each PCIe path is **Gen5 x4**, about 126 Gb/s of payload. Measured:
-109.29 Gb/s at 1 QP, 111.86 at 8 QPs — a 2.4% spread, so the wall is PCIe,
-not concurrency.
-
-*Fix:* drive **both** paths concurrently; that reaches 196.08 Gb/s, 98% of
-the port rating. Give every NCCL/Ray/engine configuration both interface
-names and both HCA names. Naming one silently halves the fabric.
+*Fix:* drive **both** paths of a cage at once (196.08 Gb/s, Layer 3). Give
+every NCCL, Ray and engine configuration all interface and HCA names. Naming
+one silently halves the fabric.
 
 ### 6. NetworkManager profile names map to different interfaces on each node — **HIT**
 
-*Symptom:* the same `nmcli` command run on both nodes leaves the subnets
-crossed — the peers do not ping even though every address looks right.
+*Symptom:* the same `nmcli` command on both nodes leaves the subnets crossed,
+and the peers do not ping.
 
 *Cause:* DGX OS pre-creates `Wired connection 1..5` DHCP profiles, and the
-number-to-interface binding is **not the same on two machines**. Node B's
-"Wired connection 5" was a different interface than node A's.
+number-to-interface binding differs between machines.
 
-*Fix:* never address a profile by its shipped name. Pin it explicitly with
+*Fix:* never address a profile by its shipped name. Pin it with
 `connection.interface-name <iface>`, and verify with
 `nmcli -t -f NAME,DEVICE con show --active`.
 
 ### 7. Reusing a profile while the address is live fails — **HIT**
 
 *Symptom:* `Connection activation failed: IP configuration could not be
-reserved (no available address, timeout, etc.)`.
+reserved (no available address, timeout, etc.)`. It reads like DHCP.
 
-*Cause:* duplicate address detection. Moving an address between two profiles
-while the old one is still up means the address exists twice for a moment.
+*Cause:* duplicate address detection: for a moment the address exists twice.
 
-*Fix:* `nmcli con down` **both** profiles, then modify, then bring both up.
-The error names DHCP-ish causes and is really a duplicate-address conflict.
+*Fix:* `nmcli con down` **both** profiles, modify, then bring both up.
 
 ### 8. Configure with `nmcli`, not netplan — **AVOIDED**
 
-*Cause:* DGX OS ships Ubuntu Desktop with NetworkManager as the renderer, and
-`/etc/netplan/` holds only `00-installer-config.yaml` with
-`renderer: NetworkManager`. Adding static netplan stanzas on top means
-NetworkManager keeps trying to DHCP the same interfaces — recurring
-"Activation of network connection failed" popups and reset routes.
+*Cause:* DGX OS uses NetworkManager as the renderer
+(`/etc/netplan/00-installer-config.yaml`, `renderer: NetworkManager`).
+Static netplan stanzas on top make NetworkManager keep trying DHCP on the same
+interfaces: repeated "Activation of network connection failed" popups and
+reset routes.
 
-*Fix:* pick one manager and stay there. This bring-up used `nmcli`
-throughout, so the conflict never arose. If you prefer netplan, set
-`renderer: networkd` **and** mark the ConnectX interfaces unmanaged in
-`/etc/NetworkManager/conf.d/`, and `chmod 600` the netplan file or `netplan
-apply` warns.
-
-Note the property name: NetworkManager wants `802-3-ethernet.mtu` (or
-`ethernet.mtu`); `ipv4.mtu` does not exist and errors.
+*Fix:* use one manager. To use netplan instead, set `renderer: networkd`,
+mark the ConnectX interfaces unmanaged in `/etc/NetworkManager/conf.d/`, and
+`chmod 600` the netplan file. The MTU property is `802-3-ethernet.mtu` (or
+`ethernet.mtu`); `ipv4.mtu` does not exist.
 
 ### 9. MTU mismatch passes ping and deadlocks collectives — **CLEAR**
 
-*Symptom:* everything works until a real collective, which hangs.
+*Cause:* MTU 9000 on one side only. Small ICMP fits; a full-size frame does
+not.
 
-*Cause:* MTU 9000 on one side only. Small ICMP fits either way; a full-size
-frame does not.
-
-*Fix:* set MTU with the address, in the same command, on both nodes. Verify
-with `ping -M do -s 8972 <peer>` — `-M do` forbids fragmentation, so it
-fails loudly instead of silently degrading. Verified here, 3/3.
+*Fix:* set the MTU with the address, in the same command, on both nodes.
+Verify with `ping -M do -s 8972 <peer>`: `-M do` forbids fragmentation, so a
+mismatch fails loudly.
 
 ### 10. Strict reverse-path filtering drops replies across two subnets — **CLEAR**
 
-*Symptom:* traffic sent on one subnet and answered on the other is dropped
-with no log.
+*Cause:* `rp_filter=1` rejects a packet whose reply route does not match the
+inbound interface, which is the normal case when two subnets share a cage.
 
-*Cause:* `rp_filter=1` (strict) rejects packets whose reply route does not
-match the inbound interface — the normal case when two subnets share a wire.
-
-*Fix:* `rp_filter=2` (loose). **Already 2 on both nodes here**, on `all`,
-`default` and each fabric interface — DGX OS ships it that way. Check rather
-than assume, in both directions.
+*Fix:* `rp_filter=2` (loose). DGX OS ships 2 on `all`, `default` and each
+fabric interface. Check it on both nodes rather than assume it.
 
 ### 11. mDNS leaks fabric lookups onto the management network — **AVOIDED**
 
-*Cause:* both units ship with `spark-xxxx.local` mDNS names. Back-to-back
-with no upstream DNS, resolution for the peer falls back to Wi-Fi or the
-management ethernet — so a "fabric" connection silently runs at 1 GbE.
+*Cause:* each unit ships with a `spark-xxxx.local` mDNS name. With no
+upstream DNS, resolving the peer falls back to Wi-Fi or management ethernet,
+so "fabric" traffic silently runs at 1 GbE.
 
-*Fix:* hardcode the fabric addresses in `/etc/hosts` on both nodes and point
+*Fix:* name the fabric addresses in `/etc/hosts` on both nodes, and point
 every launcher at those names. Never use `.local` for cluster traffic.
-Done here: `spark-a-cx7` / `spark-b-cx7`.
 
 ### 12. `apt-get upgrade` will not move you to a new kernel — **HIT**
 
-*Symptom:* both nodes are fully upgraded and still differ — 7.2.3 with kernel
-`6.17.0-1032-nvidia` against 7.5.0 with `7.0.0-1019-nvidia`.
+*Symptom:* both nodes fully upgraded, and still on different kernels
+(6.17.0-1032 against 7.0.0-1019, 2026-09-22).
 
-*Cause:* both track the same meta-package, `linux-nvidia-hwe-24.04`, from the
-same sources, with nothing held. The lagging node's **candidate is already
-`7.0.0-1019`** — it simply is not installed, because `apt-get upgrade` never
-installs *new* packages, and moving the meta-package forward requires
-installing a new `linux-image-*` package.
+*Cause:* both track `linux-nvidia-hwe-24.04`. The lagging node's candidate
+was already the new kernel, but `apt-get upgrade` never installs *new*
+packages, and the move needs a new `linux-image-*`.
 
-*Fix:* `sudo apt-get full-upgrade` (or install the meta-package by name),
-then reboot. `apt-cache policy linux-nvidia-hwe-24.04` shows installed
-against candidate and settles the question in one command.
+*Fix:* `sudo apt-get full-upgrade`, then reboot.
+`apt-cache policy linux-nvidia-hwe-24.04` shows installed against candidate.
+Until the reboot the GPU is unusable (`Driver/library version mismatch`).
 
-*Consequence here:* an out-of-tree signed module (`nvfanread`, fan RPM into
-node_exporter) must be rebuilt and re-signed against the new kernel, or the
-fan series disappears from Prometheus with no error.
+*Consequence:* an out-of-tree signed module (`nvfanread`, fan RPM into
+node_exporter) must be rebuilt and re-signed for the new kernel, or the fan
+series disappears from Prometheus with no error.
 
 ### 13. Key auth configured does not mean this account can connect — **HIT**
 
 *Symptom:* `Host key verification failed`, which reads as an authentication
 problem.
 
-*Cause:* the peer is absent from **this** account's `known_hosts`. Key auth
-was set up; the host key was not accepted for every account that needs it.
+*Cause:* the peer is absent from **this** account's `known_hosts`.
 
-*Fix:* accept it once per account, in **both** directions. Collective
-launchers and every `docker save | ssh docker load` step need the reverse
-direction too, and a one-way setup passes a casual test.
+*Fix:* accept the host key once per account, in **both** directions.
 
 ### 14. NCCL cannot use IP aliases, and hangs rather than errors — **REPORTED**
 
-*Symptom:* a two-node launch starts, prints nothing further, and never exits.
-Indistinguishable from a slow model load.
+*Symptom:* a two-node launch prints nothing more and never exits. It looks
+like a slow model load.
 
-*Cause:* `ncclCommInitRank` waiting forever because NCCL was not pinned to
-the fabric. Ray tolerates aliases; NCCL does not.
+*Cause:* `ncclCommInitRank` waits forever because NCCL is not pinned to the
+fabric. Ray tolerates aliases; NCCL does not.
 
-*Fix:* set `NCCL_SOCKET_IFNAME` (ethernet names, **both**) and `NCCL_IB_HCA`
-(RoCE device names, **both**) explicitly. Check this before suspecting the
-fabric.
+*Fix:* set `NCCL_SOCKET_IFNAME` (ethernet names) and `NCCL_IB_HCA` (RoCE
+names) explicitly, with all of them. Check this before you suspect the fabric.
 
 ### 15. DAC link flap after a one-sided reboot — **REPORTED**
 
-*Symptom:* `NO-CARRIER` on an interface that is physically plugged in, after
-one node reboots while the other stays up.
+*Symptom:* `NO-CARRIER` on a plugged-in interface after one node reboots
+while the other stays up.
 
 *Fix:* `sudo ip link set <iface> down && sudo ip link set <iface> up`, and
-check FEC negotiation with `sudo ethtool --show-fec <iface>`.
+check FEC with `sudo ethtool --show-fec <iface>`.
 
 ### 16. The OOM killer cannot see the model — **REPORTED**
 
-*Symptom:* something innocent is killed under memory pressure while the
-process actually consuming memory survives.
+*Symptom:* something innocent is killed under memory pressure, and the real
+consumer survives.
 
-*Cause:* on a Spark, host RAM *is* GPU memory, and weights live in driver
-allocations not charged to any process's RSS. The OOM killer scores by RSS.
+*Cause:* on a Spark, host RAM *is* GPU memory. Weights live in driver
+allocations that are not charged to any process's RSS, and the OOM killer
+scores by RSS.
 
-*Fix:* watch `MemAvailable` **after a long prompt**, not after a boot — the
-floor comes during prefill, not at load. Keep `earlyoom` on both nodes at the
-#700 line — SIGTERM at 1.0 GiB, SIGKILL at 0.5 GiB (`-M 1048576,524288`) —
-with `--prefer` naming the engine processes, so the RSS score does not decide
-the victim. Its older 5% line (~6.1 GiB) sat above the 2.7 GiB GLM-5.3-Flash
-idles at, and on 2026-09-23 it SIGTERMed a GLM launch during DFlash2 capture;
-the fix was the line, not disabling it (the GLM recipe has no memguard of its
-own).
+*Fix:* watch `MemAvailable` **after a long prompt**, not after boot: the
+floor comes during prefill. Keep `earlyoom` on both nodes at SIGTERM 1.0 GiB,
+SIGKILL 0.5 GiB (`-M 1048576,524288`, #700), with `--prefer` naming the
+engine processes, so RSS does not choose the victim. Its older 5% line
+(~6.1 GiB) sat above the 2.7 GiB GLM-5.3-Flash idles at, and it killed a GLM
+launch on 2026-09-23. The fix was the line, not disabling earlyoom.
 
 ### 17. A container without `/dev/infiniband` silently falls back to TCP — **HIT**
 
 *Symptom:* the collective runs, returns correct results, and is slow. No
-error, no warning at default verbosity.
+error at default verbosity.
 
-*Cause:* `docker run` without the RDMA character devices. NCCL logs
-`NET/IB : No device found`, selects `NET/Socket`, and everything keeps
-working over TCP. Measured here: **16.35 Gb/s** on the socket path against
-**24.20 Gb/s** once RDMA was available, and 3.013 ms against 0.800 ms of
-latency at 1 MiB.
+*Cause:* `docker run` without the RDMA devices. NCCL logs
+`NET/IB : No device found`, selects `NET/Socket`, and keeps working over TCP:
+16.35 Gb/s against 24.20 Gb/s with RDMA, in the same degraded state.
 
-*Fix:* `--device /dev/infiniband:/dev/infiniband`. The recipe's own compose
-file does this; a hand-rolled `docker run` for testing is what missed it.
-Confirm with `NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=NET` and look for
-`NET/IB : Using [0]... [1]...` rather than `Using network Socket`.
+*Fix:* `--device /dev/infiniband:/dev/infiniband`. Confirm the transport with
+`NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=NET`: look for `NET/IB : Using [0]...`,
+not `Using network Socket`.
 
-**This is the most dangerous entry in this list**, because the fallback path
-produces plausible numbers. Always confirm the transport; never infer it from
-"it worked".
+**The most dangerous entry here**, because the fallback gives plausible
+numbers. Always confirm the transport; never infer it from "it worked".
 
 ### 18. RDMA needs unlimited locked memory in the container — **HIT**
 
 *Symptom:* `ibv_reg_mr_iova2 failed with error Cannot allocate memory`, then
-`ibv_create_qp failed`, then `ncclSystemError`. The job dies at init.
+`ibv_create_qp failed`, then `ncclSystemError` at init.
 
-*Cause:* Docker's default `memlock` limit. RDMA registers pinned memory
-regions and cannot fall back to unpinned.
+*Cause:* Docker's default `memlock` limit. RDMA must pin its memory regions.
+The host limit is already `unlimited`, so this appears only in a container.
 
-*Fix:* `--ulimit memlock=-1 --ulimit stack=67108864`. The host's own limit is
-already `unlimited`, which is why this appears only inside a container. The
-recipe's compose file sets both.
+*Fix:* `--ulimit memlock=-1 --ulimit stack=67108864`.
+
+On kernel 7.0.0-1019 the same ENOMEM has a second cause: Kexec HandOver with
+no CMA. Boot with `kho=off` (package `nvidia-spark-grub-kho`); the README's
+software table has it.
 
 ### 19. A reconfigured node stays degraded until rebooted — **HIT**
 
-*Symptom:* everything passes and the collective runs at 13% of the link.
-Link up, RoCE ACTIVE, both subnets pinging, jumbo frames clean,
-`ib_write_bw` at 196 Gb/s, a numerically correct all-reduce — and 24.20 Gb/s
-where 187 was available.
+*Symptom:* every functional check passes (link up, RoCE ACTIVE, subnets
+pinging, jumbo frames clean, `ib_write_bw` at 196 Gb/s, a correct
+all-reduce), and the collective runs at 24.20 Gb/s, 13% of the link.
 
-*Cause:* NetworkManager fabric profiles created, renamed, re-addressed and
-re-activated repeatedly during bring-up (gotchas 6 and 7) leave state that
+*Cause:* NetworkManager profiles created, renamed, re-addressed and
+re-activated many times (gotchas 6 and 7) leave state that
 `nmcli con down/up` does not clear.
 
-*Fix:* **reboot both nodes after configuring the fabric, before measuring
+*Fix:* **reboot both nodes after you configure the fabric, before you measure
 anything.** One reboot took the all-reduce from 24.20 to 187.10 Gb/s with no
 other change.
 
-*The trap inside the trap:* three different tuning attempts agreed within 1%
-(24.20 / 24.25 / 24.02), which read as a hardware plateau and was published
-as one, with GB10's lack of GPUDirect RDMA as the explanation. GDR is still
-disabled at 187 Gb/s, so that explanation was simply wrong. **A consistent
-number is not a correct number** — repeated measurements of one degraded
-state agree with each other perfectly.
-
-The only symptom that pointed at it was ping RTT: 1.016 ms before, 0.282 ms
-after. It was recorded and dismissed as CPU idle states.
+*The trap inside the trap:* three tuning attempts agreed within 1%
+(24.20 / 24.25 / 24.02). That read as a hardware plateau, and it was
+published as one, blamed on GB10's lack of GPUDirect RDMA. GDR is still off at
+187 Gb/s. **A consistent number is not a correct number.** The only clue was
+ping RTT: 1.016 ms before the reboot, 0.282 ms after. **Treat an unexplained
+latency anomaly as a blocker.**
 
 ### 20. The fabric addresses are separate SSH identities — **HIT**
 
 *Symptom:* `Host key verification failed` at a launcher's worker step, after
-passwordless SSH between the nodes was verified and working.
+SSH between the nodes was verified.
 
-*Cause:* SSH was verified by the nodes' **LAN names**. A launcher drives the
-worker by its **fabric address** (`10.0.0.2`), which is a different host
-identity with its own `known_hosts` entry — as are `10.0.1.2` and any
-`/etc/hosts` alias for them.
+*Cause:* SSH was verified by the LAN names. A launcher drives the worker by
+its fabric address, which is a different host identity, and so is each
+`/etc/hosts` alias.
 
-*Cost here:* a 157 GiB head download completed and then the worker-staging
-step died immediately, at the end of 1 h 43 m.
+*Cost:* a 157 GiB head download completed, and the worker step died at once,
+after 1 h 43 m.
 
-*Fix:* accept every fabric identity in **both** directions before launching —
-each address and each alias, head to worker and worker to head. **Verify SSH
-by the exact name the launcher will use**, not by any name that reaches the
-box. This is gotcha 13 in a second costume, and knowing gotcha 13 did not
-prevent it.
+*Fix:* accept every fabric address and alias in **both** directions before a
+launch. **Verify SSH by the exact name the launcher uses.**
 
 ### 21. Each node may download the whole checkpoint from the internet — **HIT**
 
-*Symptom:* the worker stages its weights slowly and the fabric is idle.
+*Symptom:* the worker stages its weights slowly, and the fabric is idle.
 
-*Cause:* the recipe's default `DSPARK_WORKER_HF_NFS=0` gives each node its
-own Hugging Face cache, so the worker fetches the checkpoint from the
-internet rather than from the head. Measured with interface counters during
-the copy, not assumed:
+*Cause:* a recipe default such as `DSPARK_WORKER_HF_NFS=0` gives each node
+its own Hugging Face cache, so the worker downloads the checkpoint again.
+Interface counters during the copy: 48 MiB/s on the worker's management
+interface, 0 on every fabric path. The pair spent 2 × 157 GiB of WAN.
 
-| interface | throughput |
-|---|---|
-| head, fabric path 0 tx | 0 MiB/s |
-| head, fabric path 1 tx | 0 MiB/s |
-| head, management tx | 0 MiB/s |
-| **worker, management rx** | **48 MiB/s** |
-| worker, fabric rx | 0 MiB/s |
+*Fix:* share the head's cache over NFS on the fabric
+(`DSPARK_WORKER_HF_NFS=1`, or `--nfs` in sibling recipes), or copy over the
+fabric (gotcha 24). **Set it before the first download.** The standing rule
+(AGENTS.md): look in the NAS archive first, then download once on one node,
+then copy node to node and check the sha256 on each.
 
-Nothing leaves the head at all. The pair spends **2 x 157 GiB of WAN
-transfer** while a link that measures 196.08 Gb/s sits unused.
+*Check:* read `tx_bytes`/`rx_bytes` under `/sys/class/net/<iface>/statistics/`
+on both nodes during any bulk transfer.
 
-*Fix:* `DSPARK_WORKER_HF_NFS=1` (or the equivalent `--nfs` in the sibling
-recipes) shares the head's cache over NFS on the ConnectX link and skips the
-second download entirely. **Set it before the first download, not after** —
-by the time the second copy is visible, the transfer that would have been
-saved is already most of the way done.
+### 22. A committed `hardware/<dir>/` needs a registry entry — **HIT**
 
-*Check it the same way:* read `tx_bytes`/`rx_bytes` under
-`/sys/class/net/<iface>/statistics/` on both nodes during any bulk transfer.
-A staging step that is not moving bytes on the fabric is not using it,
-whatever the configuration says.
-
-### 22. Repo gotcha: a committed `hardware/<dir>/` needs a registry entry — **HIT**
-
-*Symptom:* CI red on a docs-only branch:
+*Symptom:* CI fails on a docs-only branch with
 `committed machine directories not in the registry`.
 
-*Cause:* `tests/test_machines.py` reads **git-tracked** paths. A local suite
-run before `git add` passes; CI, which sees the staged tree, does not.
+*Cause:* `tests/test_machines.py` reads **git-tracked** paths. A local run
+before `git add` passes; CI does not.
 
 *Fix:* add the entry to `scripts/machines.py` and regenerate
-`hardware/MACHINES.md`. **Run `pytest` after `git add`, not before** — that
-is the general lesson, and it applies to any test that reads tracked files.
+`hardware/MACHINES.md`. **Run `pytest` after `git add`** for any test that
+reads tracked files.
 
 ### 23. A large model's default reasoning effort eats the whole token budget — **HIT**
 
-*Symptom:* the cluster serves, `/v1/models` answers, and a plain chat
-request comes back with empty or truncated content and
-`finish_reason: length`. It looks like a broken template or a dead rank.
+*Symptom:* the server answers `/v1/models`, and a plain chat request comes
+back empty or cut off with `finish_reason: length`. It looks like a broken
+template or a dead rank.
 
-*Cause:* the checkpoint's chat template defaults to its highest reasoning
-effort, and thinking spends the whole `max_tokens` before the answer starts.
-Hit on three two-node arms in a row: Qwen3.8-Flash-Next defaults to `xhigh`
-and returned `content: null`; GLM-5.3-Flash renders effort Max and, at
-`max_tokens` 600, ended at the cap with 2,473 characters of reasoning and a
-cut-off answer; DeepSeek V4-Flash needed the same fix.
+*Cause:* the chat template defaults to its highest effort. Qwen3.8-Flash-Next
+defaults to `xhigh` and returned `content: null`; GLM-5.3-Flash renders Max;
+DeepSeek V4 needed the same fix.
 
-*Fix:* launch with reasoning effort **low** as a server default:
+*Fix:* set effort **low** as the server default:
 `--default-chat-template-kwargs '{"reasoning_effort":"low"}'`, or the recipe's
 own variable (GLM: `GLM53_DEFAULT_REASONING_EFFORT=low`). Confirm it in the
-server's argv, not the `.env`. Then a plain request with no
-`chat_template_kwargs` must end in `finish_reason: stop` with content: GLM
-went to 188, 199 and 223 tokens, all `stop`. The operator made this the
-default for every large model on 2026-09-22. A higher effort is its own arm
-under its own backend name.
+server's argv, not the `.env`. A plain request must then end in
+`finish_reason: stop`. Operator rule (2026-09-22): low is the default for
+every large model, and a higher effort is its own arm under its own backend
+name.
 
 ### 24. A node-to-node copy runs at a fifth of the link: one ssh stream is cipher-bound — **HIT**
 
-*Symptom:* `rsync` of a checkpoint from the head to the worker over the
-CX7 name (`spark-b-cx7`) holds at **~310–330 MB/s**. A 173 GiB checkpoint
-takes nine minutes on a link the all-reduce measures at 196 Gb/s.
+*Symptom:* `rsync` of a checkpoint to the worker over a fabric name holds at
+~310–330 MB/s.
 
-*Cause:* one `rsync` is one ssh connection, and one ssh connection encrypts on
-one core. The fabric is not the limit.
+*Cause:* one `rsync` is one ssh connection, which encrypts on one core.
 
-*Fix:* copy between the nodes **over the CX7 names, never the LAN names**
-(`spark-b-cx7` / `spark-a-cx7`), with `rsync` over ssh set to **`aes128-gcm@openssh.com`**
-(GB10's Arm cores have AES instructions) and compression off, split across
-parallel streams:
+*Fix:* copy over a fabric name, **never a LAN name**, with
+`aes128-gcm@openssh.com` (GB10's Arm cores have AES instructions), no
+compression, and parallel streams:
 
 ```sh
 ls "$SNAPSHOT" | sort > files.txt && split -n r/4 -d files.txt part.
@@ -792,77 +539,55 @@ for i in 0 1 2 3; do
 done; wait
 ```
 
-Measured 2026-09-24 on the official Qwen3.8-Flash-Next FP8 checkpoint: a single
-stream with the default cipher, 310–330 MB/s. Four streams with `aes128-gcm`,
-**1,739 MiB/s** transmitted on one CX7 path (`enp1s0f1np1` counters over 20 s).
-The cipher and the stream count changed together, so this does not separate
-the two. Run long copies as a `systemd-run --user` unit so the session reaper
-cannot kill them (#691).
+Measured 2026-09-24: one stream with the default cipher, 310–330 MB/s; four
+streams with `aes128-gcm`, 1,739 MiB/s on one fabric path. The cipher and the
+stream count changed together, so this does not separate them. Run long
+copies as a `systemd-run --user` unit, so the session reaper cannot kill them
+(#691).
 
 ### 25. A recipe's worker sync can copy only symlinks: HF's shared blob store — **HIT**
 
-*Symptom:* a launcher reports `Worker has a local checkpoint copy`, and the
-worker's model directory holds **~10 MB**. The worker rank then fails at load.
+*Symptom:* a launcher reports `Worker has a local checkpoint copy`, the
+worker's model directory holds ~10 MB, and the worker rank fails at load.
 
-*Cause:* the current `hf` CLI (xet) stores shards content-addressed in the
-**shared** `~/.cache/huggingface/hub/blobs/xx/<sha256>`, outside the model's
-own directory. The snapshot's safetensors are symlinks into that store. A
-recipe that `rsync`s `hub/models--<org>--<name>/` copies dangling symlinks,
-and a check that tests for the directory passes. Seen 2026-09-24 on
-`Qwen/Qwen3.8-Flash-Next-FP8` with the MiaAI-Lab Flash-Next recipe (#721).
+*Cause:* the `hf` CLI (xet) stores shards in the **shared**
+`~/.cache/huggingface/hub/blobs/`, and the snapshot's safetensors are symlinks
+into it. A recipe that `rsync`s `hub/models--<org>--<name>/` copies dangling
+symlinks, and a directory check passes (#721).
 
-*Fix:* before a two-node launch, check the worker **by size, not by
-directory**. `find -L <snapshot> -name '*.safetensors' -size +100M | wc -l`
-must equal the shard count. Copy with `rsync -L` (dereference), as in
-gotcha 24.
+*Fix:* check the worker **by size, not by directory**:
+`find -L <snapshot> -name '*.safetensors' -size +100M | wc -l` must equal the
+shard count. Copy with `rsync -L`, as in gotcha 24.
 
 ## Verification checklist
 
-Run top to bottom. Do not skip a line because the one above it "obviously"
-works. Results from 2026-09-22 in the right column.
+Run it top to bottom after any change to either node. Do not skip a line
+because the one above "obviously" works.
 
-| # | check | result |
+| # | check | pass |
 |---|---|---|
-| 1 | `sudo ethtool <iface>` — speed and `Link detected: yes`, both nodes | 200000Mb/s, both cage-p1 interfaces, both nodes |
-| 2 | `rdma link show` — ACTIVE on cabled devices | ACTIVE on `rocep1s0f1`, `roceP2p1s0f1` |
-| 3 | `phys_port_name` — group interfaces by cage, count cages not interfaces | one cabled cage (`p1`) |
-| 4 | `ibdev2netdev` — write the ethernet/RoCE mapping down | `enp1s0f1np1`↔`rocep1s0f1`, `enP2p1s0f1np1`↔`roceP2p1s0f1` |
-| 5 | ping both subnets, both directions | 0% loss; 1.016 ms and 1.297 ms avg |
-| 6 | `ping -M do -s 8972` — jumbo end-to-end | 3/3, no fragmentation |
-| 7 | `rp_filter` is 2 on both nodes | already 2, no change |
-| 8 | reboot one node; re-run 1–7 unchanged | survived: addresses, MTU 9000, RoCE ACTIVE, no link flap |
-| 9 | `ssh` both directions, passwordless | working |
-| 10 | same `DGX_SWBUILD_VERSION` and kernel on both | **mismatched** — gotcha 12 |
-| 11 | `id` matches on both | uid 1000, gid 1000, both |
-| 12 | `ib_write_bw`, one path, then both concurrently | 111.86 / **196.08 Gb/s** |
-| 13 | `iperf3 -P 8` on the IP path | 111 Gb/s, 0 retransmits |
-| 14 | all-reduce across both nodes (`scripts/cluster_allreduce.py`) | correct; **187.10 Gb/s** median at 1 GiB |
-| 15 | only now, a model | #648 |
-
-## Open decisions
-
-Each needs an answer recorded here, not in a session's memory:
-
-- ~~which physical cage pairs with which~~ — resolved, `p1` to `p1`
-- ~~the fabric subnets, and netplan or `nmcli`~~ — resolved, `nmcli`,
-  10.0.0.0/24 and 10.0.1.0/24
-- whether to connect the second cable: it buys redundancy and at most ~14%
-  aggregate, not a doubling, because the PCIe budget binds before the wire
-  does
-- whether to bring the lagging node to the same kernel before clustering, at
-  the cost of a reboot
-- independent subnets or a bond, if a second cable is added
-- which node is the serving head
-- which checkpoints and container images are approved to pull (#650) —
-  weights and images are executable trust
+| 1 | `sudo ethtool <iface>`, both nodes | 200000Mb/s, `Link detected: yes`, all four interfaces |
+| 2 | `rdma link show` | four ACTIVE per node |
+| 3 | `phys_port_name`: group interfaces by cage | two cabled cages |
+| 4 | `ibdev2netdev` | the mapping in the Layer 0–1 table |
+| 5 | ping all four subnets, both directions | 0% loss, under 2 ms |
+| 6 | `ping -M do -s 8972` | no fragmentation |
+| 7 | `rp_filter` on both nodes | 2 |
+| 8 | reboot both nodes; repeat 1–7 | unchanged |
+| 9 | `ssh` both directions, by each fabric name | no password, no host-key prompt |
+| 10 | kernel, driver, `kho=off` on both | the same (README software table) |
+| 11 | `id` on both | uid 1000, gid 1000 |
+| 12 | `ib_write_bw`, one path, then both paths of a cage | about 110, then about 196 Gb/s |
+| 13 | all-reduce (`scripts/cluster_allreduce.py`) | correct, and above 180 Gb/s at 1 GiB |
+| 14 | only now, a model | the check in the two-Spark howto |
 
 ## References
 
-- #641 — procurement, cabling, the original plan
-- #646 — bring-up: addressing, validation, the measured collective
-- #647 — the cluster's identity in the machine registry
-- #648 — the first model across both nodes
-- #649 — end-to-end from a remote client
-- #650 — the five third-party two-Spark recipes, and the source decision
-- [NVIDIA — Spark Stacking](https://docs.nvidia.com/dgx/dgx-spark/spark-clustering.html)
-- [NVIDIA Sync — Cluster Assistant](https://docs.nvidia.com/sync/latest/cluster-assistant.html)
+- #641: procurement, cabling, the original plan
+- #646: bring-up, addressing, the measured collective
+- #647: the cluster's identity in the machine registry
+- #648, #649: the first model across both nodes, and the first remote client
+- #650: the third-party two-Spark recipes
+- #659: the second cable
+- [NVIDIA: Spark Stacking](https://docs.nvidia.com/dgx/dgx-spark/spark-clustering.html)
+- [NVIDIA Sync: Cluster Assistant](https://docs.nvidia.com/sync/latest/cluster-assistant.html)
