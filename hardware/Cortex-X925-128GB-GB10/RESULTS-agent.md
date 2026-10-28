@@ -1,8 +1,10 @@
 # Agent benchmark — Cortex-X925-128GB-GB10 (NVIDIA DGX Spark)
 
-What has been measured on this machine, and what each number is allowed to
-support. Rows are in [`results.jsonl`](results.jsonl); the machine is described
-in [`README.md`](README.md).
+The first rows measured on this machine (2026-09-11), and what each number is
+allowed to support. Rows are in [`results.jsonl`](results.jsonl); the machine
+is described in [`README.md`](README.md). These rows predate the remote client
+and the replay and hard sets. The later single-Spark results, to 2026-10-24,
+are in [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md).
 
 **Nothing here may be pooled with the M5 Max's rows.** Different platform, and
 in every case a different engine build, quantization or container as well.
@@ -167,12 +169,11 @@ functional check and must not be quoted as a speed result.
 
 ---
 
-## 6. Not measured
+## 6. Not measured on 2026-09-11
 
-- **NVFP4**, the quantization this GPU exists to run: unreachable via Ollama on
-  Linux. The MLX runtime its tags need is not shipped in the Linux arm64
-  build (#293). A CUDA-native engine is the route (#299).
-- **Nemotron 3 Super 120B-A12B** (#296): pull died at 98%, resumable.
-- **GLM-5.3-Flash** (#298): needs the official HF CLI for its split GGUF, now
-  installed. Backend committed with upstream's Q2 / `--ctx 16384` constraints.
-- **A third ds4 trial**, and any prefill-vs-decode breakdown.
+- **NVFP4**, the quantization this GPU exists to run: unreachable via Ollama
+  on Linux (#293). It was later measured on SGLang, vLLM and TensorFold
+  (#299; [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md)).
+- **Nemotron 3 Super 120B-A12B** (#296) and **GLM-5.3-Flash** (#298), both
+  closed since.
+- **A third ds4 trial**, and any prefill-against-decode breakdown.

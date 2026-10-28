@@ -1,14 +1,9 @@
 # Building the two-node DGX Spark cluster from scratch
 
-A procedure, in order, with the checks that catch each step going wrong. If
-both Sparks were wiped tomorrow, this is what to do.
-
-It is deliberately separate from
-[`dgx-cluster-setup.md`](dgx-cluster-setup.md), which explains *why* each
-thing is the way it is and carries the gotcha catalogue. This file is the
-short path. When a step here fails, that file is where the explanation lives.
-
-Every number quoted is measured on this pair, so a departure is visible.
+A procedure, in order, with the check that catches each step going wrong. If
+both Sparks were wiped, this is what to do. When a step fails, the reason and
+the gotcha catalog are in [`dgx-cluster-setup.md`](dgx-cluster-setup.md).
+Every number here was measured on this pair, so a departure is visible.
 
 ## 0. What you need
 
@@ -18,20 +13,19 @@ Every number quoted is measured on this pair, so a departure is visible.
   creating the same username first on each box matches for free.
 - One or two approved QSFP DAC cables: Amphenol **NJAAKK-N911** (400 mm,
   NVIDIA PN `930-51986-0000-000`), Amphenol NJAAKK0006, or Luxshare
-  LMTQF022-SD-R. 400–500 mm is the binding constraint — the chassis end up
-  almost touching.
-- **One cable is enough.** The second is worth +4.8% on the collective, not a
-  doubling, because the PCIe budget binds before the wire does
+  LMTQF022-SD-R. Length is the binding constraint: at 400–500 mm the chassis
+  almost touch.
+- **One cable is enough.** This pair has two. The second is worth +4.8% on
+  the collective, because the PCIe budget binds before the wire does
   ([`second-cable-dgx-spark-cluster.md`](second-cable-dgx-spark-cluster.md)).
 
 ## 1. Cable it
 
 Use the rear **QSFP cages**, not the RJ45 — the RJ45 stays as management.
 
-With nothing plugged in, a Spark shows **no ConnectX-7 on the PCI bus**, an
-empty `/sys/class/infiniband/`, and `mlx5_ib` bound to zero devices. That
-looks exactly like a firmware fault and is not one. Attach the cable and the
-device appears.
+With nothing plugged in, a Spark shows **no ConnectX-7 on the PCI bus**. That
+looks like a firmware fault and is not one. Attach the cable and the device
+appears (gotcha 2).
 
 ## 2. Learn which interface is which
 
@@ -119,15 +113,16 @@ loginctl show-user "$USER" -p Linger   # must print Linger=yes, on each node
 ```
 
 Long jobs run as `systemd-run --user` units (#691). Without lingering, the
-worker's user manager stops every such unit when the ssh session that started
-it ends. On 2026-10-12 the worker had `Linger=no`, and that stopped a
-`docker pull` after 18 s and a #919 engine rank after 10 s.
+user manager stops every such unit when the ssh session that started it ends:
+on the worker that once stopped a `docker pull` after 18 s and an engine rank
+after 10 s.
 
 ## 6. Reboot both nodes
 
-First, on each node, turn off NVMe interrupt coalescing for good (#884). NVIDIA's
-boot service turns it on, and it makes a single 4K read take 369% as long.
-Why, and the measurement: [`dgx-spark-nvme-coalescing.md`](dgx-spark-nvme-coalescing.md).
+First, on each node, turn off NVMe interrupt coalescing for good (#884).
+NVIDIA's boot service turns it on, and a single 4K read then takes 369% as
+long. Why, and the measurement:
+[`dgx-spark-nvme-coalescing.md`](dgx-spark-nvme-coalescing.md).
 
 ```sh
 sudo systemctl stop nvidia-nvme-interrupt-coalescing
@@ -137,11 +132,9 @@ sudo systemctl daemon-reload
 sudo nvme get-feature /dev/nvme0 -f 8      # Current value:00000000
 ```
 
-Then reboot.
-
-Before measuring anything. Configuration churn leaves a node in a state that
-passes every functional check while running the collective at 13% of the
-link, and `nmcli con down/up` does not clear it.
+Then reboot, before you measure anything. Configuration churn leaves a node
+in a state that passes every functional check while the collective runs at
+13% of the link, and `nmcli con down/up` does not clear it (gotcha 19).
 
 ## 7. Verify, bottom-up
 
@@ -183,7 +176,8 @@ back to TCP and keeps working, slower, with no error.
 
 ## 8. Telemetry
 
-Both nodes, from `dgx-utils/docker-compose/`:
+Both nodes, from `docker-compose/` in
+[`evandhoffman/dgx-utils`](https://github.com/evandhoffman/dgx-utils):
 
 ```sh
 docker compose -f node-exporter.yaml up -d      # :9100
@@ -198,27 +192,27 @@ Neither Spark registers an `nvidia` Docker runtime; they use CDI
 there, not at `--runtime=nvidia`.
 
 Then add both nodes to Prometheus by their **DNS names** and SIGHUP it
-(`docker kill -s HUP prometheus`) — the HTTP reload endpoint is not enabled.
-Verify series arrive, not just that `up == 1`.
+(`docker kill -s HUP prometheus`): the HTTP reload endpoint is not enabled.
+Verify that series arrive, not only that `up == 1`.
 
-Wall power is worth having beside DCGM: DCGM sees the GPU die only and reads
-~4–5 W idle, while the plug reads ~45 W for the same machine.
+Measure wall power beside DCGM. DCGM sees the GPU die only and reads ~4–5 W
+idle; the plug reads ~45 W for the same machine.
 
 ## 9. Bulk transfers between the nodes
-
-Two things, worth 11x together:
 
 ```sh
 rsync -Wah --progress -e 'ssh -c aes128-gcm@openssh.com' \
   <src> dgx2-cx7:<dst>
 ```
 
-- **Address the peer by a fabric name.** By the LAN name it runs at
-  **111 MiB/s** — gigabit, saturated. By the fabric name, 640 MiB/s.
-- **Change the cipher.** The default (`chacha20-poly1305`) gives 640 MiB/s;
-  `aes128-ctr` 1102 MiB/s; **`aes128-gcm@openssh.com` 1256 MiB/s**.
-- `-W` skips the delta algorithm, which is the right trade when the link is
-  fast and the CPU is the limit.
+- **Address the peer by a fabric name.** By the LAN name one stream runs at
+  **111 MiB/s** (gigabit, saturated). By the fabric name, 640 MiB/s.
+- **Change the cipher.** The default (`chacha20-poly1305`) gives 640 MiB/s,
+  `aes128-ctr` 1,102 MiB/s, and **`aes128-gcm@openssh.com` 1,256 MiB/s**.
+- **Split large copies across parallel streams**: four streams reached
+  1,739 MiB/s (gotcha 24).
+- `-W` skips the delta algorithm: the right trade when the link is fast and
+  the CPU is the limit.
 
 Prove the path rather than assuming it: read `tx_bytes` under
 `/sys/class/net/<iface>/statistics/` on both sides during the transfer.
@@ -232,19 +226,16 @@ Recipes differ; the constants on this pair are:
   a live API. Recipes allow 3600 s for a reason.
 - **`/health` is not proof** — a cluster passes it with a dead peer rank. Wait
   on a real completion.
-- **Lower `GPU_MEMORY_UTILIZATION` below the recipe's default** if the head
-  also runs the harness and monitoring. 0.835 hit `NVRM: Out of memory` on
-  this pair while the harness ran on the head; 0.78 works. Since #562 the
-  harness runs on a separate client machine and only monitoring stays on the
-  head, so the recipe default may fit again. Nobody has measured it; keep
-  0.78 until a run shows otherwise (#680, finding 17).
-- **Leave `earlyoom` running, at 1.0 / 0.5 GiB, on both nodes (#700).** At its
-  old 5% line (~6.1 GiB) it killed large two-node models at rest (GLM-5.3-Flash
-  idles at 2.7 GiB on the head), so it used to be stopped for every run. Since
-  #700 it fires only below the recipes' own 1.5 GiB memguards, and its
-  `--prefer` list names the engine processes, so it is the last net rather than
-  the first. Install and configure it with `scripts/setup_earlyoom.py --apply`
-  on each node.
+- **Keep the harness off the head.** With the harness on the head, a GPU
+  memory utilization of 0.835 hit `NVRM: Out of memory` and 0.78 worked
+  (#680). Since #562 the harness runs on a separate client, and the recipes'
+  own settings (0.835 to 0.88) served the October rows. If the head must also
+  run the harness, lower the setting below the recipe's.
+- **Leave `earlyoom` running, at 1.0 / 0.5 GiB, on both nodes (#700).** It
+  fires only below the recipes' own 1.5 GiB memory guards, and its `--prefer`
+  list names the engine processes, so it is the last net. Its old 5% line
+  (~6.1 GiB) killed two-node models at rest. Configure it with
+  `scripts/setup_earlyoom.py --apply` on each node.
 - **Check the model's chat template defaults.** Qwen3.8-Flash-Next defaults to
   `reasoning_effort: xhigh` and will spend an entire token budget reasoning
   and return `content: null`. Set the server default rather than making every

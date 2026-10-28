@@ -23,13 +23,9 @@ Measured, rather than argued:
 rated for. Two cables never approach 400 Gb/s, and nothing you configure will
 make them.
 
-**What to do instead:** make sure your one cable is using **both** of its PCIe
-paths. That is worth **+79%** (109 to 196 Gb/s) and costs nothing but naming
-two interfaces instead of one. Most single-cable setups that feel slow are
-using one.
-
-Keep the second cable only if you want redundancy against a dead cable or a
-dead cage. That is a real benefit, and it is not a throughput one.
+**What to do instead:** make sure your one cable uses **both** of its PCIe
+paths ([the last section](#so-should-you-connect-it)). Keep a second cable
+for redundancy against a dead cable or cage, not for throughput.
 
 ---
 
@@ -105,9 +101,10 @@ each), connected directly. No switch.
 one of them. The 400 mm length is a real constraint — the two chassis end up
 almost touching.
 
-**OS.** DGX OS on Ubuntu 24.04.5. The two machines were not on identical
-kernels (`6.17.0-1032-nvidia` and `7.0.0-1019-nvidia`). That did not affect
-these results.
+**OS.** DGX OS on Ubuntu 24.04.5. The two machines ran different kernels
+(`6.17.0-1032-nvidia` and `7.0.0-1019-nvidia`). After both moved to
+`7.0.0-1019`, one set of three two-cable runs read a median of 185.60 Gb/s
+(2026-09-23), with no explanation on record.
 
 **Addressing.** Static point-to-point, one private /24 per interface, no
 default route, MTU 9000. NetworkManager is the renderer on DGX OS, so this is
@@ -378,8 +375,6 @@ The second cable is what is left after all three, and it is worth 4.8%.
   whether 187 or 196 Gb/s is even the limiting factor for a model split across
   two Sparks. For many workloads it is not, in which case the second cable
   matters even less than 4.8% suggests.
-- **Three runs is a small sample.** Enough to separate 187 from 196, not enough
-  to argue about 1%.
 - **GPUDirect RDMA is off** on this hardware — `GPU Direct RDMA Disabled for
   HCA` on every device. A GB10's "GPU memory" *is* host memory, and the usual
   GDR knobs (`NCCL_NET_GDR_LEVEL`, `NCCL_DMABUF_ENABLE`) changed nothing

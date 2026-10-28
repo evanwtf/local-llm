@@ -1,9 +1,9 @@
-# MiniMax-H3 video generation on the DGX Spark (spark-231e)
+# MiniMax-H3 video generation on one DGX Spark
 
-How to stand up **MiniMax-H3** text-to-video-and-audio on the one GB10 Spark and
-generate a clip. This is the recipe **as actually built and verified on
-2026-09-14** (issue #385), not a copy of an upstream README — run it to recreate
-the working environment. It follows the official
+How to stand up **MiniMax-H3** text-to-video-and-audio on one GB10 Spark
+(node A of the cluster) and generate a clip. This is the recipe **as built and
+verified on 2026-09-14** (#385, closed), not a copy of an upstream README. It
+follows the official
 [`vllm-project/vllm-omni` GB10 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/MiniMaxAI/MiniMax-H3-Spark-GB10.md)
 but pins the exact versions and paths that work here.
 
@@ -23,17 +23,21 @@ pass**, 4–15 s, 24 fps. On one Spark it is a *clip factory*, not real-time.
 > Warm ≈ cold — there is no first-run penalty to wait out. For faster iteration use
 > fewer steps, a shorter clip, or the ComfyUI turbo path (#385), not this FP8 one.
 
-> **Single-tenant.** H3 needs almost the whole 128 GB unified pool. It does **not**
-> co-reside with a coding server — stop Flash-Next / any vLLM on :8030 first.
-> earlyoom (#362) is the backstop, but a running LLM will make H3 OOM.
+> **Single-tenant.** H3 needs almost the whole 128 GB unified pool. It does
+> **not** co-reside with a model server, and a two-node server holds memory on
+> this node too. Stop every server first; a running LLM will make H3 OOM.
+
+> **Ports.** This run served H3 on :8040 and the clip viewer on :8041, by hand.
+> `scripts/dgx_server.py` has since gained `omni` (:8041) and `clip` (:8042)
+> profiles; the commands below are the ones that ran.
 
 ---
 
 ## 0. Prerequisites (already true on this box)
 
 - `torch 2.13.0+cu130` is what vllm 0.28.0 reconciles to; it sees the GB10 as
-  `capability (12, 1)` = sm_121. Confirmed working.
-- ~140 GiB free disk for the weights (`df -h /`; the box had 2.7 TB free).
+  `capability (12, 1)` = sm_121.
+- ~140 GiB free disk for the weights (`df -h /`).
 - The unified pool free: no model server resident (`free -g` shows ~117 GiB avail).
 - earlyoom active (`systemctl is-active earlyoom`) — see
   [`docs/dgx-spark-runbook.md`](../../docs/dgx-spark-runbook.md).
@@ -45,12 +49,12 @@ shards + 14 text-encoder shards + video & audio VAEs). `Ref2VA` (image/video/aud
 reference, another ~135 GiB) is optional and heavier — skip until needed.
 
 ```bash
-mkdir -p /home/evan/models/MiniMax-H3
+mkdir -p $HOME/models/MiniMax-H3
 HF_XET_HIGH_PERFORMANCE=1 hf download MiniMaxAI/MiniMax-H3 \
-  --include "FL2VA/**" --local-dir /home/evan/models/MiniMax-H3
+  --include "FL2VA/**" --local-dir $HOME/models/MiniMax-H3
 ```
 
-Verify: `du -sh /home/evan/models/MiniMax-H3/FL2VA` ≈ 135G; 13 files in
+Verify: `du -sh $HOME/models/MiniMax-H3/FL2VA` ≈ 135G; 13 files in
 `FL2VA/transformer/`, 14 in `FL2VA/text_encoder/`, plus `model_index.json` and
 both VAEs.
 
@@ -62,16 +66,16 @@ vllm-omni is a pure-Python wheel and does **not** pull vllm as a dependency —
 install the matching vllm yourself, second.
 
 ```bash
-python3 -m venv /home/evan/venvs/vllm-omni
-/home/evan/venvs/vllm-omni/bin/pip install --upgrade pip
-/home/evan/venvs/vllm-omni/bin/pip install "vllm-omni==0.28.0"
-/home/evan/venvs/vllm-omni/bin/pip install "vllm==0.28.0"   # aarch64 wheel; reconciles torch->2.13.0+cu130
+python3 -m venv $HOME/venvs/vllm-omni
+$HOME/venvs/vllm-omni/bin/pip install --upgrade pip
+$HOME/venvs/vllm-omni/bin/pip install "vllm-omni==0.28.0"
+$HOME/venvs/vllm-omni/bin/pip install "vllm==0.28.0"   # aarch64 wheel; reconciles torch->2.13.0+cu130
 ```
 
 Sanity check (should print GB10 / (12, 1) and import both):
 
 ```bash
-/home/evan/venvs/vllm-omni/bin/python - <<'PY'
+$HOME/venvs/vllm-omni/bin/python - <<'PY'
 import torch, vllm, vllm_omni
 print("torch", torch.__version__, "cuda", torch.version.cuda)
 print(torch.cuda.get_device_name(0), torch.cuda.get_device_capability(0))
@@ -91,7 +95,7 @@ SP=/tmp/h3   # any log dir
 CUDA_VISIBLE_DEVICES=0 FLASHINFER_DISABLE_VERSION_CHECK=1 \
 VLLM_WORKER_MULTIPROC_METHOD=spawn VLLM_OMNI_VIDEO_SYNC_TIMEOUT=7200 \
 systemd-run --user --scope -p MemoryMax=115G -p MemorySwapMax=0 --unit=h3-omni \
-  /home/evan/venvs/vllm-omni/bin/vllm serve /home/evan/models/MiniMax-H3/FL2VA \
+  $HOME/venvs/vllm-omni/bin/vllm serve $HOME/models/MiniMax-H3/FL2VA \
     --omni --trust-remote-code --host 0.0.0.0 --port 8040 --init-timeout 3600 \
     --num-gpus 1 --tensor-parallel-size 1 --text-encoder-tp-size 1 \
     --usp 1 --ring 1 --vae-patch-parallel-size 1 \
@@ -120,7 +124,7 @@ curl --fail-with-body -sS -X POST http://127.0.0.1:8040/v1/videos/sync \
   -F 'width=960' -F 'height=576' -F 'aspect_ratio=16:9' -F 'fps=24' \
   -F 'num_inference_steps=10' -F 'flow_shift=12' -F 'seed=42' \
   -F 'extra_params={"task":"t2va","duration":8.0,"audio_flow_shift":3.0}' \
-  -o /home/evan/h3-clips/out.mp4
+  -o $HOME/h3-clips/out.mp4
 ```
 
 No `model` form field is needed — the request uses whatever the server loaded.
@@ -157,10 +161,10 @@ Two places: top-level multipart **form fields**, and a JSON blob in the
 Confirm streams with pyav (in the omni venv):
 
 ```bash
-/home/evan/venvs/vllm-omni/bin/python -c "import av;c=av.open('/home/evan/h3-clips/out.mp4');[print(s.type,s.codec_context.name) for s in c.streams]"
+$HOME/venvs/vllm-omni/bin/python -c "import av;c=av.open('$HOME/h3-clips/out.mp4');[print(s.type,s.codec_context.name) for s in c.streams]"
 ```
 
-## 5. Measured performance (spark-231e, 960×576, 10 steps, FP8, this session)
+## 5. Measured performance (960×576, 10 steps, FP8, 2026-09-14)
 
 | clip | duration | frames | E2E | denoise/step | notes |
 |---|---|---|---|---|---|
@@ -168,17 +172,12 @@ Confirm streams with pyav (in the omni venv):
 | dogs (warm) | 4 s | 107 | 206.0 s | 20.6 s | warm ≈ cold |
 | dogs (max duration) | 15 s | 362 | **1039.9 s (17.3 min)** | 104.0 s | ~5× the 4 s/step |
 
-**Warm ≈ cold**: ~20.6 s/step is the steady-state cost, not a cold-start
-artifact. **Duration scales worse than linearly**: 15 s (362 frames) costs ~104 s/step
-vs ~20.6 s/step at 4 s (107 frames) — ~5× for ~3.4× the frames, because attention
-grows superlinearly with sequence length. So a 15 s clip at 10 steps is ~17 min.
-Denoise is ~96% of E2E; a full 50-step pass would be hours. **Memory is flat across
-durations** (~30–33 GiB free whether 4 s or 15 s) — the footprint is
-weight-dominated, so longer clips cost time, not pool. The sub-2-min
-"~95 s" figures in the field reports are the **ComfyUI pruned+turbo** path
-(#385), not this vLLM-Omni FP8 one. GPU during render (gcx/DCGM): util ~96 %,
-power ~63–69 W, temp ~70 °C, SM clock ~2.4 GHz, `MEM_COPY_UTIL 0` — compute-bound,
-not memory-bandwidth-bound.
+Denoise is ~96% of E2E. **Memory is flat across durations** (~30–33 GiB free
+at 4 s and at 15 s): the footprint is weight-dominated, so a longer clip costs
+time, not memory. The sub-2-min "~95 s" figures in field reports are the
+ComfyUI pruned+turbo path (#385), not this vLLM-Omni FP8 one. GPU during a
+render (DCGM): ~96% busy, ~63–69 W, ~70 °C, SM clock ~2.4 GHz,
+`MEM_COPY_UTIL 0`: compute-bound, not memory-bandwidth-bound.
 
 ## 6. Viewing clips over the LAN
 
@@ -186,11 +185,11 @@ The server writes the MP4 to a file on the Spark; it does not serve it. Simplest
 viewer is a scoped static server (LAN only):
 
 ```bash
-python3 -m http.server 8041 --bind 0.0.0.0 --directory /home/evan/h3-clips
-# open http://dgx.internal:8041/ in a browser
+python3 -m http.server 8041 --bind 0.0.0.0 --directory $HOME/h3-clips
+# open http://<spark-address>:8041/ in a browser
 ```
 
-**Output naming convention (this session):** save as
+**Output naming:** save as
 `<sanitized first 30 chars of prompt>-seed<N>.mp4` with a `.json` sidecar holding
 the full prompt + all params + timing, so a clip is self-describing.
 
@@ -204,8 +203,9 @@ systemctl --user stop h3-omni.scope       # frees the ~97 GiB pool
 ## Constraints & gotchas (learned here)
 
 - **duration ∈ [4, 15] s**, hard model limit. >15 s → HTTP 500. Longer = stitch.
-- **T2VA only for now.** Ref2VA peaks ~114 GiB (≈7 GiB free) — that trips
-  earlyoom's 12 GiB SIGTERM floor; it needs earlyoom tuning before it's safe.
+- **T2VA only.** Ref2VA peaks ~114 GiB (≈7 GiB free) and is untested here.
+  Under `dgx_server.py` that is below the MemAvailable watcher's 14 GiB floor
+  (`--mem-floor-gib`).
 - **Version match is load-bearing.** vllm-omni 0.28.0 ⇒ vllm 0.28.x. Mixing with
   0.29.x breaks FP8 loading. Keep this venv separate from the LLM lane's.
 - **FP8 is not optional** on 128 GB; BF16 (135 GiB) will not fit.

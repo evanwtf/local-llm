@@ -1,10 +1,15 @@
 # Stand up a single-Spark pick, step by step
 
-**Written 2026-10-22T08:40:00-0400 for [#1202](https://github.com/evanwtf/local-llm/issues/1202).**
 This page covers the single-Spark setups in
-[`RECOMMENDATIONS.md`](RECOMMENDATIONS.md), sections 2 and 4. Each section is a
-numbered procedure for one NVIDIA DGX Spark (GB10, 128 GB). The shared steps
-are in [`docs/howto.md`](../../docs/howto.md).
+[`RECOMMENDATIONS.md`](RECOMMENDATIONS.md), sections 1, 2 and 4
+([#1202](https://github.com/evanwtf/local-llm/issues/1202)). The row numbers
+are this page's own. Each section is a numbered procedure for one NVIDIA DGX
+Spark (GB10, 128 GB). The shared steps are in
+[`docs/howto.md`](../../docs/howto.md).
+
+Single-Spark testing stopped on 2026-10-23, so these rows are not re-measured.
+For two Sparks, use [the two-Spark how-to](../Cortex-X925-128GB-GB10-x2/howto.md);
+it reuses steps 1 to 6 of [On the Spark](#on-the-spark).
 
 A **stack** is a model, an engine and a harness. The harness is OpenCode for
 every row here. The Spark runs the model server. OpenCode runs on a second
@@ -22,9 +27,10 @@ here.
 ### On the Spark
 
 The rows ran on DGX OS 7 (Ubuntu 24.04, aarch64), NVIDIA driver 580, CUDA
-13.0 ([`../Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md`](../Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md),
-section 1; [`VERSIONS.md`](VERSIONS.md)). DGX OS ships the driver, CUDA,
-Docker and the NVIDIA Container Toolkit.
+13.0 ([`VERSIONS.md`](VERSIONS.md);
+[the cluster README](../Cortex-X925-128GB-GB10-x2/README.md)
+has the current versions). DGX OS ships the driver, CUDA, Docker and the
+NVIDIA Container Toolkit.
 
 1. Check the GPU and the CUDA compiler:
 

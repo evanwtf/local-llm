@@ -1,19 +1,28 @@
 # Cortex-X925-GB10 — firmware and version inventory
 
-Everything on the DGX Spark whose version could move a number, taken once so a
-later run can be told apart from an earlier one. Recorded
-**2026-09-11T07:55:34-0400**.
+Everything on the DGX Spark whose version could move a number, recorded
+**2026-09-11T07:55:34-0400**, before the first rows.
 
-This is a **point-in-time snapshot, not a live record.** Nothing regenerates it
-and nothing verifies it. If a component below is updated, a result taken after
-the update is not comparable to one taken before it, and the only way anyone
-will know is if this file is updated too. Re-take it after any driver, firmware
-or kernel change, and say so in the issue for the run.
+This is a **point-in-time snapshot.** Nothing regenerates or verifies it. Rows
+carry the software half (OS, kernel, driver, engine builds, client versions)
+through `machine_facts()`; **the firmware half is on no row**, which is why
+this file exists. The Spark is now node A of the two-Spark cluster, and the
+[cluster README](../Cortex-X925-128GB-GB10-x2/README.md) keeps the current
+versions of both nodes. Re-take this file after any driver, firmware or kernel
+change, and say so in the issue for the run.
 
-Rows carry the software half of this already, via `machine_facts()` — OS,
-kernel, driver, engine builds and client versions are on every row. **The
-firmware half is on no row at all**, which is what this file exists to cover
-until it is embedded.
+**Changed since this snapshot** (read 2026-10-28):
+
+| component | 2026-09-11 | 2026-10-28 |
+|---|---|---|
+| NVIDIA driver and GSP firmware | 580.173.02 | 580.178.04 |
+| kernel | 6.17.0-1032-nvidia | 7.0.0-1019-nvidia |
+| DGX OTA | — | 7.6.0 (factory image still 7.2.3) |
+| kernel command line | as below | adds `kho=off` |
+| ConnectX-7 | not enumerated (no cable) | cabled, firmware 28.50.1002 |
+
+The VBIOS, CUDA toolkit, BIOS, governor, gcc, glibc and Python rows below read
+the same on 2026-10-28.
 
 ---
 
@@ -100,11 +109,7 @@ rest.
 |---|---|
 | Ethernet | Realtek 8127 (rev 05) |
 | Wireless | MediaTek 7925 |
-| ConnectX-7 | **not enumerated** in `lspci`, though `/etc/nvidia/cx7-hotplug-enabled` exists |
-
-Irrelevant to single-machine benchmarks; recorded because upstream's
-`docs/DGX_SPARK.md` notes Spark-to-Spark RDMA tensor parallelism is not
-implemented, and anyone reading that will want to know what this unit has.
+| ConnectX-7 | **not enumerated** in `lspci` on 2026-09-11: it appears only with a cable attached ([gotcha 2](../../docs/dgx-cluster-setup.md#gotchas--the-full-list)) |
 
 ## Toolchain
 
@@ -158,8 +163,7 @@ here.
 
 ## How to re-take this
 
-No script generates this file yet — see the issue this was recorded under. The
-commands used:
+No script generates this file (#304). The commands used:
 
 ```sh
 date +%Y-%m-%dT%H:%M:%S%z
