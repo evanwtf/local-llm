@@ -149,6 +149,7 @@ also very valuable." So we rank on correctness first, then time.
 | model and server | tested | result | issue |
 |---|---|---|---|
 | DeepSeek-1017, sudoingX recipe v2.0, sudoingx 2.8 bpw | 2026-10-25 | 41/41, 5,348.7 s (111.8%); hidden 345 of 380 (90.8%). This is why section 1 pins the recipe at `cc59c360` | [#1244][i1244] |
+| DeepSeek-1017, EXL3 2.5 bpw (bertholomus), on bertholomus TensorFold TP2 | 2026-10-27 to 10-28, 3 runs, OpenCode 2.2.0 | 118/119, 4,153.4 s pooled (95.5%); hidden 94.9%, 95.2% and 93.3%, below the best all-around choice in every run | [#930][i930] |
 | DeepSeek-1017, EXL3 2.8 bpw (jayleaton), on TensorFold Zig | 2026-10-18 to 10-19 | 34/35, with 7 trials not counted; the server crashed (`PoolExhausted`) after 5 h 7 min | [#1142][i1142] |
 | GLM-5.3-Flash FP4-Local on vLLM | 2026-10-21 | 41/42, 6,704.7 s (153.8% of GLM); hidden 72.6% | [#1128][i1128] |
 | GLM on TensorFold's own engine 1.1.3, no recipe | 2026-10-24 | standard set 30/30, 425.4 s (162.1% of the recipe) | [#1095][i1095] |
@@ -187,6 +188,7 @@ fails CI past that, and its docstring says where new evidence goes.
 [i840]: https://github.com/evanwtf/local-llm/issues/840
 [i865]: https://github.com/evanwtf/local-llm/issues/865
 [i897]: https://github.com/evanwtf/local-llm/issues/897
+[i930]: https://github.com/evanwtf/local-llm/issues/930
 [i968]: https://github.com/evanwtf/local-llm/issues/968
 [i970]: https://github.com/evanwtf/local-llm/issues/970
 [i977]: https://github.com/evanwtf/local-llm/issues/977
