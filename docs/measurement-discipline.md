@@ -2,74 +2,55 @@
 
 How to read, compare, and report a number in this project. **Read this before
 you run a measurement, compare two results, or quote a figure in an issue,
-comment, or commit.** These rules exist because breaking each one has put a
-wrong number into a published place at least once.
+comment, or commit.** Each rule exists because breaking it has put a wrong
+number into a published place at least once.
 
-The short forms live in [`../AGENTS.md`](../AGENTS.md); the incident narratives,
-tables, and citations are here.
+The short forms live in [`../AGENTS.md`](../AGENTS.md). The full incident
+stories are in the linked issues and [`changelog.md`](changelog.md).
 
 ---
 
-## Cite engine source as `file:line at <sha>` (2026-09-06)
+## Cite engine source as `file:line at <sha>`
 
 A bare `ds4.c:40442` is not a citation. It is unverifiable a week later and
-often unverifiable the same night.
+often unverifiable the same night. ds4 has many worktrees at different shas,
+`ds4.c` is over 70,000 lines and moves daily, and the same function sits at a
+different line in every tree.
 
-There are **twelve ds4 worktrees on this machine** at eight different shas
-(`git -C ~/git/ds4 worktree list`). `ds4.c` is over 70,000 lines and moves
-daily. The same function sits at a different line in every tree, so a line
-number without a sha does not identify anything.
-
-This cost real work on 2026-09-06. A claim that `raw_cap` hard-clamps a prefill
-chunk to 8192 shipped into a script comment, a test docstring and a PR body,
-and the script warned users that their large-chunk sweeps were being silently
-clamped. Review caught that the line number was wrong; the reviewer's
-replacement was also wrong, because the two readers were in different trees and
-neither said which. Reading the function by name -- not the line -- showed the
-ceiling does not exist at all: `ds4_prefill_cap_for_prompt` uses a non-zero
-requested chunk as given, and `ds4_default_raw_cap` is the raw-KV attention cap,
-an unrelated quantity. Two wrong line numbers had agreed closely enough to look
-like a disagreement about digits rather than a defect in the claim.
-
-So:
+On 2026-09-06 a claim that `raw_cap` clamps a prefill chunk to 8192 shipped
+into a script comment, a test docstring and a PR body. The reviewer's
+corrected line number was also wrong, because the two readers were in
+different trees. Read by name, the function showed the clamp does not exist.
 
 - **Write `ds4.c:12159 at ds4 399acbbe`**, naming the tree and the sha.
 - **Find the code by name, not by line.** `grep -n 'ds4_prefill_cap_for_prompt'`
   in the tree you mean. A line number is the result of a lookup, never the way
   to do one.
-- **Verify a correction before accepting it.** A reviewer's line number is a
-  claim like any other, and one wrong number replacing another reads as
-  progress.
+- **Verify a correction before you accept it.** A reviewer's line number is a
+  claim like any other.
 
-Retrofitting the ~346 existing citations and enforcing this with a test is
-tracked separately; `../evidence/0169-device-gate-table.md` is the priority, since
-the M5 gate taxonomy rests on 27 of them.
+`tests/test_citation_allowlist.py` fails on a new bare citation. Its allowlist
+holds the known-bare ones that are not retrofitted yet, and only shrinks.
 
 ## Do not overstate what is measured
 
 The project answers one question: **which model + engine + harness combination
 is best for running a coding agent locally, judged on code quality, problem
-solving, and speed?** Of the three criteria, **problem solving** and **speed**
-are measured. **Code quality is not** — the tasks are easy enough that nearly
-every backend passes, so the suite cannot distinguish good code from code that
-merely passes (issue #4). Write "passes the suite", never "writes better code",
-until that changes.
+solving, and speed?** **Problem solving** and **speed** are measured. **Code
+quality is not**: nearly every backend passes the tasks, so the suite cannot
+tell good code from code that merely passes (#4). Write "passes the suite",
+never "writes better code".
 
-**Reliability outranks all three in practice.** Most backend×harness pairs fail a
-meaningful share of these easy tasks, and a pair that fails one in five is
-unusable however fast it is. Quote pass rates with their confidence interval: a
-perfect 21/21 only establishes ">85%", and on current sample sizes most
-combinations cannot be told apart (issue #23).
+**Reliability outranks all three in practice.** A pair that fails one task in
+five is unusable however fast it is. Quote pass rates with their confidence
+interval: a perfect 21/21 only establishes ">85%" (#23).
 
 ## Never write "N times faster" or "N times slower"
 
 The comparative form hides which way the ratio runs. "4x faster" can be read as
-four times the rate, four times *less* time, or faster *by* a factor of four,
-and readers pick differently. "3x slower" is worse — it has no agreed meaning
-at all.
-
-**A multiplier is fine when it says what it multiplies.** The problem is the
-comparative adjective, not the number.
+four times the rate, a quarter of the time, or faster *by* a factor of four.
+"3x slower" has no agreed meaning at all. **A multiplier is fine when it says
+what it multiplies.** The problem is the comparative adjective, not the number.
 
 | write this | not this |
 |---|---|
@@ -79,16 +60,15 @@ comparative adjective, not the number.
 | **193 s against 931 s** | 4.8x faster |
 | Aider **11.1 s**, Claude Code **189.6 s** | Aider was 17x faster |
 
-**Always give the absolute wall-clock seconds, not the relative figure alone.**
-A percentage or fraction hides magnitude, and magnitude is the point: 4.2 s →
-2.2 s and 500 s → 300 s are both "≈40% less time", but the first is noise and
-the second is worth a paragraph. So name the seconds beside every relative
-claim — "took 53% of the time: 751 s against 1429 s", never "took 53% of the
-time" on its own. Absolute numbers come first here too (issues are work logs).
+**Always give the absolute wall-clock seconds beside the relative figure.** A
+percentage hides magnitude: 4.2 s → 2.2 s and 500 s → 300 s are both "≈40%
+less time", but the first is noise and the second is worth a paragraph. Write
+"took 53% of the time: 751 s against 1429 s", never "took 53% of the time"
+alone.
 
 **A dispersion ratio is not a comparison and needs no rewriting.** "An 18x
-spread on one task" is worst-over-best *within a single cell* — a statement
-about how unstable one thing is, not a claim that A beats B.
+spread on one task" is worst-over-best *within a single cell*. It says how
+unstable one thing is, not that A beats B.
 
 The generated tables in [`results.md`](results.md) print three dispersion
 columns. Name the column whenever you quote one:
@@ -100,60 +80,41 @@ columns. Name the column whenever you quote one:
   here to see how consistent the stack usually is.
 - **`range (all tasks)`**: the slowest pass of any task over the fastest pass
   of any task. It measures how different the tasks are, so it is mostly task
-  mix, not consistency. Never quote it as a spread.
+  mix, not consistency. Never quote it as a spread (#944).
 
-Both spreads show a dash when no task has two passes. Until 2026-10-05 the one
-`spread` column held the range under a caption that said "on the same task"
-(review finding 9, #944).
+Both spreads show a dash when no task has two passes.
 
-## One definition of "done", in one place (2026-09-04, three times)
+## Name both directions of a ratio, every time
 
-A check for "is this measurement run complete" was written three separate
-times in one afternoon and got it wrong differently each time:
+Print `b/a` and `a/b` side by side. A ratio whose direction the reader has to
+infer will be inferred backwards. Two `decode_ab_report.py` outputs that
+printed one direction were each misread within the hour they were written.
 
-- **counting files.** A file being written already has a name and a header,
-  so a run read as finished while `ds4-bench` was still filling its last one.
-- **uniform row counts.** One CSV is trivially uniform, so a directory
-  holding only `q4-rep1.csv` passed -- and the report then crashed, because
-  an A/B needs two arms.
-- **ignoring repetitions.** `q4-rep1` and `q8-rep1` are a complete pair by
-  arms and by length, and one third of a three-rep run.
+## One definition of "done", in one place
 
-Each was fixed where it was found, which is why there were three. The
-correct fix was `a03ca8d`: one function, `post_ab_run.is_complete`, with the
-shell runner and the status monitor delegating to it. Two copies of a rule
-drift, and the drift is invisible until something crashes unattended.
+**A predicate that decides whether data may be used has one owner.** On
+2026-09-04 a "is this run complete" check was written three times and was
+wrong a different way each time: it counted files (a file being written already
+has a name), checked uniform row counts (one CSV is trivially uniform), and
+ignored repetitions (`q4-rep1` and `q8-rep1` are a complete pair and a third of
+the run). The fix was one function, `post_ab_run.is_complete`, that every
+caller delegates to. Two copies of a rule drift, and the drift is invisible
+until something crashes unattended.
 
-**Applies to any predicate that decides whether data may be used.** If it is
-worth checking, it is worth having one owner.
+## Another machine's result is a lead, not noise
 
-## Name both directions of a ratio, every time (2026-09-04, twice)
+**Do not dismiss a finding because it was measured on other hardware.** Most
+people who build these engines are on M3/M4 Macs or other GPUs, so a new kernel,
+flag or scheduling change shows up there first. The **mechanism** usually
+transfers even when the **number** does not. Write *"X gained 30% on an M4;
+test the flag here"*, never *"not our hardware"*. Three things do not carry
+over:
 
-`decode_ab_report.py` already carried a comment saying a bare `0.872` had
-been misread the wrong way round once. Two new outputs were then added that
-printed one direction only -- the per-rep line and the between-runs block --
-and both were hit within the hour of being written. Reading four completed
-runs meant inverting numbers by hand, which is the manual step that puts a
-wrong figure in a comment.
-
-Print `b/a` and `a/b` side by side, always. A ratio whose direction the
-reader has to infer is a ratio that will be inferred backwards.
-
-## Another Mac's result is a lead, not noise
-
-**Do not dismiss a finding because it was measured on an M3 or M4.** Most
-people building these engines are on M3/M4 hardware, so that is where a new
-kernel, flag or scheduling change shows up first. The **mechanism** usually
-transfers to M5 even when the **number** does not.
-
-The right shape for such a note is *"X gained 30% on an M4; test the flag
-here"*, never *"not our hardware"*. Three things genuinely do not carry over,
-and they are narrower than they look:
-
-- a configuration that **does not fit** in 128 GB — ask which quant does
+- a configuration that **does not fit** in our memory — ask which quant does;
 - the **absolute figure** — thermal state alone moves ~4% (#58), and a 3-trial
-  median carries ±28% (#23), so quote ratios and rankings
-- **CUDA/ROCm kernels** — the quantization reasoning transfers, the kernels do not
+  median carries ±28% (#23), so quote ratios and rankings;
+- **kernels for another backend** (CUDA, ROCm, Metal) — the quantization
+  reasoning transfers, the kernels do not.
 
 Our own measurement is the bar for **publishing** a claim (#59). It is not a
 filter on what is worth trying.
@@ -161,65 +122,51 @@ filter on what is worth trying.
 ## An outside number carries its own version (#770)
 
 When an outside source calibrates a result — an upstream PR's table, a post, a
-vendor card — write the source's version beside the version under test: the
-engine release or commit the source measured, and the one we ran. A gap
+vendor card — write the source's version beside the version under test. A gap
 between "upstream says X t/s" and "we measured Y" means nothing when the two
-ran different releases: ollama#18550's +14–19% prefill shipped in 0.34.4-rc0, so a
-row from an earlier release cannot calibrate against it (#692). When the
-source names no version, say so, and
-treat the comparison as a lead, not a calibration.
+ran different releases: ollama#18550's +14–19% prefill shipped in 0.34.4-rc0,
+so a row from an earlier release cannot calibrate against it (#692). When the
+source names no version, say so, and treat the comparison as a lead, not a
+calibration.
 
 ## Stamp every line with the code that produced it
 
 **Never call `logging.basicConfig`. Inside `benchmarks/agent`, call
-`provenance.configure()`; everywhere else, `logs.configure()`.** Two tests
-fail if you do -- `test_provenance.py` for this package, and
-`tests/test_logging_format.py` for the tree. `provenance.configure()` adds the
-harness stamp on top of `logs.DATEFMT`; it does not get a clock of its own.
-(The timestamp format itself is [Every time and date is ISO 8601](agent-workflow.md#every-time-and-date-is-iso-8601-americanew_york-with-an-explicit-offset-2026-09-06).)
+`provenance.configure()`; everywhere else, `logs.configure()`.**
+`test_provenance.py` and `tests/test_logging_format.py` fail if you do.
+`provenance.configure()` adds the harness stamp on top of `logs.DATEFMT`.
+(The timestamp format is [Every time and date is ISO 8601](agent-workflow.md#every-time-and-date-is-iso-8601-americanew_york-with-an-explicit-offset-2026-09-06).)
 
 ```
 2026-09-01T07:08:35-0400 INFO [c263902-dirty] ds4  excision  4/14  15/15
 ```
 
 The bracketed field is the harness commit. **`-dirty` means the tree had
-uncommitted changes**, so that line came from code that exists nowhere but the
-machine that printed it and is not reproducible from any commit. A number
-carrying `-dirty` may be used to decide what to do next; it may not be
-published.
+uncommitted changes**, so that line came from code that exists on no commit. A
+number carrying `-dirty` may decide what to do next; it may not be published.
+Outside a git tree the stamp reads `nogit`, never a blank or a plausible sha: a
+wrong attribution is worse than a missing one, because it is believed.
 
-**Why this is not bureaucracy.** This project has published three separate sets
-of figures that turned out to measure its own bugs, and in each case the
-expensive part was not the bug — it was that nobody could tell which numbers
-predated the fix. Rows in `results.jsonl` have carried provenance since
-`273c499`; log lines, tool output and test reports carried none, and those are
-what get pasted into issues and commit messages.
-
-Concretely:
+**Why.** Three published sets of figures turned out to measure this project's
+own bugs, and the expensive part each time was not knowing which numbers
+predated the fix.
 
 - **Every entry point** logs through `provenance.configure()`.
-- **Every test session** prints the harness commit and a fingerprint of
-  `results.jsonl` (`conftest.py` → `pytest_report_header`). The fingerprint is
-  row count plus a content hash, so two runs over the same data are visibly
-  the same run and an edited file is visibly not.
-- **Generated documents** record the *data* fingerprint, not the commit.
-  `RECOMMENDATIONS.md`'s tables are a function of `results.jsonl`; stamping
-  them with a HEAD that changes on every unrelated edit would churn the file
-  and train people to skim the diff.
-- **When quoting a measurement anywhere** — an issue, a commit message, a
-  comment upstream — carry the versions with it. `env` in each row already has
-  `harness_head`, `ds4_head`, the client versions, `gguf_*` and
-  `metal_ceiling_mb`. Quoting a wall time without them is how "13/27" survived
-  two weeks.
-
-**The absence cases have to be honest too.** Outside a git tree the stamp reads
-`nogit`, never a blank or a plausible-looking sha. A wrong attribution is worse
-than a missing one, because it is believed.
+- **Every test session** prints the harness commit and a fingerprint of the
+  ledger (`conftest.py` → `pytest_report_header`): row count plus a content
+  hash, so two runs over the same data are visibly the same run.
+- **Generated documents** record the *data* fingerprint, not the commit. A
+  stamp that changes on every unrelated edit churns the file and trains people
+  to skim the diff.
+- **When you quote a measurement anywhere**, carry the versions with it. Each
+  row's `env` has `harness_head`, the client and engine versions, and the server
+  command line. Quoting a wall time without them is how "13/27" survived two
+  weeks.
 
 ## Pin the sampler, and vary one thing at a time
 
 **A sampler parameter can halve the pass rate, and the parameters interact.**
-Measured over 36 trials (#36), same task, model, engine and client:
+Over 36 trials (#36), same task, model, engine and client:
 
 | configuration | pass |
 |---|---|
@@ -228,58 +175,45 @@ Measured over 36 trials (#36), same task, model, engine and client:
 | `top_p 0.90` + `repeat_penalty 1.1` | **6/6** |
 
 Temperature and top_k were each isolated and are innocent. `top_p 0.90` is
-harmful **only** without a repetition penalty — the two are coupled, and no
-launcher treats them that way.
+harmful **only** without a repetition penalty.
 
-Every launcher sets a different sampler and **nobody chose them**: `llamacpp-up`
-hardcoded Qwen's `0.95` for every model it served; Ollama uses each modelfile,
-which for `ornith-1.5:35b` sets nothing and falls back to Ollama's `0.9`.
-
-So: **a cross-engine or cross-backend comparison is not valid unless both sides
-are sampler-matched**, and the sampler belongs on the row. `llamacpp-up` takes
-`TEMP/TOP_P/TOP_K/MIN_P`; llama.cpp rows carry sampling via the `/props` probe.
-Ollama and ds4 rows do not yet, which is a known gap.
+Every engine has its own default sampler, and nobody chose them. So **a
+cross-engine or cross-backend comparison is valid only when both sides are
+sampler-matched**, and the sampler belongs on the row. llama.cpp rows record it
+from `/props`, and Ollama rows from `/api/show`. ds4 and other OpenAI-compatible
+servers do not report one, and the row says `engine defaults (not reported by
+<engine>)`.
 
 **Vary one parameter at a time.** This effect was missed twice by controls that
-moved a *set* of related settings together — first three at once, then a
-four-cell sweep in which every control cell happened to share the same `top_p`.
-A control that changes a group is not a control; it only tells you the group
-matters.
+moved a *set* of related settings together. A control that changes a group
+only tells you the group matters.
 
 ## A failing arm looks fast, so pair the tasks before comparing totals
 
-**A failed trial is usually a short trial.** It dies on turn one, or the agent
-gives up, and it contributes a small number to the arm's total wall time. So an
-arm that fails more looks *faster* on any total or median taken over all rows,
-and the effect is large enough to invert a comparison.
-
-Measured on the #77 MTP arms, trial 1, same tasks and client (2026-09-03):
+**A failed trial is usually a short trial**: it dies on turn one, or the agent
+gives up. So an arm that fails more looks *faster* on any total or median over
+all rows, and the effect can invert a comparison. On the #77 MTP arms
+(2026-09-03):
 
 | comparison | arm A (MTP off) | arm B (MTP on) | reading |
 |---|---|---|---|
 | total wall, **all 15 rows** | 3074 s | 1726 s | "B takes 56% of the time" |
 | total wall, **the 8 tasks that passed in both** | 1106 s | 1036 s | **B/A = 0.94** |
 
-The first row is an artifact of arm B failing five tasks fast against arm A's
-two. The second is the comparison worth having, and it is nowhere near the ~26%
-that #23 requires before a suite difference is real.
+**Restrict a wall-time comparison to the tasks that passed in *both* arms**,
+and say how many that was. Report a pass-rate difference separately; never fold
+it into a speed number.
 
-**So: restrict a wall-time comparison to the tasks that passed in *both* arms**,
-and say how many that was. A pass-rate difference is a separate finding and gets
-reported separately -- never folded into a speed number.
-
-The same run shows why the token-count check below it is not optional. Arm B's
-throughput was genuinely better -- **66.0 s/1k output tokens against 107.9** --
-and its wall time still barely moved, because it emitted **53% more tokens** for
-the same eight tasks (15,704 against 10,247). Two real effects in opposite
-directions, and either one quoted alone is misleading.
+The same run shows why the next check is not optional. Arm B's throughput was
+better (66.0 s per 1k output tokens against 107.9), but its wall time barely
+moved, because it emitted 53% more tokens for the same eight tasks (15,704
+against 10,247).
 
 ## A wall-time difference is a token-count hypothesis
 
-**Check seconds-per-1k-output-tokens before attributing a speed gap to
-anything.** Three times now a difference that looked like a property of an
-engine, a stack or a client turned out to be how many tokens the model was
-induced to emit:
+**Check seconds per 1k output tokens before you attribute a speed gap to
+anything.** Three times a gap that looked like a property of an engine, a
+stack or a client was how many tokens the model emitted:
 
 | claim | reality |
 |---|---|
@@ -287,91 +221,58 @@ induced to emit:
 | MTPLX is 17% faster on 68% fewer tokens | never re-checked; same shape, marked provisional |
 | Codex is 2.14x slower than Claude Code on Swift (#44) | **39.6 vs 47.6 s/1k — Codex is *faster* per token, and emits 2.37x more** |
 
-The arithmetic is one line and it settles the question:
-
 ```
 seconds_per_1k = wall_seconds / output_tokens * 1000
 ```
 
 If the rates match, the gap is token count — a prompting or sampling effect,
 and portable. If they differ, it is throughput, and belongs to the stack.
+**Say which one it is.**
 
-**Say which one it is.** "X is slower than Y" without this check has been wrong
-every time it has been examined here.
+## Within one backend, a wall ratio is a turn-count lottery
 
-## Within one backend, a wall ratio is a turn-count lottery (2026-09-14)
-
-The section above is about two engines. This one is about two arms of the **same**
-engine — a flag flipped, a KV type changed — where the tokens-vs-throughput split
-does not apply because the engine is held fixed. Here a different confound rules:
-**wall time tracks how many turns the agent took, not how fast the engine ran.**
-
-Over 90 rows of `qwen38fnq3nothinkdgx`, one backend so the engine is constant,
-`r(num_turns, wall_seconds) = 0.932`. Wall time spans 19.9 s to 496.7 s across
-those rows — a 25.0x spread — while seconds-per-turn spans only 2.8x. The engine
-is not doing anything 25 times different; the agent is having conversations of 3
-to 67 turns. Two tasks carry most of it: `parser-mbox-quoting` drew turn counts of
-8, 8, 8, 9, 11, 21, 23, 42, 67 across nine control trials, and a single 67-turn
-draw moves a 3-trial median by a factor of several.
-
-So a paired **wall** ratio between two arms of one backend inherits that lottery.
-#344's ubatch-2048 arm published a wall ratio of **0.873** — 87% of the control's
-time, which reads as a 13% speed-up. Its engine-measured TTFT was **1.005** and its
-seconds-per-turn **1.007**: both say nothing changed, and they agree to 0.2 pp. The
-0.873 was the treatment drawing shorter conversations. Had the draws gone the other
-way the same null arm would have published as a 15% regression — same flag, same
-engine, opposite headline.
+Between two arms of the **same** engine (a flag flipped, a KV type changed),
+**wall time tracks how many turns the agent took, not how fast the engine
+ran.** Over 90 rows of `qwen38fnq3nothinkdgx`, `r(num_turns, wall_seconds) =
+0.932`. Wall time spans 19.9 s to 496.7 s while seconds per turn spans only 2.8
+times; `parser-mbox-quoting` alone drew 8 to 67 turns across nine control
+trials. #344's ubatch-2048 arm published a wall ratio of **0.873**, a 13%
+speed-up, while its TTFT ratio was **1.005** and its seconds-per-turn ratio
+**1.007**: the treatment drew shorter conversations, and nothing changed.
 
 **Read three numbers, in this order, with a gate in front:**
 
-0. **The cell's own seconds-per-turn spread across tasks.** Under ~2x the rate
-   estimator isolates the engine; much above it the quotient still carries
-   workload. `qwen38fnq3nothinkdgx` spans 1.6x (a turn is 5–9 s on every task, so
-   it passes); `qwen36nvfp4v1dgx` spans 6.9x (6.90 s to 47.93 s per turn, so it
-   fails). On a failing cell, report the per-task disagreement, not a median over it.
-1. **turns** — did the treatment change what the agent did? A count of agent
-   actions, so it needs no precondition and survives the gate. A ratio at ~1.000
-   means a pure engine change; far from 1 means the treatment changed the agent's
-   behavior, which is itself a finding (see #354's 2.8x turn blow-up under
-   draftless speculation).
-2. **seconds-per-turn** and **TTFT** — did the engine get faster? Seconds-per-turn
-   is gated on step 0; TTFT is not, because it comes from the engine's own counter
-   rather than a ratio of medians.
-3. **wall** — what the user actually feels, and the product of the two. It is the
-   project's headline question (#14) and stays; it is just not the number an engine
-   flag is being asked.
+0. **The cell's own seconds-per-turn spread across tasks.** Under ~2x, the rate
+   isolates the engine; much above it, the quotient still carries workload.
+   `qwen38fnq3nothinkdgx` spans 1.6x and passes; `qwen36nvfp4v1dgx` spans 6.9x
+   (6.90 s to 47.93 s per turn) and fails. On a failing cell, report the
+   per-task disagreement, not a median over it.
+1. **turns** — did the treatment change what the agent did? It needs no gate.
+   A ratio far from 1 is itself a finding (#354: draftless speculation blew up
+   the turn count 2.8 times).
+2. **seconds per turn** and **TTFT** — did the engine get faster? Seconds per
+   turn is gated on step 0. TTFT is not, because it comes from the engine's own
+   counter.
+3. **wall** — what the user feels, and the project's headline (#14). It is just
+   not the number an engine flag is being asked.
 
-`num_turns` and `wall_seconds` are on every row, and `step_ttft_ms_median` on every
-DGX llama.cpp row since 2026-09-12, so this needs no new measurement.
-
-> **`step_ttft_ms_*` is not end-to-end TTFT under OpenCode 1.18.31 (#444).**
-> The field is anchored on OpenCode's `step_start` event, and in 1.18.31 that
-> event is emitted *after* the request has spent most of its time in the engine.
-> On the #346 control, three warm turns against one unchanged vLLM endpoint
-> measured invocation to first `text` at 4.429–4.504 s and vLLM's own
-> one-request TTFT at 3.172–3.181 s, while `step_start` to first `text` read
-> **47–50 ms**. So `step_ttft_ms_median`, `step_ttft_ms_p90` and
-> `model_step_ttft_ms_median` describe OpenCode's post-response serialization
-> on those rows, not first-token latency, and must carry the client version
-> whenever they are quoted. Rows written after #444 also carry
-> **`first_content_ms`** — invocation to first visible output, measured by
-> `run.py` outside the client — and `step_ttft_anchor`, which names the anchor
-> a row's in-band figure used. Where an engine counter is available, prefer
-> it: it is the only wire-side TTFT on this project. Rows on vLLM and SGLang
-> backends carry it per trial: **`engine_ttft_ms_mean`** is the change in the
-> engine's `time_to_first_token_seconds` histogram sum over the change in its
-> count, scraped just before and just after the trial, with
-> `engine_ttft_requests` (how many requests the mean covers) and
-> `engine_ttft_source` beside it (`benchmarks/agent/engine_ttft.py`). It is
-> exact only while the trial is the server's only client; a request count far
-> above the trial's model steps means something else was using the server.
-> Engines without the histogram (llama.cpp, ds4, Ollama) record nothing. The estimator
-is `scripts/report.py`: `turns()` (the ungated half), `seconds_per_turn()`, and
-`homogeneous()` (the step-0 gate). A two-backend `report.py` run prints the
+`scripts/report.py` implements this: `turns()`, `seconds_per_turn()`, and
+`homogeneous()` (the step-0 gate). A two-backend `report.py` run prints a
 "What moved: the agent, or the engine? (#353)" block, and warns when a cell's
-per-task spread makes the rate unreadable. #23's ±28% resolution rule stays as it
-is; it is the pass-rate counterpart, and its figure — derived from wall time — is
-optimistic on the two heavy-tailed tasks.
+per-task spread makes the rate unreadable.
+
+**Which TTFT field to read (#444).** `step_ttft_ms_*` is anchored on OpenCode's
+`step_start` event, which OpenCode 1.18.31 emits *after* the request has spent
+most of its time in the engine: it read 47–50 ms where invocation to first text
+took 4.4–4.5 s. So it describes OpenCode's serialization, not first-token
+latency, and must carry the client version when quoted. Rows after #444 carry
+`first_content_ms` (invocation to first visible output, measured outside the
+client) and `step_ttft_anchor`. Prefer the engine counter where there is one:
+on vLLM and SGLang, `engine_ttft_ms_mean` is the change in the engine's
+`time_to_first_token_seconds` histogram across the trial, with
+`engine_ttft_requests` and `engine_ttft_source` beside it
+(`benchmarks/agent/engine_ttft.py`). It is exact only while the trial is the
+server's only client. llama.cpp, ds4 and Ollama record nothing.
 
 ## Know what a trial count can support
 
@@ -383,350 +284,229 @@ Measured over 398 trials by `../benchmarks/agent/sizing.py`, not estimated:
 | 10 | ± 13.5% | ± 5.4% | — |
 | 35 | ± 4.9% | ± 2.2% | **>90%, if unbroken** |
 
+**One trial is not a result.** These models are sampled, and the wall-time
+distribution has a fat right tail, so use medians, not means. Two findings in
+`RESULTS.md` came from one trial each, and more data refuted both.
+
 **Three trials is a screening run.** It answers "does this work at all" and "is
 this difference enormous". Two suite totals separate only above a ~26% gap, and
-two task medians above ~56%. Below that the honest phrasing is "no difference
-measured", never "X is faster than Y".
+two task medians above ~56%. Below that, write "no difference measured", never
+"X is faster than Y".
 
-**A pass-rate claim above 90% needs 35 consecutive passes and there is no
-shortcut.** One failure costs about twenty trials: 46/46 clears 90%, 46/47 does
-not. A 15/15 backend is not "as good as ds4 pending data" -- it is unmeasured
-above 80%.
+**A pass-rate claim above 90% needs 35 consecutive passes.** One failure costs
+about twenty trials: 46/46 clears 90%, 46/47 does not. A 15/15 backend is
+unmeasured above 80%.
 
-## One trial is not a result
+## A figure needs its input named, not only its instrument
 
-These models are sampled, not deterministic, and the wall-time distribution has
-a fat right tail. Do not state a finding from a single trial. Two claims in
-`RESULTS.md` were made this way and both were later refuted by more data; the
-failed attempts are recorded there on purpose.
+**Before you quote a number, ask what it is a number OF, and check that the
+answer is on the row.** Our ds4#952 correction quoted "prefill median 0.999"
+with the commit, weights, SHA-256 and repetition count, but not the prompt.
+The prompt decided the answer: +2.5% with a 135 kB prompt, parity with a 405 kB
+one. `../scripts/prompt_meta.py` stamps `prompt_file` and `prompt_bytes` onto
+every ds4-bench CSV, and `decode_ab_report.py` puts the prompt in the quotable
+line and refuses to pool prefill across two prompts. A default nobody has to
+type is a default nobody writes down.
 
-Use medians, not means. Run at least 3 trials before believing a gap, and treat
-a few seconds of difference as noise.
+## Check that both arms can run before planning the comparison
 
-## A figure needs its input named, not only its instrument (2026-09-04)
-
-Our upstream correction on ds4#952 quoted "prefill median 0.999" with the
-commit, the weights, their SHA-256, the frontier sweep and the repetition
-count — everything about the *instrument* — and did not name the prompt.
-Ninety minutes later @adamlawi showed the prompt is what decides that answer:
-same box, same binaries, +2.5% with a 135 kB prompt and parity with a 405 kB
-one, ~2.4 pp apart.
-
-The figure was not wrong. It was under-specified, and no amount of care about
-the engine would have caught it, because the missing variable was on the other
-side.
-
-So: **before quoting a number, ask what it is a number OF, and check that the
-answer is on the row.** `../scripts/prompt_meta.py` stamps `prompt_file` and
-`prompt_bytes` onto every ds4-bench CSV, `decode_ab_report.py` puts the prompt
-in the quotable line, and it refuses to pool prefill across two prompts.
-Defaults are the trap here: `PROMPT` had a default nobody had to type, so
-nobody wrote it down for four months.
-
-## Check that both arms can run before planning the comparison (2026-09-04)
-
-#138 looked like a straightforward requant A/B: our cell runs a Q4_0 build of
-Qwen3.8-Flash-Next for ds4, the author replaced it with a Q4_K imatrix build,
-so measure one against the other. Four runs, ~106 minutes, one command.
-
-Three checks, each a few minutes, killed it:
-
-- `ds4-metal ba01f5d` loads our old Q4_0 build and refuses the new one
-  (`required metadata key is missing: deepseek4.block_count`).
-- `ivan/qwen3.8-flash-next bd9cfbc` does the exact opposite, same error.
-- `ds4-bench` appeared to refuse **both** with `required tensor is missing:
-  per_layer_token_embd.weight`. **That one was my own error** and is the more
-  useful half of this entry: `ds4-bench` does take `--ple`, undocumented and
-  absent from `--help` (`ds4_bench.c:275 at ds4-main 9ab70534`). I had grepped the help output
-  instead of the parser, and my failing invocation simply passed no sidecar.
-  With the flag, both arms measure.
-
-So the quant and the engine are welded together: any old-versus-new number
-moves both, and the comparison is a **stack** comparison that must be reported
-as one. **A control run is what proved that rather than assumed it** — the same
-flags on our engine with our own weights work fine, which is the only thing
-separating "these are incompatible" from "I typed the command wrong".
-
-Two lessons, and the second is the one I actually needed.
-
-**Before scheduling machine time, load both arms.** A model load is minutes;
-the run it would have justified is hours, and a comparison discovered to be
-impossible afterwards has cost the whole window.
+**Load both arms before you schedule machine time.** A model load is minutes;
+the run it would justify is hours. #138's requant A/B died in three short
+checks: each engine loaded one quant and refused the other, so the quant and
+the engine were welded together and any comparison was a **stack** comparison.
+A control run (the same flags, our own weights) is what proved that, rather
+than a typo.
 
 **A flag missing from `--help` is not a missing flag.** Read the argument
-parser before reporting a capability as absent. I published "ds4-bench cannot
-measure this model" on two issues off a `--help` grep, and it was wrong in the
-direction that cancels work — the expensive direction, because nobody re-checks
-a capability that has been ruled out.
+parser before you report a capability as absent. `ds4-bench` takes `--ple`,
+undocumented (`ds4_bench.c:275 at ds4-main 9ab70534`), and a `--help` grep
+published "ds4-bench cannot measure this model" on two issues. That error
+cancels work, and nobody re-checks a capability that has been ruled out.
 
-## A generated-token count equal to the cap is a truncation, not an answer (2026-09-04)
+## A generated-token count equal to the cap is a truncation, not an answer
 
-Comparing two builds of the same model on `ds4-eval`, the new one read 5/6
-against the old one's 6/6. That fitted the story -- it was the build whose
-author called the previous one "less accurate" -- and it was wrong. The failing
-answer had generated **exactly 2500 tokens, the `--tokens` value I had
-passed**. It was cut off mid-reasoning. At 8000 tokens it answers correctly and
-both builds are 6/6.
+**When a graded run reports a failure, compare the generated-token count with
+the cap before you record it.** On `ds4-eval` a new build read 5/6 against the
+old build's 6/6. The failing answer had generated exactly 2500 tokens, the
+`--tokens` value passed, and at 8000 tokens both builds were 6/6. A budget you
+chose is a property of the harness, and it silently turns "slower to reason"
+into "wrong".
 
-The comparison was ready to publish. The only thing that caught it was the
-number 2500 appearing in both the command and the result.
+**A median is not a result until it is larger than the spread around it.** The
+same run's "~5% more tokens" had per-case ratios from 0.724 to 1.352;
+`../scripts/eval_trace.py` now prints the spread beside its median. A decode
+rate gain is not a session-time gain if the model talks more to get there, so
+tokens-to-answer belongs beside any tok/s claim.
 
-So: **whenever a graded run reports a failure, check the generated-token count
-against the cap before recording it.** A budget you chose is a property of the
-harness, not of the model, and it silently converts "slower to reason" into
-"wrong" -- which is the most damaging substitution available, because the two
-argue for opposite decisions.
+## A remedy that cannot be switched off cannot be measured
 
-The same run carries a second lesson, learned the same way. The new build's
-totals showed ~5% more tokens for the same answers, and I published that as a
-finding. The per-case ratios span **0.724 to 1.352** -- the spread is ten times
-the effect, and five cases establish nothing. **A median is not a result until
-it is larger than the spread around it**; `../scripts/eval_trace.py` now prints
-the spread beside its own median and says so when it isn't.
-
-What survives is the variable, not the number: **a decode-rate gain is not a
-session-time gain if the model talks more to get there**, so tokens-to-answer
-belongs beside any tok/s claim -- measured, not asserted.
-
-## A remedy that cannot be switched off cannot be measured (2026-09-04)
-
-#112's remedy 2 shipped on 2026-09-03 and was still unmeasured a day later,
-and the reason was not that nobody tried. Measuring it needs an arm with the
-remedy **off**, turning it off meant editing the shim, and editing the shim is
-not something an unattended run can do. So the experiment never got designed.
-
-`SHIM_NO_STRIP=1` is that arm. The rule generalizes: **when a fix ships as a
-behavior change in code the harness calls, give it a switch at the same
-time.** The switch costs one `if`; retrofitting one costs the credibility of
-every result taken in between, because nobody can say what the fix was worth.
-
-Two details that make a toggle safe rather than a new hazard: it is opt-in and
-truthy-checked, so a stray `SHIM_NO_STRIP=` in a shell profile cannot silently
-disable a shipped remedy for every run afterwards; and it toggles **only** the
-remedy -- the call XML is still removed, because leaving that in content is a
-different defect and does not belong in the experiment.
+**When a fix ships as a behavior change in code the harness calls, give it a
+switch at the same time.** #112's remedy 2 stayed unmeasured because turning it
+off meant editing the shim, which an unattended run cannot do.
+`SHIM_NO_STRIP=1` is now that arm. Make a toggle opt-in and truthy-checked, so
+a stray `SHIM_NO_STRIP=` in a shell profile cannot disable a shipped remedy,
+and make it toggle **only** the remedy.
 
 ## Name the confounds
 
 Every backend added here changes more than one variable at a time. Write the
-caveat into the backend block in `tasks.toml` at the moment you add it, not
-afterwards — engine, quant, tune, and default sampler settings all move
-together, and a result that cannot attribute its cause must say so.
+caveat into the backend block in `tasks.toml` when you add it: engine, quant,
+tune, and default sampler all move together, and a result that cannot
+attribute its cause must say so.
 
-**Confinement is one of those variables (#477).** A row's `confinement` field
-records what isolated the trial: its mechanism, deny list, `/tmp` and network
-policy, and memory cap. The policy is the same on every machine: the trial
-writes only its worktree and cannot read the answers. What each mechanism
-enforces is not the same, and the field says which:
+**Confinement is one of those variables (#477).** The policy is the same on
+every machine: the trial writes only its checkout and cannot read the answers.
+What each mechanism enforces differs, and each row's `confinement` field
+(written by `run.py`'s `confinement_record`) records it:
 
-| dimension | M5 Max (`sandbox-exec`) | DGX Spark (`bwrap`) |
+| dimension | macOS (`sandbox-exec`) | Linux (`bwrap`) |
 |---|---|---|
-| `paths` | `home-allow-list` from #780 (`deny-list` before) | `deny-list` |
-| `tmp` | `unenforced`: the host's `/tmp` | `private`: its own `/tmp` and `/dev/shm` |
+| `paths` | `home-allow-list` (#780; `deny-list` before) | `deny-list` |
+| `tmp` | `private`: its own `TMPDIR` | `private`: its own `/tmp` and `/dev/shm` |
+| `writes` | `allow-list` | `unenforced` |
+| `sockets` | `denied` | `denied` |
 | `network` | `unenforced` | `unenforced` |
 | `memory` | `harness:<cap>`, `run.py`'s memcap | `harness:<cap>`, `run.py`'s memcap |
 
-**`home-allow-list` (#780):** on 2026-09-25 a trial read personal files in
-the operator's home directory, which the deny-list left open. The Mac profile
-now denies reading file contents under `$HOME`, except for `HOME_READABLE` in
-`run.py` (the client, uv, git, SwiftPM and the swift shim), the harness checkout
-and the worktree. A tool that fails with "Operation not permitted" on a home
-path needs that path added there, with its reason. Rows stamped
-`home-allow-list` must not pool with `deny-list` rows.
+The stamp records what is enforced, not what could be.
 
-`run.py`'s `confinement_record` writes these values. The `sandbox-exec`
-profile could express a loopback-only network, but the stamp records what is
-enforced, not what could be.
+**`home-allow-list` (#780):** a trial once read personal files in the
+operator's home directory, which the deny-list left open. The macOS profile
+denies reading file contents under `$HOME`, except for `HOME_READABLE` in
+`run.py`, the harness checkout and the trial's checkout. A tool that fails
+with "Operation not permitted" on a home path needs that path added there,
+with its reason. Rows stamped `home-allow-list` must not pool with `deny-list`
+rows.
 
-**A missing field means different things on the two machines.**
+**A missing field means different things on the two platforms.**
 
-- **On the DGX Spark**, every row from 2026-09-17T23:34-0400 on carries
-  `"mechanism": "bwrap"`. Rows without the field predate confinement on Linux
-  and ran unconfined. They were not backfilled, because the missing field
-  already marks the boundary.
+- **On Linux**, every row from 2026-09-17T23:34-0400 on carries
+  `"mechanism": "bwrap"`. Rows without the field ran unconfined.
 - **On the M5 Max**, the field starts at 2026-09-17T23:12:11-0400, but
-  `sandbox-exec` confined trials long before that (#54). As of 2026-09-19 the
-  ledger holds 3,751 rows:
-  - 345 carry the field;
-  - 2,627 have no field but have a `sandbox_denied` list, which means they
-    ran under `sandbox-exec` (2026-08-31T09:08 to 2026-09-14T20:54);
-  - 779 have neither and ran unconfined (2026-08-15T20:38 to
-    2026-09-01T20:51).
-
-  On the M5 Max, read `sandbox_denied`, not the missing field, to find an
-  unconfined row.
+  `sandbox-exec` confined trials from 2026-08-31 (#54). A row without the field
+  but with a `sandbox_denied` list ran confined. **Read `sandbox_denied`, not
+  the missing field, to find an unconfined row**. The unconfined rows have
+  neither, and date from 2026-08-15 to 2026-09-01.
 
 Do not pool confined and unconfined rows on a task where the sandbox is what
 moved: `script-transform` went 12/20 unconfined and 9/10 confined on the A3B
-leader (#477). Before 2026-09-19 the run
-header printed `confinement none` on Linux even for confined trials. The row
-field was right, but the header was wrong.
+leader (#477).
 
 ## Observe the wire call, not the status code
 
-When two components can talk over more than one protocol, check which one they
-actually used before drawing a comparison from the result. A 200 from both
-endpoints means both work; it does not mean the run you are comparing against
-used the same one.
+**Diff the actual request bodies between two arms before you believe a
+difference between them.** A 200 from two endpoints means both work, not that
+both arms used the same one.
 
-This cost a 13-trial run on 2026-08-17. OpenCode was pointed at ds4-server's
-OpenAI-compatible path while the Claude Code baseline used the Anthropic path,
-so client and protocol varied together and the +60% gap could not be
-attributed. Both endpoints had been curl-tested first; both returned 200; the
-choice was never registered as a choice.
+- On 2026-08-17 OpenCode used ds4-server's OpenAI path while the Claude Code
+  baseline used the Anthropic path, so client and protocol varied together and
+  a +60% gap could not be attributed. The config came from another tool's
+  `connect` output: a template answers "will this run", not "does this match".
+- On 2026-09-03 the ds4 Qwen shim scored 12/12 on synthetic prompts and 0/6
+  under OpenCode. OpenCode sent `stream: true`, and ds4's streaming path
+  dropped the assistant text (`tool_calls` 1/12 streamed, 7/12 not). That was
+  the whole of a published 0/45. The server log said `text_len=231` while the
+  client received zero bytes; the tell is usually already in a log.
 
-Copying a working config from another tool's `connect` output is how it
-happened. A template answers "will this run", not "does this match the thing I
-am comparing against".
+## ds4's Qwen MTP runs only at temperature 0, and clients send no temperature
 
-**It happened again on 2026-09-03, with the varying parameter set by the client
-rather than by us.** The ds4 Qwen shim measured **12/12 on synthetic prompts and
-0/6 under OpenCode** on the same instruction text, and three sessions went into
-varying the instruction. The two harnesses differed in `stream`: synthetic sent
-`false`, OpenCode sent `true`, and **ds4's streaming path silently drops the
-assistant text it has decided to return**. Interleaved, 12 samples each, one
-identical request:
-
-    stream:true    tool_calls 1/12   nothing at all 11/12
-    stream:false   tool_calls 7/12   XML as text     5/12
-
-That is the whole of a published **0/45**. The server log said `text_len=231`
-while the client received zero bytes; nobody read the two together. **Diff the
-actual request bodies between two arms before believing a difference between
-them** — a control that differs in an unregistered variable is not a control,
-and the tell is usually already in a log.
-
-## ds4's Qwen MTP runs only at temperature 0, and clients send no temperature (2026-09-08)
-
-`ds4_session_eval_speculative()` splits on temperature in its first statement:
-at `temperature <= 0.0f` it enters the Qwen MTP path
-(`ds4.c:80120 at ds4-metal ba01f5d`); above zero a Qwen session is neither GLM
-nor DSpark, so it does one plain eval and returns
-(`ds4.c:80216 at ds4-metal ba01f5d`). A request with no `temperature` field
-gets `DS4_DEFAULT_TEMPERATURE`, which is `1.0f`
+`ds4_session_eval_speculative()` enters the Qwen MTP path only at
+`temperature <= 0.0f` (`ds4.c:80120 at ds4-metal ba01f5d`); above zero it does
+one plain eval and returns (`ds4.c:80216 at ds4-metal ba01f5d`). A request with
+no `temperature` gets `DS4_DEFAULT_TEMPERATURE`, `1.0f`
 (`ds4.h:56 at ds4-metal ba01f5d`, `ds4_server.c:12734 at ds4-metal ba01f5d`).
+**OpenCode sends no temperature**, so 119 MTP-arm rows loaded the sidecar,
+reported `state=ready draft=7`, and never speculated.
 
-**OpenCode sends no temperature.** So every MTP arm this project has run
-through an agent client passed the flags, loaded the sidecar, reported
-`state=ready draft=7` — and never speculated. 119 rows.
-
-The silence is total rather than partial, and that is the tell. The timing
-print is not conditional on success: even a turned-away cycle prints
+**Zero timing lines means the call was never reached.** The timing print is not
+conditional on success: even a turned-away cycle prints
 `verifier=scheduler-bypass` (`ds4.c:78942 at ds4-metal ba01f5d`), and `timing`
 is true from `--mtp-timing` alone (`ds4.c:78920 at ds4-metal ba01f5d`).
-**Zero timing lines means the call was never reached, not that it ran and
-failed.** A single line, even a bypass line, means the opposite.
-
-Two things follow for any run:
 
 - **An MTP arm must pin `temperature: 0` on the client**, or it is not an MTP
-  arm. `run.py --require-draft` refuses one that is not (#210), and that gate
-  fired on a trial that otherwise **passed** — 16 tests green, wall time
-  ordinary, nothing in the row saying the treatment was absent.
+  arm. `run.py --require-draft` refuses one that is not (#210); it fired on a
+  trial that otherwise passed.
 - **Pinning temperature is itself a change of regime**, so a greedy-MTP arm
-  needs a greedy-plain arm beside it. Otherwise a win is unattributable
-  between speculation and greedy decoding.
+  needs a greedy-plain arm beside it.
 
-Two published readings were withdrawn when this was found, both from correct
-logs and an inference that did not follow: that the
-`Qwen MTP history frontier short` aborts showed speculation entered and
-abandoned (the line also prints from the ordinary forward pass,
-`ds4.c:56588 at ds4-metal ba01f5d`), and that the tool-free/tool-bearing
-separation tracked prompt size (an 11,000-token prompt speculates normally at
-temperature 0).
+The `Qwen MTP history frontier short` line also prints from the ordinary
+forward pass (`ds4.c:56588 at ds4-metal ba01f5d`), so it is not evidence that
+speculation ran.
 
-## MTP is not a speed-only flag (2026-09-03)
+## MTP is not a speed-only flag
 
 ds4's defaults do **not** preserve the sampling distribution: without
-`--mtp-exact-sampling` it accepts drafts matching what the target would
-greedily produce, biasing output toward greedy at any temperature above 0, and
+`--mtp-exact-sampling` it accepts drafts that match the target's greedy
+choice, which biases output toward greedy at any temperature above 0, and
 `--mtp-margin` (default 3) tunes that acceptance. So an MTP-on/off difference
-in **pass rate** is not attributable to speculation — the model is sampled
-differently. Wall time is the cleaner comparison, and only if the token counts
-match. Isolating speculation itself needs a third arm with
-`--mtp-exact-sampling`; see [Pin the sampler, and vary one thing at a time](#pin-the-sampler-and-vary-one-thing-at-a-time)
+in **pass rate** is not attributable to speculation. Wall time is the cleaner
+comparison, and only if the token counts match. Isolating speculation needs a
+third arm with `--mtp-exact-sampling`; see
+[Pin the sampler, and vary one thing at a time](#pin-the-sampler-and-vary-one-thing-at-a-time)
 and #39.
 
-## A backend can be fast, correctly quantised, thermally fine — and unusable
+## A backend can be fast, correctly quantized, thermally fine — and unusable
 
-The setup that scored 0/45 (before the shim's streaming fix) was doing
-**40.2 t/s decode, 1107 t/s prefill**, 74.3 GiB resident with a 32 GB PLE
-table streaming from SSD, 77.7 C die max. Every engine-level number was good
-and the cell was worth nothing. Engine rates are a reason to test, never a
-result.
+The setup that scored 0/45 (before the shim's streaming fix) ran **40.2 t/s
+decode and 1107 t/s prefill** at a 77.7 C die maximum. Every engine-level
+number was good and the cell was worth nothing. Engine rates are a reason to
+test, never a result.
 
 ## Sustained load drifts ~10% — bracket with A-B-A
 
-Two identical `llama-bench` runs of the same binary, five minutes apart,
-differed by **-0.25% at pp512 and -9.8% at tg128 @ d16384**. Shallow tests
-barely move; deep-cache tests move a lot, which is what sustained GPU load
-looks like on this machine. **Any A/B smaller than about 10% at depth is
-unmeasurable here without bracketing or interleaving.** Run A-B-A and check
-the two A legs agree before reading anything into B — a plain A-then-B would
-have reported a 6% regression that does not exist.
+Two identical `llama-bench` runs of one binary, five minutes apart on the M5
+Max, differed by -0.25% at pp512 and -9.8% at tg128 @ d16384. **An A/B smaller
+than about 10% at depth is unmeasurable without bracketing or interleaving.**
+Run A-B-A and check that the two A legs agree before you read anything into B.
+A plain A-then-B would have reported a 6% regression that does not exist.
 
 ## Coherence-check at temperature 0 before every benchmark
 
-A model can load, serve, and report plausible token counts while emitting
-noise — that is #25, and it cost hours. Check with
-`../scripts/coherence_check.py` before any measurement batch, at temperature 0
-where the output is deterministic enough to read.
+A model can load, serve, and report plausible token counts while it emits
+noise (#25). Run `../scripts/coherence_check.py` before any measurement batch,
+at temperature 0, where the output is deterministic enough to read.
 
 ## Nothing may feed `results.verdict()` except the oracle
 
 Gates, hashes and the verbatim check ride alongside a verdict and never into
-it. There is a test asserting a filthy solution and a clean one get the same
-verdict. The moment a quality signal decides a pass, the harness is judging,
-and its whole claim is that it does not.
+it. A test asserts that a filthy solution and a clean one get the same verdict.
+The moment a quality signal decides a pass, the harness is judging, and its
+whole claim is that it does not.
 
 ## Never publish a ratio without the absolutes beside it
 
-**Every A/B write-up carries the per-frontier absolute rates for both arms, not
-only the paired ratio.** A ratio is a claim. The absolutes are what let a reader
-on another machine check it, and what lets the ratio be recomputed if our
-harness turns out to be wrong.
+**Every A/B write-up carries the absolute rates for both arms, not only the
+paired ratio.** A ratio is a claim; the absolutes let a reader on another
+machine check it, and let the ratio be recomputed if the harness is wrong. On
+2026-09-07 three #162 comments carried ratios alone, after the maintainer had
+already asked for absolute t/s.
 
-On 2026-09-07 three comments went onto #162 carrying ratios and frontier counts
-alone -- on a thread where the maintainer had already asked for absolute t/s
-once and been given it for the previous head. The numbers were sitting in
-`decode_ab_report.py`'s own output the whole time and were dropped in
-transcription.
-
-Two artifacts hold this up, and neither is prose:
-
-- `../scripts/post_ab_run.py` posts `decode_ab_report.py`'s output **verbatim**,
-  which already includes the per-frontier absolute table. Its docstring says
-  why it exists: hand-composing the comment "is how a figure gets written from
-  memory." **Use it for run posts.** Hand-writing a summary comment is fine;
-  hand-transcribing the numbers into one is what went wrong.
+- **Post runs with `../scripts/post_ab_run.py`.** It posts
+  `decode_ab_report.py`'s output **verbatim**, per-frontier absolutes
+  included. A hand-written summary is fine; hand-transcribed numbers are what
+  went wrong.
 - `test_the_per_frontier_block_carries_absolute_rates_not_only_the_ratio`
-  guards the report itself, so the absolute columns cannot be quietly reduced
-  to a ratio column later.
+  keeps the absolute columns in the report.
 
-Say the run-to-run variation too. Run 3 of the #162 batch was 3-7% slower than
-runs 1 and 2 on **both** arms at every frontier. That is the machine, and it is
-the reason the design is paired and the ratio is the reported quantity -- and
-the reason a single absolute number from this laptop must not be set beside a
-single absolute number from someone else's box as though they were comparable.
+Say the run-to-run variation too. Run 3 of the #162 batch was 3–7% slower than
+runs 1 and 2 on **both** arms. That is the machine, and it is why the design is
+paired, and why one absolute number from one box must not be set beside one
+from another.
 
-## Report results with the script, not by hand (2026-09-01)
+## Report results with the script, not by hand
 
 ```sh
 uv run python scripts/report.py --backend gemma426
 uv run python scripts/report.py --backend qwen --backend qwen36 --since 2026-09-01T20:50
 ```
 
-**Hand-rolling this analysis has now produced two wrong answers in one
-evening.** `gen_tables.load()` filtered on `is_excluded()` alone and counted 127
-`--dry-run` control checks as failures in the published tables. And a
-hand-computed comparison divided smaller-by-larger, reporting a **56% gap as a
-36% reduction** and calling three real differences noise.
-
 `scripts/report.py` calls `results.trials()` and `results.verdict()` and
-nothing else, and applies #23's rule -- a 3-trial median carries +/-27.9%, so
-two medians must differ by about **56%** before the gap is real. **The gap is
-measured against the smaller median.** Both accessors and the threshold are
-pinned by tests using the literal numbers that were got wrong.
+nothing else, and applies #23's rule: a 3-trial median carries ±27.9%, so two
+medians must differ by about **56%**, **measured against the smaller median**,
+before the gap is real. Tests pin both accessors and the threshold with the
+literal numbers that were once got wrong: hand-rolled analysis counted 127
+`--dry-run` control checks as failures, and divided smaller-by-larger to report
+a 56% gap as a 36% reduction.
 
-Never read `row["passed"]` directly: a timeout carries `None` and is a failure,
-not an absence.
+Never read `row["passed"]` directly: a timeout carries no `passed` and is a
+failure, not an absence.
