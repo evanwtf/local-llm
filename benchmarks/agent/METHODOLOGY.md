@@ -4,31 +4,33 @@ Why this benchmark is built the way it is, what it can and cannot tell you, and
 how to extend it without breaking the parts that make it trustworthy.
 
 Read [`README.md`](README.md) first for how to run it. This document is about
-*why*.
+*why*. The task inventory is in [`TESTING-SET.md`](../../TESTING-SET.md), and
+the prompts as sent are in [`PROMPTS.md`](PROMPTS.md).
 
 ---
 
 ## 1. What question is this answering?
 
-**"If I point Claude Code at this local model, will it finish a real coding
-task, and how long will I wait?"**
+**"If I point a coding agent at this local model, will it finish a real coding
+task, and how long will I wait?"** OpenCode is the primary agent; Claude Code
+and Codex are reference points.
 
 That is deliberately narrower than "which model is better". A coding agent is a
 loop — read files, call tools, edit, re-read, decide it is done — and a model
 can be strong at code while being bad at that loop: not stopping, not reading
 before editing, forgetting what it changed.
 
-The other benchmarks in this repo measure the engine:
+The other benchmarks in this repo measure the engine, on the M5 Max:
 
 | benchmark | measures |
 |---|---|
-| `benchmarks/ds4/0731/` | prefill and generation throughput, thermals, long context |
-| `benchmarks/ollama/` | the same, for Ollama's MLX backend |
-| `benchmarks/ds4/coding/` | HumanEval pass@1 — single-shot code generation |
+| [`ds4/0731/`](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/0731/) | prefill and generation throughput, thermals, long context |
+| [`ollama/`](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ollama/) | the same, for Ollama's MLX backend |
+| [`ds4/coding/`](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/coding/) | HumanEval pass@1 — single-shot code generation |
 | **`benchmarks/agent/`** | **the whole agent loop, end to end** |
 
 HumanEval saturated at 96–98% for both DS4 quants and could not rank them
-(p = 0.453). That is the specific gap this fills: HumanEval asks "can it write a
+(p = 0.453). That is the gap this fills: HumanEval asks "can it write a
 function"; this asks "can it operate a repository".
 
 ---
@@ -36,9 +38,7 @@ function"; this asks "can it operate a repository".
 ## 2. The oracle problem
 
 Every agent benchmark faces the same question: **who decides if the work is
-good?**
-
-The usual answers are all bad:
+good?** The usual answers are all bad:
 
 - **A judging model.** Introduces the grader's own bias, and if the grader is
   the same family as the subject, it grades its own homework.
@@ -58,7 +58,7 @@ craftsmanship.**
 ### Requirements this places on the target repository
 
 1. **Tests must be fast.** They run twice per trial (control + verification).
-   `gmail-archive` runs 166 tests in ~4.7 s. A suite that takes minutes would
+   `gmail-archive` runs 166 tests in about 5 s. A suite that takes minutes would
    dominate the measurement.
 2. **Tests must be deterministic.** A flaky test becomes a coin flip attributed
    to the model.
@@ -68,7 +68,7 @@ craftsmanship.**
 
 ## 3. Why excision, and why keep the signature
 
-Each task removes one function body and replaces it with
+An excision task removes one function body and replaces it with
 `raise NotImplementedError`, **keeping the signature, type annotations, and
 docstring.**
 
@@ -77,27 +77,19 @@ contract — the name, the types, the docstring, the callers, and the tests — 
 has to supply the implementation. They are not guessing at an unknown API.
 
 Removing the docstring too would make the task "infer the contract from the
-tests", which is a different and much noisier skill. Removing the signature
-would break the callers and turn a focused task into a repo-wide refactor.
+tests", which is a different and much noisier skill; the `-nodoc` variant does
+exactly that, on purpose (§10). Removing the signature would break the callers
+and turn a focused task into a repo-wide refactor.
 
-The excision is done with the **AST** (`excise.py`), not with regexes or line
-numbers, so it works on methods, nested functions and decorated functions, and
-is indifferent to formatting.
+The excision is done with the **AST** (`excise.py`; `swift_excise.py` for the
+Swift tasks), not with regexes or line numbers, so it works on methods, nested
+functions and decorated functions, and is indifferent to formatting.
 
-### Why the excision is committed
-
-After hollowing out the function, the harness commits it in the worktree.
-
-Without that, the original implementation sits in `HEAD` and the whole task
-collapses to `git checkout -- src/...` or `git stash pop`. Agents do try things
-like this — not maliciously, but because inspecting git history is a reasonable
-debugging move. Committing the excision makes the answer genuinely absent from
-the working tree's history.
-
-The original code is still recoverable from the base commit's parent if an agent
-goes looking hard enough. That is an accepted, documented residual risk: a
-`git log -p` deep enough to find it is itself real work, and `touched_tests`
-plus manual inspection of surprising passes is the backstop.
+The harness then commits the excised state as the checkout's **only** commit
+(§5). Without that, the original implementation would sit in `HEAD`, and the
+task would collapse to `git checkout -- src/...`. Agents do try this — not
+maliciously, but because inspecting git history is a reasonable debugging
+move.
 
 ---
 
@@ -107,25 +99,21 @@ plus manual inspection of surprising passes is the backstop.
 
 If the tests still pass after the excision, the task is measuring nothing — the
 model gets a free pass regardless of what it does. `run.py` records this as
-`control_fails_as_expected` and `summarize.py` discards any row where it is
+`control_fails_as_expected`, and `results.verdict()` fails any row where it is
 false.
 
 This is not hypothetical. The first task list included `query.search`, a
-221-line SQL surface that looked like the most interesting task of the five. The
-first dry run reported:
+221-line SQL surface. The first dry run reported:
 
 ```
 ERROR query-search-ds4-1: tests still pass after excision -- task is broken
 ```
 
 `tests/test_query.py` skips every test without
-`GMAIL_ARCHIVE_TEST_DATABASE_URL`. All 8 tests were skipping, so deleting the
-function it tested changed nothing observable. **That task would have reported
-100% pass rates for both models while measuring nothing at all.**
-
-It was replaced with `mbox-scan`. To use the SQL surface as a task, bring up the
-compose stack and export the database URL first — then the control will pass and
-the task becomes valid.
+`GMAIL_ARCHIVE_TEST_DATABASE_URL`, so deleting the function changed nothing
+observable. **That task would have reported 100% pass rates while measuring
+nothing at all.** It was replaced with `mbox-scan`. To use the SQL surface,
+bring up the compose stack and export the database URL first.
 
 The general lesson: *a benchmark that cannot fail is not measuring anything.*
 Verify the negative case.
@@ -134,21 +122,29 @@ Verify the negative case.
 
 ## 5. Isolation
 
-Each trial runs in its **own git worktree**, created from a pinned base commit
-and destroyed afterwards.
+Each trial runs in its **own standalone directory**. `build_checkout()` exports
+the pinned commit with `git archive`: no `.git`, no pointer to the parent, no
+shared objects. The excised state is then committed as that repository's only
+commit, so the original body is absent from the checkout, history included.
+The directory is destroyed afterwards. §9 explains why this replaced a
+`git worktree`.
 
-This matters more than it looks:
-
-- **Trials cannot contaminate each other.** An agent that leaves a stray file,
-  a half-applied edit, or a `.pyc` cannot affect the next run.
+- **Trials cannot contaminate each other.** A stray file, a half-applied edit,
+  or a `.pyc` cannot affect the next run.
 - **Task order does not matter.** Runs are independent, so they can be
-  reordered, re-run, or parallelised later without invalidating comparisons.
-- **The source repository is never modified.** The benchmark reads
-  `~/git/gmail-archive` and writes nothing to it.
+  reordered or re-run without invalidating comparisons.
+- **The reference checkout is never edited.** Under the default
+  `--targets legacy` (#54), `run.py` parks it aside for the batch and puts the
+  export at the path a model guesses. Under `--targets sandbox` (#146), the
+  export builds from the harness's own `sandbox/` clones
+  (`scripts/sync_sandbox_targets.py`), and nothing in `~/git` moves.
+- **The agent is confined.** `sandbox-exec` on macOS and `bwrap` on Linux keep
+  it inside its checkout and away from the answers; each row's `confinement`
+  field records what was enforced
+  ([measurement discipline](../../docs/measurement-discipline.md#name-the-confounds)).
 
 `base_commit` is pinned in `tasks.toml`. Results stay comparable as the target
-repository moves on; bumping it invalidates comparisons against older results
-and should be treated as starting a new series.
+repository moves on; a new `base_commit` starts a new series.
 
 ---
 
@@ -156,34 +152,29 @@ and should be treated as starting a new series.
 
 ### Context windows are deliberately different
 
-ds4 runs at 100,000 tokens; Qwen3.8 at 262,144.
-
-Equalising them would be the wrong kind of fair. Capping Qwen at 100k throws
-away a real capability; raising ds4 to 262k exceeds what `ds4-server` was
-started with, and Claude Code would then auto-compact *after* the server had
-already truncated — producing silent corruption rather than a fair fight.
-
-Each model gets its real window. The window is part of the product.
+Each backend runs at its server's real window (`context_tokens` in
+`tasks.toml`). Equalizing them would be the wrong kind of fair. A cap below a
+model's window throws away a real capability. A window above what the server
+was started with makes the client auto-compact *after* the server has already
+truncated, which is silent corruption rather than a fair fight. The window is
+part of the product.
 
 ### Memory pressure is controlled, not ignored
 
-ds4 is ~91 GiB resident and Qwen is ~18 GB. Both fit in 128 GiB, but not
-comfortably alongside a page cache. Whichever server is idle gets paged out and
-pays a large penalty on its first request.
-
-`run_matrix.sh` therefore runs **all ds4 trials, stops ds4 to free the 91 GiB,
-then runs all Qwen trials**, preloading each model first. Neither model is ever
-measured while paged out.
-
-The first smoke test ignored this and measured ds4 at ~27 GiB resident — a
-number that flattered Qwen. It is reported in the README with that caveat
-attached rather than quietly dropped.
+These models nearly fill unified memory. An idle server gets paged out and pays
+a large penalty on its first request, and a resident second server contends for
+memory and bandwidth for the whole batch. So `run.py` refuses to start while
+another model server is resident, or when the selected backends span more than
+one engine (`--allow-contended` overrides this for a diagnostic whose timings
+will not be published). The first smoke test ignored this and measured ds4 at
+~27 GiB resident, a number that flattered its rival.
 
 ### Everything else is held constant
 
-Same prompt, same permission mode (`bypassPermissions`), same repository, same
-base commit, same tests, same machine, same `claude` binary. The only variables
-are the model and its context window.
+Same prompt, same repository, base commit and tests, same machine, same client
+at the same version, same permission policy. The variables are the model, the
+engine and its configuration. A component version change starts a new series
+(`preflight.py` updates every component before a batch, never after).
 
 ---
 
@@ -193,12 +184,10 @@ are the model and its context window.
 |---|---|---|
 | `passed` | the oracle: did the tests pass | **yes** |
 | `wall_seconds` | end to end, including tool calls | **yes** |
-| `num_turns` | agent round trips | **yes** |
-| `output_tokens` | tokens the model generated | yes, with care |
-| `input_tokens` | tokens the model consumed | **no — ds4 reports 0** |
-| `api_ms` | time inside API calls | yes |
+| `num_turns` | agent round trips, as the client counts them | **yes, within one client** |
+| `output_tokens`, `reasoning_tokens` | tokens the model generated | yes, with care |
+| `input_tokens` | prompt tokens: OpenCode records the largest step's, Claude Code the sum of cached and uncached (#74) | **no** |
 | `touched_tests` | did the agent edit the tests | cheat detector |
-| `total_cost_usd` | **fiction for local models** | no — ignore |
 
 **Wall time is the headline.** It includes the agent's own tool calls, its
 thinking, and every round trip — which is what a person actually waits for.
@@ -208,179 +197,102 @@ better; an agent that solves a task in 4 turns and one that solves it in 12 both
 solved it. But a high turn count paired with a failure almost always means
 thrashing, and is worth reading the transcript over.
 
-**`total_cost_usd` prices local inference at Anthropic API rates.** A 124-second
-local run reported \$0.14. It is meaningless here.
-
 ---
 
 ## 8. Statistics
 
-`summarize.py` reports **medians, not means**.
+`summarize.py` and `scripts/report.py` report **medians, not means**.
 
 These runs have a fat right tail. An agent that goes down a wrong path can take
 five times as long as one that does not, and a single such run drags a mean
-somewhere unrepresentative. This mirrors the finding in
-[`../ds4/coding/RESULTS.md`](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/coding/RESULTS.md): the mixed build's median
-output was a normal 783 tokens, but ~4.9% of prompts ran to the token cap. The
-median described the typical experience; the mean did not.
+somewhere unrepresentative. The same holds for HumanEval output
+([`ds4/coding/RESULTS.md`](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/coding/RESULTS.md)):
+the mixed build's median output was a normal 783 tokens, but ~4.9% of prompts
+ran to the token cap.
 
-**One trial is not a result.** These models sample; the same task can succeed and
-fail across runs. The default matrix is 3 trials, which is enough to notice a
-large difference and *not* enough to establish a small one. A 1-of-3 versus
-2-of-3 split is noise. Treat wall-time differences under ~20% on a single task
-as noise too.
-
-With 5 tasks × 3 trials = 15 runs per backend, a difference in overall pass rate
-of one or two runs is not significant. Report it as "no difference detected",
-not "they are equal".
+**One trial is not a result.** These models sample; the same task can succeed
+and fail across runs. Three trials notice a large difference and cannot
+establish a small one: two task medians need about a 56% gap before the
+difference is real, and two suite totals about 26%. A 1-of-3 versus 2-of-3
+split is noise. Report a small difference as "no difference detected", not
+"they are equal". The measured table is in
+[Know what a trial count can support](../../docs/measurement-discipline.md#know-what-a-trial-count-can-support).
 
 ---
 
 ## 9. Threats to validity
 
-Honest accounting of what could make these numbers wrong.
-
 | threat | mitigation | residual risk |
 |---|---|---|
 | Agent edits the tests to pass | `touched_tests` flag; counted as failure | none meaningful |
-| Agent recovers code from git history | trial repo's only commit is the excised state | none from history; the original body is not present in the checkout |
+| Agent recovers code from git history | the checkout's only commit is the excised state | none; the original body is not in the checkout |
 | Task measures nothing (skipped tests) | control run required to fail | none — this is checked every trial |
-| Trials contaminate each other | isolated copy per trial, destroyed after | see "the sandbox was not a sandbox" below |
-| Memory pressure favors one model | phased runs, preload, one model resident | thermal drift across a long run |
+| Trials contaminate each other | isolated export per trial, destroyed after | see "the sandbox was not a sandbox" below |
+| Agent leaves its checkout | confinement, `source_repo_intact` on every row | network and some paths unenforced; the row says which |
+| Memory pressure favors one model | `run.py` refuses a resident second server | thermal drift across a long run |
 | Training-data contamination | repo is small and recent, but **public** | cannot be ruled out; the libraries it uses are certainly in training data |
 | Single-trial noise | 3 trials, medians | small effects remain undetectable |
 | Prompt favors one model | identical prompt text for all backends | prompt style may suit one model's training |
 
-**The contamination point deserves emphasis, and it got weaker.** An earlier
-revision of this document claimed `gmail-archive` is private and therefore
-almost certainly absent from any training set. **That was wrong — the repository
-is public** (`evanwtf/gmail-archive`).
-
-Contamination therefore cannot be ruled out by construction. Two things still
-limit it: the repository is small and recent, so its weight in any corpus is
-negligible; and the excised bodies are not distinctive enough to be memorised
-verbatim in a way that would not also be reconstructible from the docstring and
-tests.
-
-The tasks also involve `email`, `mailbox`, `hashlib` and RFC 2822 — well
-documented standard-library territory. A model that has seen a lot of Python has
-a real advantage there that is not specific to this repository, and that is
-arguably the correct thing to measure.
-
-**If contamination matters to a conclusion you are drawing, re-run the task
-against a repository written after the models' training cutoffs.**
+**Contamination cannot be ruled out by construction.** `gmail-archive` is
+public (`evanwtf/gmail-archive`); an earlier revision of this document said it
+was private, which was wrong. Two things limit it: the repository is small and
+recent, so its weight in any corpus is negligible, and the excised bodies are
+not distinctive enough to be memorized verbatim in a way that would not also be
+reconstructible from the docstring and tests. The tasks also involve `email`,
+`mailbox`, `hashlib` and RFC 2822 — well-documented standard-library territory,
+where a model that has seen a lot of Python has a real advantage, which is
+arguably the correct thing to measure. **If contamination matters to a
+conclusion, re-run the task against a repository written after the models'
+training cutoffs.**
 
 ### The sandbox was not a sandbox
 
-**Discovered 2026-08-17, after 147 trials had already been run.**
+Until 2026-08-17 each trial ran in a `git worktree` of the reference
+repository. A linked worktree shares the parent's object store and keeps a
+pointer back to it, so it isolates *files*, not the *agent*, which has a shell.
+On 2026-08-17 an agent followed that pointer: the reference repo was found on a
+benchmark commit in detached HEAD, with agent edits in its working tree. The
+operator's working copy was modified, every later trial exported from a
+contaminated repo, and the shared object store held the original of every
+function under test.
 
-Until this date each trial ran in a `git worktree` of the reference repository.
-That was described here as making contamination between trials impossible.
-**It did not.**
+The fix is §5's `git archive` export, plus three checks: `run.py` **refuses to
+start** unless the reference repo is clean and holds the pinned `base_commit`;
+every row records `source_repo_intact`, checked after the agent runs; and an
+escape is logged loudly.
 
-A linked worktree shares the parent's object store and keeps a pointer back to
-it. A worktree isolates *files*; it does not isolate the *agent*, which has a
-shell and can go anywhere on the machine. On 2026-08-17 one did: the reference
-repo `~/git/gmail-archive` was found on a benchmark commit
-(`benchmark: remove BlobStore.put`) in detached HEAD, with agent edits to
-`mbox.py` and `storage.py` in its working tree. Its reflog recorded
-`checkout: moving from main to 8d6183d`.
-
-Two consequences, and the second is worse than the first:
-
-1. **The operator's working copy was modified** by a benchmark run.
-2. **Every trial started after that point exported its checkout from a
-   contaminated reference repo**, and nothing detected it.
-
-There is also an answer-leak path implied by the same mechanism: a shared
-object store contains every commit, including the pristine original of the
-function under test. An agent that reaches the parent can read what it is
-being asked to reproduce.
-
-**What changed.** Trials no longer use worktrees. `build_checkout()` exports
-the pinned commit with `git archive` into a bare directory — no `.git`, no
-pointer to the parent, no shared objects — and the excised state is then
-committed as that repository's *only* commit. The original body is therefore
-absent from the checkout entirely, including from history.
-
-Three checks now exist where there were none:
-
-- `run.py` **refuses to start** unless the reference repo is clean and holds
-  the pinned `base_commit`.
-- Every row records `source_repo_intact`, checked after the agent runs.
-- An escape is logged loudly rather than passing silently.
-
-**What this does to the existing 147 trials.** They cannot be retroactively
-verified — `source_repo_intact` did not exist when they were written. The
-detected escape happened during the OpenCode series on 2026-08-17; how many
-earlier trials were affected, if any, is unknown. Treat pre-2026-08-17 results
-as measured under weaker isolation than this document previously claimed.
-
-**A leak check was run and found nothing.** If an agent had recovered the
-original body from the shared object store, the signature would be a fast pass
-in unusually few turns. Every trial under 90 s was inspected: all but three are
-`ornith:35b`, which is simply the fastest backend tested (92.5 t/s), and their
-turn counts are unremarkable (7-13). The two fastest low-turn passes -- ds4 at
-83.4 s / 6 turns, ornith at 76.5 s / 7 turns -- sit within the normal range for
-those backends, whose medians are 8 turns.
-
-This is weak evidence, not exoneration: the check is retrospective, and the
-telemetry that would settle it did not exist at the time. It is recorded so the
-question is not silently dropped.
+**Rows before 2026-08-17 were measured under weaker isolation**, and cannot be
+verified retroactively. A leak check found nothing: a leak would show as a fast
+pass in unusually few turns, and every trial under 90 s sat within its
+backend's normal turn range. That is weak evidence, not exoneration.
 
 ### Authorship contamination, and why the hosted reference is time-only
 
-`gmail-archive` was itself written with Claude. That makes the hosted
-`opus5` reference a special case: it is being asked to restore functions from
-a codebase it authored, which is closer to recall than to problem-solving.
+`gmail-archive` was itself written with Claude. The hosted Claude reference is
+therefore asked to restore functions from a codebase its own family wrote,
+which is closer to recall than to problem solving.
 
 **Read the reference row for wall time only.** Its pass rate is not evidence
-about task difficulty, and a 15/15 there must not be cited as showing the
-tasks are too easy (issue #4) — it would show authorship contamination
-instead. Answering issue #4 needs harder tasks in a repository no frontier
-model wrote.
+about task difficulty, and a perfect score there must not be cited as showing
+the tasks are too easy (#4). It would show authorship contamination instead.
 
-The local backends are not exempt from this either: they are restoring
-Claude-authored code, which may suit some model lineages better than others.
-It applies equally across them, so it does not distort the comparison between
-local backends — but it is a reason the whole suite flatters models trained on
-similar code.
+The local backends are not exempt: they restore Claude-authored code, which may
+suit some model lineages better than others. That applies equally across them,
+so it does not distort the comparison between local backends, but it is a
+reason the whole suite flatters models trained on similar code.
 
-### The empty-virtualenv confound — withdrawn 2026-08-28
+### The agent gets a working environment
 
-**This section described a flaw that does not exist and never did.** It is kept,
-corrected rather than deleted, because it was cited in issue #4 as work that had
-to land before the task set could change, and because a retracted claim is worth
-more visible than absent.
-
-**What it said.** A fresh checkout has no `.venv`, so the agent must work out how
-to run the tests — `uv run pytest`, `uv sync` first, or discovering that
-`.venv/bin/python` is not there — before it can see whether its implementation is
-correct. The prescribed fix was to run `uv sync` before handover, and, because
-that would change every wall-time number, to start a new series and never pool
-across the change.
-
-**Why it is wrong.** The control check runs `uv run pytest` in the worktree
-*before* the agent is invoked, and `uv run` materialises `.venv` with the project
-and pytest installed. That takes about 1.2 s and it has been the control's exact
-form since the harness's first commit. All 482 recorded rows carry a control
-result, so no trial has ever been handed an empty environment.
-
-The evidence originally cited — the first ds4 trial running
-`.venv/bin/python -m pytest` — was read backwards. That command works in the tree
-as handed over; it was verified directly. The agent guessed a path and the path
-was there.
-
-**What follows.** There is nothing to fix, so the harder tasks in #4 do **not**
-start a new series and results may be pooled across them. Environment discovery
-is not part of the wall-time numbers, which removes it as an explanation for the
-1.74x within-condition spread in #26 — that spread is sampling variance, and this
-was never a competing cause.
-
-`test_trial_integration.py` now guards the property directly: a scripted agent
-runs the tests through `.venv/bin/python` and the trial must pass. If the control
-is ever moved after the agent, or stops using `uv run`, the confound becomes real
-and that test goes red first.
+The control check runs `uv run pytest` in the checkout *before* the agent
+starts, which builds `.venv` with the project and pytest installed, and
+`prepare_env` runs `uv sync --frozen` before that (`env_prepared` on the row).
+No trial has met an empty virtualenv. A 2026-08-28 revision of this section
+claimed the opposite and was withdrawn; the evidence it cited, an agent running
+`.venv/bin/python -m pytest`, works in the tree as handed over.
+`test_trial_integration.py` guards the property: a scripted agent runs the
+tests through `.venv/bin/python` and the trial must pass. If the control moves
+after the agent, or stops using `uv run`, that test goes red first.
 
 ---
 
@@ -393,10 +305,11 @@ and that test goes red first.
 2. Add a `[[task]]` block to `tasks.toml`.
 3. Run `--dry-run` and confirm the control fails. **If it does not, the task is
    invalid.** Fix it or discard it.
-4. Prefer tasks that break a meaningful number of tests. The current set spans
-   3 to 49, which gives a difficulty gradient.
+4. Prefer tasks that break a meaningful number of tests. The original five
+   excision tasks break 3 to 49, which gives a difficulty gradient.
+5. Regenerate [`PROMPTS.md`](PROMPTS.md) with `gen_prompts.py`.
 
-Do not name the tests in the prompt. Finding them is part of the task.
+Do not name the tests in an excision prompt. Finding them is part of the task.
 
 A task may remove **more than one symbol**, and may remove the **docstring** as
 well as the body:
@@ -417,8 +330,8 @@ symbol = "unquote_mbox"
 keep_docstring = false          # the contract goes too
 ```
 
-The inline `file`/`symbol` form still works and must keep working: recorded rows
-name tasks defined that way, and a task name has to keep meaning what it meant.
+The inline `file`/`symbol` form must keep working: recorded rows name tasks
+defined that way, and a task name has to keep meaning what it meant.
 
 **Check for a leading comment** before adding a target. A comment is not an AST
 node, so the first statement's line number points past it and the comment stays
@@ -563,18 +476,18 @@ tests. The IMAP work has no database-free tests. `replay-mbox-separator` and
 `replay-login-throttle` have 3 discriminating tests each, too few to split.
 
 **Limits.** The held-out node ids are public in `tasks.toml`, which the
-agent's confinement denies; `PROMPTS.md` gives only their count. A held-out test is still one the
-commit's author wrote, so it shares the visible tests' view of the feature.
-Cutting a test leaves any helper or fixture only it used in the visible file.
-Each prompt says `The check also runs tests you cannot see.`, and
-`replay.validate` requires that sentence.
+agent's confinement denies; `PROMPTS.md` gives only their count. A held-out
+test is still one the commit's author wrote, so it shares the visible tests'
+view of the feature. Cutting a test leaves any helper or fixture only it used
+in the visible file. Each prompt says `The check also runs tests you cannot
+see.`, and `replay.validate` requires that sentence.
 
 ### Measurements taken alongside the verdict
 
 The oracle is binary and stays the authority — `results.verdict()` is the only
-thing that decides a pass, and nothing below feeds into it. When seven of eight
-backends score 100%, the next question is whether the passing solutions are
-equally good, and these are what make that askable (issue #4).
+thing that decides a pass, and nothing below feeds into it. When nearly every
+backend passes, the next question is whether the passing solutions are equally
+good, and these make that askable (#4).
 
 | key | what it says |
 |---|---|
@@ -598,24 +511,20 @@ agent rather than the repository.
 leaves its key out entirely; it is never present as `0`. A zero reads as "clean"
 and becomes a published claim.
 
-`restored_verbatim` exists because of authorship contamination. gmail-archive
-was written with Claude, so a model reproducing a function its own family wrote
-is recalling, not solving — the reason the hosted reference cannot calibrate
-difficulty. `excise` hands back the exact body it removed, so this is checkable,
-and until now it was never checked.
-
-Before 2026-08-28 the worktree was deleted with the solution still in it. 398
-trials produced code and none of it was kept, which is why no claim about *code
-quality* has ever had evidence behind it.
+`restored_verbatim` exists because of authorship contamination: a model
+reproducing a function its own family wrote is recalling, not solving.
+`excise` hands back the exact body it removed, so this is checkable. Rows before
+2026-08-28 kept no solution at all, so they carry no evidence about code.
 
 ### Adding a backend
 
-Add a `[backend.name]` block with `base_url`, `auth_token`, `model` and
-`context_tokens`. Anything speaking Anthropic `/v1/messages` works — that is
-the whole interface. Set `context_tokens` to the server's *real* window.
-
-For Ollama ≤ 0.32.13, point `base_url` at the shim on `:11500` rather than
-Ollama directly; see the repo README.
+Add a `[backend.name]` block with `base_url`, `auth_token`, `model`,
+`context_tokens`, and `opencode_model` for the primary client. Set
+`context_tokens` to the server's *real* window. Write the backend's confounds
+(engine, quant, sampler) into the block as you add it. For Ollama ≤ 0.32.13
+under Claude Code, point `base_url` at `ollama_claude_shim.py` on `:11500`
+rather than at Ollama directly
+([docs/ollama-claude-shim.md](../../docs/ollama-claude-shim.md)).
 
 ### Screening a new stack (#762)
 
@@ -634,8 +543,9 @@ download nothing.
 2. **The active parameters are under the machine's line (per machine).**
    Decode reads the active weights once per token on both the GB10 and Apple
    silicon, so active parameters predict speed better than anything else on a
-   card. No line is fixed yet; the cluster proposal is about 20–25B, and the
-   M5 Max leader is 6B active.
+   card. Record the value as `active_params_b` on the backend. No line is
+   fixed yet; the cluster proposal is about 20–25B, and the M5 Max leader is
+   6B active.
 3. **The best first-party quant fits** in the machine's usable memory and under
    its download cap (`CONVENTIONS.md`).
 4. Noted, not a veto: weights only from a third party (they need operator
@@ -655,13 +565,9 @@ the leader on the same task set and client in the machine's ledger
   the same (task, trial) pairs. A timeout counts at its full limit.
 - **The stop is on for every run, re-checks of standing picks included**
   (operator, 2026-10-16). A re-check that trips it has lost its place as a
-  pick, and its remaining trials would only buy timeouts. The #1086 refresh
-  ran its first re-checks with the stop off. S4's replay set (S1–S8 are the
-  single-Spark picks; the key is in
-  `hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md`) then spent
-  3.5 hours on 7 timeouts in its first 15 trials, at 145.5% of S3's time on
-  the same trials: under the stop, but only a run with the stop on is held
-  to it.
+  pick, and its remaining trials would only buy timeouts. In the #1086 refresh,
+  one re-check run with the stop off spent 3.5 hours on 7 timeouts in its
+  first 15 trials.
 - **A run started without the stop** cannot switch it on.
   `scripts/early_stop_check.py --backend <name> --set replay` applies the same
   rule to the rows it has written so far; exit status 3 means stop it by hand.
@@ -671,9 +577,10 @@ the leader on the same task set and client in the machine's ledger
   reason. Without a leader in the ledger, the run logs that and the stop stays
   off.
 - **The leader** is the machine's `[early_stop.leader]` pin in `tasks.toml`
-  when it has one (on the single Spark: S3, `qwen38fnq3nothinkb11642rcdgx`,
-  operator 2026-10-16), else the best pass rate on the same task set and
-  client, then the fastest. `--early-stop-leader` overrides both for one run.
+  when it has one, else the best pass rate on the same task set and client,
+  then the fastest. `--early-stop-leader` overrides both for one run. A pin
+  exists because an unpinned best can be an old run that every current stack
+  trips.
 - **A stop on a first run means "check the configuration" before it means
   "veto":** the chat template, the reasoning and tool-call parsers, the
   reasoning effort, the context length, the sampler. It becomes a veto only
@@ -715,33 +622,26 @@ A trial that hits it is a failure, and the early stop counts it at the full
 
 **Why not lower.** On the single Spark's ledger (2026-10-16, 4,382 OpenCode
 trials), 27 passes took 20–30 minutes. That is 0.6% of all passes, but 17 of
-the 150 replay + hard passes, or 11%, and most of them belong to the leaders:
-
-| stack | replay score | at a 25-min limit | at a 20-min limit |
-|---|---|---|---|
-| S3 `qwen38fnq3nothinkb11642rcdgx` | 32/42 | 28/42 | 23/42 |
-| Bolt `nemotron35boltdflashnothinkrcdgx` | 37/42 | 35/42 | 32/42 |
-| Super VL `nemotron35supervldflashnothinkrcdgx` | 31/41 | 30/41 | 29/41 |
-
-At 20 minutes S3 would fall behind Super VL: the limit, not the model, would
-set the ranking.
+the 150 replay + hard passes, or 11%, and most of them belonged to the leaders.
+At a 20-minute limit the leader would have dropped from 32/42 to 23/42 replay
+passes, behind a stack it beat at 1,800 s (31/41 to 29/41): the limit, not the
+model, would have set the ranking.
 
 **Why not per task.** A limit of k × the task's median pass, clamped to
 600–1,800 s, loses 33 passes for k = 3, 4 or 5 and saves about a third of the
-time spent in timeouts (21,414 of 63,000 s across the whole ledger). Three
-costs outweigh that:
+time spent in timeouts (21,414 of 63,000 s across that ledger). Three costs
+outweigh that:
 
 - the timeouts sit on tasks whose passes are slow too (the two
-  `replay-span-web-ui` tasks have 12 of the 35, 6 each, and their passes
-  take about 25 minutes), so their limit stays at
-  1,800 s and saves nothing;
+  `replay-span-web-ui` tasks have 12 of the 35, and their passes take about 25
+  minutes), so their limit stays at 1,800 s and saves nothing;
 - it turns slow passes into failures, which mixes speed into the pass rate;
 - it drifts as rows land, and each change would start a new series.
 
 **What saves the time instead** is stopping the stack, not the step: the early
-stop above, against the leader's time on the same trials, and the #366 guards
-in `benchmarks/agent/timeout_policy.py` (an idle-GPU watchdog per trial, and a
-circuit breaker for a cell that mostly times out).
+stop above, and the #366 guards in `benchmarks/agent/timeout_policy.py` (an
+idle-GPU watchdog per trial, and a circuit breaker for a cell that mostly times
+out).
 
 Rerun the evidence when the ledger grows:
 
@@ -750,26 +650,25 @@ Rerun the evidence when the ledger grows:
 ### The target repository is on its own branch
 
 `~/git/gmail-archive` sits on **`local-llm-benchmark`**, a branch pinned at
-`56e55cc`. It exists because the local checkout had been held back on `main`
-while `origin/main` moved **73 commits ahead** — one `git pull` would have
-changed what every trial measures, silently and irreversibly for past
-comparisons.
+`56e55cc`, so that a routine `git pull` cannot move it. `origin/main` had moved
+73 commits ahead while the checkout sat held back on `main`; one pull would
+have changed what every trial measures. `~/git/monitor` is pinned the same way.
 
 The pin is still the **commit**, not the branch: `run.py` exports with
-`git archive <base_commit>`, and a branch name would follow the branch. The
-branch is a label on the pinned state so that nothing routine wants to move it,
-and so `main` can track upstream normally.
+`git archive <base_commit>`, and a branch name would follow the branch.
 
 ```sh
-cd ~/git/gmail-archive && git checkout local-llm-benchmark
+git -C ~/git/gmail-archive checkout local-llm-benchmark
 ```
 
 ### Adding a target repository
 
-`tasks.toml` currently assumes one repo. Supporting several means moving `repo`
-and `base_commit` into each task. The rest of the harness is already agnostic —
-it only needs a git repo, a way to run tests, and tests that fail when code is
-removed.
+A task may set its own `repo` and `base_commit`, overriding the file-level
+defaults; the Swift tasks use `~/git/monitor` this way. The harness needs only
+a git repo, a way to run its tests, and tests that fail when code is removed.
+Results from a new repository are a new series and never pool with another
+repository's. `scripts/sync_sandbox_targets.py` reads `tasks.toml`, so the
+sandbox clone follows on its own.
 
 ---
 
@@ -778,12 +677,16 @@ removed.
 Stated plainly, so nobody over-reads the results:
 
 - **Code quality.** A passing solution may be unidiomatic, slow, or insecure.
-- **Long-horizon work.** Every task is a single function. Nothing here tests
-  multi-file refactors, or work spanning hours and compactions.
+  The gates and held-out tests above are signals beside the verdict, not a
+  quality score.
+- **Long-horizon work.** The largest task is a five-commit span of about 1,600
+  added lines (`replay-span-web-ui`). Nothing here tests work spanning hours
+  and several context compactions.
 - **Ambiguity handling.** The tasks are unambiguous by construction. Real work
   is not, and knowing when to ask is a large part of being useful.
-- **Reading comprehension at long context.** Tasks fit comfortably in both
-  models' windows. Long-context *quality* remains unmeasured — the same gap
-  noted in `benchmarks/ds4/0731/claude_code_recommendations.md`.
+- **Reading comprehension at long context.** Tasks fit comfortably in every
+  backend's window. Long-context *quality* remains unmeasured — the same gap
+  noted in
+  [`ds4/0731/claude_code_recommendations.md`](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/0731/claude_code_recommendations.md).
 - **Tool breadth.** No web access, no MCP servers, no subagents.
 - **Recovery from its own mistakes** beyond what a single task exercises.

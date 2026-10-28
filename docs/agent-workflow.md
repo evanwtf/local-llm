@@ -3,12 +3,11 @@
 How an agent works in this repo: which document holds what, git and issues,
 timestamps and spelling, managing a peer, and cutting a release. **Read the
 relevant section before you file an issue, commit, branch, manage a peer agent,
-or tag a release.** More than one agent works here, one per machine; the
-five-document loop is what keeps their output something a person can act on.
+or tag a release.**
 
 The short forms live in [`../AGENTS.md`](../AGENTS.md).
-[`peer_agents.md`](peer_agents.md) covers how two agents share this repo and
-this machine — read it before delegating or taking work from another agent.
+[`peer_agents.md`](peer_agents.md) covers how agents share the repo and a
+machine. Read it before you delegate work or take work from another agent.
 
 ---
 
@@ -16,171 +15,105 @@ this machine — read it before delegating or taking work from another agent.
 
 This project measures a fixed set of machines, listed in
 [`../hardware/MACHINES.md`](../hardware/MACHINES.md) and defined once in
-`scripts/machines.py`. Anyone may run this code. Most will not be on one of our
-machines, and the published numbers come from ours.
-
-Check which case you are in before you compare a result:
+`scripts/machines.py`. Anyone may run this code, but the published numbers come
+from our machines. Check which case you are in before you compare a result:
 
 ```sh
 uv run python scripts/machines.py --check
 ```
 
-It prints the machine when the hardware matches the registry, and exits 1 with
-a warning when it does not. A machine that is not in the registry still runs the
-code. Its numbers do not match the published ones: a close card is not the same
-card, and a 3090 is not our 3080 Ti.
+It prints the machine when the hardware matches the registry. It exits 1 with a
+warning when it does not. An unregistered machine still runs the code, but its
+numbers do not match the published ones: a close card is not the same card.
 
-The machine label is the slug from `scripts/hardware_id.py`. A machine finds its
-own issues with its own label:
+The machine label is the slug from `scripts/hardware_id.py` under the
+`hardware:` namespace. A machine finds its own issues with its own label:
 
 ```sh
 gh issue list --label "hardware:$(uv run python scripts/hardware_id.py --slug)"
 ```
 
-The machine label is the slug under a `hardware:` namespace; the slug itself
-stays the bare identity (`--slug` prints it). `platform:macOS` and
-`platform:Nvidia` are broad class tags under the `platform:` namespace (#302).
-They do not identify a machine:
-the RTX 3080 Ti desktop and the DGX Spark are both `platform:Nvidia`. An issue that
-consumes a machine's time carries one machine label as well.
+`platform:macOS` and `platform:Nvidia` are broad class tags (#302). They do not
+identify a machine. An issue that uses a machine's time also carries one
+machine label.
 
-Name the machine in the third person in every record -- an issue, a commit, a
+Name the machine in the third person in every record: an issue, a commit, a
 results document, a sweep. Do not write "this machine", "this box", or "here".
-Three agents read this repo, one per machine, and a relative term points at a
-different machine for each reader (#302).
+Each machine has its own agent, so a relative term points at a different
+machine for each reader (#302).
 
-## An issue is a public work log, not a drafting area (2026-09-06)
+## An issue is a public work log
 
-An issue in this repo is the public record of a task. It holds **what we did
-and what we measured**, in the order it happened. That is all it holds.
+An issue holds **what we did and what we measured**, in the order it happened.
+Write each comment so it still reads as a result a month later: what ran, on
+what tree, how many runs, the numbers, and what was thrown away.
 
-**Do not post upstream drafts here.** No "DRAFT for the operator to post to
-<upstream>", no "READY TO POST", no v2/v3/v4 of the same text superseding each
-other in the thread. If something is going upstream, the operator writes and
-posts it; our issue is where the results it draws on already live, stated for
-our own readers.
-
-**Link the upstream issue once, in the opening post.** Every later comment
-repeating the link adds nothing -- the reader arrived through the first one.
-
-Why this is a rule and not a preference: the drafts crowd out the log. #162
-reached twelve comments of which five were versions of one unsent upstream
-reply, and a reader looking for the q4/q8 numbers had to work out which draft
-was current before they could find a measurement. Superseded drafts also age
-badly in a way results do not -- a number stays true, a draft addressed to a
-person in a conversation that has moved on does not.
-
-Write each comment so it still reads as a result a month later: what was run,
-on what tree, how many runs, what the numbers were, and what was thrown away.
-Second-person framing ("the re-test you asked for") belongs in the reply that
-is actually sent to that person, not in the log.
+- **Address findings to the operator** (operator, 2026-09-07). The operator
+  decides what a machine does next. Not the upstream PR author.
+- **Do not draft upstream replies**, in the issue or anywhere else. Whether
+  anything goes upstream, and in whose words, is the operator's call. Drafts
+  crowd out the log: #162 reached twelve comments, five of them versions of one
+  unsent reply.
+- **Never post to a repository outside `evanwtf` or `evandhoffman`.** Read
+  upstream, file here.
+- **Link the upstream issue once**, in the opening post. When an upstream
+  thread bears on our numbers, note it in one sentence on our issue.
+- **Put the evidence in the repo**: a committed `evidence/*.json`, the script
+  that produced it, and its tests. A finding that lives only in a comment is
+  not evidence.
+- Do not post the periodic status update to an issue. It goes in chat
+  ([`../AGENTS.md`](../AGENTS.md), *Writing it down*).
 
 ## Every time and date is ISO 8601, America/New_York, with an explicit offset (2026-09-06)
 
-**One representation, everywhere: `YYYY-MM-DDTHH:MM:SS±hhmm`.** In rows, in
-manifests, in logs, in issue comments, in commit messages, in evidence
-artifacts. Local time on the machine that does the work, a literal `T`, seconds
-precision, and the UTC offset always written out.
-
-```
-2026-09-06T17:16:48-0400
-```
-
-The offset is not optional. A naive `2026-09-06T17:16:48` is the format that
-caused every problem below; it is indistinguishable from a UTC timestamp and
-silently four or five hours wrong.
-
-This is what both tools emit natively on this machine, with no post-processing:
+**One representation everywhere: `YYYY-MM-DDTHH:MM:SS±hhmm`.** This applies to
+rows, manifests, logs, issue comments, commit messages and evidence. Use local
+time on the machine that does the work, a literal `T`, seconds precision, and
+the UTC offset.
 
 ```sh
-date +%Y-%m-%dT%H:%M:%S%z
+date +%Y-%m-%dT%H:%M:%S%z                                 # 2026-09-06T17:16:48-0400
 ```
 
 ```python
-from datetime import datetime
-
 datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
 ```
 
-### Always parse before comparing. This is a rule, not a preference.
+A naive `2026-09-06T17:16:48` looks the same as a UTC timestamp and is silently
+four or five hours wrong.
 
-A UTC timestamp sorts correctly as plain text. **A local one does not.** On
-2026-11-01, `01:30:00-04:00` and `01:30:00-05:00` are an hour apart in real
-time but sort in the wrong order as strings, and the wall-clock hour 01:00 to
-02:00 occurs twice. Choosing local time buys readability — `17:16` reads as
-five in the afternoon, which matters when correlating a run against what the
-operator was doing — and it costs the string-sorting shortcut. Take the trade
-and parse.
+### Always parse before comparing
+
+A local timestamp does not sort correctly as text. On 2026-11-01,
+`01:30:00-04:00` and `01:30:00-05:00` are an hour apart but sort in the wrong
+order, and the hour from 01:00 to 02:00 occurs twice. Local time buys
+readability when you correlate a run with what the operator was doing. It costs
+the string-sort shortcut, so parse:
 
 ```python
-from datetime import datetime
-
 START = datetime.fromisoformat("2026-09-06T17:16:00-0400")
 cur = [r for r in rows if datetime.fromisoformat(r["started"]) >= START]
 ```
 
-```sh
-now=$(date +%s)                       # compare as epoch, after resolving
-```
+Never compare `HH:MM`, a truncated timestamp, or two timestamps with different
+offsets (or one with none). Each of these has bitten us: a row file in naive
+EDT joined to a manifest in UTC (four hours wrong, no error); a shell cutoff
+that compared `$(date +%H:%M)` to `09:15` and failed open after midnight
+(#175); and a readout filter on a truncated string that worked only because
+every value had the same length.
 
-Never compare `HH:MM`. Never compare a truncated timestamp. Never compare a
-timestamp carrying one offset against one carrying another, or against one
-carrying none.
+`tests/test_iso8601_timestamps.py` fails on a data file with a non-canonical
+timestamp, and on a shell script that string-compares `date +%H:%M`.
+`scripts/backfill_iso8601.py` converted the old values once.
 
-### Why, with the three that bit us
+### Log lines
 
-**Two formats in the two files one readout joins.** `results-*.jsonl` carried
-167 rows of naive local `started`/`finished`; the manifest beside it carried
-UTC `started`/`ended` with a `Z`. Anything comparing a row against its manifest
-entry was comparing EDT to UTC — four hours wrong, no error, no warning.
-
-**A cutoff that fails open across midnight.** `targets_ab.sh` and
-`strip_toggle_ab.sh` compared `$(date +%H:%M)` against an `HH:MM` string. At
-00:30 against a 09:15 cutoff that comparison is false, so the guard never fires
-and the batch runs on. `strip_toggle_ab.sh` **defaulted** to `09:15` — a
-morning cutoff means an overnight batch, so the default configuration was the
-broken case. That branch exists to enforce "a partial batch is no result", so
-the guard failing open produces exactly the outcome it was written to prevent.
-See #175.
-
-**A readout filter that worked by luck.** `started >= "2026-09-06T17:16"`
-compares a truncated string against full timestamps. It selected the right rows
-only because every value in that file happened to be 19 characters with no
-offset and no sub-second part. One row in another shape and rows join or leave
-the batch silently.
-
-All three are the same mistake: **a string comparison of timestamps is correct
-only under assumptions nobody restates when they add the next caller.**
-
-### Enforced, not asserted
-
-`tests/test_iso8601_timestamps.py` fails on a data file whose timestamp fields
-are not canonical, and on a shell script that compares `date +%H:%M` output as
-a string. `scripts/backfill_iso8601.py` converts the existing naive and
-`Z`-suffixed values; it runs once, and the test is what keeps them converted. A
-convention that lives only in this document is a convention that drifts.
-
-### Log lines too -- they were the exception until 2026-09-09
-
-This section has said "in logs" since it was written, and until 2026-09-09 the
-logs were the one place it was not true. Python's default `asctime` is
-
-```
-2026-09-09 07:00:12,481          the default: a space, a comma, no offset
-2026-09-09T07:00:12-0400         what every row and manifest here carries
-```
-
-A space where ISO 8601 wants `T`, a comma where it wants a dot, and no offset
-at all -- the exact shape the rest of this section exists to forbid. It
-mattered because log lines get joined to rows by hand: *the server said X at
-07:00:12, which row was that?* is a question you cannot answer from a
-timestamp with no zone.
-
-**`scripts/lib/logs.py` owns the format, and nothing else may call
-`logging.basicConfig`.** `tests/test_logging_format.py` fails on any tracked
-file that does, and asserts against a line the logger actually wrote -- not
-against the format constant, because a constant can be right while the handler
-never uses it.
+**`scripts/lib/logs.py` owns the log format, and nothing else may call
+`logging.basicConfig`.** Python's default `asctime` (`2026-09-09 07:00:12,481`)
+has a space, a comma, and no offset, so you cannot join a log line to a row.
+`tests/test_logging_format.py` fails on any tracked file that calls
+`basicConfig`. It asserts against a line the logger actually wrote, not the
+format constant.
 
 ```python
 import logs
@@ -189,102 +122,68 @@ logs.configure()  # a driver: time, module, level, message
 logs.configure(fmt=logs.PLAIN)  # a report: the table, and nothing else
 ```
 
-`PLAIN` is the one exemption and it is narrow. Several scripts render a
-markdown table through the logger, because `print` is forbidden; a timestamp
-on every row makes the table unpastable. `PLAIN` carries **no** timestamp, so
-there is no second date format -- an exemption from stamping, not from ISO
-8601.
+`PLAIN` carries no timestamp at all, so a markdown table rendered through the
+logger stays pasteable. It is not a second date format.
 
-`force` defaults to False, as `basicConfig`'s own does. Setting it True tears
-down the root logger's handlers, and under pytest one of those is `caplog`'s:
-defaulting it True failed 50 tests at once, every one of them asserting on a
-message its script had written correctly to a handler that had just been
-removed.
+`force` defaults to False. True removes the root logger's handlers, including
+pytest's `caplog` handler: a True default failed 50 tests at once.
 
-(The harness-commit stamp that rides on top of this format is
-[Stamp every line with the code that produced it](measurement-discipline.md#stamp-every-line-with-the-code-that-produced-it).)
+The harness-commit stamp on top of this format is
+[Stamp every line with the code that produced it](measurement-discipline.md#stamp-every-line-with-the-code-that-produced-it).
 
-## Absolute URLs in issue and PR comments (2026-09-06)
+## Absolute URLs in issue and PR comments
 
 A relative link works in a repo markdown file and **404s in an issue or PR
-comment**. The two are rendered with different base paths, so
-a link written in the relative form -- square brackets, then `../tree/main/...`
-in parentheses -- resolves against the comment's own URL and lands nowhere.
-
-Write the full URL in any comment:
+comment**, because the comment resolves it against its own URL. Write the full
+URL in a comment:
 
 ```
 https://github.com/evanwtf/local-llm/tree/main/benchmarks/ds4/pr952-f309990-run1
 ```
 
-Relative links stay correct inside `AGENTS.md` and the rest of the
-tree, where the base path is the file's own directory.
+**Fetch a link before you post a comment whose value is the link**
+(`curl -s -o /dev/null -w '%{http_code}' <url>`). A broken link once cost an
+upstream maintainer the raw data he had asked for.
 
-This cost an upstream maintainer a 404 on the raw data he had just asked for --
-the worst place to spend a broken link, because the whole point of publishing the
-CSVs is that he does not have to take our medians on trust. **Check a link by
-fetching it** (`curl -s -o /dev/null -w '%{http_code}' <url>`) before posting a
-comment whose value is the link.
+## Check the field before you conclude something is not possible
 
-## Check the field before concluding something is not possible
+[`../SOURCES.md`](../SOURCES.md) lists who to watch and how to sweep them. Sweep
+when a result looks anomalous, when you plan a week, or before you conclude
+that something cannot be done on a machine.
 
-[`../SOURCES.md`](../SOURCES.md) lists who to watch on X and how to sweep them safely.
-Run it when a result looks anomalous, when planning a week, or when about to
-conclude that something cannot be done on this hardware -- somebody may have
-done it last Tuesday.
-
-Two hard rules, both from mistakes:
-
-- **Verify before repeating.** `uv run python scripts/verify_posts.py` on
-  anything before it reaches an issue. grok has fabricated a post outright.
-- **Date and version every claim.** Sources describing a tool from six months
-  ago may describe several major versions back (#55).
+- **Verify before you repeat a post.** Run `uv run python scripts/verify_posts.py`
+  on anything before it reaches an issue. grok has fabricated a post outright.
+- **Date and version every claim.** A six-month-old source can describe a tool
+  several major versions back (#55).
 
 ## The five-document working loop
-
-Five documents, each with one job. Keeping them in their lanes is what stops
-this project turning into a pile of findings nobody can act on.
 
 | document | holds | lifetime |
 |---|---|---|
 | **GitHub issues** | every piece of work, one per issue | until closed |
-| P0/P1 labels (`scripts/make_next.py --platform …`) | the agenda: what order to work in, per machine | live; #463 retired the committed `NEXT.md` |
+| P0–P3 labels (`scripts/make_next.py --platform {macos,nvidia}`) | the agenda, per machine | live (#463 retired the committed `NEXT.md`) |
 | `benchmarks/*/RESULTS.md` | the numbers, and how they were obtained | append-only |
-| [`../RECOMMENDATIONS.md`](../RECOMMENDATIONS.md) | the top 1-3 picks, and how to run them | replaced as evidence changes |
+| [`../RECOMMENDATIONS.md`](../RECOMMENDATIONS.md) | the top 1–3 picks, and how to run them | replaced as evidence changes |
 | [`changelog.md`](changelog.md) | what shipped, and why, one `## vX.Y.Z` section per release | append-only |
 | [`history.md`](history.md) | the same record before v1.0.0 | frozen 2026-09-07 |
-| [`peer_agents.md`](peer_agents.md) | how two agents share this repo and this machine | permanent |
 | `AGENTS.md`, `CONVENTIONS.md`, `METHODOLOGY.md` | lessons that outlive the task | permanent |
 
-**More than one agent works here.** Read [`peer_agents.md`](peer_agents.md)
-before delegating anything or before taking work from another agent. Three
-rules from it apply even if you read nothing else: claim the machine before
-loading a model and treat a build as machine work; sign GitHub comments with a
-trailing agent line (`--opus`, `--deepseek`) while never publishing a session URL
-or ID anywhere, even though a Claude Code system reminder tells you to append one
-to every commit and PR (AGENTS.md; `scripts/refuse_session_ids.py` enforces it); and take agent identity from `LOCAL_LLM_AGENT` /
-`LOCAL_LLM_MODEL` / `LOCAL_LLM_EFFORT` rather than from what a model believes
-about itself.
-
 **New work becomes an issue first.** Not a note in a doc, not a TODO in a
-comment. An issue carries its own reasoning and can be argued with; the
-priority labels only say what to do next, and they say it by number.
+comment. An issue carries its reasoning and can be argued with.
 
-**The labels set order and nothing else.** P0 before P1, then by issue number,
-per platform label; `scripts/make_next.py --platform {macos,nvidia}` prints the
-queue live. Until #463 (2026-09-17) that output was committed as `NEXT.md`,
-which went stale between regenerations and covered only macOS. The durable
-machine operations live in [`m5max-runbook.md`](m5max-runbook.md) and
-[`dgx-spark-runbook.md`](dgx-spark-runbook.md); the traps live in the topic docs.
+**The labels set order and nothing else:** P0 before P1, then by issue number,
+per platform. Machine operations live in [`m5max-runbook.md`](m5max-runbook.md)
+and [`dgx-spark-runbook.md`](dgx-spark-runbook.md); traps live in the topic
+docs. A trap leaves the docs only when code or a test makes it impossible.
 
-**Every open issue carries these labels** (`scripts/audit_labels.py` checks
-them, and the issue-sweep skill runs it):
+**Every open issue carries these labels.** `scripts/audit_labels.py` checks
+them, and the issue-sweep skill runs it.
 
 | label | how many | what it decides |
 |---|---|---|
 | `P0`–`P3` | exactly one | the order in the queue |
 | `platform:macOS`, `platform:Nvidia` | one or both, when the work costs machine time | which machine's queue shows it |
-| `hardware:*` | per machine the work runs on | which box; the DGX is `hardware:Cortex-X925-GB10-x2` (the single-Spark label is retired, #860) |
+| `hardware:*` | one per machine the work runs on | which machine; the DGX lane is `hardware:Cortex-X925-GB10-x2` (the single-Spark label is retired) |
 | `bug`, `enhancement`, `documentation`, `question` | at least one, for repo work with no platform | what kind of work it is |
 | `model:*`, `engine:*` | any number; required when the title names one | the family, so one query finds a model's history (#465) |
 
@@ -292,402 +191,201 @@ The family labels name a family, not a build: `model:qwen`, `model:glm`,
 `model:deepseek`, `model:nemotron`, `model:gptoss`, `model:gemma`,
 `model:llama`, `model:minimax`, `model:other`; `engine:vllm`,
 `engine:llamacpp`, `engine:dwarfstar` (antirez's ds4 engine, not the DeepSeek
-family), `engine:mlx` (MLX, oMLX, mlx-serve, mtplx), `engine:ollama`,
-`engine:sglang`, `engine:trtllm`, `engine:exl3`. The quant and revision go in
-the body.
+family), `engine:mlx`, `engine:ollama`, `engine:sglang`, `engine:trtllm`,
+`engine:exl3`, `engine:tensorfold`. The quant and revision go in the body.
 
-**Close the loop the same day you finish.** When a task lands:
+**Close the loop the same day you finish:**
 
-1. **Comment on the issue** with what was found -- including the parts that
-   contradict the issue's own premise. #26 was opened blaming a KV cache and the
-   data refuted it; #4 named a blocker that turned out never to have existed.
-   Write that down. An issue closed with "done" teaches nobody.
+1. **Comment on the issue** with what you found, including what contradicts the
+   issue's own premise. #26 blamed a KV cache and the data refuted it.
 2. **Close it.** A finished issue left open makes the agenda lie.
-3. **Give the lesson a permanent home** -- a topic doc, a runbook, a test --
-   before or as the issue closes. A finding recorded only in a closed issue
-   has not landed anywhere yet.
+3. **Give the lesson a permanent home**: a topic doc, a runbook, or a test. A
+   finding that lives only in a closed issue has not landed.
 
-**Two things exempt from pruning moved out of `NEXT.md` (2026-09-04).** "Traps
-worth not rediscovering" now live in the topic docs, and the durable machine
-operations in [`m5max-runbook.md`](m5max-runbook.md) — the queue file
-carries only the ranked table and one machine-state snapshot, rewritten each
-session. A trap leaves the docs only when it becomes impossible — fixed in
-code, or pinned by a test that would go red first. Prefer that to prose: an
-entry that can be made mechanical should be.
-
-**Branch per piece of work, then open a PR and let CI merge it.** `main` is
-branch-protected, and **agents never push to it directly** — the old
-`--ff-only` merge to `main` is retired (see the guardrail note below for why
-that is a rule, not something GitHub enforces on our account). The gate is not
-a human reviewer: **no approval is required.** A green CI is the whole gate. When the work is done, push the branch,
-open a PR, and turn on auto-merge; the PR merges itself the moment the required
-`pytest` check passes.
-
-```sh
-git checkout -b <kind>/<issue>-<slug>     # docs/24-..., analysis/26-..., tasks/4-...
-# ... work, commit as you go ...
-git push -u origin <branch>
-gh pr create --fill                       # title/body from the commits
-gh pr merge <n> --auto --squash           # merges when `pytest` is green; deletes the branch
-```
-
-The protection enforces: the required `pytest` check must pass, and the branch
-must be up to date with `main` first (`strict`). **Squash every PR** (the
-operator, 2026-10-27: "I want to make sure we always squash before merging
-PRs"). The repo settings allow no other merge method, so a stale `--merge`
-fails with an error. Until 2026-10-27 this repo required merge commits, because
-a squash drops the branch's commits and orphans a `harness_head` a run stamped
-on one (#355). That risk is now closed at launch: `run.py` refuses a live run
-from a commit that is not on `main` (see below, #1281).
-
-**The protection is a guardrail, not a permission boundary.** Every agent
-session and the operator push as the same GitHub account, an admin, and the
-protection does not bind admins (`enforce_admins` is off). So GitHub will not
-stop a mistaken direct push to `main` from any of us — do not rely on it to
-catch one. The rule is enforced by discipline: agents never push to `main`
-directly and never bypass a failing check. Only the operator decides to
-override. (A push rejected as `non-fast-forward` is the `strict` up-to-date
-rule or a race, not protection.) If auto-merge stalls, read the check — a red
-`pytest`, or a branch behind `main`, is the usual cause.
-
-**The branch is deleted on merge automatically** (the repo has
-`delete_branch_on_merge`, and `gh pr merge` deletes it too). A merged branch left
-behind reads as work still in flight; auto-delete removes that clutter. Three of
-them accumulated before this was enforced, stacked on each other, and `main` sat
-fourteen commits behind the code its own README described.
-
-The branches here are often a stack -- each built on the last, because the next
-task starts before the previous is merged. With protected `main` and `strict`
-checks, a dependent branch must be **rebased onto `main` after its parent's PR
-merges**. The squash put the parent's work on `main` as one new commit, so
-replay only the child's own commits:
-`git rebase --onto origin/main <parent-branch-tip> <child-branch>`. A plain
-`git rebase origin/main` replays the parent's commits too and conflicts with
-their squashed copy. Open and auto-merge the PRs bottom-up. Do not try to merge
-a branch whose base has not landed yet.
-
-**Once a run stamps a commit's sha into rows, that sha must stay an ancestor of
-`main`.** `harness_head` is a row's answer to "which harness produced this", and
-a rebase after the run started rewrites the commit, leaving the rows pointing at
-a sha that is no longer in the history -- `git gc` then collects it and the
-provenance is a dangling pointer. On 2026-09-14 this orphaned 65 GB10 rows
-(#355): the measurements were sound, the trees identical, only the parents
-changed, but the rows would have wrongly classified as pre---`--dir` and been
-dropped.
-
-**So a live run starts only from a commit on `main`, and `run.py` enforces it**
-(#1281). Before it writes a row, `run.py` checks that `HEAD` is `origin/main`
-or one of its ancestors (`provenance.on_main`), and refuses otherwise. PRs
-squash-merge, so a branch commit never reaches `main`; a run from one would
-stamp a sha that `main` does not hold, on every PR. Merge the PR first, then
-run from `main`. `--dry-run` runs no agent and marks its rows, so it may run
-from a branch. The check reads the local `origin/main` and does not fetch: if
-it refuses a commit that is on `main`, run `git fetch` and retry.
-
-The ledgers before the switch are safe. On 2026-10-27, 1,858 of 13,459 stamped
-rows (48 commits) named a commit that reached `main` only inside a merged
-branch. The merge commits that brought those branches in still hold them, so
-they stay ancestors of `main`.
-
-Recovering the orphans without rewriting a recorded row is
-`dirfix.REBASED_AFTER_FIX`: it maps each orphaned sha to the reachable ancestor
-it was rebased into, so the rows classify correctly while `harness_head` stays
-as written (annotate, never rewrite).
-
-**Results go to the `RESULTS.md` for the area that produced them** --
-`benchmarks/agent/`, `benchmarks/llamacpp/`, `benchmarks/ollama/`,
-`benchmarks/ds4/coding/`. Raw rows live in `results.jsonl` and are the record;
-`RESULTS.md` is the narrative over them, layered by date, and **corrections are
-added rather than substituted.** A superseded finding stays visible with a
-marker saying what replaced it. See
+**Results go to the `RESULTS.md` for the area that produced them.** Raw rows in
+`results.jsonl` are the record. `RESULTS.md` is the narrative over them, and
+**corrections are added, not substituted**: a superseded finding stays visible
+with a marker. See
 [Keep the historical record honest](../CONVENTIONS.md#keep-the-historical-record-honest).
 
 **`RECOMMENDATIONS.md` answers one question: what should someone run today?**
-The table at the top holds **one to three pairings** -- a model *and* a client,
-never a model alone -- with the commands to start each. Everything below it is
-support for that table: why a backend was ruled out, what a correction changed.
-When new evidence moves the top table, say what it used to say and why it moved.
-It has been wrong twice, and both times the old claim is more useful visible
-than deleted.
+Its top table holds one to three pairings, a model *and* a client, with the
+commands to start each. When new evidence moves the table, say what it used to
+say and why it moved.
 
-## Post periodic status every 30 minutes during long runs
+## Branches, pull requests, and the merge gate
 
-Benchmark runs here take hours. A silent agent is indistinguishable from a
-stalled one, so **report every 30 minutes** while anything long is running — a
-matrix, a model download, a build. The same cadence applies while an autonomous
-operator is idle.
+**Branch per piece of work, open a PR, and let CI merge it.** `main` is
+branch-protected and **agents never push to it directly**. No human approval is
+required: the required `pytest` check is the whole gate.
 
-Each update states:
+```sh
+git checkout -b <kind>/<issue>-<slug>     # docs/24-..., analysis/26-..., tasks/4-...
+git push -u origin <branch>
+gh pr create --fill
+gh pr merge <n> --auto --squash           # merges when `pytest` is green; deletes the branch
+```
 
-- what finished since the last update, with the numbers;
-- what is running now;
-- the revised estimate to completion.
+- **The branch must be up to date with `main`** (`strict`). A
+  `non-fast-forward` rejection is that rule or a race.
+- **Squash every PR** (operator, 2026-10-27). The repo allows no other merge
+  method.
+- **Protection is a guardrail, not a permission boundary.** Every agent and the
+  operator push as the same admin account, and `enforce_admins` is off, so
+  GitHub does not stop a mistaken push to `main`. Never push to `main` and never
+  bypass a failing check. Only the operator decides to override.
+- **If auto-merge stalls, read the check.** A red `pytest` or a branch behind
+  `main` is the usual cause.
+- **Rebase a stacked branch after its parent merges.** The squash put the
+  parent on `main` as one new commit, so replay only the child's commits:
+  `git rebase --onto origin/main <parent-branch-tip> <child-branch>`. A plain
+  `git rebase origin/main` replays the parent too and conflicts with its
+  squashed copy. Merge bottom-up.
 
-Say so plainly when nothing has changed. "Still on trial 7, no results yet" is a
-valid update and is better than silence. Report a completion, failure, blocker,
-or operator decision immediately instead of waiting for the next tick. Do not
-add a second, shorter periodic loop; it creates noise without improving the
-operator's view.
+### A live run starts only from a commit on `main` (#1281)
 
-This rule exists because the cadence has been dropped mid-run before, and the
-operator had to ask where the updates went. Thirty minutes is the intended
-balance between observability and update spam.
+A row's `harness_head` answers "which harness produced this". The sha must stay
+an ancestor of `main`, or `git gc` collects it and the provenance dangles. A
+rebase after a run started orphaned 65 GB10 rows this way (#355). A squash
+merge drops every branch commit, so a run from a branch has the same defect.
+
+`run.py` checks that `HEAD` is `origin/main` or one of its ancestors
+(`provenance.on_main`) before it writes a row, and refuses otherwise. **Merge
+the PR first, then run from `main`.** `--dry-run` runs no agent and marks its
+rows, so it may run from a branch. The check reads the local `origin/main`: if
+it refuses a commit that is on `main`, run `git fetch` and retry.
+
+Rows from before the squash policy are safe: the merge commits still hold their
+shas. `dirfix.REBASED_AFTER_FIX` maps the #355 orphans to the reachable commit
+each was rebased into, so the rows classify correctly while `harness_head`
+stays as written.
+
+## Before you run a queued measurement, check the repo
+
+A queue entry can be stale. #162 Task 4 was listed as pending after one knob had
+been settled in `724b70f` and never posted. The rerun then wrote into a tracked
+VOID directory, and `mkdir -p` does not clear one (#208).
+
+- Run `git ls-files benchmarks/ | grep <thing>` before you launch anything the
+  queue calls pending. A tracked run directory is the answer.
+- **Post the issue comment in the same turn as the commit.** A result that is
+  committed but unpublished is invisible to the reader most likely to redo it.
 
 ## Finishing a batch includes regenerating the derived documents
 
-New rows in `results.jsonl` make `RECOMMENDATIONS.md` stale by definition — its
-tables are a function of that file, and `test_recommendations.py` fails until
-they are regenerated:
+New rows in `results.jsonl` make the generated tables stale, and
+`test_recommendations.py` fails until you regenerate them:
 
 ```sh
 uv run python benchmarks/agent/splice_tables.py
 ```
 
-The failing test is correct behavior, not noise. A document quoting a pass
-rate the data no longer supports is exactly what this project has published
-three times.
+The failing test is correct behavior. A document that quotes a pass rate the
+data no longer supports is what this project has published three times. The
+check skips while a batch is running, because `results.jsonl` is mid-write.
+Re-splice at the end of a batch.
 
-**While a batch is running the check skips**, because `results.jsonl` is
-mid-write and the document is being compared against a moving target — an
-unrelated commit should not be blocked by a run in flight. It is meaningful
-only once the data is quiescent, which is why re-splicing belongs at the end of
-a batch rather than during one.
-
-When you commit the regenerated tables, **read pytest's exit code, not the last
-line of its output** — `pytest -q | tail -2 && git commit` always commits and
-has put a red commit on main. The full trap is
-[Check the exit status, not the tail](automation-hazards.md#check-the-exit-status-not-the-tail-2026-09-01-twice).
+**Read pytest's exit code, not the last line of its output.** See
+[Check the exit status, not the tail](automation-hazards.md#check-the-exit-status-not-the-tail).
 
 ## American English spellings only (2026-09-05)
 
 Write `behavior`, `favor`, `optimize`, `summarize`, `normalize`, `recognize`,
-`judgment`, `defense`, `artifact`, `license`, `labeled`, `modeling`. Not the
-British forms. This holds in Markdown, in code comments and docstrings, in
-commit messages, and in issue and PR text.
+`judgment`, `defense`, `artifact`, `license`, `labeled`, `modeling`. This holds
+in Markdown, code comments, docstrings, commit messages, and issue and PR text.
+British forms arrived by drift (52 against 19 on 2026-09-05), and an unstated
+convention follows whoever wrote last.
 
-**Why it needed writing down.** Nobody chose British spellings; they arrived by
-drift. On 2026-09-05 the operator asked why the writing said "favour", and a
-count found the repo already at 52 British forms against 19 American --
-`behaviour` alone 25 times -- because an agent wrote most of these documents
-and then read them back as house style. A convention nothing states is a
-convention that ratchets in whatever direction the last writer happened to
-lean.
+**Do not trust a blanket prefix substitution.** Check every word it introduces:
 
-**Two traps, both hit on the first attempt at fixing this.** A blanket
-prefix substitution is wrong:
+- `analys` → `analyz` makes "analyzis". Keep *analysis*; the verb is *analyze*.
+- `characteris` → `characteriz` makes "characteriztic".
+- `optimis` → `optimiz` makes "optimiztic".
 
-- `analys` -> `analyz` turns **analysis** into "analyzis". American keeps the
-  `-sis` noun and takes the `-yze` verb: *analysis*, but *analyze*.
-- `characteris` -> `characteriz` turns **characteristic** into
-  "characteriztic". Same shape: *characteristic*, but *characterize*.
-- `optimis` -> `optimiz` turns **optimistic** into "optimiztic".
+**Do not rewrite text that is not ours:**
 
-Check every word a substitution introduces, one at a time. Do not trust the
-rule.
+- **Quotations**: a quoted post, model output, or upstream comment. A spelling
+  pass once rewrote a model's own words inside `LADDER2_FINDINGS.md`. A changed
+  quotation is a misquote. Model transcripts under `benchmarks/**/ladder2/` are
+  quotations.
+- **Preserved evidence**: `logs/sweeps/` holds what a source said.
+- **Archived snapshots**: `docs/archive/` is what a document said on a date.
 
-**Do not rewrite text that is not ours.** Three categories are off limits, and
-the first was already violated once:
+**Code identifiers are out of scope.** Rename one deliberately, in its own
+commit, or leave it.
 
-- **Quotations.** A quoted post, a quoted model output, a quoted upstream
-  comment. On 2026-09-05 a spelling pass rewrote a model's own words inside
-  `LADDER2_FINDINGS.md` -- the quote said "expected behaviour of a flawed
-  metric" and the transcript it quotes still does. Changing a quotation to suit
-  our style makes it a misquote, which is the same defect as
-  [Keep the historical record honest](../CONVENTIONS.md#keep-the-historical-record-honest) one
-  layer down.
-- **Preserved evidence.** `logs/sweeps/` holds gather archives that
-  verification ran against. They are records of what a source said, not our
-  prose.
-- **Archived snapshots.** `docs/archive/` is what a document said on a date.
+## Check a peer every 20 minutes, and check what it is doing
 
-Model transcripts under `benchmarks/**/ladder2/` are in the first category:
-they are what the model wrote.
+**Operator rule, 2026-09-07.** When you manage a peer agent, check its status
+every 20 minutes and confirm it is working. Idle is acceptable only when you
+asked for idle. Two failures were invisible from the managing session: a peer
+blocked for hours on a permission prompt, and a peer that sat 47 minutes after
+its push went red in CI. Nothing tells an agent its CI failed.
 
-**Code identifiers are out of scope.** A local variable named `centre` is a
-code change with no documentation benefit; leave it, or rename it deliberately
-in its own commit.
-
-## Write findings for the operator, in our own issues. Do not draft upstream replies
-
-**Operator instruction, 2026-09-07, and it supersedes what this section said
-before:**
-
-> Don't draft a report. Just make sure the evidence is in the repo and address
-> the findings to me, not an outside/upstream contributor. And just comment
-> directly in the local issue.
-
-So the rule is short:
-
-- **The audience of every issue comment is the operator.** Not the author of
-  the upstream PR, not the person who asked on their tracker. Write it to the
-  person who has to decide what this machine does next.
-- **The evidence belongs in this repo** -- a committed `evidence/*.json`, the
-  script that produced it, and its tests. A finding that lives only in a
-  comment is not evidence, and one that lives only in a scratchpad is not even
-  that.
-- **Do not draft upstream replies.** Not as a deliverable, not "in case it is
-  wanted". Whether anything goes upstream, and in whose words, is the
-  operator's call and not a gap for an agent to fill.
-- **Never post to a repository outside `evanwtf` or `evandhoffman`.** Unchanged,
-  and now with nothing to draft it is simply the whole of the outward policy:
-  read upstream, file here.
-
-### What the earlier version got wrong
-
-It said *"an upstream ask is not closed until the answer is upstream"*, and
-made a drafted reply the deliverable whenever an upstream thread asked us
-something. Written after ds4#952 sat unanswered for eighteen hours, which felt
-like a lapse.
-
-It is not our obligation. This project measures a machine for its operator;
-being a responsive participant in someone else's thread is a thing the
-operator may choose, not a duty the harness discharges on their behalf. The
-earlier rule also produced work nobody asked for -- a full reply drafted on
-2026-09-07 that was never wanted, and would have published numbers from a
-commit the branch had already moved past.
-
-Keep the one part that still holds: **note when an upstream thread bears on
-our numbers**, on our own issue, in a sentence. That is context for the
-operator, not a reply queued on their behalf.
-
-## Check a peer every 20 minutes, and check what it is DOING
-
-**Operator rule, 2026-09-07.** When you are managing a peer agent, check its
-status every twenty minutes and confirm it is working. Idle is acceptable only
-when idle is what you asked for.
-
-Both failures that produced this rule were invisible from here:
-
-- The peer was **blocked for hours on a permission prompt** its own session had
-  raised. Nothing surfaces that to a peer. I learned it from the operator.
-- The peer **pushed at 09:54, CI failed at 09:55, and it sat for 47 minutes.**
-  Nothing tells an agent its CI went red. It had finished its turn and stopped,
-  believing the work delivered.
-
-Neither was the peer's fault and neither showed up in its messages, because in
-both cases it had nothing to report.
-
-**A check is "what is it doing right now", not "did it reply".**
+**A check asks "what is it doing now", not "did it reply":**
 
 ```sh
-top -l 2 -pid <peer-pid> -stats pid,cpu,command | tail -3   # live CPU
+top -l 2 -pid <peer-pid> -stats pid,cpu,command | tail -3   # live CPU (macOS)
 ps -eo ppid | awk '$1==<peer-pid>' | wc -l                  # child processes
 gh run list --repo <repo> --branch <its-branch> --limit 1 \
   --json conclusion,createdAt                               # did its push pass?
 ```
 
-`ps`'s `%CPU` column is a **lifetime average** and reads `0.0` for a session
-that has been alive for a day, so it cannot tell a busy peer from an idle one.
-Sample with `top -l 2` instead.
+`ps`'s `%CPU` is a lifetime average and reads `0.0` for a day-old session.
+Sample with `top` instead.
 
-**Also check that your own constraints are not over-blocking it.** Told not to
-run tests on a machine holding a measurement, the peer inferred it should not
-work at all and idled for two hours. The constraint was mechanical -- no local
-test runs, no commits to the pinned worktree -- and left every code change it
-had open perfectly workable in its own worktree against CI on another host. Say
-what is blocked and what is not, and when a peer holds back further than you
-meant, that is a fault in the instruction.
+**Say what is blocked and what is not.** Told not to run tests on a machine
+that held a measurement, a peer idled for two hours. It could have kept coding
+in its own worktree against CI. When a peer holds back further than you meant,
+the fault is in the instruction.
 
-Related: the same asymmetry runs the other way. A peer that pushes back with a
-mechanism is usually worth believing -- see the route-field correction on the
-same day, where the peer was right and I was wrong twice.
-
-## Before running a queued measurement, check the repo (2026-09-07)
-
-**Check the repo before running a queued measurement.** `NEXT.md` listed #162
-Task 4 as pending. Four of its five knobs were; `gathered-heads` had been
-settled over four runs in `724b70f` a day earlier and never posted to the
-issue. The re-run then wrote into a **tracked, committed, VOID** directory --
-`mkdir -p` does not clear one, so a rerun overwrites the reps it produces and
-keeps the ones it does not (#208).
-
-Two habits fall out of that, and the first is cheap:
-
-- `git ls-files benchmarks/ds4/ | grep <thing>` before launching anything the
-  queue calls pending. A tracked run directory is the answer.
-- **The issue comment goes in the same turn as the commit.** A result that is
-  committed but unpublished is invisible to exactly the reader most likely to
-  redo it -- and a result that is published but whose issue stays open costs
-  the same re-run from the other direction (#143 was answered on 2026-09-06 and
-  still sat at P1 the next morning).
-
-**The no-tests-during-a-benchmark rule is about this Mac.** CI runs on the
-self-hosted Linux runner (`runs-on: [self-hosted, Linux, X64]`), so a PR can go
-green there while the run lock is held here. Holding a peer back from pushing
-costs idle time and buys nothing. What the rule forbids is `uv run pytest` and
-`uv run ruff` **on this machine** while a batch holds the lock.
-
-The third trap of that same day -- passing an issue or PR body through a
-double-quoted shell argument, so `gh issue close -c "... `SHA` ..."` runs the
-sha as a command -- is [Never put backticks in a `-m` message](automation-hazards.md#never-put-backticks-in-a--m-message).
+**The no-tests rule covers the measured machine only.** CI runs on the
+self-hosted Linux runner, so a PR can go green there while the run lock is
+held. What the rule forbids is `uv run pytest` and `uv run ruff` on the machine
+that holds the lock; `conftest.py` refuses the suite there.
 
 ## Cutting a release (2026-09-07)
 
-`v1.0.0` is the first tagged release. The procedure is four steps, and two of
-them are enforced by a gate that runs on the tag push:
+Two gates in `.github/workflows/release.yml` run on the tag push:
 
 ```sh
-# 1. bump the version
-$EDITOR pyproject.toml                       # version = "X.Y.Z"
-
-# 2. write the section BEFORE tagging
-$EDITOR docs/changelog.md                    # ## vX.Y.Z — YYYY-MM-DD
-
-# 3. land it
-uv run pytest -q && git commit && git push
-
-# 4. tag, and nothing else
+# 1. bump the version in pyproject.toml          version = "X.Y.Z"
+# 2. write the changelog section BEFORE tagging  ## vX.Y.Z — YYYY-MM-DD, ended by ---
+# 3. land both through a PR, as any change
+# 4. tag main, and nothing else
 git tag -a vX.Y.Z -m "vX.Y.Z" && git push --tags
 ```
 
-**Never write release notes into the tag message.** `git tag -m` runs its
-argument through the shell, so backticks are expanded and the text they
-surround is deleted with no error. This repo's prose is full of backticks —
-every model name, every path, every flag. `.github/workflows/release.yml`
-generates the notes from `docs/changelog.md` instead, and a test asserts the
-workflow keeps using `--notes-file`.
+**Never write release notes into the tag message.** The shell expands
+backticks in `-m` and deletes the text they surround, with no error. The
+workflow generates the notes from `docs/changelog.md` with `--notes-file`, and a
+test keeps it that way.
 
-**Two gates refuse a bad release rather than warning about one:**
+**The gates refuse a bad release rather than warn:**
 
 - `scripts/check_release_version.py vX.Y.Z` refuses a tag that disagrees with
-  any declared version. It *finds* the declarations — `pyproject.toml` today,
-  plus any `__version__` — rather than reading a hard-coded list, so a second
-  declaration added later cannot silently escape the check.
-- `scripts/release_notes.py vX.Y.Z` refuses a version with no section in the
-  changelog. An empty release note is worse than a missing release: it reads
-  as trivial work rather than undocumented work.
+  any declared version. It *finds* the declarations (`pyproject.toml`, any
+  `__version__`), so a new one cannot escape the check.
+- `scripts/release_notes.py vX.Y.Z` refuses a version with no changelog
+  section. An empty release note reads as trivial work rather than undocumented
+  work.
 
-`tests/test_release.py` weights the **negative** cases, because these scripts
-run unattended and refusing correctly is the whole job. A gate that passes
-everything looks exactly like a gate that works.
+`tests/test_release.py` weights the **negative** cases: these scripts run
+unattended, and a gate that passes everything looks exactly like one that
+works. Two drift guards run on every commit: the declared version must already
+have a changelog section, and the workflow must still call both scripts.
 
-**Two drift guards run on every commit, not just on a tag.** One asserts the
-version declared in `pyproject.toml` already has a changelog section, so a
-bump without notes fails at the commit that made it rather than at the tag
-push a day later. The other asserts the workflow still calls both scripts — a
-workflow that stops calling a gate has deleted it, and nothing else notices.
-
-**`${{ runner.temp }}` in a workflow-level `env:` is not a visible error.**
-The `runner` context does not exist there — only inside a step. GitHub creates
-the run, fails it instantly with *"This run likely failed because of a workflow
-file issue"*, and writes no logs, so `gh run view --log-failed` answers `log not
-found`. That is what the first `v1.0.0` tag push hit. Set `UV_CACHE_DIR` from a
-step that appends to `$GITHUB_ENV`, the way `test.yml` sets it at step level,
-and `test_no_workflow_uses_the_runner_context_outside_a_step` keeps it that way.
+**`${{ runner.temp }}` in a workflow-level `env:` fails with no logs.** The
+`runner` context exists only inside a step. Set `UV_CACHE_DIR` from a step that
+appends to `$GITHUB_ENV`, as `test.yml` does.
+`test_no_workflow_uses_the_runner_context_outside_a_step` keeps it that way.
 
 **`docs/changelog.md` holds releases; `docs/history.md` holds everything
-before them.** The changelog was 1652 lines on 2026-09-07 — one `#` heading and
-~1590 dated entries with no versions to attach them to. Splitting it was not
-tidying: a section that runs to end-of-file becomes the release notes, and the
-first attempt at v1.0.0 produced 102,607 bytes of them.
+before them.** A section that runs to end of file becomes the release notes: the
+first v1.0.0 attempt produced 102,607 bytes of them. Four tests hold the line:
 
-So each file now has one job, and four tests hold the line:
-
-- an entry in the pre-1.0 format (`**YYYY-MM-DD`) in `changelog.md` fails,
-- a `## vX.Y.Z` heading in `history.md` fails,
-- an entry dated after 2026-09-07 in `history.md` fails — the file is frozen,
-  and appending to the bottom of 1600 lines is what habit does,
+- a pre-1.0 entry (`**YYYY-MM-DD`) in `changelog.md` fails;
+- a `## vX.Y.Z` heading in `history.md` fails;
+- an entry dated after 2026-09-07 in `history.md` fails (the file is frozen);
 - a version section that does not end before the next one fails, because one
   missing `---` takes every section below it into the notes.
-
-Write a new entry under the version it ships in, and end it with a `---`.

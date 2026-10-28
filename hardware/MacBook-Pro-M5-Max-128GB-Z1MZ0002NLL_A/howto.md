@@ -9,8 +9,8 @@ numbered procedure that starts on a clean Mac. The shared steps are in
 A **stack** is a model, an engine and a harness. The harness is OpenCode for
 every row here.
 
-Each command comes from a file in this repository. The source is named under
-each section. Where the repository does not record a step, the page says so.
+Each command comes from a file in this repository, named under each section.
+Where the repository does not record a step, the page says so in that step.
 
 ## Before any stack
 
@@ -40,7 +40,7 @@ rows were measured on an M5 Max MacBook Pro, 128 GB, macOS 27.
 
    The repo does not record how `hf` was installed on the M5 Max.
    [`docs/stacks.md`](../../docs/stacks.md) uses
-   `pip install -U "huggingface_hub[cli]"`. Either works.
+   `pip install -U "huggingface_hub[cli]"` instead.
 
 5. For rows 3 to 6, raise the GPU memory ceiling. macOS does not let the GPU
    hold an 84 GB model by default. The failure looks like a model that will
@@ -388,13 +388,4 @@ scripts/local-agent.sh lineage      # row 6
 
 **Its `fast` stack is not row 3.** `fast` starts Qwen3.8-Flash-Next on the
 older ds4 `kimat` fork with a PLE sidecar. The script has no mlx-serve stack
-and no ds4 upstream-main stack yet.
-
-## What this page could not confirm from the repo
-
-- The mlx-serve install command (row 3). It comes from the mlx-serve README.
-- A pinned revision for the mlx-serve pack (row 3) and for the Unsloth GGUF
-  shards (row 5).
-- How `hf` was installed on the M5 Max.
-- Row 6 on ds4 upstream main. The measured rows used the `ivanfioravanti`
-  fork.
+and no ds4 upstream-main stack.

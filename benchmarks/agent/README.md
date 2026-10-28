@@ -1,175 +1,110 @@
-# Agent benchmark — local models as Claude Code backends
+# Agent benchmark — local models as coding-agent backends
 
-Measures what actually matters for a coding agent: **does it finish the job,
-and how long does it take?**
+Measures what matters for a coding agent: **does it finish the job, and how
+long does it take?** The other benchmarks here measure the engine. This one
+measures the whole loop: model, tool use, file editing, and the agent's
+willingness to stop.
 
-Every other benchmark here measures the engine. This one measures the whole
-loop — model, tool use, file editing, and the agent's willingness to stop.
+Why it is built this way, and every task kind in detail:
+[`METHODOLOGY.md`](METHODOLOGY.md). The prompts as sent:
+[`PROMPTS.md`](PROMPTS.md) (generated).
 
 ## How it works
 
 Each trial:
 
 1. Exports a real repository at a pinned commit into a **standalone directory**
-   with `git archive` — no `.git`, no link to the source repo.
-2. **Hollows out one function**, keeping the signature and docstring, then makes
-   that the new repo's *only* commit — so the original body exists nowhere in
-   the checkout, history included.
-3. Verifies the repo's tests now **fail**. A task whose tests still pass proves
+   with `git archive`. The directory has no `.git` and no link to the source
+   repo.
+2. Removes the work the agent must do, then makes that state the new repo's
+   *only* commit, so the answer is not in the checkout's history. An
+   **excision** task hollows out one or more functions and keeps the
+   signature and docstring. A **replay** task reverts a real feature commit.
+   A **script** task starts from an empty directory.
+3. Verifies the tests now **fail**. A task whose tests still pass proves
    nothing, and this check is not optional.
-4. Runs one **agent client** (`claude`, `codex` or `opencode`) against one
-   backend, in that directory.
-5. Runs the repository's own test suite.
+4. Runs one **agent client** against one backend, confined to that directory.
+5. Runs the repository's own test suite. **The test suite is the oracle**:
+   pass or fail, no rubric, no partial credit, no judge model.
 
-**The test suite is the oracle.** Pass or fail — no rubric, no partial credit,
-no judging model marking its own homework.
-
-The directory is destroyed afterwards. It used to be a `git worktree`; that
-shared an object store with the source repo and kept a path back to it, and on
-2026-08-17 an agent followed that path and modified the operator's checkout.
-A worktree isolates files, not the agent. Every row now records
-`source_repo_intact`, and the runner refuses to start if the source repo is
-dirty or off its pinned commit. See METHODOLOGY.md.
+The directory is destroyed afterwards. `run.py` refuses to start if the
+source repo is dirty or off its pinned commit, and every row records
+`source_repo_intact`. A `git worktree` is not used, because it let an agent
+reach and modify the operator's checkout (METHODOLOGY §9).
 
 ## Running it
 
 ```sh
-uv run python benchmarks/agent/preflight.py       # FIRST. What is already up?
-uv run benchmarks/agent/run.py --dry-run          # verify tasks, run no agent
-uv run benchmarks/agent/run.py --trials 3         # the full matrix
-uv run benchmarks/agent/run.py --backend qwen --task mbox-scan
+uv run python benchmarks/agent/preflight.py      # FIRST: what is already up?
+uv run python benchmarks/agent/run.py --dry-run  # verify each task's control, run no agent
+uv run python benchmarks/agent/run.py --backend <name> --trials 3
+uv run python benchmarks/agent/run.py --backend <name> --replay --replay-hard --targets sandbox
 ```
 
-The backends you select must be up first — `ds4-up` for ds4, Ollama for qwen.
+Start the backend's server first. **Run the preflight every time.** A server
+left running from an earlier session holds its weights, and these models
+nearly fill unified memory. If the new one still fits, nothing fails: the
+batch measures a contended machine and the numbers look plausible. See
+[Preflight](../../README.md#preflight-check-what-is-already-running). The
+root README also lists the main `run.py` flags; `--help` lists all of them.
 
-**Start with the preflight, every time.** A model server left running from an
-earlier session holds its weights whether or not anyone is using it, and these
-models are sized to nearly fill unified memory. If the new one still fits
-alongside the old one, nothing fails — the batch just spends hours measuring a
-contended machine, and the numbers look plausible. See the
-[preflight section in the top-level README](../../README.md#preflight-check-what-is-already-running).
-`run.py` runs the same check itself and warns, but by then the server is
-already started.
+Rows append to the machine's ledger, `hardware/<machine>/results.jsonl` (the
+name comes from `scripts/hardware_id.py`). One file holds one machine, so a
+second machine never mixes into a comparison (#20).
 
-Two more artifacts are written outside this repo, because both carry
-repository content: `--client-log` (default `~/bench-logs`) keeps the client's
-event stream, and `--solutions` (default `~/bench-solutions`) keeps each
-trial's diff. The solution's SHA-256 goes into the row itself, so the artifact
-can be cleaned up without losing the ability to tell two runs apart.
+Two artifacts go outside this repo, because both carry repository content:
+`--client-log` (default `~/bench-logs`) keeps the client's event stream, and
+`--solutions` (default `~/bench-solutions`) keeps each trial's diff. The row
+carries the patch and its SHA-256.
 
 ## Two axes: backend and client
 
-`--client` selects the agent harness. They interact — **no client is fastest on
-every backend** — so a result belongs to a *pair*, not to either alone:
-
-```sh
-# Interleaved per task, so server drift hits both clients equally
-uv run benchmarks/agent/run.py --backend ds4 --client claude --client codex
-```
+`--client` selects the agent harness: `opencode` (the default and the primary
+harness), `claude`, `codex`, `aider` or `unreal`. Name another client only
+when the run is about that client. **No client is fastest on every backend**,
+so a result belongs to a *pair*, not to either alone. Two clients named in
+one run are interleaved per task, so server drift hits both equally.
 
 Only `passed`, `wall_seconds` and `touched_tests` compare cleanly across
 clients. Token and turn counts come from each client's own accounting: Codex
-reports one "turn" per exec rather than per round trip, so it records
-`tool_items` instead and leaves `num_turns` empty.
-
-Results append to `results.jsonl`; nothing is overwritten, so runs accumulate
-and you can compare across days.
+records `tool_items` and leaves `num_turns` empty.
 
 ## Raw data is committed
 
-`results.jsonl` and the run logs are **tracked in git, on purpose**. Each row
-costs minutes of wall time and a full matrix costs hours, so the data cannot be
-cheaply regenerated — and analyzes nobody has thought of yet can only be run
-against data that still exists.
+The ledgers are **tracked in git, on purpose**. A row costs minutes and a
+matrix costs hours, so the data cannot be cheaply regenerated, and a new
+analysis needs the old rows.
 
-Every row carries its own environment capture, so old rows stay interpretable
-after the stack moves on:
+Every row carries its own environment capture (`env`): the harness commit,
+client and engine versions, server command line, samplers, and target commit.
+Old rows stay readable after the stack moves on. Model **digests** are
+recorded, not just tags, because a tag can be re-pushed upstream.
 
-```json
-"env": {"claude": "2.1.233", "ollama": "0.32.14-rc0",
-        "digest_qwen": "5642e97495e1", "ds4_head": "fdcf3aa",
-        "machine": "Apple M5 Max", "macos": "26.5.2",
-        "target_commit": "56e55cc"}
-```
+Rows are never deleted. A row taken under wrong conditions is marked
+`"excluded": true` with a reason, and `results.load()` and every report skip
+it. `--dry-run` rows are skipped the same way.
 
-Model **digests** are recorded, not just tags — a tag can be re-pushed upstream,
-a digest cannot. `ds4_head` and `ds4_server_mtime` pin the engine build, since
-the binary can predate the checkout.
+## Reading a row
 
-Rows are never deleted. A run whose conditions were wrong is marked
-`"excluded": true` with a reason and skipped by `summarize.py`; `--dry-run` rows
-are kept too and skipped the same way. Deleting them would falsify the record.
-
-## Tasks
-
-From [`gmail-archive`](https://github.com/evanwtf/gmail-archive) — a real
-project, 4,599 lines of Python, 166 tests that run in under 5 seconds. Fast
-tests matter: the oracle runs twice per trial.
-
-| task | removes | tests broken by the excision |
-|---|---|---|
-| `mbox-strip-envelope` | a pure byte transform | 3 |
-| `mbox-scan` | mbox offset scanning | 13 |
-| `storage-blob-put` | atomic write, fsync, sha256 | 14 |
-| `parser-mbox-quoting` | `unquote_mbox`, must round-trip | 34 |
-| `parser-date` | RFC 2822 date parsing with warnings | 49 |
-
-Roughly ordered by blast radius, which is a decent proxy for difficulty.
-
-`query.search` was tried and **rejected**: `tests/test_query.py` skips without
-`GMAIL_ARCHIVE_TEST_DATABASE_URL`, so removing the function was invisible to
-the oracle. The control check caught it on the first dry run. To use the SQL
-surface, bring up the compose stack and export that variable first.
-
-## Reading the results
-
-```json
-{"task": "mbox-strip-envelope", "backend": "qwen", "passed": true,
- "wall_seconds": 124.1, "num_turns": 13, "output_tokens": 3837,
- "touched_tests": false}
-```
-
-- `passed` — the oracle.
+- `passed` — the oracle. Read a verdict through `results.verdict()`, never
+  `row["passed"]`: a timeout has no `passed` key and is a failure.
 - `wall_seconds` — end to end, including the agent's own tool calls.
-- `num_turns` — how many round trips it needed. Fewer is not automatically
-  better, but a large number with a failure usually means thrashing.
-- `touched_tests` — the cheat detector. A pass with this set to `true` is not a
-  pass. It covers `tests/` (and SwiftPM's `Tests/`), a root `conftest.py` or
-  pytest ini file, and the pytest section of `pyproject.toml`, `setup.cfg` or
-  `tox.ini`, tracked or untracked. It compares against the trial's starting
-  commit by sha, so an agent that commits its work cannot hide an edit.
-- `control_fails_as_expected` — must be `true` or the row is meaningless.
+- `num_turns` — round trips. Fewer is not automatically better, but a large
+  number with a failure usually means thrashing.
+- `touched_tests` — the cheat detector. A pass with this set is not a pass. It
+  covers `tests/` (and SwiftPM's `Tests/`), a root `conftest.py` or pytest ini
+  file, and the pytest section of `pyproject.toml`, `setup.cfg` or `tox.ini`,
+  tracked or untracked. It compares against the trial's starting commit by sha,
+  so an agent that commits its work cannot hide an edit.
+- `control_fails_as_expected` — must be `true`, or the row means nothing.
+- `hidden_passed` — on the harder replay tasks only: the held-out tests (#726).
 
-## Known limitations
-
-**ds4-server does not report input token counts** — `input_tokens` comes back
-as 0. Wall time and turns are still comparable; token efficiency is not. Do not
-compare `input_tokens` across backends.
-
-**`total_cost_usd` from Claude Code is fiction here.** It prices local
-inference at API rates. Ignore it.
-
-**Context windows differ on purpose** — ds4 at 100k, Qwen at 262144. Each model
-gets its real window. Capping a model below its capability is not a fair
-comparison, and exceeding it makes auto-compact fire after the server has
-already truncated.
-
-**One trial is not a result.** These models are sampled, not deterministic. Use
-`--trials 3` or more before believing any gap, and treat a single-trial
-difference of a few seconds as noise.
-
-**Memory pressure is real on a 128 GiB machine.** ds4 resident is ~91 GiB and
-Qwen is ~18 GB. Running both servers at once means one of them is paged out and
-its first request pays for it. Bench one at a time, or accept the noise and say
-so.
+**One trial is not a result.** Use `--trials 3` or more before you believe a
+gap, and read [`docs/measurement-discipline.md`](../../docs/measurement-discipline.md)
+before you quote one.
 
 ## Results
 
-238 trials across 8 backends and 3 clients. Full report:
-[**RESULTS.md**](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/RESULTS-agent.md). Picks for this machine:
-[**RECOMMENDATIONS.md**](../../RECOMMENDATIONS.md).
-
-Headline: correctness barely separates the *backends* (seven of eight at 100%),
-but it separates the *clients* sharply on the same model — Claude Code 14/15,
-Codex 15/15, OpenCode 6/15 on ds4. And no client wins everywhere: Codex is 12%
-faster than Claude Code on ds4 and 63% slower on Ollama.
+The tables, per machine: [`docs/results.md`](../../docs/results.md)
+(regenerate with `splice_tables.py`). The picks, per machine:
+[`RECOMMENDATIONS.md`](../../RECOMMENDATIONS.md).
