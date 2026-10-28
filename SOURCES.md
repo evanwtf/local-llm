@@ -5,20 +5,18 @@
 That means: run the sweep in [How to run it](#how-to-run-it) below, verify every
 post before repeating it, and report what changed — not who said what.
 
-This file exists because the local-inference field moves faster than this
-project measures. Two engines shipped double-digit improvements in a
-48-hour window while our own docs still described a three-engine world (#60).
+The field moves faster than this project measures: two engines once shipped
+double-digit gains in 48 hours while our docs still described three engines
+(#60).
 
-**Two lanes now (#307).** Every account below the [DGX Spark
-sources](#dgx-spark-sources) heading is the **Mac lane** — judged by *would this
-change a number on an M5 Max, 128 GB, Metal?* The DGX Spark (GB10, CUDA) is a
-different field: NVFP4/FP8, vLLM and TensorRT-LLM, and aggregate multi-stream
-throughput rather than single-stream tok/s. Its sources are collected in their
-own section, and the sweep splits by `--platform` (see [Repositories to
-watch](#repositories-to-watch)). An account can sit in both lanes: several
-"leans NVIDIA, against us" notes below are now a reason to read, not to skip.
-The Ryzen / RTX 3080 Ti desktop has no lane of its own: it is a secondary tier
-and not always on, so nothing here is swept for it in particular.
+**Two lanes (#307).** Every account above the [DGX Spark
+sources](#dgx-spark-sources) heading is the **Mac lane**, judged by *would this
+change a number on an M5 Max, 128 GB, Metal?* The two-Spark cluster (GB10,
+CUDA) is a different field: NVFP4/FP8, vLLM, TensorFold and SGLang, and
+aggregate multi-stream throughput. The sweep splits by `--platform` (see
+[Repositories to watch](#repositories-to-watch)). An account can sit in both
+lanes. The Ryzen / RTX 3080 Ti desktop has no lane: it is a secondary tier and
+not always on.
 
 ---
 
@@ -26,7 +24,7 @@ and not always on, so nothing here is swept for it in particular.
 
 * **@antirez**: X: [@antirez](https://x.com/antirez) · GitHub: [@antirez](https://github.com/antirez) · Website: [invece.org](http://invece.org)  
 DwarfStar / ds4 author  
-**Our primary engine.** Ships models on preview branches and announces them here before the README catches up. `glm-5.3-flash` was on X days before it was documented.
+**Two M5 Max picks run on his engine.** He ships models on preview branches and announces them here before the README catches up: `glm-5.3-flash` was on X days before it was documented.
 
 * **@ivanfioravanti**: X: [@ivanfioravanti](https://x.com/ivanfioravanti) · GitHub: [@ivanfioravanti](https://github.com/ivanfioravanti)  
 daily benchmarker, M3 Ultra / multi-Mac  
@@ -34,17 +32,11 @@ Highest-volume tester on Apple Silicon. #51 came from one of his posts: Q8_0→Q
 
 * **@ddalcu**: X: [@ddalcu](https://x.com/ddalcu) · GitHub: [@ddalcu](https://github.com/ddalcu) · Website: [mlxserve.com](http://mlxserve.com) · [dalcu.com](http://www.dalcu.com)  
 mlx-serve, `llmprobe`  
-**Benchmarks on a 1x M5 Max 128 GB laptop — our exact machine.** Ported ds4's evals into a cross-engine harness (`npx llmprobe --eval`).
+**Benchmarks on a 1x M5 Max 128 GB laptop — our exact machine** — and mlx-serve is the M5 Max's fastest pick. Ported ds4's evals into a cross-engine harness (`npx llmprobe --eval`).
 
 * **@Beamsters1**: X: [@Beamsters1](https://x.com/Beamsters1) · GitHub: [@beamivalice](https://github.com/beamivalice) · HF: [beamster](https://huggingface.co/beamster)  
 mlx-serve qwen4 performance contributor  
-**Ships the qwen4 optimizations for our primary model on our co-primary engine.** As `beamivalice`, the 4th-ranked human contributor to mlx-serve (11 commits behind ddalcu's 288), and every recent PR is `perf(qwen4)`: split-K QSA, SSD-first cache admission, MTP/QSA history rollback without copies, allocator-pool reuse between prefills. That is the exact surface [#225](https://github.com/evanwtf/local-llm/issues/225) measures — and concretely, **8 of the 24 commits separating our test build from the shipped v26.9.1 are theirs** (#350, #352, #363, #370, #377, #379, #381, #383), against 10 from ddalcu himself.
-
-  **Told us to build a PR before we knew we needed it.** 2026-09-08 06:59:58Z, verified: *"If you are going to daily drive MLX-serve's Qwen3.8 Flash Next, make sure to include PR383 from main. (and perhaps many more since we are starting the big bug hunts)"* — 7 likes, 789 views. We had benchmarked a five-day-old release in #191 while main was being repaired; that post put main+383 on the machine within hours.
-
-  **The GitHub identity is confirmed.** On 2026-09-25T01:54:07-0400 @Beamsters1 announced Sushi, an mlx-serve fork, and linked https://github.com/beamivalice/sushi as their own release (https://x.com/beamsters1/status/2103362390243066257, **Verified** 2026-09-25). The repo's model packs are published by the `beamster` Hugging Face org. The operator approved Sushi and those packs for this machine on 2026-09-25 ([#749](https://github.com/evanwtf/local-llm/issues/749)).
-
-  139 followers, 215 posts, Bangkok — low volume, so the cap-per-account rule below is what keeps this account from being crowded out of a gather.
+**Ships the qwen4 optimizations for Qwen3.8-Flash-Next on mlx-serve**, the M5 Max's fastest pick: split-K QSA, SSD-first cache admission, MTP/QSA rollback without copies. 8 of the 24 commits between our test build and v26.9.1 were theirs (#225). A verified 2026-09-08 post told us to build mlx-serve PR383 before we knew we needed it. They also author Sushi, the mlx-serve fork, and the `beamster` HF packs; the operator approved both for the M5 Max ([#749](https://github.com/evanwtf/local-llm/issues/749); identity verified from the [release post](https://x.com/beamsters1/status/2103362390243066257)). Low volume (~140 followers), so the cap-per-account rule below protects this account.
 
 * **@Spangler3000**: X: [@Spangler3000](https://x.com/Spangler3000) · GitHub: [@jonathan308](https://github.com/jonathan308)  
 oMLX Metal kernels (QSA, DFlash2)  
@@ -52,15 +44,15 @@ Densest Metal-kernel signal in the field. His PRs are why oMLX leads on prefill 
 
 * **@jundotkim**: X: [@jundotkim](https://x.com/jundotkim) · GitHub: [@jundot](https://github.com/jundot) · Website: [omlx.ai](https://omlx.ai)  
 oMLX author  
-oMLX 0.6.4: PP 32k **834 → 1114 tok/s**, TG **40 → 46**. Untested here (#60).
+oMLX 0.6.4: PP 32k **834 → 1114 tok/s**, TG **40 → 46**. Unmeasured here (#737).
 
 * **@ggerganov**: X: [@ggerganov](https://x.com/ggerganov) · GitHub: [@ggerganov](https://github.com/ggerganov)  
 llama.cpp / ggml author  
-**We run llama.cpp and its author was not on this list.** Ships backend releases and MTP serve flags — #77 is blocked on mainline having a `qwen4exp` MTP flag with no graph behind it, which is exactly his surface. Verified post 2026-09-01.
+llama.cpp is a pick on both machines. He ships backend releases and MTP serve flags; mainline `qwen4exp` MTP (#77) is his surface.
 
 * **@korale77**: X: [@korale77](https://x.com/korale77) · GitHub: [@korale77](https://github.com/korale77) · [@eclaire-labs](https://github.com/eclaire-labs) · Website: [eclaire.co](https://eclaire.co)  
 ds4 on an M5 Max 128 GB  
-**Our engine, our machine, our models.** The only account posting ds4 numbers on an M5 Max 128 GB other than Flor1an-B below, and unlike him he posts them on X rather than in ds4 issues. Verified 2026-09-01: GLM-5.3-Flash Q2 on **ds4 with vision, M5 Max 128 GB**, `ctx=120128 ... avg=17.32 t/s` on Auto power. Verified 2026-09-03: DeepSeek-V4-Flash Vision **18–20 t/s at 200k context**. Verified 2026-08-19: Qwen3.8-27B 4-bit + DFlash2 at **68–89 t/s**, depending on thinking level. His GitHub holds a **`ds4` fork pushed 2026-09-06** and [`mlx-vlm-kv-bench`](https://github.com/korale77/mlx-vlm-kv-bench), independent benchmarks of TurboQuant and TriAttention KV-cache work in MLX-VLM. **Single runs, and "Auto power" is an uncontrolled thermal state** — #58 puts ~4% of throughput on thermal state alone, so these are leads to re-measure, not baselines. ~6 GitHub followers, ~190 on X: exactly the account the volume rule below exists to protect.
+**Our engine, our machine, our models.** With Flor1an-B below, the only account posting ds4 numbers on an M5 Max 128 GB, and he posts on X. Verified examples: GLM-5.3-Flash Q2 on ds4 at `ctx=120128 ... avg=17.32 t/s` on Auto power; DeepSeek-V4-Flash **18–20 t/s at 200k context**. His GitHub holds a `ds4` fork and [`mlx-vlm-kv-bench`](https://github.com/korale77/mlx-vlm-kv-bench) (TurboQuant and TriAttention KV-cache benchmarks). **Single runs on "Auto power", an uncontrolled thermal state** (#58 puts ~4% of throughput on thermal state alone): leads to re-measure, not baselines. ~190 X followers: the volume rule below protects him.
 
 ## Tier 2 — check weekly
 
@@ -71,7 +63,7 @@ MTPLX — MTP speculative decoding, custom Metal kernels. We hold an old, unrepl
 Rapid-MLX (#57). Apache 2.0, OpenAI-compatible, claims 12x prefix cache.
 
 * **@rapidmlx**: X: [@rapidmlx](https://x.com/rapidmlx) · Website: [rapidmlx.com](https://rapidmlx.com) · GitHub: [raullenchai/Rapid-MLX](https://github.com/raullenchai/Rapid-MLX)  
-**The project account for Rapid-MLX**, distinct from @Raullen above — it ships the release notes, so it is the one to watch for versions. Releases are frequent: 0.13.2 on 2026-08-31, **0.13.3 on 2026-09-01** adding native GLM-5.3-Flash. **Read the memory line before the speed line**: 0.13.3's headline is a 4-bit GLM-5.3 checkpoint using **165 GB of active memory, stated for 192 GB+ Macs**. That specific configuration will not load in 128 GB — so the actionable question is whether the engine serves a GLM-5.3 quant that fits here, which is worth finding out. **The engine is a live lead; only that one configuration is out of reach.** #57, #60.
+**The project account for Rapid-MLX**, distinct from @Raullen above. It ships the release notes, so watch it for versions. **Read the memory line before the speed line**: 0.13.3's GLM-5.3 headline uses 165 GB of active memory, which does not load in 128 GB. Ask which quant fits; the engine stays a lead. #57.
 
 * **@awnihannun**: X: [@awnihannun](https://x.com/awnihannun) · GitHub: [@awni](https://github.com/awni) · Website: [awnihannun.com](https://awnihannun.com/)  
 Co-created MLX. Lower volume since leaving Apple, still framework source-of-truth.
@@ -86,7 +78,7 @@ mlx-lm maintainer.
 Quant conversions, custom kernels, training on Silicon.
 
 * **@Prince_Canuma**: X: [@Prince_Canuma](https://x.com/Prince_Canuma) · GitHub: [@Blaizzy](https://github.com/Blaizzy) · Repo: [mlx-vlm](https://github.com/Blaizzy/mlx-vlm)  
-mlx-vlm, mlx-audio. **Filed here as multimodal, which is now the wrong reason to skip him.** `mlx-vlm v0.7.0-rc0` (2026-09-01) ships three things that are not about vision at all: **expert offloading**, running larger MoE models straight from disk; a redesigned **prefix cache** claiming up to **166x end-to-end on Gemma 4 31B** from RAM and 96.6x from SSD after a restart; and **Qwen3.8-Flash-Next with MTP**, which is our fast pick and the thing mainline llama.cpp has a flag for and no graph behind it (#77). **Read the 166x carefully** -- it is a cache-hit number, so it measures repeated prefixes rather than first-token work, and this project has measured three times that a headline rate does not predict agent wall time. It is still a lead on our exact model and on the Gemma we just measured at 383s (#16). Expert offloading also bears on #20, where a 12 GB card with 30 GiB of RAM needs exactly that trick. #60, #77.
+mlx-vlm, mlx-audio. **Multimodal is the wrong reason to skip him.** `mlx-vlm v0.7.0-rc0` ships **expert offloading** (MoE straight from disk; bears on the 12 GB card in #20), a **prefix cache** claiming up to 166x end-to-end on Gemma 4 31B, and **Qwen3.8-Flash-Next with MTP** (#77). The 166x is a cache-hit number: it measures repeated prefixes, not first-token work.
 
 * **@ShankPeople**: X: [@ShankPeople](https://x.com/ShankPeople)  
 GGUF quant surgery. Measured **+20% decode** moving GLM-5.3 KDA proj/head to Q8 — the thread that produced #51. GitHub unresolved: `markshank` matches the name but its repos are macOS/BSD systems work with no LLM presence, so it is **not** linked here.
@@ -95,58 +87,58 @@ GGUF quant surgery. Measured **+20% decode** moving GLM-5.3 KDA proj/head to Q8 
 Runs real coding benchmarks, regression-tests older models. Found oMLX's **stock MTP depth 3 vs 5 → 50→60 tok/s**. No GitHub found.
 
 * **@0xSero**: X: [@0xSero](https://x.com/0xSero) · GitHub: [@0xSero](https://github.com/0xSero) · Website: [sybilsolutions.io](https://sybilsolutions.io) · YouTube: [@0xSero](https://www.youtube.com/@0xSero)  
-Low-bit quantization, on **both of our models**. [`glm-5.3-low-bit-tr3-wiki`](https://github.com/0xSero/glm-5.3-low-bit-tr3-wiki) is a 13-chapter treatment of GLM-5.3 Flash at low bitrate — MoE structure, calibration and sensitivity, EXL3/TR3 trellis encoding, K2/K3/K4 mixed tiers, bitrate arithmetic, validation gates. [`deepseek-v4-flash-0731-spark-sparkinfer`](https://github.com/0xSero/deepseek-v4-flash-0731-spark-sparkinfer) (163★) pins **our exact 0731 checkpoint** with a VALIDATION.md. `turboquant` does 3-bit-key / 2-bit-value KV quantization. **Read the GitHub, not the X feed** — the X presence is DGX-Spark-vs-Mac argument, the repos are the work. Caveat: most of it targets NVIDIA/vLLM, so the quantization reasoning transfers to us and the kernels do not.
+Low-bit quantization, on **both of our models**. [`glm-5.3-low-bit-tr3-wiki`](https://github.com/0xSero/glm-5.3-low-bit-tr3-wiki) is a 13-chapter treatment of GLM-5.3 Flash at low bitrate — MoE structure, calibration and sensitivity, EXL3/TR3 trellis encoding, K2/K3/K4 mixed tiers, bitrate arithmetic, validation gates. [`deepseek-v4-flash-0731-spark-sparkinfer`](https://github.com/0xSero/deepseek-v4-flash-0731-spark-sparkinfer) (163★) pins **our exact 0731 checkpoint** with a VALIDATION.md. `turboquant` does 3-bit-key / 2-bit-value KV quantization. **Read the GitHub, not the X feed.** Most of it targets NVIDIA/vLLM: on the Mac the quantization reasoning transfers and the kernels do not. On the DGX lane both transfer, and his DeepSeek-V4.1-Flash-1017 EXL3 2.7 bpw is the two-Spark pick's weights (#1160).
 
 * **@sudoingX**: X: [@sudoingX](https://x.com/sudoingX) · GitHub: [@sudoingX](https://github.com/sudoingX) · Repo: [qwen38-mtp](https://github.com/sudoingX/qwen38-mtp)  
-Maintains the **qwen38-mtp** board (Apache-2.0, 245★, active 2026-08-31): **61 paired baseline-vs-MTP runs from 47 contributors** on Qwen3.8-27B dense, each run documenting quants, KV setup and serve config in a sweeps folder. The claim is that the MTP head already ships inside the GGUF and one llama.cpp flag is worth **+33–39% decode**. Directly relevant to #19 (does native MTP retire the mtplx stack?) and #39 (ds4's embedded MTP). **Two things to hold in mind.** The board is 48 NVIDIA and 11 AMD against 2 Apple Silicon entries (M4, M3 Ultra) — **a gap, not a disqualification**: a flag worth +33–39% on an M4 is a lead worth testing here, and the MTP head ships in the same GGUF we already hold. And it ranks on **decode rate**, which we have measured three times as non-predictive of agent wall time — so the *flag* is the lead, the *number* is not the claim. The paired-run method and per-hardware config documentation are unusually disciplined and worth copying.
+Maintains the **qwen38-mtp** board: **61 paired baseline-vs-MTP runs from 47 contributors** on Qwen3.8-27B dense, each with quants, KV setup and serve config written down. The claim: the MTP head already ships in the GGUF, and one llama.cpp flag is worth **+33–39% decode** (#19, #39). The board is nearly all NVIDIA and AMD, and it ranks on decode rate, so the *flag* is the lead, not the number. The paired-run method is worth copying. **Also on the DGX lane**: he authors the two-Spark pick's stack, [sudoingX/dgx-spark-deepseek-v41](https://github.com/sudoingX/dgx-spark-deepseek-v41) (#1160).
 
 * **@redp314**: X: [@redp314](https://x.com/redp314)  
-Paolo Rosson, Head of Applied AI at Dext. **Benchmarks six MLX engines against each other on one machine**, which almost nobody does — mlx-serve, oMLX, Ollama, mlx-dspark, MTPLX, mlx-vlm on an M3 Max 96 GB. His 2026-09-01 result is the one to remember: **speculative decoding's gain depends on what you generate.** Every drafter loses 17–36% moving from code to prose, because acceptance falls (mlx-serve: 2.2 accepted tok/round on code, 1.3 on prose). **This is load-bearing for us: we measure code, the favorable case**, so any MTP figure quoted at us is close to a best case. His own conclusion is the right one — "a single tok/s is really a coding number or a prose number, say which one you measured". Measured on an M3 Max 96 GB; the **ranking between engines is the transferable part**, and mlx-serve winning all three categories is a reason to test it here. #60.
+Paolo Rosson, Dext. **Benchmarks six MLX engines against each other on one M3 Max 96 GB.** His key result: **speculative decoding's gain depends on what you generate.** Every drafter loses 17–36% moving from code to prose, because acceptance falls. We measure code, the favorable case, so an MTP figure quoted at us is close to a best case. The engine ranking transfers; the numbers do not.
 
 * **@_ARahim_**: X: [@_ARahim_](https://x.com/_ARahim_) · GitHub: [@ARahim3](https://github.com/ARahim3) · Repo: [mlx-dspark](https://github.com/ARahim3/mlx-dspark)  
-Abdur Rahim. **mlx-dspark** (MIT, 627★, pushed 2026-09-01): a native MLX port of DeepSeek's DSpark and z-lab's DFlash speculative decoding, claiming up to 4x lossless decode across Gemma-4, Qwen3.8, Nemotron, Ornith-1.0 and others. Relevant to #19 (DFlash2 drafters) and #39. **Read our #58 first**: our own DSpark measurement on ds4 inverted once re-measured on current heads, and ds4#913 reports no net win on M5 Max — so a DSpark speedup claim needs checking on this machine before it is believed, whatever the engine.
+Abdur Rahim. **mlx-dspark**: a native MLX port of DSpark and DFlash speculative decoding, claiming up to 4x lossless decode (#19, #39). **Read #58 first**: our own DSpark result on ds4 inverted on re-measure, so check any DSpark claim on the M5 Max before believing it.
 
 * **@TheDavidTai**: X: [@TheDavidTai](https://x.com/TheDavidTai) · GitHub: [@davidtai](https://github.com/davidtai) · Website: [davidt.ai](https://davidt.ai)  
 Runner and drafting optimization — MTPLX PR #391 (Qwen 3.8 Flash Next **50 → 85 t/s**), Qwen 3.8 27B at **113 t/s** via adaptive DFlash2 + mlx.fast. **Mostly replies; originals arrive in bursts** — a sweep of his last 12 posts found 10 replies, 2 quotes, 0 originals, so judge him on a week, not a day. Ties @Youssofal_'s MTPLX to @jundotkim's oMLX.
 
 * **@0xkydo**: X: [@0xkydo](https://x.com/0xkydo) · [MLX Fast leaderboard](https://www.yukon.org/mlxfast) · Repo: [engine](https://github.com/Layr-Labs/mlxfast-gemma4-26b-a4b-engine)  
-Kydo, Eigen Labs. Runs **MLX Fast**, a public leaderboard for making **Gemma 4 26B A4B** run faster on Apple Silicon — the thing @TheDavidTai's entry above already referenced before we documented it. `mlx.fast` redirects to `yukon.org/mlxfast`; the second is canonical. Top entry is **+130.8% over baseline — 573.7 tok/s decode, 6,940.6 tok/s prefill**, and Google's own @googlegemma amplified it on 2026-09-01. Official runs pair baseline and candidate on the same Mac under a thermal gate, eight prompts in one batch — a better method than most claims we see. **Two things to hold in mind.** It scores `prefill^0.25 · decode^0.75`, so decode carries three quarters of the rank, and decode rate is the one metric this project has measured three times as non-predictive of agent wall time — **`gemma4` is the backend that forced that finding**: it emits fewer tokens than qwen3.8 and still finishes last at 355.4s. And the leaderboard's model is **26B A4B, which we do not hold** — our gemma4 numbers are a 31B mxfp8 build, so nothing we have measured is a baseline for it. Engine is Swift, four stars, first pushed 2026-09-01. **The lead is real and unmeasured here**: #16 has been waiting on a non-Qwen backend since 2026-08-27, and this is a live, Google-endorsed push to make exactly that backend fast. #16, #60.
+Kydo, Eigen Labs. Runs **MLX Fast** (`yukon.org/mlxfast`), a public leaderboard for making **Gemma 4 26B A4B** faster on Apple Silicon. Official runs pair baseline and candidate on the same Mac under a thermal gate, a better method than most. It scores `prefill^0.25 · decode^0.75`, so decode carries three quarters of the rank, and decode rate does not predict agent wall time: our `gemma4` backend emits fewer tokens than qwen3.8 and still finishes last. We hold a 31B mxfp8 Gemma, not the 26B A4B, so we have no baseline for it. #16, #80.
 
 * **@yukonresearch**: X: [@yukonresearch](https://x.com/yukonresearch) · Website: [yukon.org](https://yukon.org/) · [MLX Fast](https://www.yukon.org/mlxfast)  
-**Yukon**, an Eigen Labs project and the platform @0xkydo's leaderboard runs on -- "open frontier research", 1.2k followers, opened 2025-11. It runs several tracks at once (`mlxfast`, `matrices.fast`, `lighter.fast`, `better.codes`) with a weekly $10K pool. **Read it for two things.** First, the Apple Silicon track history: they cite Laguna XS 2.1 and then **Qwen 3.8 27B, which they say gained on day one from MTP and reached 3x in two weeks** -- that is our model class, and MTP is exactly what #77 is blocked on and #83 is asking about, so their claim is checkable here rather than admirable at a distance. Second, the **method**: one shared harness, only verified movement scores, and every submission enters a **public lineage tree that keeps the failures searchable** so later entrants start at the frontier instead of rediscovering dead ends. That is the practice this project reaches for whenever it archives a wrong result, done deliberately and at scale, and it is worth copying. **Their numbers are decode and prefill on a shared harness**, so the standing caveat applies -- we have measured three times that a headline rate does not predict agent wall time. A new frontier-model track was teased for early September. #60, #77, #80.
+**Yukon**, the Eigen Labs platform that @0xkydo's leaderboard runs on, with several tracks and a weekly prize pool. **Read it for two things.** The Apple Silicon track history: they say Qwen 3.8 27B gained on day one from MTP and reached 3x in two weeks, a claim checkable here (#77, #83). And the **method**: one shared harness, only verified movement scores, and a **public lineage tree that keeps failures searchable**. That is worth copying. Their numbers are decode and prefill rates, not agent wall time. #80.
 
 * **@thdxr**: X: [@thdxr](https://x.com/thdxr) · GitHub: [@thdxr](https://github.com/thdxr)  
-Builds **OpenCode** — the client every agent row in this repo is recorded against. #137 was a client-version confound: two opencode versions mixed into one cell before anyone noticed, and the fix was recording `client_version` per row. A release feed for the client is the cheapest way to see the next one coming. Judge on releases, not TUI features. Verified post 2026-09-05.
+Builds **OpenCode**, the only client in this repo. A client release starts a new series (#137 mixed two versions in one cell), so his feed is the cheapest early warning. Judge on releases, not TUI features.
 
 * **@trymirai**: X: [@trymirai](https://x.com/trymirai) · GitHub: [@trymirai](https://github.com/trymirai) · Repo: [uzu](https://github.com/trymirai/uzu)  
-**uzu**, an Apple-only inference engine (#134). Posts M5-series **speculative decoding** numbers against MTPLX and llama.cpp — the comparison #19 and #39 ask for, on our chip generation. Verified 2026-09-03 post announces spec-dec for Qwen3.6 27B with Qwen3.8 27B "coming soon". Their claim, unmeasured here.
+**uzu**, an Apple-only inference engine (#134; the engine entry is under [Read the repo, not the feed](#read-the-repo-not-the-feed)). Posts M5-series **speculative decoding** numbers against MTPLX and llama.cpp (#19, #39). Their claim, unmeasured here.
 
 * **@UnslothAI**: X: [@UnslothAI](https://x.com/UnslothAI) · GitHub: [@unslothai](https://github.com/unslothai)  
-Dynamic GGUF quants and local-run recipes (#119). Verified 2026-09-04 post claims GLM-5.3-Flash "3.3x faster locally", 1.6-3.4x via optimized decoding **plus multi-token prediction**, and a **3-bit build for 128 GB machines**. Both halves are ours: #20 is the memory tier, #77 is MTP. **Their claim, and a decode-rate claim** — measured three times here as non-predictive of agent wall time.
+Dynamic GGUF quants and local-run recipes (#119). Our llama.cpp picks run their `UD-Q3_K_XL` Flash-Next quant. Their speed claims are decode rates, not agent wall time.
 
 * **@YJesus**: X: [@YJesus](https://x.com/YJesus) · GitHub: [@YJesus](https://github.com/YJesus)  
-Cross-engine benchmarker on M3 Ultra 256 GB. **Runs ds4.** Verified 2026-08-29 post puts llama.cpp, mlx-serve, MTP and ds4 side by side on one machine, as a reply to @ddalcu and @ivanfioravanti — already inside our existing sources' conversation. M3 Ultra, not M5 Max: the ranking transfers, the numbers do not.
+Cross-engine benchmarker on M3 Ultra 256 GB. **Runs ds4** beside llama.cpp, mlx-serve and MTP on one machine. The ranking transfers, the numbers do not.
 
 * **@Eschalabs**: X: [@Eschalabs](https://x.com/Eschalabs) · GitHub: [@Eschalabs](https://github.com/Eschalabs) · Repo: [escha-mlx](https://github.com/Eschalabs/escha-mlx)  
-2-bit quants with custom MLX Metal kernels, **prefix caching**, M5 Pro batch numbers. Prefill is our bottleneck (#14, #50) and prefix caching is the lever. Verified post 2026-08-11 — the oldest of this batch, so confirm volume before relying on it.
+2-bit quants with custom MLX Metal kernels, **prefix caching**, M5 Pro batch numbers. Prefill is our bottleneck (#14, #50) and prefix caching is the lever. Low volume.
 
 * **@mweinbach**: X: [@mweinbach](https://x.com/mweinbach) · GitHub: [@mweinbach](https://github.com/mweinbach)  
-Max Weinbach. M5 Metal kernel work. Verified 2026-08-25 post covers a **packed-INT4 Metal 4.1 path** and MLX Fast runs. Metal 4 tensor kernels are live for us: #138's arms both auto-enable the tensor route on M5, and `DS4_METAL_ENABLE_TENSOR` accumulate drift is a known hazard (#149). **High volume (~305k followers, posts constantly)** — see the volume rule below; do not let him run inside the same undifferentiated gather as the small accounts.
+Max Weinbach. M5 Metal kernel work: a **packed-INT4 Metal 4.1 path** and MLX Fast runs. Metal 4 tensor kernels are live for us: ds4 auto-enables the tensor route on M5 (#138), and `DS4_METAL_ENABLE_TENSOR` accumulate drift is a known hazard (#149). **High volume**: gather him apart from the small accounts (see the volume rule below). `github.com/mweinbach` is a name match only: its repos are agent and Swift tooling.
 
 * **@13scoobie**: X: [@13scoobie](https://x.com/13scoobie) · GitHub: [@13scoobie](https://github.com/13scoobie)  
-David White. **Runs our exact model on an M5 Max, on an engine we have never tested.** Verified 2026-08-06: DeepSeek-V4-Flash **0731 on an M5 Max via oMLX** — prompt processing **272 tok/s**, generation **14 tok/s**. oMLX has been the untested prefill leader since #60, and this is the only outside oMLX number on 0731 we hold. The verified post says "M5 max" without a memory size; the 128 GB attribution is grok's, not his. Also ran Qwen3.8-Flash-Next oQ4 **MTP on mlx-serve**, ~19.9 tok/s, OOM after ~3 hours — an MTP failure mode worth knowing before #77. Verified 2026-08-30 post amplifies @ddalcu's `llmprobe`. **Quiet since 2026-08-30**; ~25–35 items in the 30 days to 2026-09-06, effectively no NVIDIA content. GitHub is a fork collection rather than original work, and it forks `ddalcu/llmprobe` — which is what ties the two accounts to one person.
+David White. **Runs our model on an M5 Max, on oMLX, which we have not measured.** Verified: DeepSeek-V4-Flash 0731 via oMLX, prompt processing **272 tok/s**, generation **14 tok/s** (memory size not stated). Also hit an OOM after ~3 hours of Qwen3.8-Flash-Next MTP on mlx-serve, an MTP failure mode worth knowing. Low volume. His GitHub is a fork list; it forks `ddalcu/llmprobe`, the tool his verified post promotes, and that ties the two accounts.
 
 * **@0xZKnw**: X: [@0xZKnw](https://x.com/0xZKnw) · GitHub: [@0xZKnw](https://github.com/0xZKnw) · Repo: [mlxl3](https://github.com/0xZKnw/mlxl3) · HF: [0xzknw](https://huggingface.co/0xzknw) · Website: [0xzknw.tech](https://0xzknw.tech)  
-**MLXL3 — EXL3 inference on Apple Silicon in MLX with custom Metal kernels**, shipping fast (v0.4.6 by 2026-09-05, verified). Verified 2026-09-02: LFM2.5-8B-A1B at **3.1 bpw, ~95 tok/s decode in ~4 GB on a 10-core M5**. **The mechanism is the lead, not the number** — an 8B on a base M5 says nothing about a 27B MoE here, but trellis/EXL3 quantization on Metal is the same ground @0xSero writes up for NVIDIA, running natively for once. Also forks `Eschalabs/escha-mlx`. ~60 followers, ~12 on GitHub: another account the volume rule protects.
+**MLXL3: EXL3 inference on Apple Silicon in MLX with custom Metal kernels.** Verified: LFM2.5-8B-A1B at 3.1 bpw, ~95 tok/s decode on a base M5. **The mechanism is the lead, not the number**: trellis/EXL3 quantization on Metal, the ground @0xSero writes up for NVIDIA. Sushi's Flash-Next packs are EXL3 too (#749). ~60 followers: the volume rule protects him.
 
 * **@Brooooook_lyn**: X: [@Brooooook_lyn](https://x.com/Brooooook_lyn) · GitHub: [@Brooooooklyn](https://github.com/Brooooooklyn) · HF: [Brooooooklyn](https://huggingface.co/Brooooooklyn) · Repo: [mlx-node](https://github.com/mlx-node/mlx-node) · Website: [lyn.one](https://lyn.one)  
-LongYinan, author of napi.rs. **Publishes MXFP4/MXFP8 dynamic MLX checkpoints** — verified 2026-08-15, [Qwen3.8-27B-MXFP4-mlx](https://huggingface.co/Brooooooklyn/Qwen3.8-27B-MXFP4-mlx) — and **our NEW arm is an MXFP4Down build**, so this is our own quantization axis with someone else's weights on it. Verified 2026-08-25: **"M5Max is already faster than DGX Spark in prefill"**, which is our bottleneck (#14, #50) and our machine. Verified 2026-08-17: **"MTP and concurrent inference cannot both be had"** — a constraint claim, unmeasured here, that bears on #19 and #77. Posts in Chinese and English; a real fraction of the feed is JS/Rust tooling and personal, so read for the MLX posts.
+LongYinan, author of napi.rs. **Publishes MXFP4/MXFP8 dynamic MLX checkpoints** (e.g. [Qwen3.8-27B-MXFP4-mlx](https://huggingface.co/Brooooooklyn/Qwen3.8-27B-MXFP4-mlx)), our own quantization axis. Verified claims, unmeasured here: "M5Max is already faster than DGX Spark in prefill", and "MTP and concurrent inference cannot both be had" (#19, #77). Much of the feed is JS/Rust tooling; read for the MLX posts.
 
 * **@no_stp_on_snek**: X: [@no_stp_on_snek](https://x.com/no_stp_on_snek) · GitHub: [@TheTom](https://github.com/TheTom) · Repo: [llama-cpp-turboquant](https://github.com/TheTom/llama-cpp-turboquant) · [turboquant_plus](https://github.com/TheTom/turboquant_plus)  
-Tom Turney. **TurboQuant KV-cache compression, shipped as a llama.cpp fork with Metal and CUDA kernels** (2.3k★, pushed daily) — llama.cpp is our fast pick's engine and KV cache is the prefill lever (#14, #50). Also building `atlas`, a Rust inference engine. **Owns an M5 Max, an RTX 5090 and a DGX Spark, and the window leans NVIDIA — roughly 60/40 against us** (verified 2026-09-03 technical original is DeepSeek-V4-Flash on the Spark). He has said he will want Metal testers. **High volume, ~200–400 items in 30 days and mostly short replies** — the volume rule below applies to him as it does to @mweinbach; read the repo before the feed.
+Tom Turney. **TurboQuant KV-cache compression, shipped as a llama.cpp fork with Metal and CUDA kernels**; KV cache is the prefill lever (#14, #50). Also builds `atlas`, a Rust inference engine. **Owns an M5 Max, an RTX 5090 and a DGX Spark**, so he serves both lanes. **High volume, mostly short replies**: the volume rule below applies; read the repo before the feed.
 
 * **@ashxhart**: X: [@ashxhart](https://x.com/ashxhart)  
-**Owns an M5 Max 128 GB**, plus an M3 Ultra 256 GB and 2x DGX Spark, and posts engine work with agent-relevant numbers, not only decode. Posted 2026-09-23, verified 2026-09-24 ([post](https://x.com/ashxhart/status/2102759677637321146)): **TensorFold** on dense Qwen3.8-27B 4-bit on the M5 Max, fresh agent-session TTFT **30 s -> 0.42 s** and live agent turns **~22 -> ~94 tok/s**. Also an oMLX PR for a Mac/CUDA cluster path ([post](https://x.com/ashxhart/status/2102709068125044809)), and an M3 Ultra MLX tuning thread in the 2026-09-08 mac sweep (Flash-Next 4-bit, 42 -> 73 tok/s). **TensorFold is not released** ("will open-source it"), and his 200 tok/s drafter figure is a proof of concept. Added 2026-09-24 from #722: four posts across 16 days make a pattern.
+**TensorFold's author** ([ashhart](https://github.com/ashhart)). **Owns an M5 Max 128 GB**, an M3 Ultra 256 GB and 2x DGX Spark, and posts agent-relevant numbers, not only decode: TensorFold on dense Qwen3.8-27B on the M5 Max, fresh agent-session TTFT **30 s -> 0.42 s** ([post](https://x.com/ashxhart/status/2102759677637321146), verified). TensorFold runs the two-Spark fast option, so read him on a DGX sweep too.
 
 ## Tier 3 — occasional
 
@@ -178,16 +170,16 @@ Mac vs DGX Spark arguments — heat, occasionally light. GitHub is a **probable*
 **Atomic Chat — a company, not a person.** A local-first agent over llama.cpp and MLX ([`atomic-agent`](https://github.com/AtomicBot-ai/atomic-agent) 2.5k★, [`Atomic-Chat`](https://github.com/AtomicBot-ai/Atomic-Chat) 1.4k★), an `atomic-quantizer`, a **`llama-cpp-turboquant` nightly fork**, and "Atomic Dynamic" GGUF + MLX quants on Hugging Face. Verified 2026-08-26, their claim: **1-bit Qwen3.8-Flash-Next (79 GB) on an M5 Max 64 GB at 30 tok/s, inside an 8-minute agent loop** — our model, our endpoint, and a memory tier below ours (#20). **Read the quants and the repos, not the feed**: about half the window is rented 4x RTX PRO 6000 demos and product promotion, and the Mac numbers are single vendor demos.
 
 * **@RevTheD3v**: X: [@RevTheD3v](https://x.com/RevTheD3v)  
-Posted the only public config that matches our M5 Max fast pick ([post](https://x.com/RevTheD3v/status/2102868037854491105), verified 2026-09-24): Qwen3.8-Flash-Next mixed 4/8 on **mlx-serve 26.9.2**, MLX 0.32.2, MTP + PLD draft 5, 8-bit KV, 10 GB prefix cache, NAX on, OpenCode wired up, 128 GB. He reports **~61 GB loaded**, against our ~100 GiB resident, which is a config question worth a test on its own. One post so far; promote on a second. Added 2026-09-24 from #722.
+Posted the only public config that matches our M5 Max fast pick ([post](https://x.com/RevTheD3v/status/2102868037854491105), verified 2026-09-24): Qwen3.8-Flash-Next mixed 4/8 on **mlx-serve 26.9.2**, MLX 0.32.2, MTP + PLD draft 5, 8-bit KV, 10 GB prefix cache, NAX on, OpenCode wired up, 128 GB. He reports **~61 GB loaded**, against our ~100 GiB resident, which is a config question worth a test on its own. One post so far; promote on a second. (#722)
 
 * **@Sean74695991625**: X: [@Sean74695991625](https://x.com/Sean74695991625)  
-Publicly asks this repo's question ([post](https://x.com/Sean74695991625/status/2100640297021821352), verified 2026-09-24): how good a local coding agent gets on an M5 Max 128 GB, starting from MTPLX 2.11.3. Low volume. If he publishes results, they are the closest outside comparison we will get. Added 2026-09-24 from #722.
+Publicly asks this repo's question ([post](https://x.com/Sean74695991625/status/2100640297021821352), verified 2026-09-24): how good a local coding agent gets on an M5 Max 128 GB, starting from MTPLX 2.11.3. Low volume. If he publishes results, they are the closest outside comparison we will get. (#722)
 
 * **@ldreisi**: X: [@ldreisi](https://x.com/ldreisi)  
-Daily driver per his bio: **M5 Max 128 GB with oMLX + OpenCode**, Qwen Code and Hermes, beside a 4x3090 box. oMLX is the engine we have not measured (#60), and a user running it under OpenCode on our exact machine is the account most likely to report a real-session problem. Added 2026-09-24 from #722.
+Daily driver per his bio: **M5 Max 128 GB with oMLX + OpenCode**, Qwen Code and Hermes, beside a 4x3090 box. oMLX is unmeasured here (#737), and a user running it under OpenCode on our exact machine is the account most likely to report a real-session problem. (#722)
 
 * **@liuliu**: X: [@liuliu](https://x.com/liuliu)  
-Engine maintainer. Argues MLX and llama.cpp are already near the hardware ceiling on Apple silicon ([post](https://x.com/liuliu/status/2102433086491505080), verified 2026-09-24), so the next big step is a new machine. Read him as a **check on claims** that look too good, not as a source of numbers. Added 2026-09-24 from #722.
+Engine maintainer. Argues MLX and llama.cpp are already near the hardware ceiling on Apple silicon ([post](https://x.com/liuliu/status/2102433086491505080), verified 2026-09-24), so the next big step is a new machine. Read him as a **check on claims** that look too good, not as a source of numbers. (#722)
 
 * **Splash users, watched through #531 only**: [@Guikingone](https://x.com/Guikingone) (OpenCode on an M5 Max 64 GB, 40–50 tok/s on a loaded machine) and [@techowknow](https://x.com/techowknow) (Splash-HQ Q8, ~75 tok/s on an M5 Max) are the independent Splash reports from #722. **Not tiered**: Splash is paused and `incoai` is not an approved source, so a tier would suggest the engine is on our path. Record what they post on #531.
 
@@ -198,136 +190,84 @@ Where weights appear first.
 
 ## DGX Spark sources
 
-**A new lane, not yet vetted (#307).** The DGX Spark's mission is broader than
-the Mac's — a multipurpose LLM server, a coding backend served over the network,
-a Hermes agent runtime, and camera vision (see the machine README). So the
-sources widen too: NVFP4/FP8 recipes, vLLM and SGLang serving, and aggregate
-multi-stream numbers that the Mac lane rules would discard as "CUDA, not for us".
+**The two-Spark cluster's lane (#307).** Single-Spark testing stopped on
+2026-10-23, so judge a lead by *would this change a number on two GB10 nodes?*
+The cluster is a multipurpose LLM server and a coding backend served over the
+network, so this lane reads NVFP4/FP8 and EXL3 recipes, vLLM, TensorFold and
+SGLang serving, and aggregate multi-stream numbers that the Mac lane discards.
 
-**These accounts already in this file cross into this lane** — read them here too,
-not as "against us":
+**Accounts in the Mac tiers that cross into this lane:**
 
-* **@no_stp_on_snek** (Tier 2) — **owns a DGX Spark** and posts DeepSeek-V4-Flash
-  on it; ships `TheTom/llama-cpp-turboquant` with **CUDA** kernels. The "60/40
-  against us" note was the Mac lane talking; on the DGX lane it is the point.
-* **@0xSero** (Tier 2) — the low-bit / trellis quantization writeups target
-  **NVIDIA/vLLM**, and `deepseek-v4-flash-0731-spark-sparkinfer` pins our exact
-  checkpoint for the Spark. Mac lane: reasoning transfers, kernels do not. DGX
-  lane: the kernels transfer too.
+* **@no_stp_on_snek** (Tier 2) owns a DGX Spark and ships
+  `TheTom/llama-cpp-turboquant` with CUDA kernels.
+* **@0xSero** (Tier 2): his low-bit writeups target NVIDIA/vLLM, and his 1017
+  EXL3 is the two-Spark pick's weights (#1160).
+* **@sudoingX** (Tier 2) runs 2x Spark and authors the pick's vLLM stack
+  (#1160, #1244).
+* **@jayleaton** (Tier 2) publishes GLM-5.3-Flash and DeepSeek-V4.1-Flash
+  TensorFold recipes for two Sparks (#798, #919).
+* **@ashxhart** (Tier 2) is TensorFold's author.
 * **@Brooooook_lyn** (Tier 2) and **@bleysg** (Tier 3) post Mac-vs-Spark
-  comparisons — now a source of Spark numbers, not just an argument.
-* **@sudoingX** (Tier 2) is now a **2x Spark operator on official FP8
-  Qwen3.8-Flash-Next** (45 tok/s fresh, 35 mid-build, with MTP and Hermes). #721.
-  Added 2026-09-24 from #722.
-* **@jayleaton** (Tier 2) runs GLM-5.3-Flash on TensorFold across two Sparks and
-  publishes the recipe we screen on #798. Added 2026-09-29 by the operator.
-* **@Raullen** (Tier 2) posted the only multi-agent coding session on the 2x
-  Spark GLM-5.3-Flash EXL3 stack we rank first (two Codex agents, 2026-08-28).
-  Added 2026-09-24 from #722.
+  comparisons.
+* **@Raullen** (Tier 2) posted a multi-agent coding session on a 2x Spark
+  GLM-5.3-Flash EXL3 stack (#722).
 
 ### Vetted: MiaAI-Lab (operator-added, 2026-09-22)
 
 **[@MiaAI_lab](https://x.com/MiaAI_lab) and its GitHub account
-[MiaAI-Lab](https://github.com/MiaAI-Lab)** publish maintained 1x, 2x and 3-4x
-DGX Spark recipes. This pair has run three of them end to end, so the "read the
-repo, not the feed" filter below is satisfied by our own rows, not by the feed:
-Qwen3.8-Flash-Next NVFP4 (#663, 30/30), GLM-5.3-Flash EXL3 (#648, 30/30) and
-MiMo-V2.6-Flash on SGLang (#672). Their READMEs carry measured memory budgets,
-which have been accurate to within a few GiB on our nodes.
+[MiaAI-Lab](https://github.com/MiaAI-Lab)** publish maintained 2x and 3-4x DGX
+Spark recipes. We have run several end to end (#648, #663, #672, #685, #1168),
+so our own rows, not the feed, vet them. Their READMEs carry measured memory
+budgets, accurate to within a few GiB on our nodes. Their recipe repos are in
+[DGX Spark only](#dgx-spark-only----the-cuda-serving-stack) below.
 
-Watched repos (rendered from `WATCHED` in `scripts/upstream_sweep.py`):
-
-* [MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks](https://github.com/MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks) — the Qwen3.8-Flash-Next two-node recipe we run (#663, #664)
-* [MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks) — the GLM-5.3-Flash EXL3 two-node recipe we run (#648)
-* [MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks](https://github.com/MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks) — the MiMo-V2.6-Flash SGLang two-node recipe we run (#672)
-* [MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks](https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks) — DeepSeek V4.1 Flash EXL3 on two Sparks: a candidate arm, not yet run
-* [ashhart/TensorFold](https://github.com/ashhart/TensorFold) — the engine under the cluster's leading GLM arms (#892, #897)
-* [MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold) — the cluster pick's recipe: GLM-5.3-Flash EXL3 on TensorFold (#892)
-* [jayleaton/glm53-tensorfold-spark](https://github.com/jayleaton/glm53-tensorfold-spark) — GLM-5.3-Flash on TensorFold, a kept arm (#840)
-* [jayleaton/deepseek-v41-tensorfold-spark](https://github.com/jayleaton/deepseek-v41-tensorfold-spark) — DeepSeek-V4.1-Flash on TensorFold: a lead, unapproved (#919)
-* [kindlingai/glm-5.3-flash-gx10](https://github.com/kindlingai/glm-5.3-flash-gx10) — GLM-5.3-Flash NVFP4 on vLLM, cut by the screen (#896)
-* [sudoingX/dgx-spark-deepseek-v41](https://github.com/sudoingX/dgx-spark-deepseek-v41) — the two-Spark pick's stack: DeepSeek-1017 EXL3 on vLLM (#1160, #1244)
-* [MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks](https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks) — DeepSeek-1017 EAQ on TensorFold, the best hidden re-grade (#1168, #1246)
-
-**They ship new recipe repos often, sometimes several a day.** A DGX sweep also
-lists the account's recently pushed repos, because a new model's recipe is a new
-repo, not a commit to a watched one:
+**They ship new recipe repos often, sometimes several a day.** A new model's
+recipe is a new repo, not a commit to a watched one, so a DGX sweep also lists
+the account's recently pushed repos:
 
 ```sh
 gh api "users/MiaAI-Lab/repos?sort=pushed&per_page=15" \
   --jq '.[] | "\(.pushed_at) created=\(.created_at[:10]) \(.name)"'
 ```
 
-**The caveats that still apply.** Their decode and throughput figures are short-prompt
-serving numbers, not agent wall time. Their `GPU_MEM_UTIL` and similar defaults
-assume a head carrying only the server. That is also true of ours now that the client is remote,
-so our departures from their memory settings need a measured reason (#672 needed one: 0.93 did
-not fit with DFlash). Their weights are third-party quants and are approved **per artifact**
-(#648's EXL3 and DFlash2 were).
+**Caveats.** Their decode and throughput figures are short-prompt serving
+numbers, not agent wall time. A departure from their memory settings needs a
+measured reason (#672: 0.93 did not fit with DFlash). Their weights are
+third-party quants, approved **per artifact**.
 
-### Added 2026-09-24 from the field scan (#722)
+### From the 2026-09-24 field scan (#722)
 
-The posts cited here were checked with `scripts/verify_posts.py` on 2026-09-24:
-#722's 70 of 70, and @plotarmordev's in that day's DGX sweep. Verification
-proves the author, not the number.
+`scripts/verify_posts.py` checked the posts cited here. Verification proves the
+author, not the number.
 
 | handle | why | what to read |
 |---|---|---|
-| [@ViC305](https://x.com/ViC305) | The densest single-Spark source: EXL3 Flash-Next recipes, the EXL3-vs-NVFP4 split with the metric written down ([post](https://x.com/ViC305/status/2102228607494201632)), the MTP collapse past about 164k, 8-bit KV scaling with context, and a one-Spark DeepSeek-V4.1 SAGE-EXL3. He corrects his own artifacts (103.8 tok/s was a 32-token artifact). | His ExLlamaV3 fork ([vcruz305/exllamav3](https://github.com/vcruz305/exllamav3)) before his feed: recipe-first, high volume. |
+| [@ViC305](https://x.com/ViC305) | EXL3 recipes with the metric written down ([post](https://x.com/ViC305/status/2102228607494201632)), the MTP collapse past about 164k, 8-bit KV scaling with context, and a SAGE-EXL3 DeepSeek-1017 (#1208). He corrects his own artifacts. | His ExLlamaV3 fork ([vcruz305/exllamav3](https://github.com/vcruz305/exllamav3)) before his feed: recipe-first, high volume. |
 | [@yume_arasaki](https://x.com/yume_arasaki) | Owns 2x Spark and **reproduces other people's claims**. He publishes a grid (code, prose, JSON, needle to 243k, tools, J/token) and retracted his own headline ([post](https://x.com/yume_arasaki/status/2101741448811229219)). He also states that prefill, not decode, is the agent bottleneck. | Replications, especially of @ViC305. |
-| [@sfxnz](https://x.com/sfxnz) | Author of the second DeepSeek V4.1 Flash EXL3 **2x Spark** recipe (#685). | [sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark](https://github.com/sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark), before V4.1 runs in #717. |
-| [@plotarmordev](https://x.com/plotarmordev) | Published a full **GLM-5.3-Flash EXL3 2x Spark long-coding config**, each opt-in with its gain and cost ([post](https://x.com/plotarmordev/status/2102840170672218204)). That is our first-ranked dual stack; noted on #648. | The config, when #717 picks tuning arms. |
+| [@sfxnz](https://x.com/sfxnz) | Author of the second DeepSeek V4.1 Flash EXL3 **2x Spark** recipe (#685). | [sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark](https://github.com/sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark). |
+| [@plotarmordev](https://x.com/plotarmordev) | Published a full **GLM-5.3-Flash EXL3 2x Spark long-coding config**, each opt-in with its gain and cost ([post](https://x.com/plotarmordev/status/2102840170672218204)); noted on #648. | The config, when a GLM arm needs tuning. |
 | [@AlexanderChopra](https://x.com/AlexanderChopra) | 2x Spark GLM EXL3 memory sweep to 500k input with head `MemAvailable` per step, and the page-cache-vs-CUDA InstantTensor load failure with its eviction fix ([post](https://x.com/AlexanderChopra/status/2102830367119945985)). | Operational posts only; most of the feed is cybersecurity. |
 | [@JoesInvestments](https://x.com/JoesInvestments) | Ported GLM-5.3 NVFP4 + DFlash2 to stock vLLM 0.30.0 and published the losses with the wins: all-reduce moves MoE serving about 2%, and 2,304-token prefix blocks miss short agent prompts ([post](https://x.com/JoesInvestments/status/2102862941020176643)). Runs 4 Sparks; most of it transfers. | vLLM-version deltas. |
 | [@mrru5s3ll](https://x.com/mrru5s3ll) | Writes the Spark-facing reading of vLLM releases: GB10 FP8 swizzle, NVFP4 default on SM121, Fast Start ([post](https://x.com/mrru5s3ll/status/2102595090934075740)). | Release summaries: a cheap signal that an engine bump matters here. |
 
-**Occasional, not regular:** [@mmastrac](https://x.com/mmastrac) and
-[@2WildTech](https://x.com/2WildTech) (TP=4 on four Sparks, not our topology;
-@2WildTech is secondhand so far, so open the timeline once before relying on
-him), [@AronMakesCrafts](https://x.com/AronMakesCrafts) (one well-measured
-single-Spark Mia run), and [@johncodes](https://x.com/johncodes) (2x Spark
+**Occasional:** [@mmastrac](https://x.com/mmastrac) and
+[@2WildTech](https://x.com/2WildTech) (TP=4 on four Sparks; @2WildTech is
+secondhand so far), and [@johncodes](https://x.com/johncodes) (2x Spark
 daily-driver anecdotes, no numbers). For llama.cpp's unified-memory mmap fix,
 watch [ggml-org/llama.cpp#29030](https://github.com/ggml-org/llama.cpp/pull/29030)
-rather than the accounts that pointed at it. [@filicroval](https://x.com/filicroval)
-stays in the unverified table below until the single-Spark GLM recipe is posted.
+rather than the accounts that pointed at it.
 
-**Unverified leads, gathered 2026-09-11**
-(`logs/sweeps/grok-dgx-accounts-20260911T222500Z.txt`). These handles posted
-single-Spark results in the days to 2026-09-11. **None is verified** — run
-`scripts/verify_posts.py` on each before promoting it to a tiered entry, exactly
-as #152 and the 2026-09-06 batch were resolved. Recorded here as a starting
-point for the first DGX source sweep, not as vetted sources:
+### From the 2026-10-27 contributor scan (#1275)
 
-| handle | claim (unverified) |
-|---|---|
-| [@Oluwaphilemon1](https://x.com/Oluwaphilemon1) | Qwen3.8-27B single Spark 71.5 tok/s (NVFP4 drafter, D=16, FP8 KV); Flash-Next 273 tok/s aggregate at 8 streams |
-| [@apikey_official](https://x.com/apikey_official) | single-Spark Flash-Next recipe, 47 tok/s decode, +24.7% 8k prefill; model-choice guidance for 1x vs 2x+ (@MiaAI_lab, the same recipes, is now vetted above) |
-| [@HealthRanger](https://x.com/HealthRanger) | SGLang + NVFP4 Qwen3.8-27B + DFlash2, 413 tok/s aggregate across 16 lanes |
-| [@0xBakeer](https://x.com/0xBakeer) | DeepSeek V4.1 Flash on one 128 GB Spark via a custom ~4-bit engine, 20.85 tok/s greedy |
-| [@filicroval](https://x.com/filicroval) | Flash-Next 63.11 tok/s weighted decode, draftless ngram speculation, vision on |
-| [@ksuniri](https://x.com/ksuniri) | Hermes driven by Qwen3.8 Flash on a Spark, stable under long concurrent decode |
-| [@jimmycheng722](https://x.com/jimmycheng722) · [@shantanugoel](https://x.com/shantanugoel) · [@MarkusEicher70](https://x.com/MarkusEicher70) | daily-driver / agent-TUI reports on a single home Spark |
-
-**The same caveats apply, harder.** These are aggregate and single-stream decode
-rates, which this project has measured three times as non-predictive of agent
-wall time — leads to test on our own Spark, not numbers to repeat. And a
-company/marketing account (e.g. @apikey_official, @MiaAI_lab) needs the "read
-the repo, not the feed" filter before it earns a tier.
-
-### Added 2026-10-27 from the contributor scan (#1275, operator request)
-
-Found from both sides. On GitHub: the contributors and issue/PR authors of
-`ashhart/TensorFold`, the MiaAI-Lab recipe repos, sudoingX's and jayleaton's
-recipes and `NVIDIA/flare-local-inference`, plus repository search for
-`dgx spark`, `gb10` and `sm121`. On X: three `xurl` recent searches and one
-user lookup (`logs/sweeps/xurl-dgx-sources-20261027T110018Z.txt`).
+Found from the contributors and issue/PR authors of the watched DGX repos, a
+GitHub search for `dgx spark`, `gb10` and `sm121`, and `xurl` searches on X
+(`logs/sweeps/xurl-dgx-sources-20261027T110018Z.txt`).
 
 **An X handle and a GitHub account are paired only where one names the other**:
 a GitHub `twitter_username`, an X bio or URL that links the GitHub, or a website
 that links both. Where nothing links them, the column is blank, even when a
-same-named account exists. Ten posts were checked with `scripts/verify_posts.py`
-(`logs/sweeps/verify-posts-Cortex-X925-GB10-20261027T110301Z.log`). That proves
-the author, not the number. Stars and follower counts are as read on 2026-10-27.
+same-named account exists. `scripts/verify_posts.py` checked the ten cited
+posts. Stars and follower counts are as read on 2026-10-27.
 
 **Two-Spark recipe authors** (our topology):
 
@@ -376,8 +316,6 @@ the author, not the number. Stars and follower counts are as read on 2026-10-27.
 
 **Considered, not added:** @hisxo (`DeepSeek-V4.1-Flash-2x-DGX-Spark`, one repo so far), ZackO2o (a TensorFold TP2 recipe, no other output), nkavassalis (`spark-tuning`, no stars yet), @voipmonitor (Martin Vit, 120 Flare commits; the X account is his company's), lukealonso (Flare's top committer; watch the repo, not a person), @tenhkspark, @HandwerkAiLab, @latentone_ and @dextune (thin so far). Re-check these at the next contributor scan.
 
-**Already in this file, and now in this lane too:** [@ashxhart](https://x.com/ashxhart) ([ashhart](https://github.com/ashhart)), TensorFold's author, sits in the Mac tiers. TensorFold runs the cluster's GLM arms, so read his posts on a DGX sweep as well.
-
 ### Vendor sources for this lane (operator-defined, 2026-09-17)
 
 The DGX Spark runs NVIDIA's own formats, so NVIDIA is a **primary** source here
@@ -405,32 +343,21 @@ from 4× GB300 or a B200 more often than from one Spark.
 
 ## Read the repo, not the feed
 
-This file is organized around X because that is where most of this field
-announces itself. For the sources below that is the wrong surface: the work is
-in a repository or an issue tracker, and the feed is chatter or silence.
-
-**The heading used to say "Not on X", and both entries disproved it** — Flor1an-B
-posts as [@_LEFBE](https://x.com/_LEFBE), rarely, and Mirai is in Tier 2 as
-[@trymirai](https://x.com/trymirai). The property that puts a source here is
-not the absence of an account. It is that checking the feed first would miss
-the work, so check GitHub first and read the feed second, if at all.
-
-A follower count is not the property we need either.
+For these sources the work is in a repository or an issue tracker, and the
+feed is chatter. Both have X accounts; check GitHub first and the feed second.
 
 * **Flor1an-B**: GitHub: [@Flor1an-B](https://github.com/Flor1an-B) · [ds4 issues](https://github.com/antirez/ds4/issues?q=author%3AFlor1an-B) · X: [@_LEFBE](https://x.com/_LEFBE) · Repo: [Ka1zen](https://github.com/Flor1an-B/Ka1zen)  
-Bertaux Florian, Paris. **He does have an X account — @_LEFBE** — which this entry previously said he did not; the two are the same person, and the corroboration is his own X profile linking `Flor1an-B/Ka1zen`, not an assertion. 3 GitHub followers, 51 on X, account opened 2026-02-19 — and **15 authored issues and PRs on `antirez/ds4`, all engine internals**, several landing exactly where we are stuck. [#789](https://github.com/antirez/ds4/pull/789) ports visible-KV checkpoint fixes for tool turns, which is the token-mismatch failure of ds4#816 that blocks #64. [#691](https://github.com/antirez/ds4/issues/691) is KV cache reuse breaking for tool clients that do not replay reasoning — the same bug from the client side. [#695](https://github.com/antirez/ds4/issues/695) argues the DSpark scheduler's break-even model ignores replay cost. [#750](https://github.com/antirez/ds4/issues/750) is native MTP corrupting output at `--mtp-draft>=2` (#39). **Benchmarks on an M5 Max 128 GB with DeepSeek-V4-Flash 0731 — our exact machine and primary model** — which almost nobody else does; #75 came from their temp>0 DSpark table on that setup. **The X feed is worth a pass now that we have it**, though it is mostly replies to @antirez and @ivanfioravanti. Two items already line up with our own work: on 2026-07-20 he saw **no improvement from DSpark** and asked antirez for numbers, which is where #58 and #75 landed months later; and on 2026-07-26 he reported **the same prompt and model giving different answers under Claude Code, OpenCode and ds4**, and said he wanted benchmarks of real fix-and-create work rather than leaderboard tok/s — which is this repo's thesis, arrived at independently. `Ka1zen` (13★) is his offline MLX chat app for Apple Silicon. **Still read the ds4 issue list first**: the feed is chatter, the issues are the work.
+Bertaux Florian, Paris; his X profile links `Flor1an-B/Ka1zen`, which ties the two accounts. **15 authored issues and PRs on `antirez/ds4`, all engine internals**: [#789](https://github.com/antirez/ds4/pull/789) (visible-KV checkpoint fixes for tool turns, ds4#816), [#691](https://github.com/antirez/ds4/issues/691) (KV cache reuse breaking for tool clients that do not replay reasoning), [#695](https://github.com/antirez/ds4/issues/695) (DSpark break-even ignores replay cost), [#750](https://github.com/antirez/ds4/issues/750) (native MTP corrupts output at `--mtp-draft>=2`, #39). **Benchmarks DeepSeek-V4-Flash 0731 on an M5 Max 128 GB**, our machine; #75 came from his temp>0 DSpark table. The feed is mostly replies to @antirez and @ivanfioravanti. 3 GitHub followers and 51 on X: the popularity rule below is about him.
 
 * **Mirai (trymirai)**: X: [@trymirai](https://x.com/trymirai) · GitHub: [trymirai/uzu](https://github.com/trymirai/uzu) · Website: [trymirai.com](https://trymirai.com) · [docs](https://docs.trymirai.com) · PyPI: [uzu](https://pypi.org/project/uzu/)  
-**uzu — an Apple-only inference engine written in Rust**, MIT, 1726★, iOS and macOS only, release 0.5.23 on 2026-09-03 with commits landing daily. **Reachable by `uv add uzu`**, with Python, TypeScript and Swift bindings, so it is testable here without a build. The claim that brought it to us — 105 tok/s on a 27B model on an M5 Max, **2x MTPLX and 3.5x llama.cpp** — is unsourced and secondhand (#134), but the MTPLX number we hold is itself old and unreplicated, so the comparison is worth owning. **How we found it is the lesson:** an aggregator account on X, not a handle in this file, and no sweep surface we run would have surfaced it — an actively released Apple-only engine was invisible to all seven. Open question before any measurement: whether "M5 Neural Accelerators" means the ANE (#123) or the matmul units in the GPU cores. **The company account is a Tier 2 entry above**; this entry is the engine.
+**uzu, an Apple-only inference engine written in Rust** (MIT). **Reachable by `uv add uzu`**, with Python, TypeScript and Swift bindings, so it is testable without a build. The claim that brought it here (105 tok/s on a 27B on an M5 Max, 2x MTPLX) is unsourced and secondhand (#134, closed as a stale lead). An aggregator account found it; no sweep surface we run would have. Open question before a measurement: does "M5 Neural Accelerators" mean the ANE (#123) or the GPU matmul units? The company account is a Tier 2 entry above.
 
 ## Repositories to watch
 
 **Every repo this project depends on, in one place**, tagged by machine (#307).
-X is where the field announces itself; GitHub is where it ships. The 2026-09-01
-sweep found the fact that mattered most that day -- `qwen4exp` is
-Qwen3.8-Flash-Next, so llama.cpp commits under that name are work on our own
-fast pick -- and it nearly missed two repos because this file linked authors'
-profiles rather than their code.
+X is where the field announces itself; GitHub is where it ships. A sweep from
+memory once missed two repos because this file linked authors' profiles, not
+their code.
 
 Run it rather than reading it. `--platform` picks a lane -- the Mac's Metal and
 MLX engines, the DGX Spark's CUDA serving stack, or both:
@@ -453,10 +380,10 @@ an auth failure.
 The engine runs on the Mac and on the DGX, or the repo belongs to no machine.
 
 * **[`antirez/ds4`](https://github.com/antirez/ds4)**  
-our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+DwarfStar: the M5 Max's DeepSeek-V4-Flash and lighter Flash-Next picks
 
 * **[`ggml-org/llama.cpp`](https://github.com/ggml-org/llama.cpp)**  
-our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+the mainline engine pick; `qwen4exp` IS Qwen3.8-Flash-Next
 
 * **[`ollama/ollama`](https://github.com/ollama/ollama)**  
 the 31 GB entry point; MLX runtime on the Mac, cuda_v13 on the DGX
@@ -465,13 +392,10 @@ the 31 GB entry point; MLX runtime on the Mac, cuda_v13 on the DGX
 our only client
 
 * **[`evanwtf/local-llm`](https://github.com/evanwtf/local-llm)**  
-This project
+this project
 
 * **[`evanwtf/gmail-archive`](https://github.com/evanwtf/gmail-archive)**  
 the excision tasks' target repository
-
-* **[`evanwtf/ds4`](https://github.com/evanwtf/ds4)**  
-our ds4 fork (#27 asks whether it can be retired)
 
 ### Mac only -- Metal and MLX
 
@@ -485,10 +409,10 @@ the framework everything MLX sits on
 reference MLX server; new architectures land here first
 
 * **[`jundot/omlx`](https://github.com/jundot/omlx)**  
-oMLX -- prefill leader, untested here (#60)
+oMLX -- prefill leader, unmeasured here (#737)
 
 * **[`ddalcu/mlx-serve`](https://github.com/ddalcu/mlx-serve)**  
-benchmarked on our exact machine; llmprobe's author
+the M5 Max's fastest pick; its author benchmarks on our machine
 
 * **[`beamivalice/sushi`](https://github.com/beamivalice/sushi)**  
 Sushi, the mlx-serve fork with EXL3 Flash-Next packs; our fastest Mac stack (#749)
@@ -519,12 +443,12 @@ Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)
 
 ### DGX Spark only -- the CUDA serving stack
 
-The path to NVFP4/FP8 on Blackwell that Ollama on Linux cannot reach (#293).
-The DGX's emphasis is aggregate multi-stream throughput, so these matter more
-here than a single-stream Mac (#307, #299).
+The path to NVFP4/FP8 on Blackwell that Ollama on Linux cannot reach (#293),
+plus the two-Spark recipes we run. The cluster's emphasis is aggregate
+multi-stream throughput (#307).
 
 * **[`vllm-project/vllm`](https://github.com/vllm-project/vllm)**  
-NVFP4/FP8 serving on Blackwell; the #299 single-Spark recipe
+NVFP4/FP8 serving on Blackwell; the two-Spark pick's engine (#1160)
 
 * **[`NVIDIA/TensorRT-LLM`](https://github.com/NVIDIA/TensorRT-LLM)**  
 the other CUDA-native path to NVFP4 on the Spark (#293, #299)
@@ -534,6 +458,39 @@ NVIDIA Flare: a Rust local server for SM121, built for coding agents (#1207)
 
 * **[`sgl-project/sglang`](https://github.com/sgl-project/sglang)**  
 aggregate multi-stream serving; the DGX's throughput emphasis (#307)
+
+* **[`ashhart/TensorFold`](https://github.com/ashhart/TensorFold)**  
+the engine under the cluster's leading GLM arms (#892, #897)
+
+* **[`sudoingX/dgx-spark-deepseek-v41`](https://github.com/sudoingX/dgx-spark-deepseek-v41)**  
+the two-Spark pick's stack: DeepSeek-1017 EXL3 on vLLM (#1160, #1244)
+
+* **[`MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks`](https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks)**  
+DeepSeek-1017 EAQ on TensorFold, the best hidden re-grade (#1168, #1246)
+
+* **[`MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold`](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold)**  
+the two-Spark fast option's recipe: GLM-5.3-Flash EXL3 on TensorFold (#892)
+
+* **[`MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks`](https://github.com/MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks)**  
+the Qwen3.8-Flash-Next two-node recipe we run (#663, #664)
+
+* **[`MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks`](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks)**  
+the GLM-5.3-Flash EXL3 two-node recipe we run (#648)
+
+* **[`MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks`](https://github.com/MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks)**  
+the MiMo-V2.6-Flash SGLang two-node recipe we run (#672)
+
+* **[`MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks`](https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks)**  
+DeepSeek V4.1 Flash EXL3 on two Sparks, measured (#685)
+
+* **[`jayleaton/glm53-tensorfold-spark`](https://github.com/jayleaton/glm53-tensorfold-spark)**  
+GLM-5.3-Flash on TensorFold, a kept arm (#840)
+
+* **[`jayleaton/deepseek-v41-tensorfold-spark`](https://github.com/jayleaton/deepseek-v41-tensorfold-spark)**  
+DeepSeek-V4.1-Flash on TensorFold, measured (#919)
+
+* **[`kindlingai/glm-5.3-flash-gx10`](https://github.com/kindlingai/glm-5.3-flash-gx10)**  
+GLM-5.3-Flash NVFP4 on vLLM, cut by the screen (#896)
 
 **Read commits, not activity counts.** A branch can be busy with vision and
 ROCm work that is out of scope here, and a two-commit day can carry the one
@@ -552,10 +509,10 @@ websites, then X — and encodes the order below. What follows is the detail beh
 most of the effort on CUDA benchmarks and vision releases.
 
 1. **Gather with grok, and assume every word is unverified.**
-2. **Judge relevance to this machine first** — would it change a number on an
-   M5 Max, 128 GB, Metal? A result on an M3 or M4 is a **lead, not noise**,
-   and a result on an M5 Ultra is the closest lead of all: same GPU
-   generation, so its kernel work usually reaches the M5 Max.
+2. **Judge relevance to the lane first**: would it change a number on the M5
+   Max (Metal), or on the two-Spark cluster (CUDA)? A result on an M3 or M4 is
+   a **lead, not noise**, and a result on an M5 Ultra is the closest lead of
+   all: same GPU generation, so its kernel work usually reaches the M5 Max.
 3. **Say what you found, out loud, before filing anything.** A short summary
    leading with what bears on this machine, marked unverified. A sweep whose
    output only lands in GitHub is one the operator cannot steer.
@@ -576,7 +533,7 @@ already have. Reach for a fixer whenever someone hands you a link: it is exact,
 with no model in the loop to paraphrase or invent.
 
 From an agent, call the API host with curl rather than pointing `WebFetch` at
-the fixer — `api.fxtwitter.com` is the same service `verify-posts.py` already
+the fixer — `api.fxtwitter.com` is the same service `scripts/verify_posts.py`
 uses, and it returns the **quoted post**, which is often where the substance is:
 
 ```sh
@@ -609,37 +566,34 @@ A prompt shape that works:
 
 ## Rules, all learned the hard way
 
-**Verify before repeating.** Pipe the output through
-`~/.claude/skills/grok/verify-posts.py`. It checks the post exists, its real
-timestamp, its true author, and whether it is a post or a reply. It has caught a
-"post" that was a reply, and grok has fabricated an item outright. **A claim with
-no post URL is unusable.**
+**Verify before repeating.** Run `scripts/verify_posts.py` on every post you
+repeat. It checks that the post exists, its real timestamp, its true author,
+and whether it is a post or a reply. It has caught a "post" that was a reply,
+and grok has fabricated an item outright. **A claim with no post URL is
+unusable.**
 
 **Date and version every claim.** #55: blog sources describing OpenCode looked
 authoritative and covered **1.1.x–1.14.x** while we ran **1.18.25**. Six months
 is several different products in this field.
 
 **These are leads, not results — and "not our hardware" is not a reason to
-discard one.** Almost every number posted is from an M3 Ultra, M3 Max or M4;
-we are a 128 GB M5 Max. **That is where the work happens.** Most developers
-building these engines are on M3/M4, so a kernel, a flag or a scheduling change
-that wins there is the most likely source of a win here — the mechanism usually
-transfers even when the number does not. Treat an improvement on another Apple
-Silicon machine as **a promising lead to test locally**, and say so in the entry
-rather than writing it off.
-
-What genuinely does not transfer is narrower than it looks:
+discard one.** Most developers building these engines are on M3/M4, so a
+kernel, a flag or a scheduling change that wins there is the most likely source
+of a win here: the mechanism usually transfers even when the number does not.
+Say so in the entry rather than writing it off. What does not transfer is
+narrower than it looks:
 
 - **A configuration that will not fit.** 165 GB of active memory is unavailable
-  in 128 GB, full stop. The right response is to ask which quant does fit, not
-  to drop the engine.
+  in 128 GB. Ask which quant does fit; do not drop the engine.
 - **The absolute number.** #58 showed ~4% of throughput moves with thermal
   state alone, and #23 puts a 3-trial task median at ±28%. Quote ratios and
   rankings, not other people's absolutes.
-- **CUDA/ROCm kernels.** The quantization reasoning transfers; the kernels do
-  not.
+- **CUDA/ROCm kernels, on the Mac lane.** The quantization reasoning transfers;
+  the kernels do not.
+- **Decode and prefill rates as agent speed.** This project has measured three
+  times that a headline rate does not predict agent wall time.
 
-Per #59, nothing from here enters `RECOMMENDATIONS.md` without our own
+Per #59, nothing from here enters a `RECOMMENDATIONS.md` without our own
 controlled measurement. That is a bar for publishing, not a filter for what is
 worth reading.
 
@@ -648,99 +602,62 @@ edits failing to apply. General sentiment will not surface them. OpenCode is
 widely liked and still failed here, and **not one external source mentioned the
 headless problem** because every author was using the TUI (#54).
 
-**Popularity is not the property we need.** A tool nobody posts about may be
-unfashionable and correct — and so may a person. Flor1an-B has three GitHub
-followers and fifty-one on X, and produced the only DSpark measurement anyone
-has taken at real sampling on our exact machine and model (#75). **Judge a source by whether
-its claims are checkable and whether it runs hardware like ours, not by reach.**
+**Popularity is not the property we need.** Flor1an-B has three GitHub
+followers and produced the only DSpark measurement at real sampling on our
+exact machine and model (#75). In the 2026-09-06 batch the two closest
+accounts had under 200 followers each, and the three largest were all rejected.
+**Judge a source by whether its claims are checkable and whether it runs
+hardware like ours, not by reach.**
+
+**Pair identities only on evidence.** Link a GitHub or HF account to an X
+handle only when one names the other, or a fork or tool ties them (see
+@13scoobie). A matching name is not enough.
+
+**A gather is not evidence of a quiet field until the balance is checked.**
+On 2026-09-05 a gather returned one post from seven accounts, and the next call
+failed with `402 Payment Required: Grok Build usage balance exhausted`: quota,
+not quiet. Read the balance before the X surface and record it. A 402 announces
+itself; a degraded answer does not.
 
 ## Weight the gather by volume, not by follower count
 
 The X gather returns a bounded amount of text for a fixed window. A prolific
-account fills that budget with its own posts and crowds out the low-volume
-accounts, which are often where the specific numbers are: @0xZKnw has ~60
-followers and posts M5 decode figures; @korale77 has ~190 and runs an M5 Max
-128 GB. Losing either to a busy account's ordinary output is a bad trade, and
-it is the same failure as `ci_activity` burying mentions in surface 1a.
+account fills that budget and crowds out the low-volume accounts, which often
+hold the specific numbers: @0xZKnw and @korale77 are entries the sweep must not
+lose. Use either mitigation:
 
-Two mitigations, either acceptable:
-
-- **Cap per account.** Ask for at most 2-3 items per handle, so no single
-  account can consume the window.
+- **Cap per account.** Ask for at most 2-3 items per handle.
 - **Split the query.** Gather high-volume accounts in their own call, so a
   quiet week from the small accounts is legible instead of invisible.
 
-**Both examples above are now in the file**, which is what makes the rule
-concrete: @0xZKnw and @korale77 are entries the sweep must not lose, and the
-same 2026-09-06 batch added @no_stp_on_snek at 200-400 items in 30 days.
+**@mweinbach and @no_stp_on_snek are the high-volume accounts.** Name any later
+high-volume addition here, so the reason survives.
 
-**@mweinbach and @no_stp_on_snek are the accounts this applies to.** Later
-high-volume additions belong in the same bucket, named in this file so the
-reason survives.
+## Considered and not added
 
-## Where the 2026-09-05 additions came from
+Each was checked for 30 days of X activity, a confirmed GitHub or HF identity,
+and the share of output on our hardware (#152, 2026-09-06). Do not re-propose
+them without new evidence. The 2026-10-27 DGX rejections are listed under
+[that scan](#from-the-2026-10-27-contributor-scan-1275).
 
-Seven accounts -- @ggerganov, @thdxr, @trymirai, @UnslothAI, @YJesus,
-@Eschalabs, @mweinbach -- were recommended by grok, not found by a person
-reading feeds. Every representative post was verified for existence and
-authorship (19/19, `scripts/verify_posts.py`), but **the descriptions of what
-each account habitually posts are grok's characterization, not a read of their
-timeline.** Issue #152 holds the full list. Treat these seven as leads
-promoted on one verified post each, and demote any that does not earn its place.
+* **@Badtheorylabs**: no Apple-silicon content on X; the runtime figure is an
+  RTX PRO 6000.
+* **@OrcaRouter**: a hosted API router; its 4-bit build needs 200 GB.
+* **@trycua**: llama.cpp Metal inside Apple-silicon VMs; virtualization is not
+  our regime.
+* **@lmstudio**: the feed is mostly cloud agent news; we run neither the app
+  nor its engine.
+* **@sanchitmonga22**: mostly phone NPU/ANE and cloud agents (#123 holds the
+  ANE question).
+* **@glaforge**: no MLX, Metal, llama.cpp or Apple-silicon posts.
 
-## Where the 2026-09-06 additions came from
+Seven Tier 2 accounts (@ggerganov, @thdxr, @trymirai, @UnslothAI, @YJesus,
+@Eschalabs, @mweinbach) came from grok recommendations on one verified post
+each, not from a person reading the feed (#152). Demote any that does not earn
+its place.
 
-The twelve accounts #152 left undecided were resolved on 2026-09-06. Each was
-checked three ways: **30 days of X activity** to 2026-09-06, **a GitHub or
-Hugging Face identity** confirmed against the profile rather than guessed from a
-matching name, and **the Apple-silicon share of the output** against NVIDIA,
-cloud or phone-NPU work. Sixteen representative posts verified, 16/16
-(`scripts/verify_posts.py`, `logs/sweeps/verify-posts-M5-Max-128GB-20260906T043150Z.log`).
-
-**Six added:** @korale77 (Tier 1), @13scoobie, @0xZKnw, @Brooooook_lyn,
-@no_stp_on_snek (Tier 2), @atomic_chat_hq (Tier 3).
-
-**Six not added, with the reason, so nobody re-proposes them:**
-
-* **@Badtheorylabs**  
-Company in Lagos. **No Apple-silicon content on X in the 30-day window** — the runtime figure they quote is 43 tok/s on an RTX PRO 6000. [`Macaw`](https://github.com/Badtheorylabs/Macaw), an MLX 4-bit macOS agent, is real but last pushed 2026-08-08 and never reaches the feed. Nothing to sweep.
-
-* **@OrcaRouter**  
-Company. A **hosted API router** is the product; local MLX weights are maybe 10–20% of the feed, and the 4-bit build they push needs 200 GB. Wrong machine, wrong regime.
-
-* **@trycua**  
-Company. llama.cpp Metal **inside Apple-silicon VMs**, on M1 Ultra. Virtualization is not our regime and the numbers would not transfer.
-
-* **@lmstudio**  
-Company. It does maintain [`lmstudio-ai/mlx-engine`](https://github.com/lmstudio-ai/mlx-engine) and ships GGUF/MLX quants, but the feed is ~45% Bionic **cloud** agent news and only ~25% local Mac inference. We run neither the app nor the engine.
-
-* **@sanchitmonga22**  
-Individual — Sanchit Monga, RunAnywhere. Genuinely technical, but ~35% phone **NPU/ANE**, ~25% cloud coding agents, and only ~15% single-Mac Metal/MLX. At 150–250 items in 30 days he would spend the gather budget on the wrong execution path. #123 stays the place to ask the ANE question.
-
-* **@glaforge**  
-Individual — Guillaume Laforge, Google. **Zero** MLX, Metal, llama.cpp or Apple-silicon posts in the window; the feed is Gemini Java and Kotlin SDKs. The single M4 Pro benchmark in #152 was from July and is not a source.
-
-**What the check actually caught.** Two accounts #152 filed as plausible are
-the strongest finds in the batch — @korale77 runs **ds4 on an M5 Max 128 GB**
-and @13scoobie ran **DeepSeek-V4-Flash 0731 on oMLX** on the same machine — and
-one grok called Apple-silicon, @Badtheorylabs, has no Apple content on X at all.
-**Follower count predicted nothing**: the two closest accounts have ~190 and
-~170 followers, and the three largest in the batch were all rejected.
-
-**Identity is corroborated, not assumed.** @13scoobie's GitHub is a security
-engineer's fork list with no LLM work of its own; it is linked because it forks
-`ddalcu/llmprobe`, which is the tool his own verified 2026-08-30 post promotes.
-`github.com/mweinbach` is a **name match only** — the repos are agent and Swift
-tooling, not the Metal kernel work his X account posts.
-
-**No repo was added to the watch list.** [`TheTom/llama-cpp-turboquant`](https://github.com/TheTom/llama-cpp-turboquant),
+**Repos considered for the watch list, not added:**
+[`TheTom/llama-cpp-turboquant`](https://github.com/TheTom/llama-cpp-turboquant),
 [`0xZKnw/mlxl3`](https://github.com/0xZKnw/mlxl3) and
-[`Eschalabs/escha-mlx`](https://github.com/Eschalabs/escha-mlx) each earn a look,
-but that list is rendered from `WATCHED` in `scripts/upstream_sweep.py` and
-adding an entry is a change to the sweep's cost, not a note. Decide it on its own.
-
-**A gather is not evidence of a quiet field until the balance is checked.** On
-2026-09-05 the X gather returned one post from seven accounts in 24 hours and
-a follow-up call failed with `402 Payment Required: Grok Build usage balance
-exhausted`. Quota, not quiet. Read the balance before surface 7 and record it:
-a 402 announces itself, a degraded answer does not.
+[`Eschalabs/escha-mlx`](https://github.com/Eschalabs/escha-mlx). A `WATCHED`
+entry adds cost to every sweep, so decide each one on its own.
