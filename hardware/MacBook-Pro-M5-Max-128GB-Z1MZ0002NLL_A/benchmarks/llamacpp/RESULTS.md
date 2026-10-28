@@ -5,14 +5,17 @@ Released 2026-08-26 as the preview of the Qwen4 architecture. Measured here on
 other backend: 31 trials, 5 tasks, 2 clients, the repository's own test suite
 as the only oracle.
 
-**Verdict: it runs, it passes, and it is the slowest backend measured.** Use it
-as evidence about the architecture, not as a fallback candidate.
+**Verdict on this build: it runs, it passes, and it was the slowest backend
+measured.** This page is the 2-bit quant on a llama.cpp PR build. The 3-bit
+`UD-Q3_K_XL` quant later finished the suite 28.4% faster than this one
+([#31](https://github.com/evanwtf/local-llm/issues/31)). On mainline llama.cpp it is now a pick
+([`RECOMMENDATIONS.md`](../../RECOMMENDATIONS.md), section 2, row 5).
 
 | | |
 |---|---|
 | model | `Qwen3.8-Flash-Next`, 125B total / 6B active, + 51B n-gram + 4B MTP |
 | quant | Unsloth `UD-Q2_K_XL`, 78.9 GB |
-| engine | llama.cpp PR #27742, `035e22731` (mainline does not know `qwen4exp`) |
+| engine | llama.cpp PR #27742, `035e22731` (mainline did not know `qwen4exp` then) |
 | resident | 77.9 GiB, all layers on Metal |
 | context | 131072, one slot |
 
@@ -32,7 +35,7 @@ Wall seconds are the median of passing runs.
 | **suite total** | **13/16**, **5,236s** | **15/15**, **1,251s** |
 
 The suite total is the sum of the per-task medians, the unit the other
-backends are quoted in in `RECOMMENDATIONS.md`. Per-trial medians are 920.2s
+backends were quoted in at the time. Per-trial medians are 920.2s
 for Claude Code and 188.3s for Codex.
 
 All three Claude Code failures are timeouts at the 2400s limit: `parser-date`
@@ -50,15 +53,15 @@ Against the rest of the field, pooled across clients:
 | `gemma4:31b-mxfp8` | 16/16 | 355.4s |
 | **`qwen38fnq2`** | **28/31** | **472.0s** |
 
-It is last, and it is the only backend in the project with any timeouts.
+It was last, and the only backend in the project with timeouts at the time.
 
 ---
 
 ## Codex finishes in under a quarter of Claude Code's time here, on every task
 
 The suite takes 4.2x as long under Claude Code, and per-trial medians 4.9x. Not one task is an exception,
-and the effect is far larger than the client gaps measured on other backends
-(12% on ds4, 63% on Ollama). Both clients do
+and the effect is far larger than the client gaps measured on ds4 and
+Ollama. Both clients do
 comparable work -- 5087 output tokens median for Claude Code against 4161 for
 Codex -- so the gap is not the model thinking harder for one of them.
 
@@ -80,13 +83,10 @@ needing 18 turns at 84s each is 25 minutes before the model has done anything
 hard. `parser-date` is the largest task in the suite -- 49 broken tests -- and
 it is the one that timed out twice.
 
-**Not yet tested:** `--cache-reuse N`, which lets llama.cpp reuse cache chunks
-after a prefix mismatch instead of discarding everything. If the invalidation is
-a small edit near the head of a 49k-token prompt, that flag is the fix. Also
-untested is whether the shim causes it: it hoists Claude Code's trailing
-`system` message into the top-level `system` field, which moves content toward
-the front of the prompt, and Codex -- which does not go through the shim -- does
-not show the effect.
+**Later traced to Claude Code's request shape, not to llama.cpp.** OpenCode and
+Aider do not pay the re-prefill on either engine, and Claude Code is no longer a
+trial client ([#14](https://github.com/evanwtf/local-llm/issues/14),
+[#64](https://github.com/evanwtf/local-llm/issues/64)).
 
 ---
 
@@ -99,7 +99,7 @@ recorded here so the next person does not rediscover them.
 nvfp4, which peaks at 126.51 GiB against a 107.0 GiB Metal budget and dies on
 the first agent-sized prompt. The peak is fixed -- unchanged at 262144, 65536
 and 32768 context, at `OLLAMA_NUM_PARALLEL=1`, and with a q8_0 KV cache -- so no
-serving knob reaches it. See RECOMMENDATIONS.md.
+serving knob reaches it.
 
 **Codex 0.148.0 removed `wire_api = "chat"`.** The profile uses `"responses"`;
 llama-server serves `/v1/responses` as well, so this was config, not a
@@ -132,8 +132,9 @@ Dropping to `-np 1` and spending the freed memory on context:
 
 **Double the window for 1.7 GiB.** The GDN + Qwen Sparse Attention hybrid keeps
 almost no per-token KV state, so the usual memory arithmetic does not apply. On
-a memory-bound Mac the trade is fewer slots and a much longer window, and it is
-worth testing against the other backends here.
+a memory-bound Mac the trade is fewer slots and a much longer window
+([#15](https://github.com/evanwtf/local-llm/issues/15)). `-np 1` is now the
+default in `llamacpp-up`.
 
 The three trials taken at 65536 are in `results.jsonl` marked `excluded` with
 that reason. They measure the window, not the model.
@@ -159,13 +160,13 @@ suspect the quant before the model.
 
 ```sh
 # Serves llama-server on :8020 and the Claude Code shim on :11500.
-benchmarks/llamacpp/llamacpp-up start
+hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/llamacpp/llamacpp-up start
 
 CODEX_API_KEY=llamacpp-local uv run benchmarks/agent/run.py \
     --backend qwen38fnq2 --client claude --client codex \
     --trials 3 --timeout 2400 --client-log ~/bench-logs
 
-benchmarks/llamacpp/llamacpp-up stop      # frees ~78 GiB
+hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/llamacpp/llamacpp-up stop   # frees ~78 GiB
 ```
 
 `--client-log` is opt-in and belongs outside the repo: transcripts carry file

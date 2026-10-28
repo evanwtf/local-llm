@@ -3,10 +3,10 @@
 How to run the benchmark safely: models, servers, engines, the reference
 repositories, and the results ledger. **Read this before you start a model
 server, add or switch an engine, touch a target repository, or write to
-`results.jsonl`.** The durable machine operations (argv to start each server,
-thermal notes, and what a comparison on this machine must do) live in
-[`m5max-runbook.md`](m5max-runbook.md); the traps that void a measurement live
-here.
+`results.jsonl`.** Per-machine operations (server argv, thermals, ports) live in
+[`m5max-runbook.md`](m5max-runbook.md) and
+[`dgx-spark-runbook.md`](dgx-spark-runbook.md). The traps that void a
+measurement live here.
 
 The short forms live in [`../AGENTS.md`](../AGENTS.md).
 
@@ -14,314 +14,172 @@ The short forms live in [`../AGENTS.md`](../AGENTS.md).
 
 ## Before you say a model is not on disk, run the census
 
-Each runtime keeps models in its own tree — `~/models` (ds4/llama.cpp GGUF),
-`~/.mlx-serve/models` (mlx-serve), `~/.ollama/models` (Ollama), plus LM Studio
-and the HF cache. `ls ~/models` sees only the first. Run `uv run python
-benchmarks/agent/model_inventory.py` (preflight prints it every run) or read
-[`model-locations.md`](model-locations.md). Searching the wrong tree is a false
-negative that has cost real time.
+Each runtime keeps models in its own tree: `~/models` (GGUF), the mlx-serve and
+Ollama trees, LM Studio, and the HF cache. `ls ~/models` sees only the first.
+Run `uv run python benchmarks/agent/model_inventory.py` (preflight prints it
+every run) or read [`model-locations.md`](model-locations.md).
 
-## A download is not verified until the files are on disk (2026-09-06)
+## A download is not verified until the files are on disk
 
-`hf download` takes filenames positionally. Passing two of them after
-`--include` makes the first the ignored include pattern and the second the only
-file fetched:
+`hf download` takes filenames positionally. Two filenames after `--include`
+make the first an ignored include pattern, and only the second file arrives:
 
 ```
 UserWarning: Ignoring `--include` since filenames have being explicitly set.
 ```
 
-One 171 GB request, one 86 GB file, no error. Fetch one file per invocation, and
-**check the result against the recorded byte size and SHA-256 before treating a
-download as done** -- a file of the right name and the wrong size is the failure
-this catches, and a missing second file is the one that bit us.
+One 171 GB request fetched one 86 GB file, with no error. **Fetch one file per
+call, and check each file against its recorded byte size and SHA-256 before
+you treat a download as done.** A job that printed a warning and kept going has
+not told you it succeeded.
 
-The general rule: a long-running job that printed a warning and kept going has
-not told you it succeeded. It told you it is still running.
-
-**A new weights directory needs a Time Machine exclusion before the first file
-lands in it** — a download is exactly when that applies. The rule is
+Where weights come from, and in what order, is in [`../AGENTS.md`](../AGENTS.md)
+(*Operating the harness*) and [`../CONVENTIONS.md`](../CONVENTIONS.md). On the
+M5 Max, a new weights directory needs its Time Machine exclusion before the
+first file lands:
 [Model weights stay out of Time Machine](../CONVENTIONS.md#model-weights-stay-out-of-time-machine-2026-09-06).
 
-## The testing set is written down (2026-09-01)
+## The testing set is written down
 
-[`../TESTING-SET.md`](../TESTING-SET.md) lists the four axes -- hardware, client,
-engine, model -- plus the task set, and marks which backends have valid current
-data against which are configured and unmeasured. **Read it before adding a
-variable**, and update it in the same commit that changes one; a test fails if a
-live backend in `tasks.toml` is missing from it.
+[`../TESTING-SET.md`](../TESTING-SET.md) lists the axes (hardware, client,
+engine, model) and the task set, and marks which backends have valid current
+data. **Read it before you add a variable**, and update it in the same commit.
+A test fails when a live backend in `tasks.toml` is missing from it.
 
-## Three engines, not four: LM Studio is retired (2026-09-01)
+## Retire a backend, do not delete it
 
-**llama.cpp, ds4 and Ollama.** Each earns its slot for a different reason --
-llama.cpp is the fast pick, ds4 is the only engine that runs our one
-independent lineage, and Ollama is the 31 GB entry point and the only path for
-`ornith15`, `gemma4` and `qwen36coding`. Ollama is here on friction, not speed;
-dropping it would delete the recommendation a newcomer actually follows.
+**Set `retired = "<reason>"` on the backend in `tasks.toml`.** Keep the config
+block: rows in `results.jsonl` reference it, and they are unexplainable without
+the sampler, context length and deviations it records. `retired` removes a
+backend from the default matrix. Naming it with `--backend` still runs it.
 
-**LM Studio is `retired` in tasks.toml.** Its runtime is llama.cpp underneath,
-so on the same GGUF it cannot beat llama.cpp -- it can only add a layer, and it
-does: identical UD-Q3_K_XL weights, identical client and tasks, **90s median
-against 122s**, correctness identical. It was also the only backend recording
-no server identity at all (#78).
+LM Studio is the model case (2026-09-01). Its runtime is llama.cpp, so on the
+same GGUF it only adds a layer: 122 s median against llama.cpp's 90 s,
+correctness identical, and no server identity on its rows (#78).
 
-**Retire, do not delete.** The config block stays in tasks.toml because 27 rows
-in results.jsonl reference it, and those rows are unexplainable without the
-sampler, context length and documented deviations that block records. `retired`
-removes a backend from the default matrix; naming it with `--backend` still
-runs it, so a retirement can be revisited without editing config back in.
+## OpenCode is the harness to measure
 
-**This does not narrow #60.** That issue is about engines we have never run.
-This drops one we measured and found dominated -- the opposite operation.
+**Default to `--client opencode`.** Run Aider, Claude Code or Codex only when
+the question is about that client (a defect, a parser fix, or a reference
+ceiling), and state the reason when you do. The premise is in
+[`../AGENTS.md`](../AGENTS.md): an open model on an open engine behind a
+proprietary client fails with the vendor.
 
-## Measure OpenCode only, unless the run is about another client (2026-09-01)
+The client axis is measured enough to act on. On one server, `script-transform`
+took 11.1 s under Aider, 39.5 s under OpenCode and 189.6 s under Claude Code,
+and the cause was the client's own prompt, prefilled every turn. Aider is
+cheaper but does less: 22/34 inside a repository against OpenCode's 91/93.
+Historical multi-client rows stay valid.
 
-**Default to `--client opencode` and nothing else.** Aider, Claude Code and
-Codex are run only when the question is specifically about them — a client
-defect, a parser fix, or a deliberate reference point — and the reason is
-stated when they are.
-
-This is a scope decision, not a finding. The client axis has been measured
-enough to act on:
-
-- The client is the dominant cost on a large local model. On one server, one
-  session, `script-transform` took **11.1 s under Aider, 39.5 s under OpenCode
-  and 189.6 s under Claude Code**, and the cause is prompt size — the client's
-  own scaffolding, prefilled every turn.
-- OpenCode is the one that fits the premise. An open model on an open engine
-  driven by a proprietary client fails with the vendor.
-- Aider is cheaper but does less: **22/34** inside a repository against
-  OpenCode's **91/93**.
-
-Continuing to sweep every client multiplies machine time across an axis whose
-answer is already known and whose winner is fixed by the project's own
-requirements. Spend the trials on models, engines and tasks instead.
-
-**Consequences to keep in mind:**
-
-- A Claude-Code-specific defect (#64) is now a **lower-priority** curiosity
-  rather than something inflating numbers we publish, because we no longer
-  publish Claude Code numbers.
-- The hosted **Opus 5 reference** still has a use: establishing a new task
-  class's ceiling, as it did for `script-transform`. That is "explicitly
-  testing another agent" and is fine when said out loud.
-- Historical multi-client rows stay in `results.jsonl` and stay valid. This
-  changes what we run next, not what we already know.
-
-## OpenCode is the primary harness (2026-08-30)
-
-The project exists as a fallback for when hosted inference is unavailable or
-unaffordable. **An open model on an open engine driven by a proprietary client
-is not a fallback -- it fails with the vendor.** So the agent layer is held to
-the same standard as the model and the engine, and the target stack is
-**OpenCode + open model + open engine on owned hardware**.
-
-Claude Code and Codex stay in the suite as **reference points**: they establish
-a task's ceiling. A gap between them and OpenCode is **a defect to chase, not a
-result to publish**.
-
-Practical consequences:
-
-- A new backend is measured with OpenCode first. The others calibrate it.
-- "OpenCode cannot do X" is a bug report, not a benchmark row, until the cause
-  is known. #54 is why: its entire measured record turned out to be an artifact
-  of running headless without workspace confinement.
+- **A gap between a reference client and OpenCode is a defect to chase**, not a
+  result to publish. Measure a new backend with OpenCode first.
+- **A client that scores far below its reputation is a bug report** until the
+  cause is known. Read a failing transcript before you publish such a number.
 - **`opencode run` is headless and `external_directory` defaults to `ask`.**
-  With nobody to ask, agents read -- and in one case destructively edited --
-  repositories outside the trial checkout. Always set
-  `permission.external_directory` explicitly, and check `workspace_escapes` on
-  every row before believing it.
+  With nobody to ask, agents read, and once destructively edited, repositories
+  outside the trial checkout. Always set `permission.external_directory`, and
+  check `workspace_escapes` on every row.
 
-### How to call OpenCode (2026-09-01)
+### Where OpenCode works (#67, #1086)
 
-**`opencode run` ignores the caller's working directory. Always pass `--dir`.**
+**Assert the workspace; do not assume it.** A client with a daemon, a server,
+or a session can hold its own directory, and `cwd` is a request, not a
+contract. A missing `--dir` under OpenCode 1.x produced no error: the client
+solved the task, wrote the answer into the server's directory, and exited 0.
+**64 trials across three engines were published as evidence that an open
+client was weak**, when they measured our own invocation (#67).
+
+`run.py` builds the argv for the installed major and refuses to build it
+without a worktree. `test_run.py` guards both forms.
 
 ```sh
+# 1.x: run attaches to a persistent server, which works in ITS start directory
 opencode run --dir "$WORKTREE" --model "$MODEL" --format json --auto "$PROMPT"
-```
-
-`run` attaches to a **persistent server**, and that server works in the
-directory *it* was started with. Setting `cwd=` on the child process is
-correct, has always been correct in `run.py`, and has no effect. `run.py` now
-refuses to build the argv without a worktree; `test_run.py` guards the flag,
-its position, and the refusal.
-
-**This is the most expensive class of bug this project has hit, so learn the
-shape and not just the flag.** A missing `--dir` produces no error. The client
-starts, reasons well, solves the task, writes a correct answer into the
-server's directory, and exits 0. The oracle then finds no file and records a
-model failure. **64 trials across three engines were published as evidence that
-an open client was weak, when they measured our own invocation.** The corrected
-cell went from **1/15 to 3/3**.
-
-Two rules follow, and they generalize past OpenCode:
-
-- **A client that scores far below its public reputation is a bug report until
-  the cause is known.** 1/15 for a widely-used tool is not a finding. Read a
-  failing transcript before publishing a number like that -- the bug was found
-  in an *excluded* row, whose transcript named the file it had written and the
-  wrong directory it had written it to.
-- **Check that the harness and the client agree on where work happens.** `cwd`
-  is a request, not a contract; any client with a daemon, a server, or a
-  session can hold its own. Assert the workspace, do not assume it.
-
-### OpenCode 2.x calls differently (2026-10-14, #1086)
-
-2.0 ships only on npm, as `@opencode/cli` with one binary package per
-platform. Its GitHub releases, the `opencode-ai` package and
-opencode.ai/install stop at 1.19.0, so the currency check reads npm, and the
-client image installs the binary from the registry tarball after a sha512
-check (`docker/opencode-client/install_opencode.py`). `run.py` builds the
-argv for the installed major:
-
-```sh
+# 2.x: no --dir; the process cwd is the worktree
 cd "$WORKTREE" && opencode run --standalone --model "$MODEL" --format json --auto "$PROMPT"
 ```
 
-- **No `--dir`.** 2.x works in its process's cwd, which `run.py` sets to the
-  worktree. The #67 shape still applies, so it is checked, not assumed: after
-  each trial `opencode session export --standalone <id>` gives the session's
-  `info.location.directory`, and a row whose session ran anywhere else is
-  excluded as a harness fault.
+OpenCode 2.x specifics:
+
+- **Install.** 2.x ships only on npm as `@opencode/cli`. The GitHub releases,
+  the `opencode-ai` package and opencode.ai/install stop at 1.19.0, so the
+  currency check reads npm. The client image installs the registry tarball
+  after a sha512 check (`docker/opencode-client/install_opencode.py`).
+- **The workspace is checked after each trial.**
+  `opencode session export --standalone <id>` gives the session's
+  `info.location.directory`. `run.py` excludes a row whose session ran anywhere
+  else as a harness fault.
 - **`--standalone` on every call**, `run` and `session export` alike. Without
   it the client starts a background `opencode serve --service` that outlives
-  the trial, shares state between trials, and left later runs hanging with no
-  output.
+  the trial, shares state between trials, and left later runs hanging.
 - **The final `step_finish` is missing** from `--format json`
-  (anomalyco/opencode#53207, open at 2.0.29). The stream undercounts turns by
-  one and loses the last step's tokens. The export has every step, so the row
-  takes its turn and token counts from it and records `token_source`. TTFT
-  still comes from the stream.
-- **New tools.** 2.0.29 offers `edit`, `execute` (JavaScript), `glob`,
-  `grep`, `question`, `read`, `shell` (was `bash`), `skill`, `subagent` (was
-  `task`), `webfetch`, `websearch` and `write`; `todowrite` is gone. A
-  headless run cancels `question` with an error and the agent continues; the
-  tool self-test checks that it still does.
-- **Model keys.** 2.x drops `temperature` and `reasoning` from a model entry
-  as unsupported legacy settings. It sends no temperature anyway, as 1.x did
-  with `temperature: false`. The output cap goes as `max_completion_tokens`
-  from `limit.output` (1.x sent `max_tokens: 32000`).
-
-Whether OpenCode is good enough to be the tier-1 harness in practice is **still
-open**: the corrected evidence is 3/3 on one cell of one model. #67 is the
-re-measurement that answers it. Do not restate the old numbers, and do not
-promote the new one past what three trials can carry (see
-[Know what a trial count can support](measurement-discipline.md#know-what-a-trial-count-can-support)).
+  (anomalyco/opencode#53207). The row takes its turn and token counts from the
+  export and records `token_source`. TTFT still comes from the stream.
+- **Tools changed.** `bash` is now `shell`, `task` is now `subagent`,
+  `todowrite` is gone, and `question` is new. A headless run cancels
+  `question` with an error and the agent continues; the tool self-test checks
+  that it still does.
+- **Model keys.** 2.x drops `temperature` and `reasoning` from a model entry.
+  The output cap goes as `max_completion_tokens` from `limit.output`.
 
 ## Always measure the latest infrastructure
 
-llama.cpp, Ollama, Codex and OpenCode ship several times a day. **Update before
-a batch, not after it**, and take the newest release of every component this
-project measures through.
+**Update every component before a batch, not after it.** A result measured on a
+build that upstream replaced last week answers a question nobody asked.
 
 ```sh
 uv run python benchmarks/agent/preflight.py    # servers, memory, versions, notifications
-codex update                                   # self-updating
-opencode upgrade
-# Ollama is /Applications/Ollama.app -- update it from the app, not the shell
-cd ~/git/llama.cpp && git fetch && git log --oneline HEAD..origin/master
 ```
 
-The reason is not tidiness. This project exists to say what a local coding stack
-can do *now*, and a result measured on a build that upstream replaced last week
-answers a question nobody asked. A merged PR is the common case: PR #27742 was a
-pinned worktree for two days and then landed in mainline, and NEXT.md still said
-"do not `git pull` this away" afterwards.
-
-**A version change starts a new series.** Every row already records the versions
-it was produced under, so old results stay readable — but do not pool across an
-upgrade, and say in RESULTS.md which side of it a number came from. That is a
-cost worth paying: an out-of-date measurement is wrong in a way no amount of
-extra trials fixes, while a series boundary is merely an inconvenience.
-
-**Tag a build before leaving it.** `git tag benchmark-<pr>-<date>` on a
-worktree you are moving off, so the rows that depend on it stay reproducible.
-A squash-merged PR does not leave its commits in mainline history.
-
-## Restart the model server between arms, and between trials while #112 is open
-
-**A server that has been up for an hour is not the same server.** Measured
-2026-09-03 across two arms of #77, three trials each, every trial a fresh
-OpenCode conversation:
-
-| | trial 1 | trial 2 | trial 3 |
-|---|---|---|---|
-| `qwen38fnds4shim` (MTP off) | 13/15 | 13/15 | **10/15** |
-| `qwen38fnds4mtp7shim` (MTP 7) | 10/15 | 9/15 | **6/15** |
-
-Both arms are worst in their third trial, and arm B declines monotonically
-across a 90-minute session. Because each trial starts a new conversation, this
-cannot be the model's context degrading -- it is state that outlives the
-conversation, which leaves the server or the machine. **This is #112 and it is
-not yet understood.**
-
-Until it is:
-
-- **Restart `ds4-server` between arms.** Always. An A/B where arm A ran on a
-  cold server and arm B inherited ninety minutes of state is not a comparison
-  of the two arms.
-- **Prefer restarting between trials too** while #112 is open. It costs about
-  10 s of warm-up against a 30-minute trial, and it is the cheapest way to stop
-  a session-state effect being read as a property of a backend.
-- **Give each engine configuration its own `--kv-disk-dir`.** A flag that
-  changes the KV format makes the server reject the other configuration's
-  checkpoints, so one arm re-prefills where the other got cache hits, and the
-  only symptom is that it looks slower. MTP on/off is exactly such a pair:
-  `~/.ds4/server-kv` is MTP-off, `~/.ds4/server-kv-mtp` is MTP-on.
-- **Record it.** A row does not currently say how long the server had been up
-  when it was produced, which is why this took two arms and six trials to see.
-
-The restart itself is the argv in [`m5max-runbook.md`](m5max-runbook.md), and
-`wait_ready.py` is what tells you it is back -- not `/health`, which answers
-before the model is loaded.
+- **An engine behind its newest release makes preflight refuse** (#1049).
+- **A client behind its release makes preflight warn** with the upgrade command
+  (`opencode upgrade`, `claude update`, `codex update`). Preflight never
+  upgrades a client itself, because that would move the version mid-batch.
+- **A version change starts a new series.** Every row records its versions. Do
+  not pool across an upgrade, and say in `RESULTS.md` which side of it a number
+  came from.
+- **Tag a build before you leave it**: `git tag benchmark-<pr>-<date>` on the
+  worktree, so its rows stay reproducible. A squash-merged upstream PR does not
+  leave its commits in mainline history.
 
 ## Record the client version; do not pin it (2026-09-04)
 
-This laptop is a daily driver first and a benchmark rig second. Pinning the
-agent clients means holding a developer's own tools back to serve a
-measurement, and the operator's decision is the other way: **run the current
-version of everything, and recover comparability afterwards.**
+The operator's rule: **run the current version of every client, and recover
+comparability from the row.** The M5 Max is a daily driver first, and a pin
+would hold a developer's own tools back. Preflight logs each client's version,
+logs a **SERIES BOUNDARY** line for any that moved since `client-versions.toml`
+was written, and logs whether each client's self-update is on. Self-update is
+deliberately **on** for all three clients.
 
-So `preflight.py` does three things and refuses at none of them:
+A refusal on client version existed briefly on 2026-09-04 and blocked a
+daily-driver update. **Do not restore it unless the operator asks.**
 
-- logs each client's installed version, and a **SERIES BOUNDARY** line naming
-  any that moved since `client-versions.toml` was written;
-- logs whether each client's self-update is on, with the switch that would
-  turn it off — read out of the shipped binaries, so it is reproducible on a
-  fresh install: `DISABLE_AUTOUPDATER` / `"autoUpdates": false` for Claude
-  Code, `OPENCODE_DISABLE_AUTOUPDATE` / `"autoupdate": false` for OpenCode,
-  `auto_update_enabled = false` for Codex. All three are deliberately **on**;
-- **warns when a client is behind its release**, with the upgrade command. It
-  never runs it: a harness that upgrades the tool under test moves the version
-  mid-batch, which is the failure being avoided.
+`results.write_row()` **excludes any row without `client_version`**. Excluded,
+not refused: losing a 30-minute trial to a missing field is worse than storing
+a row that never enters an aggregate. The generated tables name which client
+version measured which rows through `client_caveat()`.
 
-There was a refusal here between 2026-09-04 morning and evening. It was
-correct for a dedicated rig and wrong for this one — it blocked a daily-driver
-update, and it would have been overridden every time, which is a guard that
-teaches people to type the override without reading it. **Do not restore it
-without the operator asking.**
+## Restart the model server between arms
 
-What makes the trade safe is the row, not the file. `results.write_row()`
-**excludes any row that does not record `client_version`** — excluded rather
-than refused, because losing an expensive trial to a missing field is worse
-than storing one that can never enter an aggregate. The published tables then
-caveat themselves through `client_caveat()`, which names which client measured
-which rows and retires the note when one version covers everything again.
-Prevention became recovery, on purpose.
+**Restart the server between the arms of a comparison. Always.** On #77, both
+arms were worst in their third trial and one declined steadily across a
+90-minute session. Each trial was a fresh conversation, so the state outlived
+the conversation. An A/B where one arm ran on a cold server and the other on a
+warm one is not a comparison.
+
+- **Prefer a restart between trials too** (`scripts/restart_between_trials.py`).
+  It costs about 10 s of warm-up against a 30-minute trial.
+- **Give each engine configuration its own KV cache directory.** A
+  configuration that changes the KV format rejects the other's checkpoints, so
+  one arm re-prefills and looks slower. The ds4 paths are in
+  [`m5max-runbook.md`](m5max-runbook.md).
+- **Wait for the restart with `wait_ready.py`** (below), not `/health`.
 
 ## Wait for a completion, never for /health
 
-`/health` lies. On 2026-08-31 a llama.cpp server answered it with
-`{"status":"ok"}` and HTTP 200 while every completion returned **503**, because
-an 84 GB model was still being read off disk. A batch started on that signal
-failed its smoke gate three times in the same second and reported a degraded
-model.
-
-`curl` compounds it: a 503 is a *successful* HTTP transaction, so
-`curl -s .../health` exits **0** unless you pass `--fail`. A bare health check
-is wrong twice over.
-
-Use the poller, from a shell script or as an import:
+`/health` lies. A llama.cpp server answered `{"status":"ok"}` with HTTP 200
+while every completion returned **503**, because an 84 GB model was still
+loading. `curl -s .../health` also exits 0 on a 503 unless you pass `--fail`.
 
 ```sh
 uv run python benchmarks/agent/wait_ready.py \
@@ -329,28 +187,23 @@ uv run python benchmarks/agent/wait_ready.py \
 ```
 
 It sends a one-token completion every 5 s for up to 300 s and exits 0 only when
-that succeeds. It logs `/health` alongside, because the **gap** between the two
-is the diagnostic: health ok + completion 503 means "still loading", both
-failing means "nothing is listening".
-
-The general rule: **probe with the kind of request the benchmark will actually
-send.** A status endpoint describes the server's opinion of itself.
+one succeeds. It logs `/health` beside it: health ok with completion 503 means
+"still loading"; both failing means "nothing is listening". **Probe with the
+kind of request the benchmark sends.**
 
 ## Always start from a known-good reference repo
 
-Before any run, the reference repository must be **clean and on the pinned
-`base_commit`**. `run.py` now refuses to start otherwise, and records
-`source_repo_intact` on every row.
+Before any run, each reference repository must be **clean and on the pinned
+`base_commit`**. `run.py` refuses to start otherwise, validates every repo a
+selected task uses, and records `source_repo_intact` on every row.
 
-**There are two of them**, and `run.py` validates every repo a selected task
-uses, not just the file-level default:
+| repo | language | pinned branch | default commit | oracle |
+|---|---|---|---|---|
+| `~/git/gmail-archive` | Python | `local-llm-benchmark` | `56e55cc` | `uv run pytest -q` |
+| `~/git/monitor` | Swift | `local-llm-benchmark` | `cbb85ca` | `swift test` |
 
-| repo | language | pinned branch | oracle |
-|---|---|---|---|
-| `~/git/gmail-archive` | Python | `local-llm-benchmark` @ `56e55cc` | `uv run pytest -q` |
-| `~/git/monitor` | Swift | `local-llm-benchmark` @ `cbb85ca` | `swift test` |
-
-Check them by hand too, whenever you are about to trust a result:
+Some tasks pin their own `base_commit` in `tasks.toml`. Check by hand before you
+trust a result:
 
 ```sh
 for r in ~/git/gmail-archive ~/git/monitor; do
@@ -358,107 +211,85 @@ for r in ~/git/gmail-archive ~/git/monitor; do
 done
 ```
 
-Empty output and the expected commit, or stop and find out why.
+Expect empty output and the expected commit, or stop and find out why.
 
-**Both are pinned on their own branch rather than tracking `main`**, and that is
-not ceremony. On gmail-archive `origin/main` had moved **73 commits ahead** of
-the pinned base while the checkout sat held back — a routine `git pull` would
-have changed what every trial measures, silently, and irreversibly for
-comparison against 600 existing rows. The pin is still the **commit**:
-`git archive <base_commit>` is what exports, and a branch name would follow the
-branch.
+**Both are pinned on their own branch, not `main`.** gmail-archive's
+`origin/main` once ran 73 commits ahead of the pin, and a routine `git pull`
+would have changed what every trial measures. The commit is still the pin:
+`git archive <base_commit>` exports it.
 
-This exists because on 2026-08-17 an agent left its sandbox, ran a checkout in
-the reference repo, and left it on a benchmark commit with agent edits in the
-working tree. Every trial after that exported its checkout from contaminated
-state, and nothing noticed for a whole run. A benchmark that starts from an
-unknown state measures nothing.
-
-If you find it dirty: stash rather than discard — the debris is evidence about
-what escaped, and it is worth reading before it is thrown away.
+On 2026-08-17 an agent left its sandbox and left the reference repo dirty on a
+benchmark commit, and every later trial exported from that state. **If you find
+it dirty, stash rather than discard**: the debris is evidence of what escaped.
 
 ## Verify the oracle before trusting a run
 
 `--dry-run` checks that every excision still breaks the tests it should. Run it
-after touching `tasks.toml` or bumping the target commit. A task whose tests
-still pass measures nothing, and the control check is the only thing that
-catches it.
+after you touch `tasks.toml` or move a target commit. A task whose tests still
+pass measures nothing.
 
 ## Adding a language means two things, and one of them is a parser
 
-`tasks.toml` takes a per-task `repo`, `base_commit` and `test_command`; anything
-that omits them inherits the file-level defaults, so recorded rows keep meaning
-what they meant. Adding a language needs:
+A task in `tasks.toml` may set its own `repo`, `base_commit` and
+`test_command`; otherwise it inherits the file-level defaults. A new language
+needs:
 
-1. **A test command.** `swift test`, `uv run pytest -q`. It must return a
-   non-zero exit when the excision is in place — that is the control check.
-2. **An excision module** exposing `excise` and `body_source`, registered in
-   `EXCISERS` by file extension.
+1. **A test command** that exits non-zero while the excision is in place.
+2. **An excision module** with `excise` and `body_source`, registered in
+   `EXCISERS` (`run.py`) by file extension.
 
-**The parser is the dangerous half.** Python gets spans from `ast`, which either
-parses or raises. `swift_excise.py` matches braces, and a scanner that stops at
-the `}` in `let brace = "}"` cuts the wrong span and leaves a file that **may
-still compile** — it does not crash, it silently changes what the task is. So it
-skips strings, line comments and nested block comments, and the tests pin those
-cases specifically.
+**The parser is the dangerous half.** Python gets spans from `ast`, which parses
+or raises. `swift_excise.py` matches braces: a scanner that stops at the `}` in
+`let brace = "}"` cuts the wrong span and leaves a file that may still compile.
+It skips strings, line comments and nested block comments, and tests pin those
+cases.
 
-`body_source` must return **exactly** the span `excise` removes. If they drift,
-`restored_verbatim` compares different things and never fires — losing the
-recall signal for a whole repository without any error.
-
-`exciser_for` **refuses** an unknown extension rather than defaulting. Handing a
-`.rs` file to the Python parser would excise nothing, leave the control check
-*passing*, and record a broken task as a valid one.
-
-`swift_excise.excise(path, symbol)` **writes the file.** It returns the removed
-text, so calling it to *inspect* a span modifies the real working tree. Use
-`body_source()` to look; only `run.py`'s worktrees should ever see `excise()`.
+- `body_source` must return **exactly** the span `excise` removes, or
+  `restored_verbatim` never fires and the recall signal is silently lost.
+- `exciser_for` **refuses** an unknown extension. A default parser would excise
+  nothing and record a broken task as valid.
+- `swift_excise.excise(path, symbol)` **writes the file.** Use `body_source()`
+  to inspect a span; only `run.py`'s worktrees see `excise()`.
 
 ## Write results through `results.py`, never by hand
 
-`benchmarks/agent/results.py` owns the schema for `results.jsonl`. Use it:
+`benchmarks/agent/results.py` owns the schema for `results.jsonl`:
 
 ```python
 import results
 row = results.new_row(task=..., backend=..., client=..., trial=..., ...)
-row["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+row["finished"] = results.now()      # ISO 8601 with offset
 results.write_row(row, RESULTS)      # validates, stamps, appends
 ```
 
-And to read — **this is the part that matters**:
+And to read, **the part that matters**:
 
 ```python
 rows = results.usable(RESULTS)  # normalized, exclusions already dropped
 rows = results.load(RESULTS)  # normalized, exclusions still marked
 ```
 
-**Never filter exclusions with a hand-written `r.get("excluded")`.** Four
-different keys have meant "do not trust this row" — `excluded`, `exclude_reason`,
-`excluded_reason`, `contaminated`, `confound`. An analysis that checked only the
-first silently counted fifteen bad rows as good data, and published percentages
-from them. `results.is_excluded()` knows all five; a hand-rolled filter knows
-whichever one you happened to remember.
+**Never filter exclusions with a hand-written `r.get("excluded")`.** Five keys
+have meant "do not trust this row": `excluded`, `exclude_reason`,
+`excluded_reason`, `contaminated`, `confound`. An analysis that checked one
+counted fifteen bad rows as good and published percentages from them.
+`results.is_excluded()` knows all five.
 
-`error` is deliberately *not* an exclusion. A timeout is a real outcome — the
-trial genuinely failed and belongs in the pass rate.
+`error` is deliberately *not* an exclusion. A timeout is a real failure and
+belongs in the pass rate.
 
-**A script that rewrites a ledger** (a backfill, `exclude_rows.py`, the
-archiver) holds `results.ledger_lock(path)` from its read to its write, and
-writes with `results.replace_ledger(path, text)`. `write_row` takes the same
-lock, so a row `run.py` appends meanwhile waits instead of vanishing from the
-replacement. `replace_ledger` writes a temp file and `os.replace`s it, so a full
-disk or a kill leaves the old ledger, never half of one. Never `write_text` a
-ledger: it truncates first.
+**A script that rewrites a ledger** (a backfill, `exclude_rows.py`, an archiver)
+holds `results.ledger_lock(path)` from its read to its write, and writes with
+`results.replace_ledger(path, text)`. `write_row` takes the same lock, so a row
+appended meanwhile waits instead of vanishing. `replace_ledger` writes a temp
+file and `os.replace`s it, so a full disk or a kill leaves the old ledger whole.
+Never `write_text` a ledger: it truncates first.
 
-Rows written from 2026-08-28 are schema v2 and carry `schema_version`. Older
-rows are v1 and are **not rewritten**: the file is append-only evidence.
-`load()` normalizes them in memory instead.
-
-A row that fails validation is still written, stamped `schema_valid: false` with
-the violations, and logged at ERROR. A trial costs up to half an hour; losing one
-to a schema bug is worse than storing a flagged row. `is_excluded()` keeps such a
-row out of every aggregate; a row with no `schema_valid` key (v1) is not affected.
-Check for them with:
+Rows from 2026-08-28 on are schema v2 and carry `schema_version`. Older v1 rows
+are **not rewritten**; `load()` normalizes them in memory. A row that fails
+validation is still written, stamped `schema_valid: false`, and logged at ERROR,
+because a trial costs up to half an hour. `is_excluded()` keeps it out of every
+aggregate. Count them with:
 
 ```sh
 grep -c '"schema_valid": false' benchmarks/agent/results.jsonl
@@ -466,43 +297,35 @@ grep -c '"schema_valid": false' benchmarks/agent/results.jsonl
 
 ## Transcripts are on by default
 
-`--client-log` defaults to `~/bench-logs`. A results row records *that* a trial
-failed, never *why*; the autocompact finding in #15 was only visible in a
-transcript. Transcripts stay outside the repo because they carry file contents
-the agent read, and this repo does not commit prompts. Disable with
-`--no-client-log`.
+`--client-log` defaults to `~/bench-logs`. A row records *that* a trial failed,
+never *why*; the autocompact finding in #15 showed only in a transcript.
+Transcripts stay outside the repo because they hold file contents the agent
+read. Disable with `--no-client-log`.
 
-## Never `pkill` `run.py` — restore through the harness (2026-09-03)
+## Never `pkill` `run.py`; restore through the harness
 
-The harness *moves* the real reference checkouts aside to `<name>-real` and
-puts a benchmark export in their place, restoring them from `atexit`. A
-`pkill` skips the restore, so `~/git/gmail-archive` is left as the benchmark
-tree at `benchmark: _date removed`, and the next run refuses to start with
-`base_commit 56e55cc not found`. That refusal is the guard working — the
-dangerous version is not noticing.
-
-The fix is the harness's own function, never `mv` by hand:
+The harness *moves* each real reference checkout aside to `<name>-real`, puts
+a benchmark export in its place, and restores it from `atexit`. A `pkill` skips
+the restore, and the next run refuses with `base_commit 56e55cc not found`.
+That refusal is the guard working. Restore with the harness's own function,
+never with `mv`:
 
 ```sh
 cd benchmarks/agent && uv run python -c "import run; print(run.restore_targets())"
 ```
 
 It reads `~/.local-llm-bench-stash.json`, is idempotent, and clears the marker.
-Send `SIGINT` — or `kill` without `-9` — if a run must be stopped early.
+To stop a run early, send `SIGINT`, or `kill` without `-9`.
 
-Related, from a waiting shell: **do not poll
-`pgrep -f 'benchmarks/agent/run.py'`**. The waiter's own command line matches
-the pattern, so the loop never exits. (More on waiter traps in
-[`automation-hazards.md`](automation-hazards.md#a-tail--f-monitor-never-ends-so-it-outlives-the-thing-it-watched).)
+**Do not wait on `pgrep -f 'benchmarks/agent/run.py'`.** The waiter's own
+command line matches, so the loop never exits. See
+[A waiter must be able to end](automation-hazards.md#a-waiter-must-be-able-to-end).
 
-## antirez is the sherpa — check his path before designing your own
+## antirez is the sherpa: check his path before you design your own
 
-**ds4 (DwarfStar) is the reference implementation for this hardware.** antirez
-runs these models on the machines this project targets — 128 GiB Apple Silicon —
-and publishes what works. When a model he has shipped is being evaluated here,
-**his current guidance is the starting point, not a footnote.**
-
-Before designing any experiment on a model he covers:
+**ds4 (DwarfStar) is the reference implementation for 128 GiB Apple Silicon.**
+When a model he ships is under evaluation here, his current guidance is the
+starting point. Before you design an experiment on such a model:
 
 ```sh
 cd ~/git/ds4 && git fetch --all
@@ -511,48 +334,21 @@ git log --oneline main..upstream/<branch>
 grep -oE "^\s+[a-z0-9-]+\)" download_model.sh   # supported layouts
 ```
 
-**ds4 is not a general GGUF loader.** Only layouts from its own
-`download_model.sh` are supported. A GGUF of the "same" model from elsewhere is
-a different artifact, and the metadata says so out loud:
+- **ds4 is not a general GGUF loader.** It supports only the layouts in its
+  own `download_model.sh`. A GGUF of the "same" model from elsewhere is a
+  different artifact (`glm5-next` against `glm5next` in
+  `general.architecture`), and #25 lost hours to one. On GLM-5.3-Flash the
+  unsupported path took 76 s and 854 tokens for a question the ds4 path
+  answered in 3.2 s and 47 tokens.
+- **Re-check before you conclude a model does not work.** A model can go from
+  unsupported to shipped in a day, on a preview branch first.
+- **He force-pushes preview branches. Check ancestry, not the commit count**
+  (`git merge-base --is-ancestor`), before you treat a rebuild as an increment.
+  A rewritten tip once carried the same message under a different SHA.
+- **Read the commits, not the branch activity.** Of one force-pushed batch,
+  two commits mattered to us.
 
-```
-antirez GLM-5.3   general.architecture = glm5-next
-Unsloth  GLM-5.3  general.architecture = glm5next
-```
-
-Neither engine reads the other's file. That single hyphen is why #25 burned
-hours on a model that "loads and emits gibberish".
-
-**The cost of not checking, measured 2026-08-29.** GLM-5.3-Flash was evaluated
-on Unsloth's GGUF via llama.cpp PR #27752 through the shim, and produced
-`glm53 x codex` 15/15 plus a **3,600 s timeout** under Claude Code. On the
-supported ds4 path the same question at temperature 0 answered in **3.2 s using
-47 completion tokens**, against **76 s and 854 tokens** on the unsupported one.
-**18x fewer tokens.** The pathology was the stack, not the model — and the
-branch that fixed it had existed the whole time.
-
-**He is also fast.** A model can go from unsupported to shipped in a day, and
-preview branches are where it lands first. Re-check before concluding a model
-does not work here.
-
-**And he force-pushes the preview branches.** Our `ds4-glm53` worktree sat on
-`a60a2a0 "Add GLM 5.3 Flash inference"`; the rewritten branch tip carried a
-commit with the **same message and a different SHA** (`147109a`), and
-`git merge-base --is-ancestor` said our old HEAD was **not an ancestor** of the
-tip. So "14 commits behind" understated it — the history was rewritten, not
-extended. **Check ancestry, not the count**, before assuming a rebuild is an
-increment. A preview branch is not a stable base and may never be one.
-
-**Read the commits, not the branch activity.** Of everything force-pushed
-since our checkout, exactly two commits mattered to us — `b0c31af "Improve
-GLM 5.3 attention memory and batching"` and `9f95d9f "Fix GLM 5.3 vision in
-compact prefill"`, both touching the compact prefill path that
-[ds4#890](https://github.com/antirez/ds4/issues/890) names. The rest was
-vision and ROCm, out of scope here. Branch activity is a poor proxy for
-progress.
-
-**preflight reports GitHub notifications for `antirez/ds4`, `ggml-org/llama.cpp`
-and this repo**, mentions first. It excludes `ci_activity` and keeps *read*
-items: the ds4 mention that mattered arrived by email, was already marked read
-through the API, and sat under 41 CI failures from unrelated repos. Filtering to
-unread would have hidden the only notification worth seeing.
+**preflight reports GitHub notifications** for `antirez/ds4`,
+`ggml-org/llama.cpp` and this repo, mentions first. It drops `ci_activity` and
+keeps *read* items: the one ds4 mention that mattered had already been marked
+read.
