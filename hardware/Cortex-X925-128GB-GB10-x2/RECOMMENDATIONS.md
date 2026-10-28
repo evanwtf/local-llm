@@ -1,123 +1,164 @@
-# What to run on the dual DGX Spark cluster
+# What to run on two DGX Sparks
 
-**A local coding agent served by two NVIDIA DGX Sparks (GB10, 128 GB each,
-tensor-parallel over their ConnectX-7 link), driven from a laptop on the LAN.**
-Every number here was measured by `benchmarks/agent/` on this cluster, with
-OpenCode on a separate client. Nothing is from a model card. Run section 1,
-pick a row in section 2, or read why in section 3; the full evidence moved
-([where the rest went](#where-the-rest-went)). With one Spark, read
+**This page is for you if you have two NVIDIA DGX Sparks joined by their
+ConnectX-7 cable and want a coding agent that runs on them, not in the cloud.**
+It names the model and server to run, gives the commands, and shows the tests
+behind each choice. With one Spark, read
 [the single-Spark page](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md).
 
-**Ledger last read 2026-10-26** ([`results.jsonl`](results.jsonl): 3,288 rows,
-the last finished at 2026-10-26T03:11:44-0400). Rows from 2026-10-18 on ran
-OpenCode 2.0.32 or 2.1.x and compare only with each other. A read date more
-than two weeks old means re-check the ledger before you trust a row.
+**The results are from 2026-10-19 to 2026-10-26.** Each row in section 2 gives
+its own dates. Models and servers change every week, so a row more than a few
+weeks old may be out of date.
 
 ---
 
-## 1. Run the pick
+## How we test
 
-**DeepSeek-V4.1-Flash-1017, EXL3 2.7 bpw, on vLLM + ExLlamaV3**
-([#1160][i1160]). These are the steps #1160 ran. Do steps 1 and 3 on both
-Sparks; run the rest on the head.
+We give a coding agent real programming work, and we let the project's own
+tests decide whether it did the work. No model grades another model.
+
+**The agent.** [OpenCode](https://opencode.ai), on a separate laptop, sends
+its requests to the Sparks over the network. That is how you would use it.
+
+**The project.** [gmail-archive](https://github.com/evanwtf/gmail-archive) is
+a real Python program that archives Gmail and serves it in a web page. Its
+tests were written before this benchmark existed.
+
+**The tasks.** There are three sets:
+
+- **The standard set (10 tasks).** In 8 tasks we delete the body of one or two
+  functions. We keep the name and the types, and usually the description, and
+  ask the agent to write the body again. In 2 tasks the agent writes a small
+  command-line script from a description.
+- **Replay (7 tasks).** We take a real commit that added a feature, undo it,
+  describe the feature in plain words, and ask the agent to build it again.
+  The features change 37 to 583 lines across 1 to 9 files.
+- **Hard (7 tasks).** Five replay features again, but we hide some of the
+  tests from the agent. Two more tasks undo five commits at once: a rebuild of
+  the web interface, 1,643 added lines across 17 files. One of the two does not
+  tell the agent which tests to run.
+
+**Pass or fail.** A trial passes when the tests the agent could see pass. A
+trial fails if the agent edits a test, or if it does not finish in 30 minutes.
+Every task runs 3 times.
+
+**The hidden re-grade.** After a hard task, we put the hidden tests back and
+run them ([#726][i726]). An agent can pass the visible tests and still fail the hidden ones:
+it wrote code to fit the tests it saw, not the feature. That second check is
+what separates the best stacks.
+
+**Time.** We take each task's median time over its 3 trials, and add them up
+over the 14 replay and hard tasks. That total is how long you wait.
+
+**What this does not show.** It shows whether the agent finishes the job, not
+whether the code is good. gmail-archive is public, so a model may have seen
+these commits in training; section 3 says how much that matters. The full
+method is in [`METHODOLOGY.md`](../../benchmarks/agent/METHODOLOGY.md).
+
+---
+
+## 1. Run the best all-around choice
+
+**DeepSeek-V4.1-Flash-1017, quantized to 2.7 bits per weight (EXL3), served by
+vLLM with ExLlamaV3** ([#1160][i1160]). These are the steps we ran. Do steps 1
+and 3 on both Sparks, and the rest on the first one (the head).
 
 ```sh
-# 1. The stack, at the pinned commit (v2.0 measured worse: section 4)
+# 1. The server recipe, at the commit we tested (a later one measured worse: section 4)
 git clone https://github.com/sudoingX/dgx-spark-deepseek-v41 ~/dsv41_recipe
 cd ~/dsv41_recipe && git checkout cc59c360
 
-# 2. Build the images locally, with no other GPU container running
+# 2. Build the images, with no other GPU container running
 PEER=<worker> ./install.sh
 
-# 3. The weights, plus DeepSeek's own Engram shards, at the same path on both
+# 3. The model, plus two files from DeepSeek, at the same path on both Sparks
 hf download 0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw \
   --revision e34ef55bda7c37d17d8dcc86a8a64e7cb875481e --local-dir ~/models/dsv41-1017-exl3
 hf download deepseek-ai/DeepSeek-V4.1-Flash-1017 \
   model-00047-of-00048.safetensors model-00048-of-00048.safetensors \
   --revision 1bae0e1088993b9b82de08f59de5be5a34e42170 --local-dir ~/models/dsv41-1017-exl3
 
-# 4. Both ranks, reasoning effort low on the server (the template defaults to high)
+# 4. Start the server on both Sparks, with reasoning effort low (the default is high)
 HEAD=<head> WORKER=<worker> PORT=8888 SERVED=DeepSeek-V4.1-Flash-1017-EXL3 \
   MODEL_DIR=$HOME/models/dsv41-1017-exl3 \
   EXTRA='--default-chat-template-kwargs {"reasoning_effort":"low"}' \
   ./scripts/launch/dsv41_tp2.sh up          # stop: ./scripts/launch/dsv41_tp2.sh down
 ```
 
-The first boot took 537 s. On the client, point an OpenCode provider at
-`http://<head-node>:8888/v1` with model `DeepSeek-V4.1-Flash-1017-EXL3` and
-`"limit": { "context": 262144, "output": 16384 }`. Send no reasoning effort:
-the server sets it. Every row of section 2, step by step from two clean Sparks,
-is in [`howto.md`](howto.md).
+The first start took 9 minutes. On the laptop, point an OpenCode provider at
+`http://<head>:8888/v1` with model `DeepSeek-V4.1-Flash-1017-EXL3` and
+`"limit": { "context": 262144, "output": 16384 }`. Do not set a reasoning
+effort in OpenCode; the server sets it. Every row in section 2, step by step
+from two clean Sparks, is in [`howto.md`](howto.md).
 
 ---
 
-## 2. Or pick a row
+## 2. Or choose by what you need
 
-**Not a ranking.** Each row is here for the reason in its first column.
-Replay + hard is 14 real-commit tasks × 3 trials. The hidden re-grade
-([#726][i726]) checks each answer against tests the agent never saw. Times are
-sums of task medians; percentages are of the pick's.
+Each row answers one need. "Replay + hard" is 14 tasks × 3 trials. Times are
+the sum of task medians; a percentage compares it with the best all-around
+choice.
 
-| pick this if | stack | replay + hard | hidden re-grade | standard set |
-|---|---|---|---|---|
-| **you want the most correct agent (the pick)** | DeepSeek-1017 EXL3 2.7 bpw ([0xSero][w-sero1017]) on vLLM + ExLlamaV3, [sudoingX stack][r-sudoingx] @`cc59c360` ([#1160][i1160]) | **41/41**, 4,782.4 s | **369/380 (97.1%)**, 17/20 whole tasks | 30/30, 504.4 s |
-| **you want it fast and the visible tests cover the job** | GLM-5.3-Flash 4bpw TensorFold quant ([Mia-AiLab][w-tfq]) on TensorFold v0.6.0, [MiaAI-Lab recipe][r-tf-mia] ([#1095][i1095]) | 42/42, 4,358.7 s (91.1%) | 284/390 (72.8%), 1/21 whole tasks | 30/30, **266.6 s (52.9%)** |
-| **you want the most held-out tests passed** | DeepSeek-1017 EXL3-EAQ-v1 2.9 bpw ([Mia-AiLab][w-eaq1017]) on TensorFold, [MiaAI-Lab recipe][r-dsv41-1017-mia] ([#1168][i1168]) | 38/42, 6,226.4 s (130.2%) | **361/361 (100.0%)**, 19/21 whole tasks | 10/10, 660.4 s, stopped early |
-| **you need image input** | DeepSeek-V4-Flash-Vision-Exp on vLLM, [MiaAI-Lab DSpark recipe][r-dsv4v] ([#1097][i1097]) | not run on the fixed client | — | 10/10, 871.2 s (332.0% of GLM's 262.4 s), stopped early |
-| **you have one Spark** | [the single-Spark page](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) | | | |
+| choose this if | model and server | tested | replay + hard | hidden tests passed | standard set |
+|---|---|---|---|---|---|
+| **you want the best all-around agent** | DeepSeek-V4.1-Flash-1017, EXL3 2.7 bpw ([0xSero][w-sero1017]), on vLLM + ExLlamaV3 ([sudoingX recipe][r-sudoingx] @`cc59c360`) · [#1160][i1160] | 2026-10-19 to 10-26, 3 runs | **41/41**, 4,782.4 s | **369 of 380 (97.1%)**; 17 of 20 tasks whole | 30/30, 504.4 s |
+| **you want the fastest agent, and your tests cover the job** | GLM-5.3-Flash, EXL3 4 bpw ([Mia-AiLab][w-tfq]), on TensorFold v0.6.0 ([MiaAI-Lab recipe][r-tf-mia]) · [#1095][i1095] | 2026-10-19; standard set again 2026-10-24 | 42/42, 4,358.7 s (91.1%) | 284 of 390 (72.8%); 1 of 21 tasks whole | 30/30, **266.6 s (52.9%)** |
+| **hidden tests matter most, and you can retry a stalled task** | DeepSeek-V4.1-Flash-1017, EXL3-EAQ-v1 2.9 bpw ([Mia-AiLab][w-eaq1017]), on TensorFold ([MiaAI-Lab recipe][r-dsv41-1017-mia]) · [#1168][i1168] | 2026-10-19; again 2026-10-25 | 38/42, 6,226.4 s (130.2%) | **361 of 361 (100.0%)**; 19 of 21 tasks whole | 10/10, 660.4 s, stopped early |
+| **you need image input** | DeepSeek-V4-Flash-Vision-Exp on vLLM ([MiaAI-Lab recipe][r-dsv4v]) · [#1097][i1097] | 2026-10-24 | not run | — | 10/10, 871.2 s (332.0% of GLM's 262.4 s that day), stopped early |
+| **you have one Spark** | [the single-Spark page](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) | | | | |
 
-**Context.** The pick serves 262,144 tokens. DeepSeek-1017 on TensorFold serves
-up to 1,048,576, but the client sends at most 262,144, so long context is not
-measured. DeepSeek-1017 does not take images.
+"Tasks whole" counts hard tasks where every hidden test passed. **Context:**
+the best all-around choice serves 262,144 tokens. DeepSeek on TensorFold
+serves up to 1,048,576, but the agent sent at most 262,144, so we have not
+measured long context. Only the vision row takes images.
 
 ---
 
 ## 3. Why this order
 
 The operator's rule: "Pure correctness has to win, but saving ~50% on time is
-also very valuable." So the order is the visible verdict and the hidden
-re-grade first, then wall time.
+also very valuable." So we rank on correctness first, then time.
 
-- **Visible verdicts do not separate the top stacks.** Every 95% Wilson
-  interval overlaps the others.
-- **The hidden re-grade does.** The DeepSeek-1017 arms pass 97.1% to 100.0% of
-  the held-out tests; GLM passes 72.8%. Four GLM runs agree on that gap: its
-  126 rows on OpenCode 1.18.35 ([#1018][i1018]) re-grade to 73.8%.
-- **The pick over #1168.** No visible failure in 41 counted trials. #1168 lost
-  4 of 42: two first-turn stops (`finish=stop`, no tool call,
-  [#1177][i1177]), one 1,800 s timeout and one test edit. Its second run
-  ([#1246][i1246]) repeated the pattern: 35 of 39 visible, 281 of 281 hidden.
-- **The pick is firm.** Three runs agree ([#1255][i1255], [#1262][i1262]):
-  replay + hard took 4,782.4 s, 4,098.8 s and 4,252.3 s, and the hidden
-  re-grade was 97.1%, 97.6% and 98.3%. No trial failed, timed out or stopped on
-  its first turn.
-- **Keep the claim small.** The gmail-archive commits are public. The pick and
-  #1168 wrote back 43.0% and 43.5% of the replay files verbatim, against 1.0%
-  for GLM, so part of the hidden lead may be recall. The three DeepSeek-1017
-  quants are by three authors (2.7, 2.8 and 2.9 bpw), so they separate the
-  engines only up to the quant.
-- **Set reasoning effort `low`.** The 1017 template defaults to high, and GLM's
-  falls back to max. On jayleaton's GLM TensorFold stack, `high` took 171% of
-  `low`'s time on the 12 non-span tasks and passed 0 of 6 span trials
-  ([#840][i840]).
+- **The visible tests do not separate the top stacks.** They pass 41 of 41,
+  42 of 42 and 38 of 42, and the statistical margins overlap.
+- **The hidden tests do.** The two DeepSeek rows pass 97.1% and 100.0% of the
+  hidden tests. GLM passes 72.8%: its code often fits the visible tests and
+  misses the feature. A fourth GLM run on an older client agreed (73.8%,
+  [#1018][i1018]).
+- **Why not the 100% row?** It stalled. In 4 of 42 trials it failed: twice it
+  stopped on its first turn without doing anything ([#1177][i1177]), once it
+  ran out of time and once it edited a test. A second run did the same: 35 of
+  39 visible, 281 of 281 hidden ([#1246][i1246]). The best all-around choice
+  did not fail once in 41 trials.
+- **The best all-around result held three times.** Its three runs took
+  4,782.4 s, 4,098.8 s and 4,252.3 s, and passed 97.1%, 97.6% and 98.3% of the
+  hidden tests ([#1255][i1255], [#1262][i1262]).
+- **Keep the claim small.** Both DeepSeek rows rewrote about 43% of the replay
+  files byte for byte as the original author did; GLM did that for 1%. Part
+  of DeepSeek's lead may be memory of the public repository, not skill. The
+  DeepSeek rows also use quantizations by different people, so they compare
+  the servers only up to the quantization.
+- **Set reasoning effort to `low`.** DeepSeek's default is high, and GLM's
+  falls back to max. On one GLM stack, `high` took 171% of `low`'s time on 12
+  tasks and passed none of the 6 web-interface trials ([#840][i840]).
 
 ---
 
-## 4. Measured and not picked
+## 4. Tested and not chosen
 
-| stack | result | issue |
-|---|---|---|
-| DeepSeek-1017 on the sudoingX stack v2.0, sudoingx 2.8 bpw | 41/41, 5,348.7 s (111.8%), hidden 345/380 (90.8%). The pick's recipe is pinned at `cc59c36` because of this run | [#1244][i1244] |
-| DeepSeek-1017 EXL3 2.8 bpw on TensorFold Zig (jayleaton) | 34/35 with 7 rows excluded; the server crashed with `PoolExhausted` after 5 h 7 min | [#1142][i1142] |
-| GLM-5.3-Flash FP4-Local on vLLM | 41/42, 6,704.7 s (153.8% of GLM), hidden 72.6% | [#1128][i1128] |
-| GLM on TensorFold's native engine 1.1.3, no recipe | standard set 30/30, 425.4 s (162.1% of the recipe stack) | [#1095][i1095] |
-| GLM TR3 4bpw on the same recipe | 122/126, 4,271.0 s, against the quant's 124/126 and 4,111.1 s: "not worse", not "faster" | [#970][i970] |
-| Qwen3.8-Flash-Next, every stack | passes nearly every trial, but 188% to 265% of GLM's time: 14,000 to 16,800 median reasoning tokens a trial, against GLM's 2,800 to 3,500 | [#865][i865], [#897][i897], [#977][i977] |
-| Nemotron-3.5-Super-VL NVFP4; MiMo-V2.6-Flash-RL | screened out on the standard set at 209.4% and 478.7% of GLM | [#1231][i1231], [#1032][i1032] |
+| model and server | tested | result | issue |
+|---|---|---|---|
+| DeepSeek-1017, sudoingX recipe v2.0, sudoingx 2.8 bpw | 2026-10-25 | 41/41, 5,348.7 s (111.8%); hidden 345 of 380 (90.8%). This is why section 1 pins the recipe at `cc59c360` | [#1244][i1244] |
+| DeepSeek-1017, EXL3 2.8 bpw (jayleaton), on TensorFold Zig | 2026-10-18 to 10-19 | 34/35, with 7 trials not counted; the server crashed (`PoolExhausted`) after 5 h 7 min | [#1142][i1142] |
+| GLM-5.3-Flash FP4-Local on vLLM | 2026-10-21 | 41/42, 6,704.7 s (153.8% of GLM); hidden 72.6% | [#1128][i1128] |
+| GLM on TensorFold's own engine 1.1.3, no recipe | 2026-10-24 | standard set 30/30, 425.4 s (162.1% of the recipe) | [#1095][i1095] |
+| Nemotron-3.5-Super-VL NVFP4; MiMo-V2.6-Flash-RL | 2026-10-24 | dropped after the standard set at 209.4% and 478.7% of GLM's time | [#1231][i1231], [#1032][i1032] |
+| GLM TR3 4 bpw, same recipe as GLM | 2026-10-06, older client | 122/126, 4,271.0 s, against the chosen GLM quant's 124/126 and 4,111.1 s | [#970][i970] |
+| Qwen3.8-Flash-Next, every server | 2026-10-07 to 10-12, older client | passed nearly every trial, at 188% to 265% of GLM's time: it spent 14,000 to 16,800 reasoning tokens a trial, against GLM's 2,800 to 3,500 | [#865][i865], [#897][i897], [#977][i977] |
 
-Stacks dropped before a screen (MiMo-V2.6, Ling-3.0, Atlas, Flare and others)
-and every result from before the client fix of 2026-10-06 ([#968][i968]) are
-in the archive.
+"Older client" means OpenCode before 2.0.32. Its times do not compare with the
+rows above. Stacks dropped before any test, and results from before the client
+fix of 2026-10-06 ([#968][i968]), are in the archive below.
 
 ---
 
@@ -125,11 +166,11 @@ in the archive.
 
 | for | see |
 |---|---|
-| this page before the 2,000-word budget: test environment, every stack table, the broken-client results, tool versions, open questions | [`recommendations-archive-2026-10-27.md`](recommendations-archive-2026-10-27.md) (frozen) |
+| this page before 2026-10-27: every stack table, tool versions, open questions | [`recommendations-archive-2026-10-27.md`](recommendations-archive-2026-10-27.md) (frozen) |
 | every row, step by step from two clean Sparks | [`howto.md`](howto.md) |
-| the cluster: hardware, fabric, RoCE, NCCL | [`README.md`](README.md) · [`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md) |
-| any number here, again | `uv run python scripts/screen_stacks.py --results hardware/Cortex-X925-128GB-GB10-x2/results.jsonl --since 2026-10-18T00:00:00-0400` (add `--standard` for the standard set) |
-| what the tasks are | [`benchmarks/agent/METHODOLOGY.md`](../../benchmarks/agent/METHODOLOGY.md) |
+| the cluster: hardware, cable, RoCE, NCCL | [`README.md`](README.md) · [`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md) |
+| every trial, one JSON line each | [`results.jsonl`](results.jsonl) |
+| the numbers on this page, again | `uv run python scripts/screen_stacks.py --results hardware/Cortex-X925-128GB-GB10-x2/results.jsonl --since 2026-10-18T00:00:00-0400` (add `--standard` for the standard set) |
 | what runs next | `uv run python scripts/make_next.py --platform nvidia` |
 
 This page stays at or under 2,000 words: `tests/test_recommendations_budget.py`
