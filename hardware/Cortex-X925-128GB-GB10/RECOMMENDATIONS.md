@@ -1,34 +1,75 @@
-# What to actually run on a DGX Spark
+# What to run on one DGX Spark
 
-**A local coding agent *served from* an NVIDIA DGX Spark (GB10, 128 GB unified,
-Linux/aarch64, sm_121), driven from a laptop over your LAN.** Every number below
-was measured by `benchmarks/agent/` on this machine with **OpenCode**. Nothing
-here is from a model card. Paste section 1, pick a row in section 2, or read
-what does not help in section 3. For two Sparks, read
-[the two-Spark page](../Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md).
+**This page is for you if you have one NVIDIA DGX Spark and want a coding agent
+that runs on it, not in the cloud.** It names the model and server to run,
+gives the commands, and shows the tests behind each choice. With two Sparks,
+read [the two-Spark page](../Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md).
 
-**Ledger last read 2026-10-21** (the S1–S8 refresh, [#1086]; Bolt, [#1103],
-[#1127]; FP4-Local, [#1108], [#1143]). A read date more than a couple of weeks
-old means re-check `results.jsonl` before trusting these rows.
+**The results are from 2026-09-11 to 2026-10-24, and they stop there.** We
+moved to two Sparks, and single-Spark testing stopped on 2026-10-23. Each row
+gives its own dates. Models and servers change every week, so treat every row
+here as a starting point, not a current measurement.
 
-> **Visible tests overstate every row here.** On the replay and hard sets, no
-> one-Spark stack passed the held-out tests ([#726]) on more than 1 of 21 whole
-> tasks. Read [the held-out table](#replay-hard-and-the-held-out-tests-2026-10-21)
-> before you trust an agent's work unreviewed.
-
-> **Not measured: the LAN round trip.** Every median was taken on the box. A
-> laptop over WiFi adds a per-turn cost that hurts the fast rows most, so treat
-> each median as a lower bound ([#342]).
+> **Review this agent's work.** On the long tasks below, no single-Spark setup
+> passed every hidden test on more than 1 of 21 tasks. The agents finish, but
+> their code often fits only the tests they could see.
 
 ---
 
-## 1. Paste this
+## How we test
 
-The fastest **agent** row (S1): **Qwen3.6-35B-A3B NVFP4** on **SGLang** ([#553]).
+We give a coding agent real programming work, and we let the project's own
+tests decide whether it did the work. No model grades another model.
 
-**On the Spark.** SGLang's official image, pinned by digest, thinking off.
+**The agent.** [OpenCode](https://opencode.ai). In October it ran on a separate
+laptop and sent its requests to the Spark over the network, as you would use
+it. The September rows ran it on the Spark itself, so they leave out the
+network round trip, which costs the fast rows the most ([#342]).
+
+**The project.** [gmail-archive](https://github.com/evanwtf/gmail-archive) is
+a real Python program that archives Gmail and serves it in a web page. Its
+tests were written before this benchmark existed.
+
+**The tasks.** There are three sets:
+
+- **The standard set (10 tasks).** In 8 tasks we delete the body of one or two
+  functions. We keep the name and the types, and usually the description, and
+  ask the agent to write the body again. In 2 tasks the agent writes a small
+  command-line script from a description.
+- **Replay (7 tasks).** We take a real commit that added a feature, undo it,
+  describe the feature in plain words, and ask the agent to build it again.
+  The features change 37 to 583 lines across 1 to 9 files.
+- **Hard (7 tasks).** Five replay features again, but we hide some of the
+  tests from the agent. Two more tasks undo five commits at once: a rebuild of
+  the web interface, 1,643 added lines across 17 files. One of the two does not
+  tell the agent which tests to run.
+
+**Pass or fail.** A trial passes when the tests the agent could see pass. A
+trial fails if the agent edits a test, or if it does not finish in 30 minutes.
+Every task runs 3 times. The September rows ran the standard set only, often
+9 times a task.
+
+**The hidden re-grade.** After a hard task, we put the hidden tests back and
+run them ([#726]). An agent can pass the visible tests and still fail the
+hidden ones: it wrote code to fit the tests it saw, not the feature.
+
+**Time.** Each time on this page is a median over a set's passing trials: how
+long one task takes.
+
+**What this does not show.** It shows whether the agent finishes the job, not
+whether the code is good. gmail-archive is public, so a model may have seen
+these commits in training. The full method is in
+[`METHODOLOGY.md`](../../benchmarks/agent/METHODOLOGY.md).
+
+---
+
+## 1. Run the fastest choice
+
+**Qwen3.6-35B-A3B, NVFP4, on SGLang, with thinking off** ([#553], [#1087]).
+
+**On the Spark.** This is SGLang's official image, pinned by digest.
 `--moe-runner-backend flashinfer_cutlass` is required: the default runner
-refuses NVFP4 MoE on GB10.
+refuses this model's format on the GB10.
 
 ```sh
 # SGLang nightly (nightly-cu134-20260909-708f51e) serving Qwen3.6-35B-A3B-NVFP4 (~22 GiB)
@@ -45,7 +86,7 @@ docker run --rm --name a3b-sglang --gpus all --network host --ipc=host \
   --default-chat-template-kwargs '{"enable_thinking":false}'
 ```
 
-**On the laptop.** Replace `SPARK-IP` with the Spark's LAN address:
+**On the laptop.** Replace `SPARK-IP` with the Spark's address on your network:
 
 ```sh
 curl -fsSL https://opencode.ai/install | bash
@@ -68,87 +109,87 @@ cd ~/some/project
 opencode run --dir "$PWD" "add a --verbose flag to the CLI and a test for it"
 ```
 
-**90/90 on our benchmark, 28.5 s median task, worst 136 s** ([#553]): 42% of the
-wall time of the simplest option (llama.cpp Q3, 67.3 s). Refreshed 2026-10-20
-([#1087]): standard 30/30, replay + hard 42/42, but 0 of 21 whole held-out tasks
-and 223 of 382 held-out tests (58.4%), the lowest rate on either machine. It is
-the fastest row, not the most correct one. Review its work.
-
 **`--dir` is not optional.** `opencode run` ignores where you launched it, and
 without `--dir` it writes the files somewhere else. That cost the Mac project
-two weeks and 130 wasted trials. No Docker, or a plain binary instead: rows S2
-and S3 below, step by step in [`howto.md`](howto.md).
+two weeks and 130 wasted trials. To run it without Docker, or from a single
+binary, see section 2 and [`howto.md`](howto.md).
+
+**Why this one.** On 2026-10-20 it passed every visible test: standard 30/30,
+replay 21/21, hard 21/21. It was the fastest row in section 2 on every set.
+But it passed only 58.4% of the hidden tests, the lowest in that table. It is
+the fastest choice, not the most correct one.
 
 ---
 
-## 2. Or pick a row
+## 2. Or choose by what you need
 
-**Not a ranking.** Each row is here for the reason in its first column. "pass"
-is usable trials on the ledger; "median" and "worst" are OpenCode wall seconds
-on passing non-script tasks; "turns" is the median turn count. S1–S8 are the
-[#1086] picks, one issue each.
+These rows ran from the laptop, on OpenCode 2.0.29 to 2.1.1, with all three
+task sets. They compare with each other.
 
-| pick this if | model | engine | pass | median | worst | turns | note |
-|---|---|---|---|---|---|---|---|
-| **S1: you want the agent done fastest** | Qwen3.6-35B-A3B `NVFP4`, thinking off | SGLang nightly (digest-pinned) | **90/90** | **28.5 s** | **136 s** | 7.5 | 405 tok/s at 16 streams ([#553], [#308], [#1087]) |
-| **S2: a pip-installed engine, or the most multi-client throughput** | same model | vLLM 0.29.0, MARLIN | 379/402 (94%) | 35.3 s | 318 s | 11 | 452 tok/s at 16 streams; misses `script-transform` systematically ([#335], [#477], [#1088]) |
-| **S3: the simplest server to stand up** | Flash-Next `UD-Q3_K_XL`, thinking off | llama.cpp CUDA sm_121 | **331/331** | 67.3 s | 1,059 s | 10 | one `llama-server` binary, no venv ([#524], [#1089]) |
-| **S4: …and the KV cache halved** | same, `q8_0` KV | llama.cpp | **90/90** | 61.4 s | 1,528 s | 9 | quality-neutral memory win ([#344], [#1090]) |
-| **long tasks finished, with an NVIDIA model** | Nemotron-3.5-Bolt-74B-A9B (IQ2 QAT GGUF), thinking off | llama.cpp b11669 + LiLiCorr DFlash | **30/30** | 85.7 s | 123.9 s | 8.5 | 37/42 on replay + hard, the most after S1 ([#1103]) |
-| **S5: a dense model** | Qwen3.8-27B `NVFP4`, thinking off | SGLang + DFlash2 (MiaAI-Lab) | **90/90** | 44.2 s | 279 s | 8 | run at `--mem-fraction-static 0.70` so a client fits ([#303], [#350], [#1091]) |
-| **S6: a larger model / 262K context** | Flash-Next `NVFP4` (NVIDIA), thinking off | vLLM (MiaAI-Lab recipe), MTP-3 | **90/90** | 68.0 s | 1,115 s | 13.5 | thinking on: 90/90, 120.8 s, worst 281 s ([#493], [#1092]) |
-| **S7: a second, non-Qwen lineage** | Nemotron-3.5-Lightning-30B-A3B `NVFP4` | TensorFold 1.0.11 native, MTP | **30/30** | 33.7 s | 236.5 s | 11.5 | replay 16/21 ([#1066], [#1093]) |
-| **S8: it shows its work** | Flash-Next Q3, thinking on | llama.cpp CUDA sm_121 | 118/119 (99%) | 127.4 s | 394 s | 10 | 193% of S3's wall ([#333], [#1094]) |
+| choose this if | model and server | tested | standard | replay | hard | hidden tests passed |
+|---|---|---|---|---|---|---|
+| **you want the fastest agent** | Qwen3.6-35B-A3B NVFP4, thinking off, on SGLang ([#1087]) | 2026-10-20 | 30/30, 34.8 s | **21/21**, 219.4 s | **21/21**, 377.2 s | 223 of 382 (58.4%); 0 of 21 tasks whole |
+| **you want an NVIDIA model that finishes long tasks** | Nemotron-3.5-Bolt-74B-A9B (IQ2 QAT GGUF), thinking off, on llama.cpp b11669 + LiLiCorr DFlash ([#1103]) | 2026-10-15 to 10-16 | 30/30, 85.7 s | 19/21, 435.5 s | 18/21, 780.1 s | 203 of 315 (64.4%); 0 of 21 |
+| **you want a dense model** | Qwen3.8-27B NVFP4, thinking off, on SGLang + DFlash2 ([#1091]) | 2026-10-20 | 30/30, 78.2 s | 20/21, 500.2 s | 16/21, 946.2 s | 172 of 266 (64.7%); 0 of 21 |
+| **you want the simplest server: one binary, no Python** | Qwen3.8-Flash-Next UD-Q3_K_XL, thinking off, on llama.cpp ([#1089]) | 2026-10-15 | 29/30, 70.5 s | 20/21, 413.0 s | 12/21, 823.4 s | 150 of 199 (75.4%); 1 of 21 |
 
-Every row regenerates with `uv run python scripts/reco_rows.py --results
-hardware/Cortex-X925-128GB-GB10/results.jsonl <backend>...` ([#524]). All nine
-clear [#23]'s bar for a >90% claim on the standard set.
+"Tasks whole" counts hard tasks where every hidden test passed. A trial that
+times out gets no hidden result, so a setup that fails the long tasks is
+graded on fewer, shorter ones: its percentage looks better than it is. The
+"tasks whole" count has no such bias, and it is 0 or 1 for every row.
 
-### Replay, hard, and the held-out tests (2026-10-21)
+**For a dense model, use NVIDIA's checkpoint.** On 2026-10-23 and 10-24,
+`nvidia/Qwen3.8-27B-NVFP4` (@`482ca0f3`) did at least as well as the build in
+the table: standard 30/30 against 29/30, replay + hard 37/42 against 34/41.
+It is 11 GB smaller ([#1220]).
 
-The same i9 client ran every row, on OpenCode 2.0.29 to 2.1.1; medians are of
-passing trials.
+---
 
-| stack | standard | replay | hard | held-out: whole tasks | held-out: tests |
+## 3. Tested and not chosen
+
+| model and server | tested | result | issue |
+|---|---|---|---|
+| Qwen3.6-35B-A3B NVFP4 on vLLM 0.32.0 | 2026-10-22 | replay + hard 41/42 at 105.3% of the fastest choice's time; hidden 192 of 361 (53.2%). No gain | [#1088] |
+| Flash-Next Q3 with a half-size (`q8_0`) KV cache, llama.cpp b11827 | 2026-10-23 | standard 30/30; replay + hard 17 of 26, all 9 failures 30-minute timeouts | [#1090] |
+| Nemotron-3.5-Bolt on TensorFold | 2026-10-18 | standard 29/30; replay 20/21; hard 15/21; hidden 156 of 222 (70.3%), 2 invalid | [#1127] |
+| Qwen3.8-Flash-Next FP4-Local on vLLM | 2026-10-17 | replay 16/20, hard 11/17; stopped for too many failures | [#1108] |
+| Qwen3.8-Flash-Next FP4-Local on TensorFold | 2026-10-21 | replay 11/14, hard 7/14; stopped for too many failures | [#1143] |
+| Flash-Next EXL3 on vllm-exl3 with MTP | September | corrupt output | [#434] |
+| GLM-5.3-Flash EXL3 K2 | September | fits, but leaves no memory for the agent | [#298] |
+| Ollama, `qwen3.6:27b-coding` | September | 59 of 70 (84%); its `nvfp4` and `mxfp8` tags need MLX and do not run here | [#293] |
+
+---
+
+## 4. Older results: the standard set only
+
+These rows ran before the laptop setup: from 2026-09-11 to 09-19 with the
+agent on the Spark itself (OpenCode 1.18), and the Lightning row on 2026-10-14
+from the laptop (OpenCode 1.19.0). They ran only the standard set, so they do
+not compare with section 2. "Worst" is the slowest passing task.
+
+| setup | tested | passed | median | worst | issue |
 |---|---|---|---|---|---|
-| S1: A3B NVFP4, SGLang ([#1087]) | 30/30, 34.8 s | **21/21**, 219.4 s | **21/21**, 377.2 s | 0/21 | 223/382 (58.4%) |
-| Bolt, llama.cpp + DFlash ([#1103]) | 30/30, 85.7 s | 19/21, 435.5 s | 18/21, 780.1 s | 0/21 | 203/315 (64.4%) |
-| S5: 27B NVFP4, SGLang + DFlash2 ([#1091]) | 30/30, 78.2 s | 20/21, 500.2 s | 16/21, 946.2 s | 0/21 | 172/266 (64.7%) |
-| Bolt, TensorFold ([#1127]) | 29/30, 95.6 s | 20/21, 496.9 s | 15/21, 681.4 s | 0/21 | 156/222 (70.3%), 2 invalid |
-| S3: Flash-Next Q3, llama.cpp ([#1089]) | 29/30, 70.5 s | 20/21, 413.0 s | 12/21, 823.4 s | 1/21 | 150/199 (75.4%) |
-| Flash-Next FP4-Local, vLLM ([#1108]) | 30/30, 40.5 s | 16/20 | 11/17 | 1/17 | 146/175 (83.4%) |
-| Flash-Next FP4-Local, TensorFold ([#1143]) | 30/30, 36.8 s | 11/14 | 7/14 | 1/14 | 89/101 (88.1%) |
+| Qwen3.6-35B-A3B NVFP4 on SGLang (the fastest choice) | 2026-09-19 | **90/90** | **28.5 s** | 136 s | [#553] |
+| the same model on vLLM 0.29.0: a pip install, and 452 tokens/s at 16 requests at once | 2026-09-14 to 09-19 | 379/402 (94%) | 35.3 s | 318 s | [#335], [#477] |
+| Flash-Next Q3 on llama.cpp (the simplest server) | 2026-09-12 to 09-19 | **331/331** | 67.3 s | 1,059 s | [#524] |
+| the same, with a half-size `q8_0` KV cache | 2026-09-12 to 09-14 | 90/90 | 61.4 s | 1,528 s | [#344] |
+| Qwen3.8-27B NVFP4 on SGLang + DFlash2 (the dense model) | 2026-09-18 to 09-19 | 90/90 | 44.2 s | 279 s | [#303], [#350] |
+| Flash-Next NVFP4 (NVIDIA) on vLLM with MTP-3, for 262K context | 2026-09-18 | 90/90 | 68.0 s | 1,115 s | [#493] |
+| Flash-Next Q3 on llama.cpp, thinking on, to show its reasoning | 2026-09-11 to 09-14 | 118/119 | 127.4 s | 394 s | [#333] |
+| Nemotron-3.5-Lightning-30B-A3B NVFP4 on TensorFold 1.0.11 | 2026-10-14 | 30/30 | 33.7 s | 236.5 s | [#1066], [#1093] |
 
-A trial that times out has no held-out result, so a stack that fails the long
-tasks is graded on fewer, shorter ones: the FP4-Local rows have the highest
-rates over the fewest tests. The whole-task column has no such bias, and it is
-0 or 1 for every stack. No row is safe unreviewed on long work.
+What these runs taught, and still holds:
 
----
-
-## 3. What does not help
-
-- **Fast turns beat fast tokens.** S2 takes more turns than S3 (11 against 9)
-  in half the wall time, because each turn costs 2.8 s against 6.2 s: about 3B
-  active parameters read far fewer bytes per turn. The Flash-Next NVFP4 lanes
-  have the highest raw decode (39–50 tok/s) and a median agent wall at 193% of
-  S2's ([#317], [#354]).
-- **Thinking on costs time and gains no passes.** The dense 27B went 89/90 at 157.4 s,
-  356% of S5's median ([#303]). With thinking on, give it a token budget: on a
-  short prompt, `max_tokens` 256 or less returned empty content every time
-  ([#349]).
-- **Thinking off costs character-level exactness.** It reversed "mailbox" as
-  `xioblam`; thinking on got `xobliam`.
-- **Ollama.** `ollama pull qwen3.6:27b-coding` works but scored 59/70 (84%),
-  under the bar. Its `nvfp4` and `mxfp8` tags need MLX and do not run here
-  ([#293]).
-- **Measured and not recommended:** Flash-Next FP4-Local for long tasks (both
-  engines hit the failure stop on replay + hard, [#1108], [#1143]); Flash-Next
-  EXL3 through vllm-exl3 with MTP (corrupt output, [#434]); GLM-5.3-Flash EXL3
-  K2 (fits, but leaves no room for an agent, [#298]).
-- **Setup traps.** Leave memory for the client beside the server ([#485]); pass
-  `--moe-runner-backend flashinfer_cutlass` to SGLang ([#553]); llama.cpp has no
-  FP8 KV type here, and `-ub 2048` moved nothing ([#344]).
+- **Fast turns beat fast tokens.** The vLLM row took more turns than the Q3
+  row (11 against 9) in half the time, because each turn cost 2.8 s against
+  6.2 s. The Flash-Next NVFP4 setups had the highest token rate (39 to 50
+  tokens/s) and took 193% of the vLLM row's time ([#317], [#354]).
+- **Thinking on costs time and gains no passes.** The dense 27B with thinking
+  on went 89/90 at 157.4 s, 356% of its time with thinking off ([#303]). With
+  thinking on, give it a token budget: at `max_tokens` 256 or less, a short
+  prompt came back empty every time ([#349]).
+- **If the agent runs on the Spark too, leave memory for it** beside the
+  server ([#485]). llama.cpp has no FP8 KV cache type here ([#344]).
 
 ---
 
@@ -156,19 +197,18 @@ rates over the fewest tests. The whole-task column has no such bias, and it is
 
 | for | see |
 |---|---|
-| this page before the 2,000-word budget, with the full reasoning of sections 3 and 4 | [`recommendations-archive-2026-10-27.md`](recommendations-archive-2026-10-27.md) (frozen) |
-| every row stood up step by step, from a clean Spark | [`howto.md`](howto.md) |
-| operating the box: ports, Prometheus, the vLLM venv + `nvcc`/`ninja` launch | [`docs/dgx-spark-runbook.md`](../../docs/dgx-spark-runbook.md) |
-| how any single number was measured | the issue it cites, and `results.jsonl` |
+| this page before 2026-10-27, with the full reasoning | [`recommendations-archive-2026-10-27.md`](recommendations-archive-2026-10-27.md) (frozen) |
+| every row, step by step from a clean Spark | [`howto.md`](howto.md) |
+| running the box: ports, Prometheus, the vLLM setup | [`docs/dgx-spark-runbook.md`](../../docs/dgx-spark-runbook.md) |
+| every trial, one JSON line each | [`results.jsonl`](results.jsonl) |
+| a section 4 row, again | `uv run python scripts/reco_rows.py --results hardware/Cortex-X925-128GB-GB10/results.jsonl <backend>...` |
 
 This page stays at or under 2,000 words: `tests/test_recommendations_budget.py`
 fails CI past that, and its docstring says where new evidence goes.
 
-[#23]: https://github.com/evanwtf/local-llm/issues/23
 [#293]: https://github.com/evanwtf/local-llm/issues/293
 [#298]: https://github.com/evanwtf/local-llm/issues/298
 [#303]: https://github.com/evanwtf/local-llm/issues/303
-[#308]: https://github.com/evanwtf/local-llm/issues/308
 [#317]: https://github.com/evanwtf/local-llm/issues/317
 [#333]: https://github.com/evanwtf/local-llm/issues/333
 [#335]: https://github.com/evanwtf/local-llm/issues/335
@@ -185,16 +225,14 @@ fails CI past that, and its docstring says where new evidence goes.
 [#553]: https://github.com/evanwtf/local-llm/issues/553
 [#726]: https://github.com/evanwtf/local-llm/issues/726
 [#1066]: https://github.com/evanwtf/local-llm/issues/1066
-[#1086]: https://github.com/evanwtf/local-llm/issues/1086
 [#1087]: https://github.com/evanwtf/local-llm/issues/1087
 [#1088]: https://github.com/evanwtf/local-llm/issues/1088
 [#1089]: https://github.com/evanwtf/local-llm/issues/1089
 [#1090]: https://github.com/evanwtf/local-llm/issues/1090
 [#1091]: https://github.com/evanwtf/local-llm/issues/1091
-[#1092]: https://github.com/evanwtf/local-llm/issues/1092
 [#1093]: https://github.com/evanwtf/local-llm/issues/1093
-[#1094]: https://github.com/evanwtf/local-llm/issues/1094
 [#1103]: https://github.com/evanwtf/local-llm/issues/1103
 [#1108]: https://github.com/evanwtf/local-llm/issues/1108
 [#1127]: https://github.com/evanwtf/local-llm/issues/1127
 [#1143]: https://github.com/evanwtf/local-llm/issues/1143
+[#1220]: https://github.com/evanwtf/local-llm/issues/1220

@@ -1,8 +1,8 @@
 # Stand up a single-Spark pick, step by step
 
 **Written 2026-10-22T08:40:00-0400 for [#1202](https://github.com/evanwtf/local-llm/issues/1202).**
-This page covers the nine rows of the DGX Spark picks in
-[`RECOMMENDATIONS.md`](RECOMMENDATIONS.md), section 2. Each section is a
+This page covers the single-Spark setups in
+[`RECOMMENDATIONS.md`](RECOMMENDATIONS.md), sections 2 and 4. Each section is a
 numbered procedure for one NVIDIA DGX Spark (GB10, 128 GB). The shared steps
 are in [`docs/howto.md`](../../docs/howto.md).
 
@@ -207,7 +207,7 @@ Source: [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) section 1;
 ## Row 2. Qwen3.6-35B-A3B NVFP4 on vLLM 0.29.0 (pip-installed engine)
 
 Download: about 24 GiB. Measured: 379/402.
-Source: [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) section 1; the recorded
+Source: [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) section 4; the recorded
 argv of `qwen36a3bnvfp4dgx` (vLLM 0.29.0).
 
 1. On the Spark, create a virtual environment with vLLM 0.29.0 and `ninja`.
