@@ -51,15 +51,15 @@ JSON
 
 # 4. Use it
 cd ~/some/project
-opencode run --dir "$PWD" "add a --verbose flag to the CLI and a test for it"
+opencode run --standalone "add a --verbose flag to the CLI and a test for it"
 ```
 
 A complete working local coding agent. **24/24 on our benchmark**, 31 GB.
 
-**`--dir` is not optional.** `opencode run` talks to a background server with
-its own working directory, so it ignores where you launched it. Leave `--dir`
-out and it solves your task and writes the files somewhere else. That cost us
-two weeks and 130 wasted trials.
+**Run it from the project directory, with `--standalone`**, or OpenCode 2
+attaches to a background service that can hang the next run (#1086). OpenCode
+1.x ignores the launch directory: pass `--dir "$PWD"` there, or it writes the
+files somewhere else. That cost us two weeks and 130 wasted trials.
 
 ---
 

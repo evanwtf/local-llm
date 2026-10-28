@@ -106,12 +106,13 @@ cat > ~/.config/opencode/opencode.json <<'JSON'
 }
 JSON
 cd ~/some/project
-opencode run --dir "$PWD" "add a --verbose flag to the CLI and a test for it"
+opencode run --standalone "add a --verbose flag to the CLI and a test for it"
 ```
 
-**`--dir` is not optional.** `opencode run` ignores where you launched it, and
-without `--dir` it writes the files somewhere else. That cost the Mac project
-two weeks and 130 wasted trials. To run it without Docker, or from a single
+**Run it from the project directory, with `--standalone`.** OpenCode 2 works
+in the directory you launch it from; without `--standalone` it attaches to a
+background service that can hang the next run (#1086). OpenCode 1.x needs
+`--dir "$PWD"` instead, or it writes the files somewhere else. To run it without Docker, or from a single
 binary, see section 2 and [`howto.md`](howto.md).
 
 **Why this one.** On 2026-10-20 it passed every visible test: standard 30/30,
