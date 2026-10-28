@@ -1,65 +1,48 @@
 # vault — retired shell drivers. Do not run anything in here.
 
-These 18 drivers, plus one library they share, drove every measurement this
-project published before #235. They are kept because the runs they produced are
-still cited, and a result whose driver has been deleted cannot be re-read.
+These 15 drivers and the 3 libraries in `lib/` drove every measurement this
+project published before the Python port (#235). They are kept because the runs
+they produced are still cited, and a result whose driver is deleted cannot be
+re-read.
 
-**How each was retired, stated exactly, because it is not uniform.** Fourteen
-of the eighteen were cleared by a **differential**: the real `.sh` and its port
-were driven end to end against recording fakes and handed their children the
-same command line. The other four were not, and saying otherwise would claim
-evidence we do not have:
+**How each was retired.** Thirteen of the 18 files were cleared by a
+**differential**: the real `.sh` and its port ran end to end against recording
+fakes and handed their children the same command line. The other five were
+not:
 
 | file | how it was cleared |
 |---|---|
-| `route_agent_ab.sh` | **No differential.** Dead by #264 — it passes `--skip-tensor-gate`, which `run.py` no longer accepts, so it cannot produce an agreeing run. |
-| `stack_agent_ab.sh` | **Partial differential.** Its `server_argv` and `sweep` function text is executed and compared; its top-level sequence is not. The gap is deliberate — #235's stopping rule. |
-| `lib/ds4_server.sh` | **No differential of its own.** A library is never invoked alone, so it can produce none; it clears when all its sourcers clear. |
+| `route_agent_ab.sh` | **No differential.** Dead by #264: it passes `--skip-tensor-gate`, which `run.py` no longer accepts, so it cannot produce an agreeing run. |
+| `stack_agent_ab.sh` | **Partial differential.** Its `server_argv` and `sweep` function text is executed and compared; its top-level sequence is not (#235's stopping rule). |
+| `lib/ds4_server.sh` | **No differential of its own.** A library never runs alone; it clears when all its sourcers clear. |
 | `lib/mlx_serve.sh` | Same. |
-| `lib/transcript_move.sh` | Same — its only sourcer is `stack_agent_ab.sh`, which is in here. |
+| `lib/transcript_move.sh` | Same. Its only sourcer is `stack_agent_ab.sh`, which is in here. |
 
 **Nothing in this directory may be executed.** Not to reproduce an old run, not
 to check what a flag did, not "just to see". They are text.
 
-## Why not just delete them
+## Why keep them
 
-Because the rows outlive the driver. `results.jsonl`, the manifests under
-`benchmarks/`, and the issues that cite them all refer to arms these files
-defined. When somebody asks in six months what `--kv-disk-space-mb 32768`
-actually did on 2026-09-03, the answer is in `disk_kv_mechanism_test.sh`, and
-`git log` on a deleted path is a worse way to find it than a directory.
-
-Git history would technically hold them either way. A directory is what makes
-them *readable* — nobody runs `git show` on a path they do not know existed.
+The rows outlive the driver. `results.jsonl`, the manifests under
+`benchmarks/`, and the issues all refer to arms these files defined. To learn
+what `--kv-disk-space-mb 32768` did on 2026-09-03, read
+`disk_kv_mechanism_test.sh`. Git history holds a deleted file too, but nobody
+runs `git show` on a path they do not know existed.
 
 ## Why they must never run
 
-Three reasons, in the order they will bite you:
-
-1. **They are not maintained.** Their Python replacements are. Every fix since
-   the port has landed on one side only, so these will diverge further with
-   every commit. A number produced here in 2026-10 is not comparable with one
-   produced by the port in the same hour.
-
-2. **Two of them carried a defect that went undetected for the life of the
-   script.** `lib/ds4_server.sh` and `lib/mlx_serve.sh` chained an EXIT trap in
-   a way that handed `*_stop_on_exit` the *previous* handler's exit status, so
-   a refusal that ended in `exit 1` came out as `0`. Five of the seven callers
-   take that path, and `mtp_treatment_gate.sh` is a gate whose entire job is
-   refusing.
-
-   **These archived copies carry the fix, not the defect** — it was repaired
-   before they were vaulted. The point is not that they are broken; it is that
-   the bug lived here undetected across seven callers, which is what an
-   unmaintained script does, and nothing here is maintained any more.
-
-3. **They take the machine.** Most of these acquire the run lock, start a
-   ~100 GiB model server and hold it for hours. Running one by accident does not
-   fail — it succeeds, and voids whatever real measurement was in flight. That
-   has happened: on 2026-09-06 five dry runs of `targets_ab.sh` each reached an
-   unguarded `pkill -f qwen_tool_shim` and killed the shim belonging to a live
-   batch, which ended after three runs and could not satisfy its own
-   pre-registration.
+1. **They are not maintained.** Every fix since the port has landed in the
+   Python replacement only, so a number produced here is not comparable with
+   one from the port.
+2. **Unmaintained scripts hide defects.** `lib/ds4_server.sh` and
+   `lib/mlx_serve.sh` once chained an EXIT trap so that a refusal ending in
+   `exit 1` came out as `0`, across seven callers. These copies carry the fix,
+   but nothing here gets the next one.
+3. **They take the machine.** Most acquire the run lock, start a ~100 GiB model
+   server and hold it for hours. An accidental run does not fail: it succeeds
+   and voids the real measurement in flight. Five dry runs of `targets_ab.sh`
+   once killed the shim of a live batch through an unguarded
+   `pkill -f qwen_tool_shim`.
 
 ## What to run instead
 
@@ -84,30 +67,22 @@ Three reasons, in the order they will bite you:
 | `lib/ds4_server.sh` | `scripts/lib/ds4_server.py` |
 | `lib/mlx_serve.sh` | `scripts/lib/mlx_serve.py` |
 
-`scripts/shell_debt.py` is the live accounting and knows about this directory:
-vaulted lines are reported separately from the shell that is still in service,
-so moving a file here cannot make the number look better than it is.
+`scripts/shell_debt.py` reports vaulted lines apart from the shell still in
+service, so a move into this directory cannot make the number look better.
 
-## The rule is enforced, not just written
+## The rule is enforced, not only written
 
-`tests/test_vault.py` asserts three things, because a README is advice and a
-test is a rule:
+`tests/test_vault.py` asserts four things:
 
 - no file in here carries an executable bit;
-- nothing outside `vault/` **builds a path into it**, apart from the
-  differentials that read these files as **text** to compare against. Note
-  what this does and does not cover: it greps Python for a literal `vault/...`
-  path. It does not and cannot prove nothing *runs* one — `bash
-  vault/targets_ab.sh` ignores the missing executable bit — so the rule above
-  is a rule, not a mechanism;
-- every driver here still has the Python replacement its retirement was granted
-  against, and every library here has no sourcer left outside this directory;
-- **nothing live still tells a reader to run one of these paths.** That guard
-  exists because the first draft of this move shipped two: `AGENTS.md` told
-  every agent to run `scripts/coherence_check.sh` before a measurement batch,
-  and `preflight.py`'s refusal text named `scripts/stack_agent_ab.sh` as the
-  thing to do instead.
+- nothing outside `vault/` **builds a path into it**, except the differentials
+  that read these files as text. The test greps Python for a literal `vault/...`
+  path; it cannot prove nothing runs one (`bash vault/targets_ab.sh` ignores the
+  missing executable bit), so the rule above is still a rule, not a mechanism;
+- every driver here still has its Python replacement, and no library here has
+  a sourcer left outside this directory;
+- **no live document tells a reader to run one of these paths.** The first
+  draft of this move shipped two such pointers.
 
-The last one matters most. These were retired on the promise that a replacement
-exists. If a replacement is ever deleted, this stops being an archive and starts
-being the only copy — and then somebody will run it.
+The replacements matter most. If one is deleted, this directory stops being an
+archive and holds the only copy, and then somebody will run it.

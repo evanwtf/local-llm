@@ -12,80 +12,55 @@ Find and document the best **model + engine + harness** combination for running
 a coding agent locally, judged on code quality, problem solving, and speed. The
 answer is a combination, not a model: the same weights that are slowest under
 one client are among the fastest under another, so every result names all three
-axes. This is a benchmark harness and a body of measurements, not a product --
-a collection of Python scripts and shell wrappers run from a checkout, plus the
-`RESULTS.md` files they produce.
-
-Measurements come from a registered set of machines
-([hardware/MACHINES.md](hardware/MACHINES.md)): the **M5 Max MacBook Pro**
-(128 GiB, macOS 26), a **two-node DGX Spark cluster** (2 × GB10, 2 × 128 GiB,
-200 Gb/s RoCE, Linux/aarch64), and the Ryzen / RTX 3080 Ti desktop. Every
-number belongs to the machine that produced it and is never pooled across
-machines. The M5 Max is the primary coding-agent machine, and the examples
-below are its. The cluster serves one model across both nodes to a coding
-agent on another machine, and has its own picks (linked below). Since
-2026-09-30 every DGX test runs on both Sparks together; single-Spark results
-are history.
+axes. This is a benchmark harness and a body of measurements, not a product:
+Python scripts run from a checkout, plus the `RESULTS.md` files they produce.
 
 | axis | what it means | example |
 |---|---|---|
-| **model** | the weights, at a specific quantization | Qwen3.8-Flash-Next `UD-Q3_K_XL` |
-| **engine** | what serves them | llama.cpp, Ollama, ds4/DwarfStar |
-| **harness** | the agent driving the loop | **OpenCode** (primary), Claude Code, Codex |
+| **model** | the weights, at a specific quantization | DeepSeek-V4.1-Flash-1017 EXL3 2.7 bpw |
+| **engine** | what serves them | vLLM, llama.cpp, Ollama, mlx-serve, ds4 |
+| **harness** | the agent that drives the loop | **OpenCode** (primary); Claude Code and Codex as references |
 
-**Which model should I run?** See
-[RECOMMENDATIONS.md](RECOMMENDATIONS.md) -- current picks for the M5 Max, the
-evidence behind them, and the gaps still open. The cluster's picks are in
-[hardware/Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md](hardware/Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md).
+**Which model should I run?** See [RECOMMENDATIONS.md](RECOMMENDATIONS.md): a
+map to each machine's picks, the evidence behind them, and the commands.
 
-## Usage
+The active machines are the **M5 Max MacBook Pro** (128 GB, macOS 27) and a
+**two-node DGX Spark cluster** (2 × GB10, 2 × 128 GiB, 200 Gb/s RoCE). The
+cluster serves one model across both nodes to a coding agent on another
+machine. Every number belongs to the machine that produced it and is never
+pooled. The full registry is [hardware/MACHINES.md](hardware/MACHINES.md).
 
-### Run a local coding agent
+## Bootstrap
 
-```sh
-# Starts ds4-server if needed (~91 GiB resident, ~26 s).
-hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/0731/agent/ds4-up start
-
-# Every alias must be set: the client picks a different model per role, and an
-# unset alias silently reaches for a hosted model.
-ANTHROPIC_BASE_URL=http://127.0.0.1:8000 \
-ANTHROPIC_AUTH_TOKEN=dsv4-local \
-ANTHROPIC_MODEL=deepseek-v4-flash \
-ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-flash \
-ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-flash \
-ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash \
-  claude
-```
-
-**Unset `ANTHROPIC_API_KEY` in that shell** -- if it is set it wins, and the
-session silently runs against the hosted API. `run.py` pops it for this reason.
-`dsv4-local` is a non-secret local token. The server outlives the client; stop
-it with `ds4-up stop`.
-
-Codex on the same weights is supported but **takes 2.14x as long on Swift**
-(#44): `CODEX_API_KEY=dsv4-local codex --profile ds4`.
-
-For Qwen via Ollama: `ollama pull qwen3.8:27b-mlx && ./claude-ollama`. If Ollama
-rejects Claude Code's request shape, see
-[docs/ollama-claude-shim.md](docs/ollama-claude-shim.md).
-
-### Serve ds4 on a chosen Metal route (M5 Max)
-
-Metal is Apple-Silicon only. On the DGX Spark, ds4 serves over CUDA -- see
-[its RECOMMENDATIONS](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md).
+From a bare machine to a checked harness. You need `git` and `curl`.
 
 ```sh
-scripts/ds4-fast.sh        # Metal 4 TensorOps: ~21% quicker, NOT bit-exact
-scripts/ds4-vanilla.sh     # reference kernels: bit-exact, slower
+curl -LsSf https://astral.sh/uv/install.sh | sh            # uv; it fetches its own Python
+git clone https://github.com/evanwtf/local-llm.git
+cd local-llm
+uv sync                                                     # .venv from uv.lock
+uv run pre-commit install                                   # commit, commit-msg and pre-push hooks
+uv run pytest -m fast -q                                    # the push gate, seconds
+uv run python scripts/machines.py --check                   # exit 1: not a managed machine
+uv run python scripts/sync_sandbox_targets.py \
+  --origin gmail-archive=https://github.com/evanwtf/gmail-archive.git \
+  --origin monitor=https://github.com/evanwtf/monitor.git   # the target repos, into sandbox/
+uv run python benchmarks/agent/preflight.py                 # what is running, and are the engines current
 ```
 
-Both wrap `scripts/ds4_serve.py` and bind the same port, so the OS makes them
-mutually exclusive. The route is **asserted from the server log**, not assumed;
-the server is killed if it cannot be confirmed. Use `vanilla` for any
-reproducible quality number -- `fast` flips greedy tokens on long prompts
-(#149).
+`--origin` is needed only where `~/git/<name>` is not already a checkout. A
+test asserts the hooks are installed, so a clone that skips
+`pre-commit install` fails the suite. The first hook refuses a commit while a
+stack A/B runs, because a commit mid-run moves the harness commit and voids the
+remaining sweeps (#227).
 
-### Run the benchmark
+The harness does not contain the engines or the weights. Clone and build the
+engines per [docs/external-repos.md](docs/external-repos.md) (`DS4_ROOT` and
+each backend's `engine_tree` or `recipe_dir`). Weights go in the model trees in
+[docs/model-locations.md](docs/model-locations.md). To stand up one measured
+stack by hand, follow [docs/howto.md](docs/howto.md).
+
+## Run the benchmark
 
 ```sh
 uv run python benchmarks/agent/preflight.py            # always first
@@ -97,114 +72,105 @@ Selected flags (`--help` for all):
 | flag | what it does |
 |---|---|
 | `--backend`, `--task`, `--trials` | what to run, and how many times |
-| `--client {aider,claude,codex,opencode}` | which agent drives the loop |
-| `--results PATH` | ledger to append to (per-machine) |
-| `--targets {legacy,sandbox}` | use the harness's own checkouts instead of borrowing yours (#146) |
-| `--require-harness-head SHA` | refuse trials if the harness commit moved mid-run |
+| `--replay`, `--replay-hard` | add the replay and hard task sets (need `--targets sandbox`) |
+| `--client {aider,claude,codex,opencode,unreal}` | which agent drives the loop (default `opencode`) |
+| `--results PATH` | ledger to append to (per machine) |
+| `--targets {legacy,sandbox}` | build trial checkouts from `sandbox/` instead of `~/git` (#146) |
+| `--require-harness-head SHA` | refuse to start unless the harness is at this commit, clean |
 | `--dry-run`, `--no-lock`, `--skip-smoke` | inspection and batch control |
 
-### Preflight: check what is already running
+A live run must start from a commit on `main` (#1281); `--dry-run` may run
+from a branch.
 
-`preflight.py` reports five kinds of machine state that silently change
-results: running model servers, the memory ceiling (on the M5 Max, the Metal
-`iogpu.wired_limit_mb`, 107.52 -> 112.00 GiB), tool versions, upstream `ds4`
-preview branches, and GitHub mentions. It **warns and never refuses**.
+**Preflight** reports the machine state that silently changes results: running
+model servers, the memory ceiling (on the M5 Max, the Metal
+`iogpu.wired_limit_mb`), tool versions, CI status, and GitHub mentions. Models
+are sized to nearly fill unified memory, so a server left running either fails
+loudly or contends for memory and bandwidth for the whole batch. Most checks
+warn. Preflight **refuses** when an engine is behind its latest release (#1049),
+and `--acquire-lock` refuses when the machine is taken.
 
-This matters more here than on a normal machine. Models are sized to nearly fill
-unified memory, so a server left running either fails loudly, or fits and
-contends for memory and bandwidth for the whole batch -- and then every number
-describes a machine that was busy doing something else. **Check, do not
-remember.**
+### ds4 on a chosen Metal route (M5 Max)
+
+```sh
+scripts/ds4-fast.sh        # Metal 4 TensorOps: ~21% quicker, NOT bit-exact
+scripts/ds4-vanilla.sh     # reference kernels: bit-exact, slower
+```
+
+Both wrap `scripts/ds4_serve.py` and bind the same port, so only one can run.
+The script reads the route from the server log and kills the server if it
+cannot confirm it. Use `vanilla` for a reproducible quality number: `fast`
+flips greedy tokens on long prompts (#149).
 
 ### The scripts
 
-Every script stamps each line with the harness commit and machine
-(`[88ed87b@M5-Max-128GB]`), so a line pasted out of context still says what
-produced it. Full index: [scripts/README.md](scripts/README.md) (43 scripts).
+Every script stamps each log line with the harness commit and machine
+(`[88ed87b@M5-Max-128GB]`), so a pasted line still says what produced it. The
+generated index of every script, with its platform, is
+[scripts/README.md](scripts/README.md).
 
 | script | what it does |
 |---|---|
-| `benchmarks/agent/run.py` | **The harness.** Trials of model x task x client |
+| `benchmarks/agent/run.py` | **The harness.** Trials of model × task × client |
 | `benchmarks/agent/preflight.py` | Machine state before a batch |
 | `benchmarks/agent/summarize.py` | Per-task table across every backend |
 | `benchmarks/agent/sizing.py` | How many trials a claim needs |
 | `scripts/report.py` | Summarize or compare cells, with #23's resolution rule |
 | `scripts/stack_agent_report.py` | Paired A/B of two whole stacks, with void checks |
-| `scripts/upstream_sweep.py` | Commits and releases across the 19 repos we watch |
+| `scripts/upstream_sweep.py` | Commits and releases across the watched repos |
 | `scripts/hf_sweep.py` | New quants of models we run; `--find` picks for a machine |
-| `scripts/verify_posts.py` | Verify X posts before repeating a claim |
-| `scripts/thermals.py`, `scripts/sensor_windows.py` | Die temperatures; join sensor CSV to sweep windows |
 | `scripts/hardware_id.py` | This machine's results-directory name. **Never type one by hand** |
-| `scripts/install-metal-ceiling.sh` | Persist the Metal wired limit across reboots |
 
-## Build and run
-
-Requires [uv](https://docs.astral.sh/uv/); `pyproject.toml` sets
-`requires-python = ">=3.11"`.
+## Develop
 
 ```sh
-uv sync
-uv run pre-commit install          # wires the commit-time guard into .git/hooks
-uv run pytest -q        # the full suite (2,600+ tests)
+uv run pytest -q          # the full suite (about 4,800 tests); read the exit code
+uv run mypy               # scope in [tool.mypy]
+uv run ruff format --check . && uv run ruff check .
 ```
 
-CI (`.github/workflows/test.yml`) runs `uv sync`, `uv run pre-commit install`,
-`uv run pytest -q`, `ruff format --check`, `ruff check`, `mypy`, and a `sh -n`
-syntax check. `uv run mypy` reads its scope from `[tool.mypy]` in
-`pyproject.toml`; the pre-commit hook runs the same command.
-
-`pre-commit` is a dev dependency. `uv run pre-commit install` writes its git
-hook; the first hook in `.pre-commit-config.yaml` refuses a commit while a
-stack_agent A/B is live, because a commit mid-run moves HARNESS_HEAD and kills
-every remaining sweep (#227). A test asserts the hook is installed, so a clone
-that skips the install step fails the suite instead of silently losing the
-guard.
-
-Engines and weights live outside this checkout; scripts find ds4 via `DS4_ROOT`
-and write results here. [`docs/external-repos.md`](docs/external-repos.md) lists
-every external repository the harness needs — where to clone it, what it is for,
-and how `DS4_ROOT` and each backend's `engine_tree` resolve — so another machine
-can obtain the stack. Weights live in the model tree
-([`docs/model-locations.md`](docs/model-locations.md)).
+CI (`.github/workflows/test.yml`, on push to `main` and on every PR) runs the
+suite with `-rs` and strict skips, `scripts/validate_ledgers.py` over every
+committed ledger, a `sh -n` check of `claude-ollama`, then `ruff format
+--check`, `ruff check` and `mypy`. The rules for agents working here are in
+[AGENTS.md](AGENTS.md).
 
 ## How the benchmark works
 
-A function body is excised from a real repository at a pinned commit; the agent
-must restore it. The repository's **own test suite** is the sole oracle -- pass
-or fail, no partial credit, no judge.
+The agent gets real work in a real repository at a pinned commit, and the
+repository's **own test suite** is the oracle: pass or fail, no partial credit,
+no judge.
 
-| target repo | language | tests | oracle | runs on |
-|---|---|---|---|---|
-| `~/git/gmail-archive` | Python | 71 | `uv run pytest -q`, ~0.85 s | **any platform** |
-| `~/git/monitor` | Swift | 215 | `swift test`, ~0.7 s | **macOS only** |
+- **Standard set:** a function body is excised and the agent restores it, or it
+  writes a small script from a description.
+- **Replay** (#714): a real feature commit is undone, described in plain words,
+  and rebuilt.
+- **Hard** (#726): replay with some tests hidden, plus multi-commit rebuilds.
+  After the trial the hidden tests come back as a re-grade.
 
-Both are pinned on a `local-llm-benchmark` branch, and **results from the two
-are not pooled** -- different repository, language and oracle.
+| target repo | language | oracle | runs on |
+|---|---|---|---|
+| [gmail-archive](https://github.com/evanwtf/gmail-archive) | Python | `uv run pytest` | **any platform** |
+| [monitor](https://github.com/evanwtf/monitor) | Swift | `swift test` | **macOS only** |
 
-**The Swift half is macOS-only.** `monitor` is a macOS desktop application: it
-builds against AppKit and the Apple SDKs, so `swift test` cannot be the oracle
-on Linux even where a Swift toolchain exists. A non-Mac machine runs the Python
-excision and script tasks and simply has no Swift row to take -- that is a
-missing cell, not a failure, and never a zero. **Python is the cross-platform
-spine of this suite**; any comparison that spans machines of different
-platforms must be Python-only, or it is comparing a subset to a whole.
+Results from the two repos are never pooled. `monitor` builds against AppKit,
+so a Linux machine has no Swift row: that is a missing cell, not a zero.
+**Python is the cross-platform spine**; a comparison across platforms must be
+Python-only.
 
 | criterion | status |
 |---|---|
 | **problem solving** | measured |
-| **speed** | measured -- wall seconds for the whole loop, not tokens/sec |
-| **code quality** | **not yet measured.** The tasks are easy enough that nearly every backend passes (#4) |
+| **speed** | measured: wall seconds for the whole loop, not tokens/sec |
+| **code quality** | **not measured.** The hidden-test re-grade on hard tasks (#726) is the nearest proxy |
 
-Reliability turned out to matter more than any of the three, so pass rates carry
-confidence intervals: a perfect 21/21 only establishes ">85%".
-
-Why the suite is shaped this way, what the Swift repository exposed that Python
-could not, and why the agent client is held to the same open-source standard as
-the model and engine: [docs/benchmark-design.md](docs/benchmark-design.md).
+Reliability matters more than any of the three, so pass rates carry confidence
+intervals: a perfect 21/21 only establishes ">85%". The method, task by task,
+is in [benchmarks/agent/METHODOLOGY.md](benchmarks/agent/METHODOLOGY.md); why
+the suite has this shape is in [docs/benchmark-design.md](docs/benchmark-design.md).
 
 **Not in scope:** interactive chat, vendor leaderboards, vision/RAG/embeddings,
-and chasing tokens/sec -- raw generation speed is nearly irrelevant to agent wall
-time, which prompt re-prefill dominates (#14).
+and tokens/sec: prompt re-prefill dominates agent wall time (#14).
 
 ## Project layout
 
@@ -212,21 +178,19 @@ time, which prompt re-prefill dominates (#14).
 |---|---|
 | `benchmarks/agent/` | the harness, its tasks and its own tests |
 | `scripts/` | measurement, field-watching and machine tools |
-| `hardware/<machine>/` | results, logs and `RESULTS.md` for one machine |
-| `docs/` | [changelog](docs/changelog.md), [history](docs/history.md), runbooks ([M5 Max](docs/m5max-runbook.md), [DGX Spark](docs/dgx-spark-runbook.md)), [the two-Spark cluster gotchas](docs/dgx-cluster-setup.md#gotchas--the-full-list), archive |
-| `docs/node-exporter-cpufreq-deadlock-arm64.md` | not a benchmark finding: node_exporter deadlocks on aarch64 with `cppc_cpufreq`, and the symptom points away from the cause |
-| `logs/sweeps/` | gather archives; the same fact on any machine |
+| `hardware/<machine>/` | results, logs, `RECOMMENDATIONS.md` and `howto.md` for one machine |
+| `docs/` | [changelog](docs/changelog.md), [history](docs/history.md), runbooks ([M5 Max](docs/m5max-runbook.md), [DGX Spark](docs/dgx-spark-runbook.md), [two-Spark cluster](docs/dgx-cluster-setup.md)), archive |
+| `logs/sweeps/` | sweep archives; the same fact on any machine |
+| `vault/` | retired shell drivers, kept as text; never run |
+| `claude-ollama` | Claude Code against a local Ollama ([docs/ollama-claude-shim.md](docs/ollama-claude-shim.md)) |
+| [`docs/node-exporter-cpufreq-deadlock-arm64.md`](docs/node-exporter-cpufreq-deadlock-arm64.md) | not a benchmark finding: node_exporter deadlocks on aarch64 with `cppc_cpufreq` |
 
-Work is tracked as GitHub issues; their priority labels hold the order to work in
-(`uv run python scripts/make_next.py --platform macos` or `nvidia` prints it),
-[docs/changelog.md](docs/changelog.md) what shipped and why (before v1.0.0:
-[docs/history.md](docs/history.md)),
-[SOURCES.md](SOURCES.md) who to watch in the field, and
-[CONVENTIONS.md](CONVENTIONS.md) the standing rules -- read it before deleting
-weights or committing logs.
-
-**Working in this repo as an agent: [AGENTS.md](AGENTS.md).** It holds the loop,
-the conventions and the hard-won rules; none of it is repeated here.
+Work is tracked as GitHub issues, and their priority labels give the order
+(`uv run python scripts/make_next.py --platform macos` or `nvidia`).
+[docs/changelog.md](docs/changelog.md) records what shipped and why (before
+v1.0.0: [docs/history.md](docs/history.md)). [SOURCES.md](SOURCES.md) lists who
+to watch in the field. [CONVENTIONS.md](CONVENTIONS.md) holds the data and
+safety rules: read it before you delete weights or commit logs.
 
 ## License
 
