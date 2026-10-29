@@ -79,7 +79,7 @@ the factory image each was installed from, and no package upgrade changes it.
 | Docker | 29.6.2 | 29.6.2 |
 | nvidia-container-toolkit | 1.20.1 | 1.20.1 |
 | earlyoom | 1.7, `-M 1048576,524288` (SIGTERM 1.0 GiB, SIGKILL 0.5 GiB, #700) | the same |
-| `vm.swappiness` | 10 | **60** (not matched) |
+| `vm.swappiness` | 10 (`/etc/sysctl.d/99-dgx-oom.conf`, #362) | the same (set 2026-10-29) |
 | fan RPM in node_exporter (`nvfanread`) | loaded | **not loaded**: needs a MOK-signed build (`evanwtf/dgx-spark-fan-override#14`, open) |
 | last boot | 2026-10-22 | 2026-10-22 |
 
