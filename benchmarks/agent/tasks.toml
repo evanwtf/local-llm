@@ -5083,6 +5083,34 @@ recipe_dir = "~/bert-dsv41-tp2"
 recipe_pin = "e5cc36f"
 recipe_pin_reason = "the approved recipe commit 503b64e plus one local commit: the RoCE GID index from config.env (ours is 3; upstream hard-codes 5); later commits are not approved"
 
+# #1308 (operator 2026-10-29: "Yes"; drafter 18:40: "beam: yes"): Reflection's
+# Beam-1.0-501B-A23B, bertholomus's 3 bpw EXL3 pack, on bertholomus's TensorFold
+# fork (branch beam-1.0-tp2 @d00201b4, the recipe's REV) with Reflection's DFlash2
+# drafter. The engine's CUDA extensions build in the stock NVIDIA image at the
+# first start. Two local recipe commits: SERVE_ARGS (to pass --reasoning-effort
+# low; the template's default is 512, "max"), and the image check by registry
+# digest (the head's and the worker's docker stores report .Id differently).
+[backend.beam10tfbertdual2xrc]
+# Stage 0 (#762): 501B total, 23B active (the "A23B" in the name).
+active_params_b = 23
+description = "#1308: Beam-1.0-501B-A23B (Reflection) EXL3 3 bpw (bertholomus/Beam-1.0-501B-A23B-EXL3-3bpw-2xGB10 @fb04dd6990, 180.4 GiB) with the DFlash2 drafter (reflection/Beam-1.0-501B-A23B-DFlash2 @163b276be7, 3.6 GiB) on bertholomus's TensorFold TP2 fork (beam-1.0-tp2 @d00201b4, recipe bertholomus/beam-1.0-2x-dgx-spark @bdfa59f + 2 local commits), BOTH Sparks over RoCE (GID index 3), 1M-token context asked, 4 decode streams, reasoning_effort low server-side, :8888. REMOTE CLIENT: the Core i9-13900H"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "beam-1.0"
+aider_model = "openai/beam-1.0"
+opencode_model = "tf8888/beam-1.0"
+context_tokens = 262144
+topology = "remote"
+# TensorFold serves no /v1/messages; OpenCode-only (#798).
+smoke_protocol = "openai"
+recipe_dir = "~/beam-1.0-2x-dgx-spark"
+# The approval covers the recipe and its later commits; eef09ee is upstream
+# bdfa59f plus the two local commits above.
+recipe_pin = "eef09ee"
+recipe_pin_reason = "upstream bdfa59f plus two local commits: SERVE_ARGS for --reasoning-effort low, and the image check by registry digest (the two nodes' docker stores report .Id differently)"
+
 
 # #1160 (operator 2026-10-18 20:40: approved, build locally): the same
 # 1017 checkpoint as #1142 on a different engine. 0xSero's EXL3 2.7 bpw quant

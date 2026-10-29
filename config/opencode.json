@@ -469,6 +469,13 @@
             "context": 262144,
             "output": 32768
           }
+        },
+        "beam-1.0": {
+          "name": "Beam-1.0-501B-A23B EXL3 3 bpw (TensorFold TP2 + DFlash2, two Sparks, #1308)",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
         }
       }
     }
