@@ -5090,10 +5090,17 @@ recipe_pin_reason = "the approved recipe commit 503b64e plus one local commit: t
 # first start. Two local recipe commits: SERVE_ARGS (to pass --reasoning-effort
 # low; the template's default is 512, "max"), and the image check by registry
 # digest (the head's and the worker's docker stores report .Id differently).
+# Engine: one local commit, d4976fbc, on top of the recipe's REV d00201b4. A call
+# that ends on Beam's <|call|> stop token closes only in the finished text, and
+# the call streamer never saw that text, so every streamed call lacked its
+# closing "}": the first screen (2026-10-29 19:30) had 146 of 159 tool calls
+# fail to parse in OpenCode, and its 9 rows were kept out of the ledger.
+# Served with CONTEXT=262144 (the harness cap): at the default 1M, rank 0 idled
+# 1.5-2.5 GiB above the recipe's 9 GiB memguard and was stopped once.
 [backend.beam10tfbertdual2xrc]
 # Stage 0 (#762): 501B total, 23B active (the "A23B" in the name).
 active_params_b = 23
-description = "#1308: Beam-1.0-501B-A23B (Reflection) EXL3 3 bpw (bertholomus/Beam-1.0-501B-A23B-EXL3-3bpw-2xGB10 @fb04dd6990, 180.4 GiB) with the DFlash2 drafter (reflection/Beam-1.0-501B-A23B-DFlash2 @163b276be7, 3.6 GiB) on bertholomus's TensorFold TP2 fork (beam-1.0-tp2 @d00201b4, recipe bertholomus/beam-1.0-2x-dgx-spark @bdfa59f + 2 local commits), BOTH Sparks over RoCE (GID index 3), 1M-token context asked, 4 decode streams, reasoning_effort low server-side, :8888. REMOTE CLIENT: the Core i9-13900H"
+description = "#1308: Beam-1.0-501B-A23B (Reflection) EXL3 3 bpw (bertholomus/Beam-1.0-501B-A23B-EXL3-3bpw-2xGB10 @fb04dd6990, 180.4 GiB) with the DFlash2 drafter (reflection/Beam-1.0-501B-A23B-DFlash2 @163b276be7, 3.6 GiB) on bertholomus's TensorFold TP2 fork (beam-1.0-tp2 @d00201b4 + local commit d4976fbc: the closing brace of a streamed call, recipe bertholomus/beam-1.0-2x-dgx-spark @bdfa59f + 2 local commits), BOTH Sparks over RoCE (GID index 3), 262,144-token KV pool (CONTEXT=262144), 4 decode streams, reasoning_effort low server-side, :8888. REMOTE CLIENT: the Core i9-13900H"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
