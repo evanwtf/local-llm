@@ -85,7 +85,9 @@ def test_the_facts_record_the_server_instance(tasks, monkeypatch):
     """#948: the client compares this marker with the live one before a batch."""
     import remote
 
-    monkeypatch.setattr(remote, "_fetch", lambda url, timeout: '{"requests_total": 7}')
+    monkeypatch.setattr(
+        remote, "_fetch", lambda url, timeout, token=None: '{"requests_total": 7}'
+    )
     got = server_facts.collect("tf", tasks, cluster_peer="peer")["instance"]
     assert got == {"engine": "tensorfold", "kind": "counter", "value": 7}
 
@@ -93,7 +95,7 @@ def test_the_facts_record_the_server_instance(tasks, monkeypatch):
 def test_the_facts_refuse_a_server_that_does_not_answer_its_marker(tasks, monkeypatch):
     import remote
 
-    def down(url, timeout):
+    def down(url, timeout, token=None):
         raise OSError("connection refused")
 
     monkeypatch.setattr(remote, "_fetch", down)

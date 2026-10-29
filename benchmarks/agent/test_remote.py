@@ -516,6 +516,32 @@ def test_read_instance_asks_the_health_route_at_the_server_root():
     assert got == {"engine": "tensorfold", "kind": "counter", "value": 2304}
 
 
+def test_fetch_sends_the_backend_token_when_it_has_one(monkeypatch):
+    # #1308: a keyed server answers the marker routes 401 without it.
+    seen = []
+
+    class Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return TF_HEALTH.encode()
+
+    def urlopen(req, timeout):
+        seen.append(req.get_header("Authorization"))
+        return Resp()
+
+    monkeypatch.setattr(remote.urllib.request, "urlopen", urlopen)
+    got = remote.read_instance("http://srv:8888/v1", "tensorfold", token="local")
+    assert seen == ["Bearer local"]
+    assert got == {"engine": "tensorfold", "kind": "counter", "value": 2304}
+    remote.read_instance("http://srv:8888/v1", "tensorfold")
+    assert seen[-1] is None
+
+
 def test_read_instance_records_a_failed_probe_as_no_value():
     def fetch(url, timeout):
         raise OSError("connection refused")
