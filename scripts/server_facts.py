@@ -92,7 +92,9 @@ def collect(
     # refuses a batch when the live marker says the server restarted since.
     spec = cfg["backend"][backend]
     instance = remote.read_instance(
-        str(spec.get("base_url", "")), str(spec.get("engine", ""))
+        str(spec.get("base_url", "")),
+        str(spec.get("engine", "")),
+        token=spec.get("auth_token") or None,
     )
     if instance is not None and instance["value"] is None:
         raise SystemExit(

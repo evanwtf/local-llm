@@ -437,13 +437,23 @@ def _start_time(metrics: str) -> float | None:
     return found[0]
 
 
-def _fetch(url: str, timeout: float) -> str:
-    with urllib.request.urlopen(url, timeout=timeout) as resp:
+def _fetch(url: str, timeout: float, token: str | None = None) -> str:
+    # #1308: a server started with an API key answers /health and /metrics
+    # 401 without it, so the marker reads as "not answered" and the batch is
+    # refused. Send the backend's token when it has one.
+    req = urllib.request.Request(url)
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read().decode("utf-8", "replace")
 
 
 def read_instance(
-    base_url: str, engine: str, fetch=None, timeout: float = 5.0
+    base_url: str,
+    engine: str,
+    fetch=None,
+    timeout: float = 5.0,
+    token: str | None = None,
 ) -> dict | None:
     """The live instance marker of the server at `base_url`, or None.
 
@@ -454,7 +464,11 @@ def read_instance(
     if probe is None:
         return None
     kind, route = probe
-    fetch = fetch or _fetch  # looked up at call time, so a test can stub it
+    if fetch is None:  # looked up at call time, so a test can stub it
+
+        def fetch(url: str, timeout: float) -> str:
+            return _fetch(url, timeout, token)
+
     parts = urllib.parse.urlsplit(base_url)
     url = urllib.parse.urlunsplit((parts.scheme, parts.netloc, route, "", ""))
     try:
@@ -513,7 +527,12 @@ def check_instance(facts: dict, backends: dict[str, dict], fetch=None) -> None:
     """
     for name, spec in backends.items():
         engine = str(spec.get("engine", ""))
-        live = read_instance(str(spec.get("base_url", "")), engine, fetch)
+        live = read_instance(
+            str(spec.get("base_url", "")),
+            engine,
+            fetch,
+            token=spec.get("auth_token") or None,
+        )
         if why := instance_mismatch(facts.get("instance"), live, engine):
             raise SystemExit(f"backend {name!r}: {why}")
 
