@@ -5091,6 +5091,8 @@ recipe_pin_reason = "the approved recipe commit 503b64e plus one local commit: t
 # low; the template's default is 512, "max"), and the image check by registry
 # digest (the head's and the worker's docker stores report .Id differently).
 [backend.beam10tfbertdual2xrc]
+# Stage 0 (#762): 501B total, 23B active (the "A23B" in the name).
+active_params_b = 23
 description = "#1308: Beam-1.0-501B-A23B (Reflection) EXL3 3 bpw (bertholomus/Beam-1.0-501B-A23B-EXL3-3bpw-2xGB10 @fb04dd6990, 180.4 GiB) with the DFlash2 drafter (reflection/Beam-1.0-501B-A23B-DFlash2 @163b276be7, 3.6 GiB) on bertholomus's TensorFold TP2 fork (beam-1.0-tp2 @d00201b4, recipe bertholomus/beam-1.0-2x-dgx-spark @bdfa59f + 2 local commits), BOTH Sparks over RoCE (GID index 3), 1M-token context asked, 4 decode streams, reasoning_effort low server-side, :8888. REMOTE CLIENT: the Core i9-13900H"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
