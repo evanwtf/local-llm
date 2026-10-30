@@ -1,0 +1,17 @@
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a] 2026-10-30T23:20:18Z (19:20:18 EDT) | harness 8776e93
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement bwrap
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a] 2115960375032103356  VERIFIED post  @wei_wang  Fri Oct 30 00:14:00 +0000 2026  via fxtwitter
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a]     我两台 DGX Spark 锁得更低，GPU 一直在 1800MHz。  8 月底我扫过一遍频，和 2200MHz 比，单路生成还剩 93%，4 路合计还剩 97.5%，平均功耗低 30% 左右，峰值温度低 5 到 7°C。  现在跑 GLM-5.3-Flash，单路 62.2 tok/s，4 路合计 104.6，一直很稳。
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a]     quotes @MiaAI_lab: It's 100% worth capping the DGX Sparks. Almost no performance hit, but WAY cooler temps.  All of my sparks are capped at 2200.  You can use sparkLimiter or spar
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a] 2116185613149806948  VERIFIED post  @wei_wang  Fri Oct 30 15:09:01 +0000 2026  via fxtwitter
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a]     多台 Spark 跑大模型，我现在最看重的一个数是长 prompt 在 prefill 的时候，别的请求要等多久。单路 tok/s 反而排在后面。  DeepSeek V4.1 Flash 的 Spark 配方这两天连着更新了两次：  1. 四台 Spark：51K token 的长 prompt 跑着的时候插一个短问题，等待从约 13 秒降到 0.3 秒 2. 两台 Spark：70K toke
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a] 2116185614642970927  VERIFIED reply  @wei_wang  Fri Oct 30 15:09:02 +0000 2026  via fxtwitter
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a]     两台 Spark 配方更新：https://x.com/MiaAI_lab/status/2115903199207215611  四台 Spark 配方更新：https://x.com/MiaAI_lab/status/2115410953554571506
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a]     quotes @MiaAI_lab: Important updates and fixes have been pushed to DeepSeek V4.1 Flash for 4x DGX Sparks ⚡️   This update includes 7 community PRs!  Performance - Chats with image
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a] 
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a] Verified 3: 3 confirmed, 0 not.
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a] Paste onto the issue:
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a]   **Verified** 2026-10-30: post exists, authored by @wei_wang, posted Fri Oct 30 00:14:00 +0000 2026.
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a]   **Verified** 2026-10-30: post exists, authored by @wei_wang, posted Fri Oct 30 15:09:01 +0000 2026.
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a]   **Verified** 2026-10-30: post exists, authored by @wei_wang, posted Fri Oct 30 15:09:02 +0000 2026.
+2026-10-30T19:20:18-0400 INFO [8776e93@Cortex-X925-GB10 none pld=n/a] log: /home/evan/git/local-llm/logs/sweeps/verify-posts-Cortex-X925-GB10-20261030T232018Z.log
