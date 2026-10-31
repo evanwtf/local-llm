@@ -173,5 +173,30 @@
   "inlet_f": 71.1,
   "pair_outlet_w_avg": 303.65199503339034,
   "pair_wh": 127.11209903203311
+ },
+ {
+  "round": 2,
+  "arm": "uncapped",
+  "prefill_tps": 1997.445,
+  "c1_tps": 81.582,
+  "c2_tps": 107.65,
+  "wall_s": 1526.0,
+  "head_clock_avg": 2461.235294117647,
+  "head_clock_max": 2496.0,
+  "worker_clock_avg": 2472.632786885246,
+  "worker_clock_max": 2496.0,
+  "head_temp_max": 84.0,
+  "worker_temp_max": 80.0,
+  "head_gpu_w_avg": 70.29639215686274,
+  "worker_gpu_w_avg": 73.86484590163934,
+  "head_fan1_rpm": 6082.105263157895,
+  "head_fan2_rpm": 9128.823529411764,
+  "head_outlet_w_avg": 212.06034482758614,
+  "head_outlet_w_max": 216.1,
+  "worker_outlet_w_avg": 204.62808219178083,
+  "worker_outlet_w_max": 209.5,
+  "inlet_f": 70.3,
+  "pair_outlet_w_avg": 416.68842701936694,
+  "pair_wh": 176.6295943420983
  }
 ]
