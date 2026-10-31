@@ -31,6 +31,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `client_tool_smoke.py` | any | Run every OpenCode tool the trials use, in the client image, with no GPU. #968 |
 | `client_version_split.py` | any | Which client version took which rows, and what that confounds (#137, #131). |
 | `client_versions.py` | any | Read the recorded agent client versions, and say which have moved (#131). |
+| `clock_cap_ab.py` | any | Fixed-work load test at several GPU clock caps on both Sparks (#1319). |
 | `cluster_allreduce.py` | any | Measure NCCL all-reduce bandwidth across the DGX Spark cluster's nodes. |
 | `cluster_heartbeat.py` | any | Render the two-Spark cluster heartbeat; a timer keeps its sensor book fresh. |
 | `cluster_id.py` | any | Derive the dual-Spark cluster's machine identity, and refuse to guess it. |
