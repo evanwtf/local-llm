@@ -7,7 +7,11 @@ result comment: https://github.com/evanwtf/local-llm/issues/1319#issuecomment-65
 the setting MiaAI-Lab's sparkLimiter applies) cost in throughput, and what
 does it save in power and heat, on the two-node DGX Spark cluster?
 
-**Answer.** On this stack and this load, a 1,900 MHz cap did the same work in
+**Update, 2026-10-31.** A second session ran every cap from uncapped to
+1,600 MHz, and timed the head fan at each speed. It confirms 1,900 MHz and
+rules out 1,800 MHz: see [the clock curve](#the-clock-curve-every-cap-in-one-session-2026-10-31).
+
+**Answer (first A/B).** On this stack and this load, a 1,900 MHz cap did the same work in
 1,507 s against 1,486 s uncapped (101.4% of the time). It used 126.9 Wh per
 run against 171.9 Wh (73.9% of the energy), and the GPU peaks dropped from
 84 / 81 °C to 70 / 68 °C (head / worker). Prefill is the only phase the cap
@@ -20,8 +24,113 @@ Every number in this report comes from the files in [`data/`](data/). The
 section [Evidence and how to check it](#evidence-and-how-to-check-it) says
 which file holds what, and how to rebuild the tables and charts from them.
 
+## The clock curve, every cap in one session (2026-10-31)
+
+**Question.** The operator asked to verify the original 1,800 MHz
+recommendation in 100 MHz steps, and to find where the extra time stops
+buying energy. The first A/B (below) tested uncapped, 2,500, 2,200 and
+1,900 MHz on the night of 10-30. This session ran all seven arms on 10-31:
+uncapped, 2,500, 2,200, 1,900, 1,800, 1,700 and 1,600 MHz, 3 runs each, 21
+runs. Every run did the same fixed work as the first A/B, on the same stack,
+with the same server process and the same cool-down targets. Records:
+[`benchmarks/clock-cap/1319-curve/`](../../benchmarks/clock-cap/1319-curve/).
+
+**Answer.** **1,900 MHz is the cap to keep.** It saves a quarter of the
+energy for 4% more time, and it keeps the head fan off its top speed for the
+whole run. **1,800 MHz is not worth it:** it adds 24 s per run for a 2.2 Wh
+saving that sits inside 1,900 MHz's own run-to-run spread. Below 1,900 MHz
+the energy per run stops falling, and at 1,600 MHz it rises again.
+
+| arm | time for the work | energy per run | outlets, both | prefill | 1 stream | 2 streams | GPU peak head / worker | head fan at 10,000 RPM |
+|---|---|---|---|---|---|---|---|---|
+| uncapped | 1,468 s | 170.0 Wh | 417 W | 2,025 tok/s | 85.2 tok/s | 112.5 tok/s | 82 / 83 °C | 20.4 min of 24.5 |
+| 2,500 MHz | 1,462 s | 169.3 Wh | 417 W | 2,030 (100.3%) | 85.8 (100.7%) | 112.6 (100.1%) | 84 / 83 °C | 20.0 min of 24.4 |
+| 2,200 MHz | 1,500 s | 143.0 Wh | 343 W | 1,964 (97.0%) | 84.9 (99.7%) | 108.5 (96.4%) | 77 / 77 °C | 4.6 min of 25.0 |
+| **1,900 MHz** | **1,525 s** | **129.3 Wh** | **305 W** | 1,852 (91.4%) | 84.3 (98.9%) | 107.6 (95.6%) | 71 / 71 °C | **none** |
+| 1,800 MHz | 1,549 s | 127.1 Wh | 295 W | 1,806 (89.2%) | 83.0 (97.5%) | 106.2 (94.4%) | 70 / 68 °C | none |
+| 1,700 MHz | 1,568 s | 124.3 Wh | 285 W | 1,744 (86.1%) | 81.8 (96.0%) | 106.2 (94.3%) | 66 / 65 °C | none |
+| 1,600 MHz | 1,607 s | 126.0 Wh | 282 W | 1,694 (83.6%) | 80.1 (94.1%) | 103.5 (92.0%) | 68 / 66 °C | none |
+
+Each value is the mean of 3 runs; percentages are of the uncapped mean.
+
+What each step down the clock buys:
+
+| step | time added per run | energy saved per run | Wh saved per added second |
+|---|---|---|---|
+| uncapped → 2,500 MHz | −5 s | 0.7 Wh | n/a (no change) |
+| 2,500 → 2,200 MHz | 37 s | 26.3 Wh | 0.705 |
+| 2,200 → 1,900 MHz | 25 s | 13.6 Wh | 0.538 |
+| 1,900 → 1,800 MHz | 24 s | 2.2 Wh | 0.093 |
+| 1,800 → 1,700 MHz | 19 s | 2.8 Wh | 0.149 |
+| 1,700 → 1,600 MHz | 39 s | −1.7 Wh (costs energy) | n/a |
+
+- **The knee is at 1,900 MHz.** The two steps from 2,500 to 1,900 MHz save
+  0.5–0.7 Wh for every second they add. Below 1,900 MHz each step saves
+  0.15 Wh per second or less, and the last step costs energy.
+- **1,800 MHz does not separate from 1,900 MHz.** The 1,800 MHz runs used
+  125.8–128.7 Wh; the 1,900 MHz runs used 126.2–131.1 Wh. The ranges
+  overlap. Every phase is slower at 1,800 MHz.
+- **1,700 MHz saves a little, measurably.** All three of its runs
+  (124.1–124.7 Wh) came in below every 1,900 MHz run: 5.0 Wh less per run
+  (3.9%) for 43 s more (2.8%). Prefill loses another 108 tok/s. For agent
+  work, which re-reads long contexts, that is a poor trade.
+- **2,500 MHz is a no-op,** as in the first A/B. The GPUs run at about
+  2,450 MHz uncapped, below the cap.
+- **The two lowest caps do not hold their target.** The GPUs averaged
+  1,657 MHz under the 1,700 cap and 1,580 MHz under the 1,600 cap. The 2,200,
+  1,900 and 1,800 caps land within 17 MHz of their target.
+
+### The fan
+
+The head fan is the machine's only moving part. Its controller holds four
+speeds: fan2 at 4,200, 5,400, 7,300 or 10,000 RPM, with fan1 in step (2,800,
+3,600, 4,900, 6,700). The chart counts the time at each speed in every run.
+
+![Head fan time at each speed](curve/charts/fan_time.png)
+
+- **Uncapped and 2,500 MHz spend about 20 of 24.5 minutes at 10,000 RPM.**
+- **2,200 MHz cuts that to 4.6 minutes.**
+- **1,900 MHz and below never reach 10,000 RPM.** The fan holds 7,300 RPM
+  for most of the run.
+- **Lower caps buy the fan nothing more.** From 1,900 to 1,600 MHz the fan
+  still spends 22–24.5 minutes at 7,300 RPM, and each run takes longer.
+- **What this does not count:** the cool-down between runs, and the worker's
+  fan. Uncapped runs end hotter, so their fan also spins longer while
+  cooling; the chart understates the gap. The worker reports no fan speed
+  ([evanwtf/dgx-spark-fan-override#14](https://github.com/evanwtf/dgx-spark-fan-override/issues/14)),
+  and it runs about as hot as the head.
+
+### The curve
+
+![The clock curve](curve/charts/curve.png)
+
+The other charts for this session are in [`curve/charts/`](curve/charts/), in
+the same layout as the first A/B's below: every sensor across the whole
+session ([`timeline.png`](curve/charts/timeline.png)), outlet power in one run
+per arm ([`run_power_by_arm.png`](curve/charts/run_power_by_arm.png)), and
+per-arm energy, throughput and heat. Every figure above comes from
+[`curve/data/tables.md`](curve/data/tables.md), rebuilt from the raw series
+in [`curve/data/`](curve/data/).
+
+**How the session ran.**
+
+- **Server:** one process from 08:21 to the end.
+- **Main block (08:35–15:46 New York):** uncapped, 1,900, 1,800, 1,700 and
+  1,600 MHz, with the order rotated each round.
+- **Gap fill (16:06–18:54):** 2,500 and 2,200 MHz.
+- **Cool-down between runs:** until both GPUs were at or below 55 / 53 °C
+  (head / worker), in both blocks. The first A/B used 57 / 58 °C.
+- **Before the gap fill:** the GPUs settled at 48 / 46 °C, so the driver's
+  margin was 7 °C rather than 10, to keep the same targets
+  (`gapfill-waiter.log`).
+- **A first start at 08:34 was stopped before any run.** It measured idle on
+  GPUs still cold from the model load (`driver-aborted-cold-idle.log`).
+- **Standing cap:** after each block the driver restored the 1,900 MHz cap
+  on both nodes.
+
 ## Contents
 
+- [The clock curve, every cap in one session](#the-clock-curve-every-cap-in-one-session-2026-10-31)
 - [What was tested](#what-was-tested)
 - [How each sensor is read](#how-each-sensor-is-read)
 - [Results by clock cap](#results-by-clock-cap)
@@ -315,6 +424,16 @@ export OUT=docs/clock-cap-1319
 uv run python scripts/clock_cap_evidence.py export  --runs $RUNS --out $OUT/data    # needs Grafana
 uv run python scripts/clock_cap_evidence.py summary --runs $RUNS --data $OUT/data   # offline
 uv run python scripts/clock_cap_evidence.py charts  --data $OUT/data --out $OUT/charts
+```
+
+The curve test rebuilds the same way, from its own records:
+
+```sh
+export RUNS=benchmarks/clock-cap/1319-curve/runs.jsonl
+export OUT=docs/clock-cap-1319/curve
+uv run python scripts/clock_cap_evidence.py export  --runs $RUNS --out $OUT/data
+uv run python scripts/clock_cap_evidence.py summary --runs $RUNS --data $OUT/data
+uv run python scripts/clock_cap_evidence.py charts  --data $OUT/data --out $OUT/charts --title "#1319 clock curve"
 ```
 
 `summary` and `charts` need only the committed files. The tests are in

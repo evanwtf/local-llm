@@ -1,0 +1,17 @@
+2026-10-31T08:34:28-0400 decode_ab INFO machine lock held: run lock taken for '#1319 clock-cap A/B' (pid 1616568)
+2026-10-31T08:34:29-0400 __main__ INFO clocks set to uncapped on 2 node(s)
+2026-10-31T08:34:29-0400 __main__ INFO idle GPU temps [45, 42]; cool-down targets [48, 45]
+2026-10-31T08:34:29-0400 __main__ INFO clocks set to uncapped on 2 node(s)
+2026-10-31T08:35:14-0400 __main__ INFO clocks set to uncapped on 2 node(s)
+2026-10-31T08:35:15-0400 __main__ INFO standing clock cap restored on 2 of 2 node(s)
+2026-10-31T08:35:15-0400 decode_ab INFO machine lock released=True: run lock released
+Traceback (most recent call last):
+  File "/home/evan/git/local-llm/scripts/clock_cap_ab.py", line 333, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/evan/git/local-llm/scripts/clock_cap_ab.py", line 303, in main
+    temps = cool_down(
+            ^^^^^^^^^^
+  File "/home/evan/git/local-llm/scripts/clock_cap_ab.py", line 172, in cool_down
+    sleep(min_s)
+KeyboardInterrupt

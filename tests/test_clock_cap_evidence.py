@@ -174,7 +174,87 @@ def test_tables_give_mean_range_and_share_of_uncapped() -> None:
 
     recs = [rec("uncapped", 170.0), rec("uncapped", 174.0), rec("1900", 127.0)]
     text = ev.render_tables(recs)
+    assert text.startswith("| measure | uncapped | 1900 |\n")  # arms from the runs
     line = next(ln for ln in text.splitlines() if ln.startswith("| energy per run"))
     assert "172.0 (170.0–174.0)" in line
     assert "127.0 (127.0–127.0), 73.8%" in line  # 127 / 172
-    assert "| n/a |" in line  # no 2500 or 2200 runs
+    named = ev.render_tables(recs, ["uncapped", "2500", "1900"])
+    line = next(ln for ln in named.splitlines() if ln.startswith("| energy per run"))
+    assert "| n/a |" in line  # an arm named but never run
+
+
+def test_arm_order_is_uncapped_then_highest_clock_first() -> None:
+    assert ev.arm_order(["1700", "uncapped", "1900", "1600", "1900"]) == [
+        "uncapped", "1900", "1700", "1600"
+    ]  # fmt: skip
+    assert ev.arm_order(["900", "1000"]) == ["1000", "900"]  # numeric, not text
+    assert ev.arm_label("1900") == "1,900 MHz"
+    assert ev.arm_label("uncapped") == "uncapped"
+
+
+def test_arm_colors_follow_the_clock_and_refuse_an_eighth_arm() -> None:
+    colors = ev.arm_colors(["1600", "uncapped", "1900"])
+    assert colors == {"uncapped": "#0b2f5c", "1900": "#104281", "1600": "#1d5aa8"}
+    assert (
+        len(ev.arm_colors(["uncapped", "2500", "2200", "1900", "1800", "1700", "1600"]))
+        == 7
+    )
+    with pytest.raises(SystemExit, match="8 arms"):
+        ev.arm_colors(["uncapped", *[str(1000 + 100 * i) for i in range(7)]])
+
+
+def test_curve_steps_price_each_step_in_wh_per_added_second() -> None:
+    def rec(arm: str, wall: float, wh: float) -> dict[str, Any]:
+        return {"arm": arm, "wall_s": wall, "pair_wh": wh}
+
+    recs = [
+        rec("uncapped", 1450.0, 168.0), rec("uncapped", 1460.0, 166.0),
+        rec("1900", 1515.0, 128.0),
+        rec("1800", 1545.0, 126.0),
+        rec("1700", 1545.0, 127.0),  # no time added: no rate, not a division error
+    ]  # fmt: skip
+    steps = ev.curve_steps(recs, ["uncapped", "1900", "1800", "1700"])
+    assert [(s["from"], s["to"]) for s in steps] == [
+        ("uncapped", "1900"), ("1900", "1800"), ("1800", "1700")
+    ]  # fmt: skip
+    assert steps[0]["added_s"] == pytest.approx(60.0)  # mean 1455 -> 1515
+    assert steps[0]["saved_wh"] == pytest.approx(39.0)  # mean 167 -> 128
+    assert steps[0]["wh_per_s"] == pytest.approx(0.65)
+    assert steps[1]["wh_per_s"] == pytest.approx(2.0 / 30.0)
+    assert steps[2]["saved_wh"] == pytest.approx(-1.0)  # a step that costs energy
+    assert steps[2]["wh_per_s"] is None
+
+
+def test_curve_steps_skip_an_arm_without_energy() -> None:
+    recs = [
+        {"arm": "uncapped", "wall_s": 1450.0, "pair_wh": 168.0},
+        {"arm": "1900", "wall_s": 1515.0, "pair_wh": ""},  # an outlet was down
+        {"arm": "1800", "wall_s": 1545.0, "pair_wh": 126.0},
+    ]
+    (step,) = ev.curve_steps(recs, ["uncapped", "1900", "1800"])
+    assert (step["from"], step["to"]) == ("uncapped", "1800")
+
+
+def test_fan_speed_snaps_to_the_controller_step() -> None:
+    assert ev.fan_speed(7290) == 7300
+    assert ev.fan_speed(9400) == 10000  # a sample caught mid-ramp
+    assert ev.fan_speed(4500) == 4200
+    assert ev.fan_speed(12000) == 10000
+
+
+def test_fan_seconds_split_the_run_by_share_of_samples() -> None:
+    secs = ev.fan_seconds([10000.0, 10000.0, 7300.0, 7290.0], 1500.0)
+    assert secs == {4200: 0.0, 5400: 0.0, 7300: 750.0, 10000: 750.0}
+    assert sum(ev.fan_seconds([5400.0] * 7, 1234.5).values()) == pytest.approx(1234.5)
+    assert ev.fan_seconds([], 1500.0) == {4200: 0.0, 5400: 0.0, 7300: 0.0, 10000: 0.0}
+
+
+def test_summarize_puts_the_whole_run_at_one_fan_speed() -> None:
+    start = t("2026-10-31T01:00:00Z")
+    plugs = {
+        n: [(start + datetime.timedelta(seconds=s), 150.0) for s in range(0, 1501, 5)]
+        for n in ("head", "worker")
+    }
+    (rec,) = ev.summarize([run()], series_rows(), plugs, [])
+    assert rec["head_fan2_s_at_7300"] == 1500.0  # fan2 reads 7,290 throughout
+    assert rec["head_fan2_s_at_10000"] == 0.0
