@@ -1,0 +1,52 @@
+{
+ "issue": 1319,
+ "question": "What does a GPU graphics-clock cap (nvidia-smi -lgc 0,MHZ) cost in throughput, and what does it save in power and heat, on the two-Spark cluster?",
+ "operator_go": "2026-10-30T20:57:00-04:00",
+ "machine": "two-node DGX Spark cluster (2 x GB10), TP2 across both nodes",
+ "stack": {
+  "pick": "#1160",
+  "model": "DeepSeek-V4.1-Flash-1017 EXL3 2.7 bpw",
+  "weights": "0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw@e34ef55bda",
+  "server": "sudoingX/dgx-spark-deepseek-v41@cc59c36, image dsv41-serve:v4 (vLLM 6e517b15 + ExLlamaV3 1.6.0)",
+  "launch": "scripts/launch/dsv41_tp2.sh up, PORT=8888, reasoning_effort low, MAX_SEQS=2 (recipe default)",
+  "driver_nvidia": "580.178.04",
+  "server_ready": "2026-10-30T21:03:33-04:00"
+ },
+ "driver": {
+  "script": "scripts/clock_cap_ab.py",
+  "commit": "107597d2",
+  "started": "2026-10-30T21:06:06-04:00"
+ },
+ "arms": [
+  "uncapped",
+  "2500",
+  "2200",
+  "1900"
+ ],
+ "arm_command": {
+  "uncapped": "sudo nvidia-smi -rgc",
+  "capped": "sudo nvidia-smi -lgc 0,<MHz>",
+  "nodes": "both"
+ },
+ "rounds": 3,
+ "order": "round r starts at arm r (rotation), so each arm takes each position",
+ "work_per_run": {
+  "prefill": "20 requests, ~23K-token prompts, max_tokens 1, width 1",
+  "c1": "50 requests, 1,024 output tokens (ignore_eos), width 1",
+  "c2": "70 requests, 1,024 output tokens (ignore_eos), width 2",
+  "api": "/v1/completions, temperature 0, raw prompt; a per-run nonce first so the prefix cache cannot serve a prompt"
+ },
+ "cool_down": "at least 180 s, then until both GPUs are at or below the idle temperature + 3 C (max 900 s)",
+ "sensors": {
+  "gpu": "DCGM via Prometheus: SM clock avg/max, GPU temp max, GPU power avg, per node",
+  "fans": "head node only (node_exporter hwmon fan1, fan2); the worker has no fan reading",
+  "outlets": "Home Assistant smart plugs, one per node, mean and max over the run",
+  "inlet": "weather-station indoor sensor at the front of the cluster, last reading at or before the run's end"
+ },
+ "files": {
+  "runs.jsonl": "one row per run, written by the driver: arm, round, UTC window, start temps, per-phase wall time and tokens",
+  "runs-with-sensors.json": "each run flattened with its Grafana sensor reads (scripts/clock_cap_report.py)",
+  "report.md": "per-arm mean (min-max) and share of uncapped, then per run",
+  "calibration.jsonl": "the short uncapped sizing pass before the A/B (not part of the result)"
+ }
+}
