@@ -20,8 +20,74 @@ Every number in this report comes from the files in [`data/`](data/). The
 section [Evidence and how to check it](#evidence-and-how-to-check-it) says
 which file holds what, and how to rebuild the tables and charts from them.
 
+## The clock curve, in 100 MHz steps (2026-10-31)
+
+**Provisional: 8 of 15 runs.** The test is still running (ETA 15:45 New York).
+So far, uncapped and 1,600 MHz have 1 run each, and 1,900, 1,800 and
+1,700 MHz have 2 each. This section is rebuilt when the last run lands.
+
+**Question.** The operator asked to verify the original 1,800 MHz
+recommendation by stepping down from 1,900 MHz in 100 MHz steps, and to find
+where the extra time stops buying energy. The test kept uncapped and
+1,900 MHz as anchors. It ran the same fixed work as the first A/B, on the
+same stack and in the same session. Records:
+[`benchmarks/clock-cap/1319-curve/`](../../benchmarks/clock-cap/1319-curve/).
+
+**Answer so far.** Below 1,900 MHz the energy per run stops falling. The
+time keeps rising.
+
+| arm | time for the work | energy per run | outlets, both | prefill | 1 stream | 2 streams |
+|---|---|---|---|---|---|---|
+| uncapped | 1,448 s | 167.5 Wh | 416 W | 2,019 tok/s | 86.2 tok/s | 114.8 tok/s |
+| 1,900 MHz | 1,513 s | 128.4 Wh | 305 W | 1,854 (91.8%) | 84.7 (98.2%) | 109.0 (94.9%) |
+| 1,800 MHz | 1,542 s | 126.3 Wh | 295 W | 1,809 (89.6%) | 84.2 (97.7%) | 105.8 (92.2%) |
+| 1,700 MHz | 1,569 s | 124.4 Wh | 285 W | 1,744 (86.4%) | 81.4 (94.4%) | 106.4 (92.7%) |
+| 1,600 MHz | 1,618 s | 127.1 Wh | 283 W | 1,699 (84.2%) | 79.6 (92.3%) | 102.3 (89.1%) |
+
+What each step down the clock buys:
+
+| step | time added per run | energy saved per run | Wh saved per added second |
+|---|---|---|---|
+| uncapped → 1,900 MHz | 65 s | 39.0 Wh | 0.600 |
+| 1,900 → 1,800 MHz | 29 s | 2.2 Wh | 0.075 |
+| 1,800 → 1,700 MHz | 27 s | 1.9 Wh | 0.070 |
+| 1,700 → 1,600 MHz | 49 s | −2.8 Wh (costs energy) | n/a |
+
+- **The first step does almost all the work.** Uncapped to 1,900 MHz saves
+  39.0 Wh per run for 65 s. Each step after it saves about 2 Wh for about
+  30 s: an eighth of the first step's rate.
+- **The two middle steps sit inside the noise.** The two 1,900 MHz runs used
+  126.2 and 130.7 Wh, a spread of 4.5 Wh. That is wider than either step's
+  saving of about 2 Wh. At 1,600 MHz the work takes so much longer that
+  energy per run goes back up.
+- **The two lowest caps do not hold.** The GPUs averaged 1,657 MHz under the
+  1,700 cap and 1,580 MHz under the 1,600 cap. The 1,900 and 1,800 caps
+  land within 11 MHz of their target.
+- **Prefill pays every step,** about 45–65 tok/s per 100 MHz. Single-stream
+  decode holds to 1,800 MHz (97.7% of uncapped), then falls.
+- **On this evidence, 1,900 MHz stays the recommendation.** 1,800 MHz adds
+  29 s per run for a saving smaller than run-to-run noise.
+
+![The clock curve](curve/charts/curve.png)
+
+The curve test's other charts are in [`curve/charts/`](curve/charts/), in
+the same layout as the first A/B's below: every sensor across the whole test
+([`timeline.png`](curve/charts/timeline.png)), outlet power in one run per
+arm ([`run_power_by_arm.png`](curve/charts/run_power_by_arm.png)), and per-arm
+energy, throughput and heat. Every figure above comes from
+[`curve/data/tables.md`](curve/data/tables.md), rebuilt from the raw series
+in [`curve/data/`](curve/data/).
+
+**What changed in the setup.** The cool-down between runs waits until both
+GPUs are within 10 °C of idle (55 / 53 °C), against 3 °C in the first A/B
+(57 / 58 °C). The first A/B measured idle just after a calibration pass,
+which warmed the GPUs. A first start at 08:34 measured idle on GPUs that were
+still cold from the model load. It was stopped before any run
+(`driver-aborted-cold-idle.log`).
+
 ## Contents
 
+- [The clock curve, in 100 MHz steps](#the-clock-curve-in-100-mhz-steps-2026-10-31)
 - [What was tested](#what-was-tested)
 - [How each sensor is read](#how-each-sensor-is-read)
 - [Results by clock cap](#results-by-clock-cap)
@@ -315,6 +381,16 @@ export OUT=docs/clock-cap-1319
 uv run python scripts/clock_cap_evidence.py export  --runs $RUNS --out $OUT/data    # needs Grafana
 uv run python scripts/clock_cap_evidence.py summary --runs $RUNS --data $OUT/data   # offline
 uv run python scripts/clock_cap_evidence.py charts  --data $OUT/data --out $OUT/charts
+```
+
+The curve test rebuilds the same way, from its own records:
+
+```sh
+export RUNS=benchmarks/clock-cap/1319-curve/runs.jsonl
+export OUT=docs/clock-cap-1319/curve
+uv run python scripts/clock_cap_evidence.py export  --runs $RUNS --out $OUT/data
+uv run python scripts/clock_cap_evidence.py summary --runs $RUNS --data $OUT/data
+uv run python scripts/clock_cap_evidence.py charts  --data $OUT/data --out $OUT/charts --title "#1319 clock curve"
 ```
 
 `summary` and `charts` need only the committed files. The tests are in
