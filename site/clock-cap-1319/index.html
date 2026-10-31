@@ -213,6 +213,7 @@ const METRICS = [
 let DATA = null, VIEW = "all";
 const charts = {};
 
+const isDark = () => document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const list = (name) => css(name).split(",").map((s) => s.trim());
 const fmt = (v, d = 0) => v == null || Number.isNaN(v) ? "n/a" : v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -324,7 +325,7 @@ function renderFan() {
     const m = armMeans(rs, `head_fan2_s_at_${sp}`);
     return { type: "bar", orientation: "h", name: `${sp.toLocaleString("en-US")} RPM`, y: as.map(armLabel), x: as.map((a) => (m[a] ?? 0) / 60),
       marker: { color: colors[i], line: { color: css("--surface"), width: 1.5 } }, text: as.map((a) => i === 3 && m[a] > 30 ? `${fmt(m[a] / 60, 1)} min` : ""),
-      textposition: "inside", insidetextanchor: "middle", textfont: { color: "#fff" }, hovertemplate: `%{y}: %{x:.1f} min at ${sp.toLocaleString("en-US")} RPM<extra></extra>` };
+      textposition: "inside", insidetextanchor: "middle", textfont: { color: isDark() ? "#141413" : "#ffffff" }, hovertemplate: `%{y}: %{x:.1f} min at ${sp.toLocaleString("en-US")} RPM<extra></extra>` };
   });
   Plotly.react("fan", traces, layoutBase({ barmode: "stack", yaxis: { autorange: "reversed", gridcolor: "rgba(0,0,0,0)", linecolor: css("--axis") }, xaxis: { title: "minutes per run (mean of the arm's runs)", gridcolor: css("--grid"), linecolor: css("--axis") }, margin: { l: 100, r: 24, t: 40, b: 56 } }), CONFIG);
   charts.fan = { csv: () => [["arm", ...FAN_SPEEDS.map((s) => `minutes_at_${s}_rpm`)], ...as.map((a) => [a, ...FAN_SPEEDS.map((s) => { const v = armMeans(rs, `head_fan2_s_at_${s}`)[a]; return v == null ? "" : (v / 60).toFixed(2); })])] };

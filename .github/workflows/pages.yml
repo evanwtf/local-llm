@@ -1,0 +1,63 @@
+name: GitHub Pages
+
+# Publishes site/ to https://evanwtf.github.io/local-llm/. The data behind a
+# page is built here from the committed CSVs by a tested script, never
+# committed itself, so the CSVs stay the one source (#1319).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "docs/clock-cap-1319/**"
+      - "scripts/clock_cap_site.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push supersedes a queued one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Scope the uv cache to the run on the shared runner (see test.yml, #1232).
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          cache-local-path: ${{ runner.temp }}/uv-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Sync
+        run: uv sync --frozen
+
+      - name: Build the site
+        run: |
+          rm -rf _site
+          cp -r site _site
+          uv run --frozen python scripts/clock_cap_site.py \
+            --session "2026-10-30=docs/clock-cap-1319/data" \
+            --session "2026-10-31=docs/clock-cap-1319/curve/data" \
+            --out _site/clock-cap-1319/data.json
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: [self-hosted, Linux, X64]
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

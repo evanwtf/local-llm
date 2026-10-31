@@ -3,6 +3,10 @@
 Issue: https://github.com/evanwtf/local-llm/issues/1319 ·
 result comment: https://github.com/evanwtf/local-llm/issues/1319#issuecomment-6540224622
 
+**Interactive version:** https://evanwtf.github.io/local-llm/clock-cap-1319/
+draws every chart below from the committed data, with a switch between the two
+sessions and a Download button (PNG, SVG or CSV) on each chart.
+
 **Question.** What does a GPU graphics-clock cap (`nvidia-smi -lgc 0,<MHz>`,
 the setting MiaAI-Lab's sparkLimiter applies) cost in throughput, and what
 does it save in power and heat, on the two-node DGX Spark cluster?
@@ -141,6 +145,14 @@ in [`curve/data/`](curve/data/).
 - [Every run](#every-run)
 - [What this does not show](#what-this-does-not-show)
 - [Evidence and how to check it](#evidence-and-how-to-check-it)
+
+> **The charts from here down show all 33 runs from both sessions** (12 from
+> the first A/B on 10-30, 21 from the curve on 10-31), rendered from
+> [`all/data/`](all/data/). The text and tables in these sections describe
+> the first A/B alone. Pooling mixes conditions: the first A/B's 1,900 MHz
+> runs were faster (about 1,507 s against 1,525 s), so the pooled
+> 2,200 → 1,900 MHz step looks cheaper than either session shows. Compare
+> steps within one session; the interactive page can show either one.
 
 ## What was tested
 
@@ -286,10 +298,10 @@ What the table shows:
 
 ## The whole test, every sensor
 
-![Every sensor across the whole test](charts/timeline.png)
+![Every sensor across both sessions](charts/timeline.png)
 
-Each shaded band is one run; darker blue means a higher clock. The gaps are
-the cool-downs. From top to bottom: SM clock, GPU temperature, GPU power,
+Each shaded band is one run; darker blue means a higher clock. The short gaps
+are the cool-downs; the long break is the 6-hour pause between the sessions. From top to bottom: SM clock, GPU temperature, GPU power,
 each node's wall outlet, and the head node's two fans.
 
 - The clock steps exactly to the cap on both nodes and holds there. Between
@@ -310,17 +322,17 @@ each node's wall outlet, and the head node's two fans.
 
 ![Energy, power and time per arm](charts/arms_energy_time.png)
 
-Bars are the mean of 3 runs; dots are the runs. Energy is the trapezoid
+Bars are the mean of each arm's runs (3 or 6); dots are the runs. Energy is the trapezoid
 integral of each plug's 5 s readings over the run window, summed over both
 plugs.
 
 ![Both outlets during one run per arm](charts/run_power_by_arm.png)
 
-One run per arm from round 2, aligned at its start. Power is flat within
+One run per arm from round 2 (the first session's run where an arm ran in both), aligned at its start. Power is flat within
 each arm across all three phases, so the cap's saving holds for prefill,
 single-stream and two-stream work alike. The dashed lines are the phase
-boundaries of the uncapped run; across all 12 runs the boundaries differ
-by up to 42 s.
+boundaries of the uncapped run; across the first A/B's 12 runs the
+boundaries differ by up to 42 s.
 
 ## Throughput
 
@@ -397,7 +409,8 @@ In the order they ran. Generated with the per-arm table above.
 | [`data/phases.csv`](data/phases.csv) | each run's three phase windows, UTC and New York, with wall time | 36 |
 | [`data/runs.csv`](data/runs.csv) | one row per run: every figure in this report, rebuilt from the four files above and the driver's rows | 12 |
 | [`data/tables.md`](data/tables.md) | the two tables above, generated from `runs.csv` | |
-| [`charts/`](charts/) | the five charts above, rendered from the files in `data/` | |
+| [`charts/`](charts/) | the seven charts above (including `curve.png` and `fan_time.png`), rendered from both sessions' data in `all/data/` | |
+| [`all/data/`](all/data/) | both sessions merged by `clock_cap_evidence.py combine`: the five files above for all 33 runs, and `tables.md` | |
 | [`benchmarks/clock-cap/1319/`](../../benchmarks/clock-cap/1319/) | the driver's own records: `runs.jsonl` (per-phase wall time and token counts), `driver.log`, `meta.json` (setup), `calibration.jsonl`, and Grafana's own per-run aggregates (`runs-with-sensors.json`, `report.md`) | |
 
 Every timestamp appears twice, in UTC and in America/New_York with its
@@ -425,6 +438,19 @@ uv run python scripts/clock_cap_evidence.py export  --runs $RUNS --out $OUT/data
 uv run python scripts/clock_cap_evidence.py summary --runs $RUNS --data $OUT/data   # offline
 uv run python scripts/clock_cap_evidence.py charts  --data $OUT/data --out $OUT/charts
 ```
+
+The main `charts/` come from both sessions together:
+
+```sh
+export OUT=docs/clock-cap-1319
+uv run python scripts/clock_cap_evidence.py combine --data $OUT/data $OUT/curve/data --out $OUT/all/data
+uv run python scripts/clock_cap_evidence.py charts  --data $OUT/all/data --out $OUT/charts --title "#1319 clock caps, both sessions"
+```
+
+The interactive page is `site/clock-cap-1319/index.html`. The Pages workflow
+(`.github/workflows/pages.yml`) builds its `data.json` from the two sessions'
+CSVs with `scripts/clock_cap_site.py` and publishes it on every push to
+`main` that touches them.
 
 The curve test rebuilds the same way, from its own records:
 
