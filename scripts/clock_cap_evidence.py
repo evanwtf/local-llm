@@ -693,7 +693,9 @@ def write_summary(rows: Sequence[Mapping[str, Any]], data: pathlib.Path) -> int:
 INK, INK2, MUTED = "#0b0b0b", "#52514e", "#898781"
 GRID, AXIS, SURFACE = "#e1e0d9", "#c3c2b7", "#fcfcfb"
 NODE = {"head": "#2a78d6", "worker": "#eb6834"}
-ARM_RAMP = ("#104281", "#1d5aa8", "#2f74cc", "#4d8fe0", "#7aaeea", "#a9cbf2")
+ARM_RAMP = (
+    "#0b2f5c", "#104281", "#1d5aa8", "#2f74cc", "#4d8fe0", "#7aaeea", "#a9cbf2",
+)  # fmt: skip
 #: Fan speeds, slowest to fastest: one orange hue, darker = faster. Each
 #: segment is also named in the legend and the top speed carries a label.
 FAN_COLOR = dict(
@@ -704,7 +706,7 @@ PHASE_COLOR = {"prefill_tps": "#2a78d6", "c1_tps": "#eb6834", "c2_tps": "#1f9e74
 
 def arm_colors(arms: Sequence[str]) -> dict[str, str]:
     """Each arm's ramp step, in clock order. More arms than steps is refused:
-    a generated seventh shade would not be told apart."""
+    a generated eighth shade would not be told apart."""
     if len(arms) > len(ARM_RAMP):
         raise SystemExit(f"{len(arms)} arms; the ramp has {len(ARM_RAMP)} steps")
     return dict(zip(arm_order(arms), ARM_RAMP, strict=False))
@@ -1045,18 +1047,25 @@ def charts(
                    marker="o", ms=6, markeredgecolor=SURFACE, label=names[key])  # fmt: skip
         right.annotate(names[key], line_pts[-1], xytext=(8, 0), textcoords="offset points",
                        ha="left", va="center", fontsize=8, color=INK2)  # fmt: skip
-    for arm in arms:
-        if arm in clock:
-            right.annotate(ARM_LABEL[arm].replace(" MHz", ""), (clock[arm], 1.0),
-                           xycoords=("data", "axes fraction"), xytext=(0, -2),
-                           textcoords="offset points", ha="center", va="top",
-                           fontsize=7, color=MUTED)  # fmt: skip
+    # Arms whose measured clocks sit within 60 MHz share one label (2,500 MHz
+    # runs at the uncapped clock), so names never print on top of each other.
+    groups: list[tuple[float, list[str]]] = []
+    for arm in sorted((a for a in arms if a in clock), key=lambda a: -clock[a]):
+        if groups and groups[-1][0] - clock[arm] < 60:
+            groups[-1][1].append(arm)
+        else:
+            groups.append((clock[arm], [arm]))
+    for x, members in groups:
+        text = " / ".join(ARM_LABEL[m].replace(" MHz", "") for m in members)
+        right.annotate(text, (x, 1.0), xycoords=("data", "axes fraction"),
+                       xytext=(0, -2), textcoords="offset points", ha="center",
+                       va="top", fontsize=7, color=MUTED)  # fmt: skip
     right.axhline(100, color=AXIS, lw=0.8)
     right.set_xlabel(
         "measured head SM clock, mean over the run (MHz); arm names on top"
     )
     right.set_ylabel(f"% of the {arms[0]} arm's mean")
-    right.set_title("Throughput by phase, as arm share of uncapped", pad=14)
+    right.set_title("Throughput by phase, as a share of uncapped", pad=14)
     lo, hi = right.get_xlim()
     right.set_xlim(hi, lo - (hi - lo) * 0.12)  # inverted, with room for the labels
     fig.suptitle(f"{title}: what each step down the clock costs and saves",

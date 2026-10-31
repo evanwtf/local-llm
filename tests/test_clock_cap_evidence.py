@@ -192,11 +192,15 @@ def test_arm_order_is_uncapped_then_highest_clock_first() -> None:
     assert ev.arm_label("uncapped") == "uncapped"
 
 
-def test_arm_colors_follow_the_clock_and_refuse_a_seventh_arm() -> None:
+def test_arm_colors_follow_the_clock_and_refuse_an_eighth_arm() -> None:
     colors = ev.arm_colors(["1600", "uncapped", "1900"])
-    assert colors == {"uncapped": "#104281", "1900": "#1d5aa8", "1600": "#2f74cc"}
-    with pytest.raises(SystemExit, match="7 arms"):
-        ev.arm_colors(["uncapped", *[str(1000 + 100 * i) for i in range(6)]])
+    assert colors == {"uncapped": "#0b2f5c", "1900": "#104281", "1600": "#1d5aa8"}
+    assert (
+        len(ev.arm_colors(["uncapped", "2500", "2200", "1900", "1800", "1700", "1600"]))
+        == 7
+    )
+    with pytest.raises(SystemExit, match="8 arms"):
+        ev.arm_colors(["uncapped", *[str(1000 + 100 * i) for i in range(7)]])
 
 
 def test_curve_steps_price_each_step_in_wh_per_added_second() -> None:
