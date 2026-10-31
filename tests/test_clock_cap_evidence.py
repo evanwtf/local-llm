@@ -258,3 +258,48 @@ def test_summarize_puts_the_whole_run_at_one_fan_speed() -> None:
     (rec,) = ev.summarize([run()], series_rows(), plugs, [])
     assert rec["head_fan2_s_at_7300"] == 1500.0  # fan2 reads 7,290 throughout
     assert rec["head_fan2_s_at_10000"] == 0.0
+
+
+def test_break_gaps_splits_a_line_across_a_long_pause() -> None:
+    a, b = t("2026-10-31T01:00:00Z"), t("2026-10-31T01:00:15Z")
+    c = t("2026-10-31T09:00:00Z")  # the next session, 8 h later
+    out = ev.break_gaps([(a, 1.0), (b, 2.0), (c, 3.0)])
+    assert [v for _, v in out] == [1.0, 2.0, None, 3.0]
+    assert a < out[2][0] < c
+    assert ev.break_gaps([(a, 1.0), (b, 2.0)]) == [(a, 1.0), (b, 2.0)]
+    assert ev.break_gaps([]) == []
+
+
+def write_session(d: Path, run_id: str, start: str, inlet: str) -> None:
+    d.mkdir()
+    (d / "timeseries.csv").write_text(f"time_utc,v\n{start},1\n")
+    (d / "outlets.csv").write_text(f"time_utc,watts\n{start},100\n")
+    (d / "inlet.csv").write_text(f"time_utc,inlet_f\n{inlet},68.0\n")
+    (d / "phases.csv").write_text(f"run_id,start_utc\n{run_id},{start}\n")
+    rec: dict[str, Any] = {c: "" for c in ev.SUMMARY_COLUMNS}
+    rec.update(run_id=run_id, round=1, arm="1900", start_utc=start, pair_wh=127.0)
+    with (d / "runs.csv").open("w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=ev.SUMMARY_COLUMNS)
+        w.writeheader()
+        w.writerow(rec)
+
+
+def test_combine_merges_sessions_in_time_order(tmp_path: Path) -> None:
+    late, early = tmp_path / "late", tmp_path / "early"
+    # The same inlet reading appears in both sessions' look-back windows.
+    write_session(late, "r1-1900-b", "2026-10-31T12:00:00Z", "2026-10-31T00:00:00Z")
+    write_session(early, "r1-1900-a", "2026-10-31T01:00:00Z", "2026-10-31T00:00:00Z")
+    counts = ev.combine([late, early], tmp_path / "all")
+    assert counts["runs.csv"] == 2 and counts["inlet.csv"] == 1  # kept once
+    runs = list(csv.DictReader((tmp_path / "all" / "runs.csv").open()))
+    assert [r["run_id"] for r in runs] == ["r1-1900-a", "r1-1900-b"]  # by time
+    assert "127.0 (127.0–127.0)" in (tmp_path / "all" / "tables.md").read_text()
+
+
+def test_combine_refuses_sessions_with_different_columns(tmp_path: Path) -> None:
+    a, b = tmp_path / "a", tmp_path / "b"
+    write_session(a, "r1", "2026-10-31T01:00:00Z", "2026-10-31T00:00:00Z")
+    write_session(b, "r2", "2026-10-31T12:00:00Z", "2026-10-31T11:00:00Z")
+    (b / "inlet.csv").write_text("time_utc,inlet_c\n2026-10-31T11:00:00Z,20\n")
+    with pytest.raises(SystemExit, match="header differs"):
+        ev.combine([a, b], tmp_path / "all")
