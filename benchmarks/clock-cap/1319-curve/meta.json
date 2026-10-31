@@ -1,0 +1,58 @@
+{
+ "issue": 1319,
+ "question": "Where on the clock curve does the extra time stop paying for the energy saved? Verify the original 1,800 MHz recommendation, in 100 MHz steps down to 1,600.",
+ "operator_go": "2026-10-31T08:20:00-04:00",
+ "machine": "two-node DGX Spark cluster (2 x GB10), TP2 across both nodes",
+ "stack": {
+  "pick": "#1160",
+  "model": "DeepSeek-V4.1-Flash-1017 EXL3 2.7 bpw",
+  "weights": "0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw@e34ef55bda",
+  "server": "sudoingX/dgx-spark-deepseek-v41@cc59c36, image dsv41-serve:v4 (vLLM 6e517b15 + ExLlamaV3 1.6.0)",
+  "launch": "scripts/launch/dsv41_tp2.sh up, PORT=8888, reasoning_effort low, MAX_SEQS=2 (recipe default)",
+  "driver_nvidia": "580.178.04",
+  "server_ready": "2026-10-30T21:03:33-04:00"
+ },
+ "driver": {
+  "script": "scripts/clock_cap_ab.py",
+  "commit": "8f73b422",
+  "started": "2026-10-31T08:35:32-04:00",
+  "args": "--arms uncapped 1900 1800 1700 1600 --rounds 3 --prefill-n 20 --c1-n 50 --c2-n 70 --cool-margin 10"
+ },
+ "arms": [
+  "uncapped",
+  "1900",
+  "1800",
+  "1700",
+  "1600"
+ ],
+ "arm_command": {
+  "uncapped": "sudo nvidia-smi -rgc",
+  "capped": "sudo nvidia-smi -lgc 0,<MHz>",
+  "nodes": "both"
+ },
+ "rounds": 3,
+ "order": "round r starts at arm r (rotation), so each arm takes each position",
+ "work_per_run": {
+  "prefill": "20 requests, ~23K-token prompts, max_tokens 1, width 1",
+  "c1": "50 requests, 1,024 output tokens (ignore_eos), width 1",
+  "c2": "70 requests, 1,024 output tokens (ignore_eos), width 2",
+  "api": "/v1/completions, temperature 0, raw prompt; a per-run nonce first so the prefix cache cannot serve a prompt"
+ },
+ "cool_down": "at least 180 s, then until both GPUs are at or below the idle temperature + 10 C (targets 55 / 53 C), max 900 s. The first A/B used +3 C on an idle measured right after a calibration pass (targets 57 / 58 C).",
+ "sensors": {
+  "gpu": "DCGM via Prometheus: SM clock avg/max, GPU temp max, GPU power avg, per node",
+  "fans": "head node only (node_exporter hwmon fan1, fan2); the worker has no fan reading",
+  "outlets": "Home Assistant smart plugs, one per node, mean and max over the run",
+  "inlet": "weather-station indoor sensor at the front of the cluster, last reading at or before the run's end"
+ },
+ "files": {
+  "runs.jsonl": "one row per run, written by the driver",
+  "driver.log": "the driver's log",
+  "driver-aborted-cold-idle.log": "the false start",
+  "meta.json": "this file"
+ },
+ "anchors": "uncapped and 1900 repeat the first A/B (benchmarks/clock-cap/1319) inside this session, so every point on the curve shares one session and one room",
+ "false_start": "2026-10-31T08:34:28-04:00: the driver measured idle on GPUs still cold from the model load (45 / 42 C, targets 48 / 45 C). It was stopped with SIGINT before any run; its log is driver-aborted-cold-idle.log. The stop restarted gpu-clock-cap.service on both nodes, as designed.",
+ "standing_cap": "gpu-clock-cap.service (1,900 MHz) is active on both nodes; the driver sets each arm over it and restarts it at the end",
+ "server_ready": "2026-10-31T08:26:25-04:00"
+}
