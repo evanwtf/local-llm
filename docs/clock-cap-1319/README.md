@@ -107,7 +107,7 @@ so this report has fan speed for the head node only.
 **Wall power: Kasa smart plugs.** Each node is plugged into its own TP-Link
 Kasa **EP25**, the "Kasa Smart Wi-Fi Plug Slim, Energy Monitoring" (sold as
 the four-pack EP25P4; rated 15 A, 2.4 GHz Wi-Fi, no hub;
-[product page](https://link.amazon/B09ZK31DY)). Home Assistant's TP-Link integration
+on Amazon: https://link.amazon/B09ZK31DY). Home Assistant's TP-Link integration
 reads each plug's present power draw and records it into InfluxDB, where
 Grafana reads it (datasource `home_assistant/autogen`, measurement `W`). The
 plugs are named "DGX 1" (the head) and "DGX 2" (the worker) in Home
