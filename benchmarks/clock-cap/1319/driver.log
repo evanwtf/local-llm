@@ -1,0 +1,65 @@
+2026-10-30T21:06:06-0400 decode_ab INFO machine lock held: run lock taken for '#1319 clock-cap A/B' (pid 712642)
+2026-10-30T21:06:06-0400 __main__ INFO clocks set to uncapped on 2 node(s)
+2026-10-30T21:06:06-0400 __main__ INFO idle GPU temps [54, 55]; cool-down targets [57, 58]
+2026-10-30T21:06:07-0400 __main__ INFO clocks set to uncapped on 2 node(s)
+2026-10-30T21:09:07-0400 __main__ INFO run 1/12: round 1, arm uncapped
+2026-10-30T21:12:56-0400 __main__ INFO prefill: 20 requests, 229.0 s, 0.1 out tok/s, 2027.9 prompt tok/s
+2026-10-30T21:23:00-0400 __main__ INFO c1: 50 requests, 603.7 s, 84.8 out tok/s, 4.2 prompt tok/s
+2026-10-30T21:33:37-0400 __main__ INFO c2: 70 requests, 637.2 s, 112.5 out tok/s, 5.6 prompt tok/s
+2026-10-30T21:33:38-0400 __main__ INFO clocks set to 2500 on 2 node(s)
+2026-10-30T21:36:38-0400 __main__ INFO run 2/12: round 1, arm 2500
+2026-10-30T21:40:28-0400 __main__ INFO prefill: 20 requests, 229.8 s, 0.1 out tok/s, 2021.2 prompt tok/s
+2026-10-30T21:50:25-0400 __main__ INFO c1: 50 requests, 596.8 s, 85.8 out tok/s, 4.3 prompt tok/s
+2026-10-30T22:00:54-0400 __main__ INFO c2: 70 requests, 629.4 s, 113.9 out tok/s, 5.7 prompt tok/s
+2026-10-30T22:00:55-0400 __main__ INFO clocks set to 2200 on 2 node(s)
+2026-10-30T22:03:55-0400 __main__ INFO run 3/12: round 1, arm 2200
+2026-10-30T22:07:52-0400 __main__ INFO prefill: 20 requests, 237.0 s, 0.1 out tok/s, 1959.9 prompt tok/s
+2026-10-30T22:18:01-0400 __main__ INFO c1: 50 requests, 608.8 s, 84.1 out tok/s, 4.2 prompt tok/s
+2026-10-30T22:29:05-0400 __main__ INFO c2: 70 requests, 663.7 s, 108.0 out tok/s, 5.4 prompt tok/s
+2026-10-30T22:29:05-0400 __main__ INFO clocks set to 1900 on 2 node(s)
+2026-10-30T22:32:06-0400 __main__ INFO run 4/12: round 1, arm 1900
+2026-10-30T22:36:17-0400 __main__ INFO prefill: 20 requests, 250.7 s, 0.1 out tok/s, 1852.8 prompt tok/s
+2026-10-30T22:46:09-0400 __main__ INFO c1: 50 requests, 592.6 s, 86.4 out tok/s, 4.3 prompt tok/s
+2026-10-30T22:57:05-0400 __main__ INFO c2: 70 requests, 656.2 s, 109.2 out tok/s, 5.4 prompt tok/s
+2026-10-30T22:57:06-0400 __main__ INFO clocks set to 2500 on 2 node(s)
+2026-10-30T23:00:06-0400 __main__ INFO run 5/12: round 2, arm 2500
+2026-10-30T23:03:55-0400 __main__ INFO prefill: 20 requests, 229.1 s, 0.1 out tok/s, 2027.5 prompt tok/s
+2026-10-30T23:14:17-0400 __main__ INFO c1: 50 requests, 621.0 s, 82.4 out tok/s, 4.1 prompt tok/s
+2026-10-30T23:24:50-0400 __main__ INFO c2: 70 requests, 633.2 s, 113.2 out tok/s, 5.6 prompt tok/s
+2026-10-30T23:24:50-0400 __main__ INFO clocks set to 2200 on 2 node(s)
+2026-10-30T23:27:51-0400 __main__ INFO run 6/12: round 2, arm 2200
+2026-10-30T23:31:47-0400 __main__ INFO prefill: 20 requests, 236.2 s, 0.1 out tok/s, 1965.9 prompt tok/s
+2026-10-30T23:42:15-0400 __main__ INFO c1: 50 requests, 627.6 s, 81.6 out tok/s, 4.1 prompt tok/s
+2026-10-30T23:53:33-0400 __main__ INFO c2: 70 requests, 678.0 s, 105.7 out tok/s, 5.3 prompt tok/s
+2026-10-30T23:53:33-0400 __main__ INFO clocks set to 1900 on 2 node(s)
+2026-10-30T23:56:34-0400 __main__ INFO run 7/12: round 2, arm 1900
+2026-10-31T00:00:44-0400 __main__ INFO prefill: 20 requests, 250.8 s, 0.1 out tok/s, 1852.0 prompt tok/s
+2026-10-31T00:10:45-0400 __main__ INFO c1: 50 requests, 600.8 s, 85.2 out tok/s, 4.2 prompt tok/s
+2026-10-31T00:21:41-0400 __main__ INFO c2: 70 requests, 655.8 s, 109.3 out tok/s, 5.4 prompt tok/s
+2026-10-31T00:21:42-0400 __main__ INFO clocks set to uncapped on 2 node(s)
+2026-10-31T00:24:42-0400 __main__ INFO run 8/12: round 2, arm uncapped
+2026-10-31T00:28:35-0400 __main__ INFO prefill: 20 requests, 232.5 s, 0.1 out tok/s, 1997.4 prompt tok/s
+2026-10-31T00:39:02-0400 __main__ INFO c1: 50 requests, 627.6 s, 81.6 out tok/s, 4.1 prompt tok/s
+2026-10-31T00:50:08-0400 __main__ INFO c2: 70 requests, 665.9 s, 107.7 out tok/s, 5.4 prompt tok/s
+2026-10-31T00:50:09-0400 __main__ INFO clocks set to 2200 on 2 node(s)
+2026-10-31T00:53:09-0400 __main__ INFO run 9/12: round 3, arm 2200
+2026-10-31T00:57:06-0400 __main__ INFO prefill: 20 requests, 236.6 s, 0.1 out tok/s, 1962.7 prompt tok/s
+2026-10-31T01:07:19-0400 __main__ INFO c1: 50 requests, 613.5 s, 83.5 out tok/s, 4.2 prompt tok/s
+2026-10-31T01:18:25-0400 __main__ INFO c2: 70 requests, 666.0 s, 107.6 out tok/s, 5.4 prompt tok/s
+2026-10-31T01:18:26-0400 __main__ INFO clocks set to 1900 on 2 node(s)
+2026-10-31T01:21:26-0400 __main__ INFO run 10/12: round 3, arm 1900
+2026-10-31T01:25:37-0400 __main__ INFO prefill: 20 requests, 251.1 s, 0.1 out tok/s, 1849.5 prompt tok/s
+2026-10-31T01:35:42-0400 __main__ INFO c1: 50 requests, 604.7 s, 84.7 out tok/s, 4.2 prompt tok/s
+2026-10-31T01:46:40-0400 __main__ INFO c2: 70 requests, 657.7 s, 109.0 out tok/s, 5.4 prompt tok/s
+2026-10-31T01:46:40-0400 __main__ INFO clocks set to uncapped on 2 node(s)
+2026-10-31T01:49:41-0400 __main__ INFO run 11/12: round 3, arm uncapped
+2026-10-31T01:53:30-0400 __main__ INFO prefill: 20 requests, 229.1 s, 0.1 out tok/s, 2027.0 prompt tok/s
+2026-10-31T02:03:22-0400 __main__ INFO c1: 50 requests, 592.1 s, 86.5 out tok/s, 4.3 prompt tok/s
+2026-10-31T02:14:04-0400 __main__ INFO c2: 70 requests, 642.3 s, 111.6 out tok/s, 5.6 prompt tok/s
+2026-10-31T02:14:05-0400 __main__ INFO clocks set to 2500 on 2 node(s)
+2026-10-31T02:17:05-0400 __main__ INFO run 12/12: round 3, arm 2500
+2026-10-31T02:20:54-0400 __main__ INFO prefill: 20 requests, 228.4 s, 0.1 out tok/s, 2033.3 prompt tok/s
+2026-10-31T02:31:17-0400 __main__ INFO c1: 50 requests, 623.1 s, 82.2 out tok/s, 4.1 prompt tok/s
+2026-10-31T02:42:23-0400 __main__ INFO c2: 70 requests, 666.0 s, 107.6 out tok/s, 5.4 prompt tok/s
+2026-10-31T02:42:24-0400 __main__ INFO clocks set to uncapped on 2 node(s)
+2026-10-31T02:42:24-0400 decode_ab INFO machine lock released=True: run lock released
