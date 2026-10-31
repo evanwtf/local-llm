@@ -17,8 +17,9 @@ temperature 0, so the chat template and the reasoning effort do not enter.
 
 Each arm sets the cap on both nodes, waits for the GPUs to cool to the
 starting temperature, then runs the work. The arm order rotates each round, so
-a drift in room temperature does not line up with one arm. The clocks are
-reset on both nodes at the end, whatever happens.
+a drift in room temperature does not line up with one arm. At the end,
+whatever happens, the clocks are reset on both nodes, and a node whose
+standing cap unit (gpu-clock-cap.service) is enabled gets that cap back.
 
     uv run python scripts/clock_cap_ab.py --base-url http://127.0.0.1:8888 \\
         --model DeepSeek-V4.1-Flash-1017-EXL3 --worker spark-b-cx7 \\
@@ -125,6 +126,30 @@ def set_arm(arm: str, runners: Sequence[Runner]) -> None:
     for run in runners:
         run(clock_command(arm))
     logger.info("clocks set to %s on %d node(s)", arm, len(runners))
+
+
+#: The boot-time unit that holds the standing clock cap (#1319). An A/B
+#: changes the clocks, so it restarts this unit at the end, where installed,
+#: rather than leave the node uncapped until the next reboot.
+STANDING_UNIT = "gpu-clock-cap.service"
+
+
+def restore_standing(runners: Sequence[Runner]) -> list[bool]:
+    """Restart the standing-cap unit on every node that has it enabled.
+    Returns, per node, whether the unit was there to restart."""
+    restored: list[bool] = []
+    for run in runners:
+        try:
+            run(["systemctl", "is-enabled", "--quiet", STANDING_UNIT])
+        except subprocess.CalledProcessError:
+            restored.append(False)
+            continue
+        run(["sudo", "-n", "systemctl", "restart", STANDING_UNIT])
+        restored.append(True)
+    logger.info(
+        "standing clock cap restored on %d of %d node(s)", sum(restored), len(runners)
+    )
+    return restored
 
 
 def gpu_temp(run: Runner) -> int:
@@ -300,6 +325,7 @@ def main(argv: list[str] | None = None) -> int:
                     fh.write(json.dumps(row) + "\n")
         finally:
             set_arm(UNCAPPED, runners)
+            restore_standing(runners)
     return 0
 
 

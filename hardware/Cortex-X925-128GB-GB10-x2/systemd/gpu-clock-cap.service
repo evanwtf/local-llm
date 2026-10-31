@@ -1,0 +1,30 @@
+# Cap the GB10 GPU graphics clock at 1,900 MHz on every boot (#1319).
+#
+# The #1319 A/B found that 1,900 MHz does the same fixed work in 101.4% of the
+# uncapped time with 73.9% of the energy and GPUs 13-14 C cooler; prefill is
+# 8.2% slower. Report: docs/clock-cap-1319/README.md. Operator decision
+# 2026-10-31: keep 1,900 MHz as the standing setting on both nodes.
+#
+# `nvidia-smi -lgc` lasts until reboot or driver reload; nvidia-persistenced
+# keeps the driver loaded between processes, so this runs after it.
+# Stop this unit to remove the cap (ExecStop resets to the default clocks);
+# start it again to restore it. scripts/clock_cap_ab.py restarts it after an
+# A/B so a test cannot leave the cluster uncapped.
+#
+# Install on each node:
+#   sudo install -m 644 gpu-clock-cap.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now gpu-clock-cap.service
+
+[Unit]
+Description=Cap the GPU graphics clock at 1900 MHz (local-llm #1319)
+Wants=nvidia-persistenced.service
+After=nvidia-persistenced.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/nvidia-smi -lgc 0,1900
+ExecStop=/usr/bin/nvidia-smi -rgc
+
+[Install]
+WantedBy=multi-user.target
