@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -88,3 +89,21 @@ def test_cool_down_gives_up_at_max() -> None:
     )
     assert out == [60]
     assert now[0] >= 40
+
+
+def test_restore_standing_restarts_the_unit_only_where_enabled() -> None:
+    calls: list[list[str]] = []
+
+    def enabled(cmd: list[str]) -> str:
+        calls.append(cmd)
+        return ""
+
+    def absent(cmd: list[str]) -> str:
+        calls.append(cmd)
+        if cmd[:2] == ["systemctl", "is-enabled"]:
+            raise subprocess.CalledProcessError(1, cmd)
+        return ""
+
+    assert cc.restore_standing([enabled, absent]) == [True, False]
+    restarts = [c for c in calls if "restart" in c]
+    assert restarts == [["sudo", "-n", "systemctl", "restart", "gpu-clock-cap.service"]]
