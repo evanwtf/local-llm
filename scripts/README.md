@@ -34,6 +34,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `clock_cap_ab.py` | any | Fixed-work load test at several GPU clock caps on both Sparks (#1319). |
 | `clock_cap_evidence.py` | any | Evidence pack for the #1319 clock-cap A/B: sensor time series and charts. |
 | `clock_cap_report.py` | any | Report the #1319 clock-cap A/B: throughput, power and heat per arm. |
+| `clock_cap_site.py` | any | Build the data file behind the #1319 clock-cap web page. |
 | `cluster_allreduce.py` | any | Measure NCCL all-reduce bandwidth across the DGX Spark cluster's nodes. |
 | `cluster_heartbeat.py` | any | Render the two-Spark cluster heartbeat; a timer keeps its sensor book fresh. |
 | `cluster_id.py` | any | Derive the dual-Spark cluster's machine identity, and refuse to guess it. |

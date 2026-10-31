@@ -11,6 +11,8 @@
            (runs.csv): energy integrated from the raw plug readings, means and
            peaks from the 15 s series, the inlet at the run's end; and the
            report's tables from it (tables.md)
+  combine  merge the data directories of several sessions into one, so the
+           charts can show every arm ever run; rows are sorted by time
   charts   render the report's PNG charts from runs.csv and the series,
            including the curve: energy per run against the time the work
            took, one point per arm
@@ -21,6 +23,10 @@
         --runs benchmarks/clock-cap/1319/runs.jsonl --data docs/clock-cap-1319/data
     uv run python scripts/clock_cap_evidence.py charts \\
         --data docs/clock-cap-1319/data --out docs/clock-cap-1319/charts
+
+    uv run python scripts/clock_cap_evidence.py combine \\
+        --data docs/clock-cap-1319/data docs/clock-cap-1319/curve/data \\
+        --out docs/clock-cap-1319/all/data
 
 The arms come from the runs themselves (uncapped first, then the highest cap
 down), so one script serves both the first A/B and the 100 MHz curve.
@@ -684,6 +690,69 @@ def write_summary(rows: Sequence[Mapping[str, Any]], data: pathlib.Path) -> int:
     return len(recs)
 
 
+# ------------------------------------------------------------- combine ----
+
+#: (file, the column its rows are sorted by).
+DATA_FILES = (
+    ("timeseries.csv", "time_utc"),
+    ("outlets.csv", "time_utc"),
+    ("inlet.csv", "time_utc"),
+    ("phases.csv", "start_utc"),
+    ("runs.csv", "start_utc"),
+)
+
+
+def combine(dirs: Sequence[pathlib.Path], out: pathlib.Path) -> dict[str, int]:
+    """Merge several sessions' data directories. Each file must carry the same
+    header in every session (rerun `summary` on an older session first); a
+    row present in two sessions, such as a shared inlet reading, is kept once."""
+    out.mkdir(parents=True, exist_ok=True)
+    counts: dict[str, int] = {}
+    for name, key in DATA_FILES:
+        header: list[str] | None = None
+        rows: dict[tuple[str, ...], dict[str, str]] = {}
+        for d in dirs:
+            with (d / name).open(newline="") as fh:
+                reader = csv.DictReader(fh)
+                fields = list(reader.fieldnames or [])
+                if header is None:
+                    header = fields
+                elif fields != header:
+                    raise SystemExit(
+                        f"{d / name}: header differs from {dirs[0] / name}; "
+                        "rerun summary on the older session"
+                    )
+                for r in reader:
+                    rows.setdefault(tuple(r[f] for f in fields), r)
+        assert header is not None
+        merged = sorted(rows.values(), key=lambda r: parse_utc(r[key]))
+        with (out / name).open("w", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=header)
+            w.writeheader()
+            w.writerows(merged)
+        counts[name] = len(merged)
+    recs = [
+        {k: v if v == "" or k in TEXT_COLUMNS else float(v) for k, v in r.items()}
+        for r in read_csv(out / "runs.csv")
+    ]
+    (out / "tables.md").write_text(render_tables(recs))
+    return counts
+
+
+def break_gaps(
+    points: Sequence[tuple[datetime.datetime, float | None]], max_gap_s: float = 600
+) -> list[tuple[datetime.datetime, float | None]]:
+    """The points with a None inserted wherever two readings sit more than
+    max_gap_s apart, so a line breaks across a pause between sessions
+    instead of drawing a straight segment over it."""
+    out: list[tuple[datetime.datetime, float | None]] = []
+    for prev, cur in zip([None, *points], points, strict=False):
+        if prev is not None and (cur[0] - prev[0]).total_seconds() > max_gap_s:
+            out.append((prev[0] + (cur[0] - prev[0]) / 2, None))
+        out.append(cur)
+    return out
+
+
 # -------------------------------------------------------------- charts ----
 
 # Reference palette (dataviz skill), validated 2026-10-31: the node pair
@@ -819,29 +888,27 @@ def charts(
     fig, axes = plt.subplots(5, 1, figsize=(12, 13), sharex=True)
     for ax, (panel_title, key) in zip(axes, panels, strict=False):
         for node, color in NODE.items():
-            ax.plot(
-                times, [num(r[f"{node}_{key}"]) for r in ts], color=color, label=node
-            )
+            line = break_gaps(list(zip(times, [num(r[f"{node}_{key}"]) for r in ts])))
+            ax.plot([p[0] for p in line], [p[1] for p in line], color=color, label=node)
         ax.set_title(panel_title, pad=16 if ax is axes[0] else 6)
         shade(ax, label=ax is axes[0])
     axes[0].legend(loc="lower right", ncol=2)
     ax = axes[3]
     for node, color in NODE.items():
-        pts = [
+        plug: list[tuple[datetime.datetime, float | None]] = [
             (t_of(r["time_utc"]), float(r["watts"]))
             for r in outlets
             if r["outlet"] == node
         ]
-        ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color, label=node)
+        line = break_gaps(plug)
+        ax.plot([p[0] for p in line], [p[1] for p in line], color=color, label=node)
     ax.set_title("Wall outlet power, per node (W)")
     shade(ax)
     ax = axes[4]
     for fan, color in (("fan1", NODE["head"]), ("fan2", NODE["worker"])):
+        line = break_gaps(list(zip(times, [num(r[f"head_{fan}_rpm"]) for r in ts])))
         ax.plot(
-            times,
-            [num(r[f"head_{fan}_rpm"]) for r in ts],
-            color=color,
-            label=f"head {fan}",
+            [p[0] for p in line], [p[1] for p in line], color=color, label=f"head {fan}"
         )
     ax.set_title("Head node fans (RPM); the worker reports no fan speed")
     ax.legend(loc="lower right", ncol=2)
@@ -1087,6 +1154,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     m = sub.add_parser("summary")
     m.add_argument("--runs", type=pathlib.Path, required=True)
     m.add_argument("--data", type=pathlib.Path, required=True)
+    j = sub.add_parser("combine")
+    j.add_argument("--data", type=pathlib.Path, nargs="+", required=True)
+    j.add_argument("--out", type=pathlib.Path, required=True)
     c = sub.add_parser("charts")
     c.add_argument("--data", type=pathlib.Path, required=True)
     c.add_argument("--out", type=pathlib.Path, required=True)
@@ -1097,6 +1167,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         rows = [json.loads(line) for line in args.runs.read_text().splitlines() if line]
     if args.cmd == "export":
         for name, n in export(rows, args.out).items():
+            logger.info("wrote %s: %d rows", args.out / name, n)
+    elif args.cmd == "combine":
+        for name, n in combine(args.data, args.out).items():
             logger.info("wrote %s: %d rows", args.out / name, n)
     elif args.cmd == "summary":
         n = write_summary(rows, args.data)

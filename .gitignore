@@ -68,3 +68,6 @@ benchmarks/ds4/decode-ab/
 
 # Agent fork worktrees (git worktree add under .claude/); scratch, never tracked.
 .claude/worktrees/
+
+# GitHub Pages build output (scripts/clock_cap_site.py and the pages workflow)
+_site/
