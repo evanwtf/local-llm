@@ -1,0 +1,3 @@
+2026-10-31T15:46:40-0400 gapfill curve driver exited
+2026-10-31T16:06:31-0400 gapfill manual start at 8f73b422: idle plateau head 48 worker 45 C, margin 7 (targets 55 / 52; curve used 55 / 53)
+2026-10-31T16:06:54-0400 gapfill note: the driver read the worker at 46 C, so its targets are 55 / 53, the same as the curve (the line above predicted 55 / 52)

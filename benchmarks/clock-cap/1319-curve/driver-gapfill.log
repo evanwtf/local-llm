@@ -1,0 +1,9 @@
+2026-10-31T16:06:31-0400 decode_ab INFO machine lock held: run lock taken for '#1319 clock-cap A/B' (pid 2143984)
+2026-10-31T16:06:31-0400 __main__ INFO clocks set to uncapped on 2 node(s)
+2026-10-31T16:06:31-0400 __main__ INFO idle GPU temps [48, 46]; cool-down targets [55, 53]
+2026-10-31T16:06:32-0400 __main__ INFO clocks set to 2500 on 2 node(s)
+2026-10-31T16:09:32-0400 __main__ INFO run 1/6: round 1, arm 2500
+2026-10-31T16:13:21-0400 __main__ INFO prefill: 20 requests, 228.8 s, 0.1 out tok/s, 2030.1 prompt tok/s
+2026-10-31T16:23:13-0400 __main__ INFO c1: 50 requests, 591.7 s, 86.5 out tok/s, 4.3 prompt tok/s
+2026-10-31T16:33:48-0400 __main__ INFO c2: 70 requests, 635.6 s, 112.8 out tok/s, 5.6 prompt tok/s
+2026-10-31T16:33:49-0400 __main__ INFO clocks set to 2200 on 2 node(s)
