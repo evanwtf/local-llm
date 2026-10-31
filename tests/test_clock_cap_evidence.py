@@ -229,3 +229,28 @@ def test_curve_steps_skip_an_arm_without_energy() -> None:
     ]
     (step,) = ev.curve_steps(recs, ["uncapped", "1900", "1800"])
     assert (step["from"], step["to"]) == ("uncapped", "1800")
+
+
+def test_fan_speed_snaps_to_the_controller_step() -> None:
+    assert ev.fan_speed(7290) == 7300
+    assert ev.fan_speed(9400) == 10000  # a sample caught mid-ramp
+    assert ev.fan_speed(4500) == 4200
+    assert ev.fan_speed(12000) == 10000
+
+
+def test_fan_seconds_split_the_run_by_share_of_samples() -> None:
+    secs = ev.fan_seconds([10000.0, 10000.0, 7300.0, 7290.0], 1500.0)
+    assert secs == {4200: 0.0, 5400: 0.0, 7300: 750.0, 10000: 750.0}
+    assert sum(ev.fan_seconds([5400.0] * 7, 1234.5).values()) == pytest.approx(1234.5)
+    assert ev.fan_seconds([], 1500.0) == {4200: 0.0, 5400: 0.0, 7300: 0.0, 10000: 0.0}
+
+
+def test_summarize_puts_the_whole_run_at_one_fan_speed() -> None:
+    start = t("2026-10-31T01:00:00Z")
+    plugs = {
+        n: [(start + datetime.timedelta(seconds=s), 150.0) for s in range(0, 1501, 5)]
+        for n in ("head", "worker")
+    }
+    (rec,) = ev.summarize([run()], series_rows(), plugs, [])
+    assert rec["head_fan2_s_at_7300"] == 1500.0  # fan2 reads 7,290 throughout
+    assert rec["head_fan2_s_at_10000"] == 0.0

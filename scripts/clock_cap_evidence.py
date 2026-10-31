@@ -421,6 +421,29 @@ def mean(vals: Sequence[float]) -> float | None:
     return sum(vals) / len(vals) if vals else None
 
 
+#: The head's fan controller holds four speeds. fan2 reads 4,200 / 5,400 /
+#: 7,300 / 10,000 RPM and fan1 moves with it (2,800 / 3,600 / 4,900 / 6,700).
+#: A reading between two speeds is a 15 s sample caught mid-change. The fan is
+#: the machine's only moving part, so time at each speed is the wear measure.
+FAN2_SPEEDS = (4200, 5400, 7300, 10000)
+
+
+def fan_speed(rpm: float) -> int:
+    """The controller speed nearest a fan2 reading."""
+    return min(FAN2_SPEEDS, key=lambda s: abs(s - rpm))
+
+
+def fan_seconds(rpms: Sequence[float], wall_s: float) -> dict[int, float]:
+    """Seconds of the run at each fan2 speed: each speed's share of the
+    samples, times the run's wall time, so the speeds sum to the run."""
+    out = dict.fromkeys(FAN2_SPEEDS, 0.0)
+    if not rpms:
+        return out
+    for rpm in rpms:
+        out[fan_speed(rpm)] += 1
+    return {s: n / len(rpms) * wall_s for s, n in out.items()}
+
+
 SUMMARY_COLUMNS = (
     "run_id", "round", "arm", "start_utc", "end_utc", "start_new_york",
     "end_new_york", "start_head_gpu_c", "start_worker_gpu_c", "wall_s",
@@ -428,7 +451,8 @@ SUMMARY_COLUMNS = (
     "head_sm_clock_avg", "worker_sm_clock_avg", "head_sm_clock_max",
     "worker_sm_clock_max", "head_gpu_temp_max", "worker_gpu_temp_max",
     "head_gpu_w_avg", "worker_gpu_w_avg", "head_fan1_rpm_avg",
-    "head_fan2_rpm_avg", "head_outlet_w_avg", "worker_outlet_w_avg",
+    "head_fan2_rpm_avg", *(f"head_fan2_s_at_{s}" for s in FAN2_SPEEDS),
+    "head_outlet_w_avg", "worker_outlet_w_avg",
     "pair_outlet_w_avg", "head_outlet_w_max", "worker_outlet_w_max",
     "head_wh", "worker_wh", "pair_wh", "inlet_f",
 )  # fmt: skip
@@ -485,6 +509,8 @@ def summarize(
             rec[f"{node}_wh"] = energy_wh(outlets[node], start, end)
         rec["head_fan1_rpm_avg"] = mean(col("head_fan1_rpm"))
         rec["head_fan2_rpm_avg"] = mean(col("head_fan2_rpm"))
+        for speed, secs in fan_seconds(col("head_fan2_rpm"), rec["wall_s"]).items():
+            rec[f"head_fan2_s_at_{speed}"] = round(secs, 1)
         h, w = rec["head_outlet_w_avg"], rec["worker_outlet_w_avg"]
         rec["pair_outlet_w_avg"] = h + w if h is not None and w is not None else None
         hw, ww = rec["head_wh"], rec["worker_wh"]
@@ -526,6 +552,10 @@ ARM_TABLE = (
     ("worker_gpu_w_avg", "worker GPU power average (W)", 1),
     ("head_fan1_rpm_avg", "head fan1 average (RPM)", 0),
     ("head_fan2_rpm_avg", "head fan2 average (RPM)", 0),
+    *(
+        (f"head_fan2_s_at_{s}", f"head fan at {s:,} RPM (s per run)", 0)
+        for s in reversed(FAN2_SPEEDS)
+    ),
     ("inlet_f", "inlet air at run end (°F)", 1),
 )
 
@@ -664,6 +694,11 @@ INK, INK2, MUTED = "#0b0b0b", "#52514e", "#898781"
 GRID, AXIS, SURFACE = "#e1e0d9", "#c3c2b7", "#fcfcfb"
 NODE = {"head": "#2a78d6", "worker": "#eb6834"}
 ARM_RAMP = ("#104281", "#1d5aa8", "#2f74cc", "#4d8fe0", "#7aaeea", "#a9cbf2")
+#: Fan speeds, slowest to fastest: one orange hue, darker = faster. Each
+#: segment is also named in the legend and the top speed carries a label.
+FAN_COLOR = dict(
+    zip(FAN2_SPEEDS, ("#fbd3b5", "#f5a26f", "#eb6834", "#a8401a"), strict=True)
+)
 PHASE_COLOR = {"prefill_tps": "#2a78d6", "c1_tps": "#eb6834", "c2_tps": "#1f9e74"}
 
 
@@ -928,7 +963,44 @@ def charts(
         "Heat and fans by clock cap",
     )  # fmt: skip
 
-    # 6. The curve: what each step down the clock buys and costs.
+    # 6. Fan time: minutes per run at each of the head fan's four speeds.
+    fig, ax = plt.subplots(figsize=(10, 0.55 * len(arms) + 1.8))
+    for y, arm in enumerate(arms):
+        left_edge = 0.0
+        for speed in FAN2_SPEEDS:
+            col_name = f"head_fan2_s_at_{speed}"
+            vals = [
+                float(r[col_name])
+                for r in runs
+                if r["arm"] == arm and r.get(col_name) != ""
+            ]
+            mins = sum(vals) / len(vals) / 60 if vals else 0.0
+            ax.barh(y, mins, left=left_edge, height=0.62, color=FAN_COLOR[speed],
+                    edgecolor=SURFACE, linewidth=2,
+                    label=f"{speed:,} RPM" if y == 0 else None)  # fmt: skip
+            if speed == FAN2_SPEEDS[-1] and mins >= 0.05:
+                ax.text(left_edge + mins / 2, y, f"{mins:.1f} min", ha="center",
+                        va="center", fontsize=8, color=SURFACE)  # fmt: skip
+            left_edge += mins
+        ax.text(left_edge + 0.2, y, f"{left_edge:.1f} min", va="center", fontsize=8,
+                color=INK2)  # fmt: skip
+    ax.set_yticks(range(len(arms)), [ARM_LABEL[a] for a in arms])
+    ax.invert_yaxis()
+    ax.grid(axis="y", visible=False)
+    ax.set_xlabel(
+        "minutes per run, mean of the arm's runs (cool-downs between runs not counted)"
+    )
+    ax.set_title("Head fan: time at each speed during one run of the same work")
+    ax.legend(title="fan2 speed", loc="lower right", ncol=4, fontsize=8,
+              title_fontsize=8, bbox_to_anchor=(1, 1.06))  # fmt: skip
+    xmax = ax.get_xlim()[1]
+    ax.set_xlim(0, xmax * 1.08)
+    fig.suptitle(f"{title}: fan wear by clock cap", x=0.01, ha="left",
+                 fontsize=12, fontweight="bold", color=INK)  # fmt: skip
+    fig.tight_layout()
+    save(fig, "fan_time.png")
+
+    # 7. The curve: what each step down the clock buys and costs.
     fig, (left, right) = plt.subplots(1, 2, figsize=(13, 5))
 
     def means(key: str) -> dict[str, float]:
