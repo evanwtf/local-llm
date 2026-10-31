@@ -23,6 +23,7 @@ which file holds what, and how to rebuild the tables and charts from them.
 ## Contents
 
 - [What was tested](#what-was-tested)
+- [How each sensor is read](#how-each-sensor-is-read)
 - [Results by clock cap](#results-by-clock-cap)
 - [The whole test, every sensor](#the-whole-test-every-sensor)
 - [Power, energy and time](#power-energy-and-time)
@@ -65,10 +66,67 @@ their idle temperature + 3 °C (targets 57 / 58 °C). No cool-down hit its
 900 s limit.
 
 **Sensors.** GPU clock, temperature and power on each node come from DCGM
-through Prometheus. The head node's two fans come from node_exporter; the
-worker reports no fan speed. Each node has its own smart plug, read through
-Home Assistant. The inlet air is the indoor sensor of a weather station in
-front of the cluster; it records only when its value changes.
+through Prometheus. The head node's two fans come from node_exporter through
+the `nvfanread` driver; the worker reports no fan speed. Each node has its own
+Kasa smart plug, read through Home Assistant. The inlet air is the indoor
+sensor of a weather station in front of the cluster; it records only when its
+value changes. [How each sensor is read](#how-each-sensor-is-read) has the
+detail.
+
+## How each sensor is read
+
+| sensor | source | Prometheus or Influx series | resolution here |
+|---|---|---|---|
+| SM clock, GPU temperature, GPU power | NVIDIA DCGM exporter on each node | `DCGM_FI_DEV_SM_CLOCK`, `DCGM_FI_DEV_GPU_TEMP`, `DCGM_FI_DEV_POWER_USAGE` | 15 s |
+| head fan speed | `nvfanread` driver, read by node_exporter's hwmon collector | `node_hwmon_fan_rpm{sensor="fan1"}`, `{sensor="fan2"}` | 15 s |
+| wall power, each node | one TP-Link Kasa EP25 smart plug per node, through Home Assistant into InfluxDB | entities `dgx_current_consumption`, `dgx_2_current_consumption` (unit W) | about 5 s, 0.1 W |
+| inlet air | weather-station indoor sensor, through Home Assistant into InfluxDB | entity `evan_s_pws_inside_temperature` (unit °F) | on change |
+
+**Fan speed: `nvfanread`.** The DGX Spark exposes no fan speed to the
+operating system; `sensors` shows only temperatures. The fan figures here
+come from [`nvfanread`](https://github.com/evanwtf/dgx-spark-fan-override/tree/main/nvfanread),
+a read-only kernel module in
+[evanwtf/dgx-spark-fan-override](https://github.com/evanwtf/dgx-spark-fan-override)
+(at `2b8d5c1313` when this report was written). It reads the embedded
+controller's fan tachometer telemetry through the SoC's FF-A partition
+(`arm-ffa-17`) and presents it as a standard hwmon device. node_exporter's
+hwmon collector then emits `node_hwmon_fan_rpm` with no exporter
+configuration. The module changes nothing on the fans; the same repo's
+separate `nvfancontrol` module, which can override them, was not loaded:
+the head ran only `nvfanread` from its boot on 2026-10-22 through the test,
+and the two modules cannot be bound at the same time. The fans followed the
+embedded controller's own automatic policy throughout. The module is built by DKMS and signed with a Machine
+Owner Key, because Secure Boot rejects unsigned modules. The interface is
+reverse-engineered and not an NVIDIA one; it was observed on EC firmware
+`0x3000508`.
+
+The worker node does not have the module yet
+([evanwtf/dgx-spark-fan-override#14](https://github.com/evanwtf/dgx-spark-fan-override/issues/14)),
+so this report has fan speed for the head node only.
+
+**Wall power: Kasa smart plugs.** Each node is plugged into its own TP-Link
+Kasa **EP25**, the "Kasa Smart Wi-Fi Plug Slim, Energy Monitoring" (sold as
+the four-pack EP25P4; rated 15 A, 2.4 GHz Wi-Fi, no hub;
+on Amazon: https://link.amazon/B09ZK31DY). Home Assistant's TP-Link integration
+reads each plug's present power draw and records it into InfluxDB, where
+Grafana reads it (datasource `home_assistant/autogen`, measurement `W`). The
+plugs are named "DGX 1" (the head) and "DGX 2" (the worker) in Home
+Assistant.
+
+- **What it measures:** the whole node at the wall: GPU, CPU, memory, NVMe,
+  network, fans, and the power supply's own loss. That is why the outlet
+  figures are higher than the GPU figures and fall less under a cap.
+- **Cadence:** a reading about every 5 s from each plug. Across this test the
+  largest gap between two readings was 15 s, on both plugs. The two plugs
+  report on their own clocks, so their readings do not line up in time.
+- **Resolution:** the recorded values carry 0.1 W.
+- **Energy:** Home Assistant records power, not energy, so the energy per run
+  in this report is the trapezoid integral of each plug's readings over the
+  run, summed over both plugs
+  ([`energy_wh`](../../scripts/clock_cap_evidence.py)).
+- **Not checked here:** the plugs' accuracy against a calibrated meter. All
+  arms are measured by the same two plugs, so a fixed calibration error
+  scales every arm alike and does not change the shares.
 
 ## Results by clock cap
 
