@@ -12,3 +12,8 @@
 2026-10-31T16:50:57-0400 __main__ INFO c1: 50 requests, 595.9 s, 85.9 out tok/s, 4.3 prompt tok/s
 2026-10-31T17:01:47-0400 __main__ INFO c2: 70 requests, 650.1 s, 110.3 out tok/s, 5.5 prompt tok/s
 2026-10-31T17:01:48-0400 __main__ INFO clocks set to 2200 on 2 node(s)
+2026-10-31T17:04:48-0400 __main__ INFO run 3/6: round 2, arm 2200
+2026-10-31T17:08:45-0400 __main__ INFO prefill: 20 requests, 236.6 s, 0.1 out tok/s, 1963.2 prompt tok/s
+2026-10-31T17:18:51-0400 __main__ INFO c1: 50 requests, 606.5 s, 84.4 out tok/s, 4.2 prompt tok/s
+2026-10-31T17:29:58-0400 __main__ INFO c2: 70 requests, 667.3 s, 107.4 out tok/s, 5.3 prompt tok/s
+2026-10-31T17:29:59-0400 __main__ INFO clocks set to 2500 on 2 node(s)
