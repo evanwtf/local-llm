@@ -17,6 +17,7 @@ dev = [
     "pre-commit>=3.2",
     "mypy>=2.3.1",
     "types-pyyaml>=6.0.12.20260906",
+    "matplotlib>=3.11.2",
 ]
 
 # Supply-chain cooldown: do not resolve any package published in the last 7
