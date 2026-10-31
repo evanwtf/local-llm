@@ -79,7 +79,7 @@ detail.
 |---|---|---|---|
 | SM clock, GPU temperature, GPU power | NVIDIA DCGM exporter on each node | `DCGM_FI_DEV_SM_CLOCK`, `DCGM_FI_DEV_GPU_TEMP`, `DCGM_FI_DEV_POWER_USAGE` | 15 s |
 | head fan speed | `nvfanread` driver, read by node_exporter's hwmon collector | `node_hwmon_fan_rpm{sensor="fan1"}`, `{sensor="fan2"}` | 15 s |
-| wall power, each node | one TP-Link Kasa smart plug per node, through Home Assistant into InfluxDB | entities `dgx_current_consumption`, `dgx_2_current_consumption` (unit W) | about 5 s, 0.1 W |
+| wall power, each node | one TP-Link Kasa EP25 smart plug per node, through Home Assistant into InfluxDB | entities `dgx_current_consumption`, `dgx_2_current_consumption` (unit W) | about 5 s, 0.1 W |
 | inlet air | weather-station indoor sensor, through Home Assistant into InfluxDB | entity `evan_s_pws_inside_temperature` (unit °F) | on change |
 
 **Fan speed: `nvfanread`.** The DGX Spark exposes no fan speed to the
@@ -105,7 +105,9 @@ The worker node does not have the module yet
 so this report has fan speed for the head node only.
 
 **Wall power: Kasa smart plugs.** Each node is plugged into its own TP-Link
-Kasa smart plug with energy monitoring. Home Assistant's TP-Link integration
+Kasa **EP25**, the "Kasa Smart Wi-Fi Plug Slim, Energy Monitoring" (sold as
+the four-pack EP25P4; rated 15 A, 2.4 GHz Wi-Fi, no hub;
+[product page](https://link.amazon/B09ZK31DY)). Home Assistant's TP-Link integration
 reads each plug's present power draw and records it into InfluxDB, where
 Grafana reads it (datasource `home_assistant/autogen`, measurement `W`). The
 plugs are named "DGX 1" (the head) and "DGX 2" (the worker) in Home
