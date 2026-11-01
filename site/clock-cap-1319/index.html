@@ -78,7 +78,6 @@ select { font: 500 13px Inter, sans-serif; background: var(--surface); color: va
 .dl menu button { display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--ink); padding: 8px 10px; border-radius: 6px; font: 13px Inter, sans-serif; cursor: pointer; }
 .dl menu button:hover, .dl menu button:focus { background: var(--chip); outline: none; }
 .chart { width: 100%; min-height: 360px; }
-.chart.tall { min-height: 980px; }
 .tablewrap { overflow-x: auto; margin: 10px 0; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
 th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
@@ -89,7 +88,7 @@ tr.best td { background: color-mix(in srgb, var(--good) 10%, transparent); }
 .prose { color: var(--ink2); font-size: 14px; max-width: 820px; }
 .prose li { margin: 4px 0; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } section.card { padding: 16px 12px 8px; } .chart.tall { min-height: 1100px; } }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } section.card { padding: 16px 12px 8px; } }
 footer { color: var(--muted); font-size: 13px; margin-top: 40px; }
 </style>
 </head>
@@ -134,6 +133,22 @@ footer { color: var(--muted); font-size: 13px; margin-top: 40px; }
   <div class="chart" id="fan" style="min-height:400px"></div>
 </section>
 
+<section class="card" id="heatCard">
+  <div class="cardhead">
+    <div><h2>GPU temperature by cap</h2><p>Peak and mean GPU temperature over each run, from DCGM at 15 s. Lines join the arm means; dots are runs. Peaks fall about 12 °C from uncapped to 1,900 MHz; the lower caps take a few degrees more off, while each run takes longer.</p></div>
+    <div class="tools" data-dl="heat"></div>
+  </div>
+  <div class="chart" id="heat" style="min-height:420px"></div>
+</section>
+
+<section class="card" id="heatRunCard">
+  <div class="cardhead">
+    <div><h2>Temperature through one run</h2><p>One run per cap, aligned at its start: how fast the GPU heats up, and where it levels off. The first run of each cap in the selected sessions.</p></div>
+    <div class="tools"><div class="seg" id="nodeSeg" role="group" aria-label="Node"></div><span data-dl="heatrun"></span></div>
+  </div>
+  <div class="chart" id="heatrun" style="min-height:420px"></div>
+</section>
+
 <section class="card" id="armCard">
   <div class="cardhead">
     <div><h2>Any measure, by cap</h2><p>Bars are the arm mean, dots are runs. Hover for the share of uncapped.</p></div>
@@ -150,13 +165,7 @@ footer { color: var(--muted); font-size: 13px; margin-top: 40px; }
   <div class="chart" id="tput" style="min-height:420px"></div>
 </section>
 
-<section class="card" id="timelineCard">
-  <div class="cardhead">
-    <div><h2>Every sensor, the whole test</h2><p>15 s series from DCGM and the fan reader; both wall plugs at about 5 s. Shaded bands are runs, darker = higher clock. Drag to zoom, double-click to reset.</p></div>
-    <div class="tools" data-dl="timeline"></div>
-  </div>
-  <div class="chart tall" id="timeline"></div>
-</section>
+<div id="sensorCards"></div>
 
 <section class="card" id="runsCard">
   <div class="cardhead">
@@ -331,6 +340,57 @@ function renderFan() {
   charts.fan = { csv: () => [["arm", ...FAN_SPEEDS.map((s) => `minutes_at_${s}_rpm`)], ...as.map((a) => [a, ...FAN_SPEEDS.map((s) => { const v = armMeans(rs, `head_fan2_s_at_${s}`)[a]; return v == null ? "" : (v / 60).toFixed(2); })])] };
 }
 
+// ------------------------------------------------------------------ heat --
+let HEAT_NODE = "head";
+function runWindows(s) {
+  const spans = {};
+  for (const p of s.phases) { const r = spans[p.run_id] ||= { a: p.start_utc, b: p.end_utc }; if (p.start_utc < r.a) r.a = p.start_utc; if (p.end_utc > r.b) r.b = p.end_utc; }
+  return spans;
+}
+// Each run's samples of one series column, as (seconds since run start, value).
+function runSamples(s, runId, col) {
+  const w = runWindows(s)[runId]; if (!w) return [];
+  const t0 = Date.parse(w.a), t1 = Date.parse(w.b), out = [];
+  s.series.time_utc.forEach((t, i) => { const ms = Date.parse(t), v = s.series[col][i]; if (ms >= t0 && ms <= t1 && v != null) out.push([(ms - t0) / 1000, v]); });
+  return out;
+}
+function withMeanTemps(rs) {
+  return rs.map((r) => {
+    const s = DATA.sessions.find((x) => x.label === r.session), out = { ...r };
+    for (const nd of ["head", "worker"]) { const v = runSamples(s, r.run_id, `${nd}_gpu_temp_c`).map((p) => p[1]); out[`${nd}_gpu_temp_mean`] = v.length ? mean(v) : null; }
+    return out;
+  });
+}
+function renderHeat() {
+  const rs = withMeanTemps(runs()), as = arms(), node = list("--node");
+  const specs = [["head_gpu_temp_max", "head peak", node[0], "solid"], ["worker_gpu_temp_max", "worker peak", node[1], "solid"], ["head_gpu_temp_mean", "head mean", node[0], "dot"], ["worker_gpu_temp_mean", "worker mean", node[1], "dot"]];
+  const traces = [];
+  for (const [k, name, color, dash] of specs) {
+    const m = armMeans(rs, k), pts = as.filter((a) => a in m);
+    traces.push({ mode: "lines+markers+text", name, x: pts.map(armLabel), y: pts.map((a) => m[a]), line: { color, width: 2.5, dash }, marker: { size: 9, color, line: { color: css("--surface"), width: 2 } },
+      text: pts.map((a, i) => i === pts.length - 1 ? name : ""), textposition: "middle right", textfont: { color: css("--ink2"), size: 11 }, cliponaxis: false,
+      hovertemplate: `%{x} · ${name}: %{y:.1f} °C<extra>arm mean</extra>` });
+    traces.push({ mode: "markers", name: `${name} runs`, showlegend: false, x: rs.filter((r) => r[k] != null).map((r) => armLabel(r.arm)), y: rs.filter((r) => r[k] != null).map((r) => r[k]),
+      marker: { size: 6, color, opacity: 0.45, symbol: rs.filter((r) => r[k] != null).map((r) => marker(r.session)) },
+      text: rs.filter((r) => r[k] != null).map((r) => `${r.session} round ${r.round}`), hovertemplate: `%{x} · ${name} · %{text}: %{y:.1f} °C<extra>run</extra>` });
+  }
+  Plotly.react("heat", traces, layoutBase({ xaxis: { gridcolor: "rgba(0,0,0,0)", linecolor: css("--axis"), categoryorder: "array", categoryarray: as.map(armLabel) }, yaxis: { title: "GPU temperature (°C)", gridcolor: css("--grid"), linecolor: css("--axis") }, margin: { l: 64, r: 110, t: 40, b: 56 } }), CONFIG);
+  charts.heat = { csv: () => [["session", "round", "arm", "run_id", "head_gpu_temp_max", "worker_gpu_temp_max", "head_gpu_temp_mean", "worker_gpu_temp_mean"],
+    ...rs.map((r) => [r.session, r.round, r.arm, r.run_id, r.head_gpu_temp_max, r.worker_gpu_temp_max, r.head_gpu_temp_mean?.toFixed(2), r.worker_gpu_temp_mean?.toFixed(2)])] };
+}
+function renderHeatRun() {
+  const col = `${HEAT_NODE}_gpu_temp_c`, rs = runs(), as = arms(), traces = [], rows = [["arm", "session", "run_id", "seconds_since_start", col]];
+  for (const a of as) {
+    const r = rs.filter((x) => x.arm === a).sort((x, y) => (x.start_utc > y.start_utc ? 1 : -1))[0]; if (!r) continue;
+    const s = DATA.sessions.find((x) => x.label === r.session), pts = runSamples(s, r.run_id, col);
+    pts.forEach(([t, v]) => rows.push([a, r.session, r.run_id, t.toFixed(0), v]));
+    traces.push({ mode: "lines", name: armLabel(a), x: pts.map((p) => p[0] / 60), y: pts.map((p) => p[1]), line: { color: armColor(a), width: 2.2, shape: "hv" },
+      hovertemplate: `${armLabel(a)}: %{y:.0f} °C at %{x:.1f} min<extra>${r.session}</extra>` });
+  }
+  Plotly.react("heatrun", traces, layoutBase({ xaxis: { title: "minutes since the run started", gridcolor: css("--grid"), linecolor: css("--axis") }, yaxis: { title: `${HEAT_NODE} GPU temperature (°C)`, gridcolor: css("--grid"), linecolor: css("--axis") }, hovermode: "x unified" }), CONFIG);
+  charts.heatrun = { csv: () => rows };
+}
+
 // --------------------------------------------------------------- by arm --
 function renderArm() {
   const key = document.getElementById("metricSel").value, spec = METRICS.find((m) => m[0] === key);
@@ -360,50 +420,72 @@ function renderTput() {
   charts.tput = { csv: () => [["arm", "head_sm_clock_avg", ...PHASES.map(([k]) => k), ...PHASES.map(([k]) => `${k}_pct_of_uncapped`)], ...as.map((a) => { const row = [a, clock[a]?.toFixed(0)]; const ms = PHASES.map(([k]) => armMeans(rs, k)); ms.forEach((m) => row.push(m[a]?.toFixed(1))); ms.forEach((m) => row.push(m.uncapped ? (100 * m[a] / m.uncapped).toFixed(2) : "")); return row; })] };
 }
 
-// -------------------------------------------------------------- timeline --
+// --------------------------------------------------------------- sensors --
+// One chart per sensor over the whole test. Zooming one zooms all of them.
+const SENSORS = [
+  { id: "clock", title: "SM clock", unit: "MHz", about: "The GPU's graphics clock on each node, from DCGM at 15 s. It steps to the cap and holds there; between runs it rests at the cap.",
+    lines: (nd) => [["head", "head_sm_clock_mhz", 0], ["worker", "worker_sm_clock_mhz", 1]] },
+  { id: "temp", title: "GPU temperature", unit: "°C", about: "Each node's GPU temperature, from DCGM at 15 s. The dips are the cool-downs between runs.",
+    lines: () => [["head", "head_gpu_temp_c", 0], ["worker", "worker_gpu_temp_c", 1]] },
+  { id: "gpupower", title: "GPU power", unit: "W", about: "The GPU's own power reading on each node, from DCGM at 15 s. It is a part of what the wall plug sees.",
+    lines: () => [["head", "head_gpu_power_w", 0], ["worker", "worker_gpu_power_w", 1]] },
+  { id: "outlet", title: "Wall outlet power", unit: "W", about: "Each node's whole draw at the wall, from a Kasa EP25 plug at about 5 s. Energy per run is the integral of these two lines.",
+    outlets: true },
+  { id: "fans", title: "Head node fans", unit: "RPM", about: "The head node's two fans, from nvfanread at 15 s. The controller holds four speeds; fan2 reads 4,200, 5,400, 7,300 or 10,000 RPM, with fan1 in step. The worker reports no fan speed.",
+    lines: () => [["fan1", "head_fan1_rpm", 0, "dot"], ["fan2", "head_fan2_rpm", 1]] },
+];
+let syncing = false;
+function mountSensorCards() {
+  const host = document.getElementById("sensorCards");
+  host.innerHTML = SENSORS.map((c) => `<section class="card"><div class="cardhead"><div><h2>${c.title} over the whole test</h2><p>${c.about} Shaded bands are runs, darker = higher clock. Drag to zoom (every sensor chart follows); double-click to reset.</p></div><div class="tools" data-dl="${c.id}"></div></div><div class="chart" id="${c.id}" style="min-height:340px"></div></section>`).join("");
+}
 function joinSessions(get) {
   const xs = [], ys = [];
   sessions().forEach((s, i) => { if (i) { xs.push(null); ys.push(null); } const [x, y] = get(s); xs.push(...x); ys.push(...y); });
   return [xs, ys];
 }
-function renderTimeline() {
-  const node = list("--node");
-  const panels = [["SM clock (MHz)", "sm_clock_mhz"], ["GPU temperature (°C)", "gpu_temp_c"], ["GPU power (W)", "gpu_power_w"]];
-  const n = 5, gap = 0.035, h = (1 - gap * (n - 1)) / n, dom = (i) => [1 - (i + 1) * h - i * gap, 1 - i * h - i * gap];
-  const traces = [], layout = layoutBase({ height: document.getElementById("timeline").clientHeight, hovermode: "x unified", margin: { l: 64, r: 16, t: 30, b: 40 }, legend: { orientation: "h", y: 1.03, x: 0 } });
-  const times = (s) => s.series.time_utc.map(nyTime);
-  panels.forEach(([title, key], i) => {
-    ["head", "worker"].forEach((nd, j) => {
-      const [x, y] = joinSessions((s) => [times(s), s.series[`${nd}_${key}`]]);
-      traces.push({ type: "scattergl", mode: "lines", name: nd, legendgroup: nd, showlegend: i === 0, x, y, yaxis: i ? `y${i + 1}` : "y", line: { color: node[j], width: 1.3 }, connectgaps: false, hovertemplate: `${nd} %{y:,.0f}<extra>${title}</extra>` });
-    });
-  });
-  ["head", "worker"].forEach((nd, j) => {
-    const [x, y] = joinSessions((s) => [s.outlets[nd].time_utc.map(nyTime), s.outlets[nd].watts]);
-    traces.push({ type: "scattergl", mode: "lines", name: nd, legendgroup: nd, showlegend: false, x, y, yaxis: "y4", line: { color: node[j], width: 1.1 }, connectgaps: false, hovertemplate: `${nd} %{y:,.0f} W<extra>outlet</extra>` });
-  });
-  [["head_fan1_rpm", "fan1", node[0]], ["head_fan2_rpm", "fan2", node[1]]].forEach(([k, name, c]) => {
-    const [x, y] = joinSessions((s) => [times(s), s.series[k]]);
-    traces.push({ type: "scattergl", mode: "lines", name: `head ${name}`, x, y, yaxis: "y5", line: { color: c, width: 1.3, dash: name === "fan1" ? "dot" : "solid" }, connectgaps: false, hovertemplate: `head ${name} %{y:,.0f} RPM<extra></extra>` });
-  });
-  ["SM clock (MHz)", "GPU temperature (°C)", "GPU power (W)", "Wall outlet, per node (W)", "Head fans (RPM)"].forEach((t, i) => {
-    layout[i ? `yaxis${i + 1}` : "yaxis"] = { domain: dom(i), title: { text: t, font: { size: 11 } }, gridcolor: css("--grid"), linecolor: css("--axis"), zeroline: false };
-  });
-  layout.xaxis = { type: "date", gridcolor: css("--grid"), linecolor: css("--axis"), anchor: "y5", title: "New York time" };
+function runShapes() {
   const shapes = [];
   for (const s of sessions()) {
     const spans = {};
     for (const p of s.phases) { const r = spans[p.run_id] ||= { arm: p.arm, a: p.start_utc, b: p.end_utc }; if (p.start_utc < r.a) r.a = p.start_utc; if (p.end_utc > r.b) r.b = p.end_utc; }
     for (const r of Object.values(spans)) shapes.push({ type: "rect", xref: "x", yref: "paper", x0: nyTime(r.a), x1: nyTime(r.b), y0: 0, y1: 1, fillcolor: armColor(r.arm), opacity: 0.16, line: { width: 0 }, layer: "below" });
   }
-  layout.shapes = shapes;
-  Plotly.react("timeline", traces, layout, CONFIG);
-  charts.timeline = { csv: () => {
-    const cols = ["head_sm_clock_mhz", "worker_sm_clock_mhz", "head_gpu_temp_c", "worker_gpu_temp_c", "head_gpu_power_w", "worker_gpu_power_w", "head_fan1_rpm", "head_fan2_rpm"];
-    const rows = [["session", "time_utc", "time_new_york", ...cols]];
-    for (const s of sessions()) s.series.time_utc.forEach((t, i) => rows.push([s.label, t, nyTime(t), ...cols.map((c) => s.series[c][i])]));
-    return rows;
-  } };
+  return shapes;
+}
+function renderSensors() {
+  const node = list("--node"), shapes = runShapes(), times = (s) => s.series.time_utc.map(nyTime);
+  for (const c of SENSORS) {
+    const traces = [];
+    let csv;
+    if (c.outlets) {
+      ["head", "worker"].forEach((nd, j) => {
+        const [x, y] = joinSessions((s) => [s.outlets[nd].time_utc.map(nyTime), s.outlets[nd].watts]);
+        traces.push({ type: "scattergl", mode: "lines", name: nd, x, y, line: { color: node[j], width: 1.3 }, connectgaps: false, hovertemplate: `${nd} %{y:,.0f} W<extra></extra>` });
+      });
+      csv = () => { const rows = [["session", "outlet", "time_utc", "time_new_york", "watts"]]; for (const s of sessions()) for (const nd of ["head", "worker"]) s.outlets[nd].time_utc.forEach((t, i) => rows.push([s.label, nd, t, nyTime(t), s.outlets[nd].watts[i]])); return rows; };
+    } else {
+      const lines = c.lines();
+      for (const [name, col, j, dash] of lines) {
+        const [x, y] = joinSessions((s) => [times(s), s.series[col]]);
+        traces.push({ type: "scattergl", mode: "lines", name, x, y, line: { color: node[j], width: 1.5, dash: dash || "solid" }, connectgaps: false, hovertemplate: `${name} %{y:,.0f} ${c.unit}<extra></extra>` });
+      }
+      csv = () => { const rows = [["session", "time_utc", "time_new_york", ...lines.map((l) => l[1])]]; for (const s of sessions()) s.series.time_utc.forEach((t, i) => rows.push([s.label, t, nyTime(t), ...lines.map((l) => s.series[l[1]][i])])); return rows; };
+    }
+    const el = document.getElementById(c.id);
+    Plotly.react(el, traces, layoutBase({ hovermode: "x unified", shapes, xaxis: { type: "date", title: "New York time", gridcolor: css("--grid"), linecolor: css("--axis") }, yaxis: { title: `${c.title} (${c.unit})`, gridcolor: css("--grid"), linecolor: css("--axis") }, margin: { l: 64, r: 16, t: 36, b: 48 } }), CONFIG);
+    charts[c.id] = { csv };
+    if (!el.dataset.synced) {
+      el.dataset.synced = "1";
+      el.on("plotly_relayout", (ev) => {
+        if (syncing) return;
+        const range = ev["xaxis.range[0]"] ? { "xaxis.range[0]": ev["xaxis.range[0]"], "xaxis.range[1]": ev["xaxis.range[1]"] } : ev["xaxis.autorange"] ? { "xaxis.autorange": true } : null;
+        if (!range) return;
+        syncing = true;
+        Promise.all(SENSORS.filter((o) => o.id !== c.id).map((o) => Plotly.relayout(o.id, range))).finally(() => { syncing = false; });
+      });
+    }
+  }
 }
 
 // ------------------------------------------------------------------ runs --
@@ -421,7 +503,7 @@ function renderRuns() {
 // ------------------------------------------------------------------ main --
 function renderAll() {
   document.getElementById("poolNote").hidden = VIEW !== "all";
-  renderTiles(); renderCurve(); renderFan(); renderArm(); renderTput(); renderTimeline(); renderRuns();
+  renderTiles(); renderCurve(); renderFan(); renderHeat(); renderHeatRun(); renderArm(); renderTput(); renderSensors(); renderRuns();
 }
 function mountControls() {
   const seg = document.getElementById("sessionSeg");
@@ -432,6 +514,13 @@ function mountControls() {
     b.setAttribute("aria-pressed", String(v === VIEW));
     b.addEventListener("click", () => { VIEW = v; seg.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); renderAll(); });
     seg.append(b);
+  }
+  const nodeSeg = document.getElementById("nodeSeg");
+  for (const nd of ["head", "worker"]) {
+    const b = Object.assign(document.createElement("button"), { type: "button", textContent: nd });
+    b.setAttribute("aria-pressed", String(nd === HEAT_NODE));
+    b.addEventListener("click", () => { HEAT_NODE = nd; nodeSeg.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); renderHeatRun(); });
+    nodeSeg.append(b);
   }
   const sel = document.getElementById("metricSel");
   sel.innerHTML = METRICS.map(([k, l, u]) => `<option value="${k}">${l} (${u})</option>`).join("");
@@ -445,6 +534,7 @@ function mountControls() {
   });
   try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+  mountSensorCards();
   mountDownloads();
 }
 fetch("data.json").then((r) => r.json()).then((d) => { DATA = d; mountControls(); renderAll(); })
