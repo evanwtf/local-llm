@@ -4341,6 +4341,8 @@ context_tokens = 262144
 topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/miaai-tf-glm"
+recipe_pin = "3fd60df"
+recipe_pin_reason = "the fastest pick on the two-Spark page (#1095) was measured at 3fd60df (TensorFold v0.6.0 + 107 patches, image tensorfold-glm53:v0.6.0-e66c657a433d); #1337 reruns it as pinned under the 1,900 MHz cap. Later commits move to a 123-patch image and are a new series"
 
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]
