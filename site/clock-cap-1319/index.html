@@ -134,6 +134,22 @@ footer { color: var(--muted); font-size: 13px; margin-top: 40px; }
   <div class="chart" id="fan" style="min-height:400px"></div>
 </section>
 
+<section class="card" id="heatCard">
+  <div class="cardhead">
+    <div><h2>GPU temperature by cap</h2><p>Peak and mean GPU temperature over each run, from DCGM at 15 s. Lines join the arm means; dots are runs. Peaks fall about 12 °C from uncapped to 1,900 MHz; the lower caps take a few degrees more off, while each run takes longer.</p></div>
+    <div class="tools" data-dl="heat"></div>
+  </div>
+  <div class="chart" id="heat" style="min-height:420px"></div>
+</section>
+
+<section class="card" id="heatRunCard">
+  <div class="cardhead">
+    <div><h2>Temperature through one run</h2><p>One run per cap, aligned at its start: how fast the GPU heats up, and where it levels off. The first run of each cap in the selected sessions.</p></div>
+    <div class="tools"><div class="seg" id="nodeSeg" role="group" aria-label="Node"></div><span data-dl="heatrun"></span></div>
+  </div>
+  <div class="chart" id="heatrun" style="min-height:420px"></div>
+</section>
+
 <section class="card" id="armCard">
   <div class="cardhead">
     <div><h2>Any measure, by cap</h2><p>Bars are the arm mean, dots are runs. Hover for the share of uncapped.</p></div>
@@ -331,6 +347,57 @@ function renderFan() {
   charts.fan = { csv: () => [["arm", ...FAN_SPEEDS.map((s) => `minutes_at_${s}_rpm`)], ...as.map((a) => [a, ...FAN_SPEEDS.map((s) => { const v = armMeans(rs, `head_fan2_s_at_${s}`)[a]; return v == null ? "" : (v / 60).toFixed(2); })])] };
 }
 
+// ------------------------------------------------------------------ heat --
+let HEAT_NODE = "head";
+function runWindows(s) {
+  const spans = {};
+  for (const p of s.phases) { const r = spans[p.run_id] ||= { a: p.start_utc, b: p.end_utc }; if (p.start_utc < r.a) r.a = p.start_utc; if (p.end_utc > r.b) r.b = p.end_utc; }
+  return spans;
+}
+// Each run's samples of one series column, as (seconds since run start, value).
+function runSamples(s, runId, col) {
+  const w = runWindows(s)[runId]; if (!w) return [];
+  const t0 = Date.parse(w.a), t1 = Date.parse(w.b), out = [];
+  s.series.time_utc.forEach((t, i) => { const ms = Date.parse(t), v = s.series[col][i]; if (ms >= t0 && ms <= t1 && v != null) out.push([(ms - t0) / 1000, v]); });
+  return out;
+}
+function withMeanTemps(rs) {
+  return rs.map((r) => {
+    const s = DATA.sessions.find((x) => x.label === r.session), out = { ...r };
+    for (const nd of ["head", "worker"]) { const v = runSamples(s, r.run_id, `${nd}_gpu_temp_c`).map((p) => p[1]); out[`${nd}_gpu_temp_mean`] = v.length ? mean(v) : null; }
+    return out;
+  });
+}
+function renderHeat() {
+  const rs = withMeanTemps(runs()), as = arms(), node = list("--node");
+  const specs = [["head_gpu_temp_max", "head peak", node[0], "solid"], ["worker_gpu_temp_max", "worker peak", node[1], "solid"], ["head_gpu_temp_mean", "head mean", node[0], "dot"], ["worker_gpu_temp_mean", "worker mean", node[1], "dot"]];
+  const traces = [];
+  for (const [k, name, color, dash] of specs) {
+    const m = armMeans(rs, k), pts = as.filter((a) => a in m);
+    traces.push({ mode: "lines+markers+text", name, x: pts.map(armLabel), y: pts.map((a) => m[a]), line: { color, width: 2.5, dash }, marker: { size: 9, color, line: { color: css("--surface"), width: 2 } },
+      text: pts.map((a, i) => i === pts.length - 1 ? name : ""), textposition: "middle right", textfont: { color: css("--ink2"), size: 11 }, cliponaxis: false,
+      hovertemplate: `%{x} · ${name}: %{y:.1f} °C<extra>arm mean</extra>` });
+    traces.push({ mode: "markers", name: `${name} runs`, showlegend: false, x: rs.filter((r) => r[k] != null).map((r) => armLabel(r.arm)), y: rs.filter((r) => r[k] != null).map((r) => r[k]),
+      marker: { size: 6, color, opacity: 0.45, symbol: rs.filter((r) => r[k] != null).map((r) => marker(r.session)) },
+      text: rs.filter((r) => r[k] != null).map((r) => `${r.session} round ${r.round}`), hovertemplate: `%{x} · ${name} · %{text}: %{y:.1f} °C<extra>run</extra>` });
+  }
+  Plotly.react("heat", traces, layoutBase({ xaxis: { gridcolor: "rgba(0,0,0,0)", linecolor: css("--axis"), categoryorder: "array", categoryarray: as.map(armLabel) }, yaxis: { title: "GPU temperature (°C)", gridcolor: css("--grid"), linecolor: css("--axis") }, margin: { l: 64, r: 110, t: 40, b: 56 } }), CONFIG);
+  charts.heat = { csv: () => [["session", "round", "arm", "run_id", "head_gpu_temp_max", "worker_gpu_temp_max", "head_gpu_temp_mean", "worker_gpu_temp_mean"],
+    ...rs.map((r) => [r.session, r.round, r.arm, r.run_id, r.head_gpu_temp_max, r.worker_gpu_temp_max, r.head_gpu_temp_mean?.toFixed(2), r.worker_gpu_temp_mean?.toFixed(2)])] };
+}
+function renderHeatRun() {
+  const col = `${HEAT_NODE}_gpu_temp_c`, rs = runs(), as = arms(), traces = [], rows = [["arm", "session", "run_id", "seconds_since_start", col]];
+  for (const a of as) {
+    const r = rs.filter((x) => x.arm === a).sort((x, y) => (x.start_utc > y.start_utc ? 1 : -1))[0]; if (!r) continue;
+    const s = DATA.sessions.find((x) => x.label === r.session), pts = runSamples(s, r.run_id, col);
+    pts.forEach(([t, v]) => rows.push([a, r.session, r.run_id, t.toFixed(0), v]));
+    traces.push({ mode: "lines", name: armLabel(a), x: pts.map((p) => p[0] / 60), y: pts.map((p) => p[1]), line: { color: armColor(a), width: 2.2, shape: "hv" },
+      hovertemplate: `${armLabel(a)}: %{y:.0f} °C at %{x:.1f} min<extra>${r.session}</extra>` });
+  }
+  Plotly.react("heatrun", traces, layoutBase({ xaxis: { title: "minutes since the run started", gridcolor: css("--grid"), linecolor: css("--axis") }, yaxis: { title: `${HEAT_NODE} GPU temperature (°C)`, gridcolor: css("--grid"), linecolor: css("--axis") }, hovermode: "x unified" }), CONFIG);
+  charts.heatrun = { csv: () => rows };
+}
+
 // --------------------------------------------------------------- by arm --
 function renderArm() {
   const key = document.getElementById("metricSel").value, spec = METRICS.find((m) => m[0] === key);
@@ -421,7 +488,7 @@ function renderRuns() {
 // ------------------------------------------------------------------ main --
 function renderAll() {
   document.getElementById("poolNote").hidden = VIEW !== "all";
-  renderTiles(); renderCurve(); renderFan(); renderArm(); renderTput(); renderTimeline(); renderRuns();
+  renderTiles(); renderCurve(); renderFan(); renderHeat(); renderHeatRun(); renderArm(); renderTput(); renderTimeline(); renderRuns();
 }
 function mountControls() {
   const seg = document.getElementById("sessionSeg");
@@ -432,6 +499,13 @@ function mountControls() {
     b.setAttribute("aria-pressed", String(v === VIEW));
     b.addEventListener("click", () => { VIEW = v; seg.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); renderAll(); });
     seg.append(b);
+  }
+  const nodeSeg = document.getElementById("nodeSeg");
+  for (const nd of ["head", "worker"]) {
+    const b = Object.assign(document.createElement("button"), { type: "button", textContent: nd });
+    b.setAttribute("aria-pressed", String(nd === HEAT_NODE));
+    b.addEventListener("click", () => { HEAT_NODE = nd; nodeSeg.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); renderHeatRun(); });
+    nodeSeg.append(b);
   }
   const sel = document.getElementById("metricSel");
   sel.innerHTML = METRICS.map(([k, l, u]) => `<option value="${k}">${l} (${u})</option>`).join("");
