@@ -152,9 +152,13 @@ vLLM `6e517b15` for sm_121, exllamav3 1.6.0 and its patch series. Its
    cd ~/dsv41_recipe
    HEAD=<head-node> WORKER=<worker-node> PORT=8888 SERVED=DeepSeek-V4.1-Flash-1017-EXL3 \
      MODEL_DIR=$HOME/models/dsv41-1017-exl3 \
-     EXTRA='--default-chat-template-kwargs {"reasoning_effort":"low"}' \
+     EXTRA="--default-chat-template-kwargs '{\"reasoning_effort\":\"low\"}'" \
      ./scripts/launch/dsv41_tp2.sh up
    ```
+
+   The launcher writes `EXTRA` verbatim into the container's bash script, so
+   the JSON needs its own single quotes inside the value. Without them, vLLM
+   exits with `invalid loads value: '{reasoning_effort:low}'` (#1336).
 
    The first boot took 537 s. The launcher drops the page cache with
    `sudo -n`; without passwordless `sudo` it prints a warning and goes on.
