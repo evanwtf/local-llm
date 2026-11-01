@@ -6,8 +6,9 @@ It names the model and server to run, gives the commands, and shows the tests
 behind each choice. With one Spark, read
 [the single-Spark page](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md).
 
-**The results are from 2026-10-19 to 2026-10-26.** Each row in section 2 gives
-its own dates. Models and servers change every week, so a row more than a few
+**The results are from 2026-10-19 to 2026-10-26**, and the standard sets at
+the 1,900 MHz clock cap from 2026-11-01. Each row in section 2 gives its own
+dates. Models and servers change every week, so a row more than a few
 weeks old may be out of date.
 
 ---
@@ -99,18 +100,26 @@ Each row answers one need. "Replay + hard" is 14 tasks × 3 trials. Times are
 the sum of task medians; a percentage compares it with the best all-around
 choice.
 
-| choose this if | model and server | tested | replay + hard | hidden tests passed | standard set |
-|---|---|---|---|---|---|
-| **you want the best all-around agent** | DeepSeek-V4.1-Flash-1017, EXL3 2.7 bpw ([0xSero][w-sero1017]), on vLLM + ExLlamaV3 ([sudoingX recipe][r-sudoingx] @`cc59c360`) · [#1160][i1160] | 2026-10-19 to 10-26, 3 runs | **41/41**, 4,782.4 s | **369 of 380 (97.1%)**; 17 of 20 tasks whole | 30/30, 504.4 s |
-| **you want the fastest agent, and your tests cover the job** | GLM-5.3-Flash, EXL3 4 bpw ([Mia-AiLab][w-tfq]), on TensorFold v0.6.0 ([MiaAI-Lab recipe][r-tf-mia]) · [#1095][i1095] | 2026-10-19; standard set again 2026-10-24 | 42/42, 4,358.7 s (91.1%) | 284 of 390 (72.8%); 1 of 21 tasks whole | 30/30, **266.6 s (52.9%)** |
-| **hidden tests matter most, and you can retry a stalled task** | DeepSeek-V4.1-Flash-1017, EXL3-EAQ-v1 2.9 bpw ([Mia-AiLab][w-eaq1017]), on TensorFold ([MiaAI-Lab recipe][r-dsv41-1017-mia]) · [#1168][i1168] | 2026-10-19; again 2026-10-25 | 38/42, 6,226.4 s (130.2%) | **361 of 361 (100.0%)**; 19 of 21 tasks whole | 10/10, 660.4 s, stopped early |
-| **you need image input** | DeepSeek-V4-Flash-Vision-Exp on vLLM ([MiaAI-Lab recipe][r-dsv4v]) · [#1097][i1097] | 2026-10-24 | not run | — | 10/10, 871.2 s (332.0% of GLM's 262.4 s that day), stopped early |
-| **you have one Spark** | [the single-Spark page](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) | | | | |
+| choose this if | model and server | tested | replay + hard | hidden tests passed | standard set | standard set at 1,900 MHz |
+|---|---|---|---|---|---|---|
+| **you want the best all-around agent** | DeepSeek-V4.1-Flash-1017, EXL3 2.7 bpw ([0xSero][w-sero1017]), on vLLM + ExLlamaV3 ([sudoingX recipe][r-sudoingx] @`cc59c360`) · [#1160][i1160] | 2026-10-19 to 10-26, 3 runs | **41/41**, 4,782.4 s | **369 of 380 (97.1%)**; 17 of 20 tasks whole | 30/30, 504.4 s | 10/10, 545.1 s, stopped early |
+| **you want the fastest agent, and your tests cover the job** | GLM-5.3-Flash, EXL3 4 bpw ([Mia-AiLab][w-tfq]), on TensorFold v0.6.0 ([MiaAI-Lab recipe][r-tf-mia]) · [#1095][i1095] | 2026-10-19; standard set again 2026-10-24 | 42/42, 4,358.7 s (91.1%) | 284 of 390 (72.8%); 1 of 21 tasks whole | 30/30, **266.6 s (52.9%)** | 30/30, **256.6 s** |
+| **hidden tests matter most, and you can retry a stalled task** | DeepSeek-V4.1-Flash-1017, EXL3-EAQ-v1 2.9 bpw ([Mia-AiLab][w-eaq1017]), on TensorFold ([MiaAI-Lab recipe][r-dsv41-1017-mia]) · [#1168][i1168] | 2026-10-19; again 2026-10-25 | 38/42, 6,226.4 s (130.2%) | **361 of 361 (100.0%)**; 19 of 21 tasks whole | 10/10, 660.4 s, stopped early | 10/10, 641.6 s, stopped early |
+| **you need image input** | DeepSeek-V4-Flash-Vision-Exp on vLLM ([MiaAI-Lab recipe][r-dsv4v]) · [#1097][i1097] | 2026-10-24 | not run | — | 10/10, 871.2 s (332.0% of GLM's 262.4 s that day), stopped early | 10/10, 970.0 s, stopped early |
+| **you have one Spark** | [the single-Spark page](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) | | | | | |
 
 "Tasks whole" counts hard tasks where every hidden test passed. **Context:**
 the best all-around choice serves 262,144 tokens. DeepSeek on TensorFold
 serves up to 1,048,576, but the agent sent at most 262,144, so we have not
 measured long context. Only the vision row takes images.
+
+**The 1,900 MHz cap.** Since 2026-10-31 both Sparks cap the GPU clock at
+1,900 MHz ([#1319][i1319]). On 2026-11-01 we ran each standard set again
+under the cap ([#1334][i1334]). Every trial passed, and the order did not
+change. GLM lost no time. The two DeepSeek-1017 rows took up to about 10%
+longer, and the vision row 11% to 22% longer. Three rows stopped after one
+round, and one round of the same stack can vary by 15%, so treat those
+three as rough.
 
 ---
 
@@ -200,6 +209,8 @@ fails CI past that, and its docstring says where new evidence goes.
 [i1142]: https://github.com/evanwtf/local-llm/issues/1142
 [i1160]: https://github.com/evanwtf/local-llm/issues/1160
 [i1168]: https://github.com/evanwtf/local-llm/issues/1168
+[i1319]: https://github.com/evanwtf/local-llm/issues/1319
+[i1334]: https://github.com/evanwtf/local-llm/issues/1334
 [i1177]: https://github.com/evanwtf/local-llm/issues/1177
 [i1231]: https://github.com/evanwtf/local-llm/issues/1231
 [i1244]: https://github.com/evanwtf/local-llm/issues/1244
