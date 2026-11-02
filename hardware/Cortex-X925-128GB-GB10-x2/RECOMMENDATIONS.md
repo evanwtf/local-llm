@@ -121,6 +121,11 @@ longer, and the vision row 11% to 22% longer. Three rows stopped after one
 round, and one round of the same stack can vary by 15%, so treat those
 three as rough.
 
+The best all-around choice also ran replay + hard under the cap
+([#1348][i1348]): 42/42, 4,135.6 s, and 386 of 390 hidden tests (99.0%),
+with 20 of 21 tasks whole. Its three uncapped runs took 4,098.8 s to
+4,782.4 s, so the cap cost it no measurable time.
+
 ---
 
 ## 3. Why this order
@@ -211,6 +216,7 @@ fails CI past that, and its docstring says where new evidence goes.
 [i1168]: https://github.com/evanwtf/local-llm/issues/1168
 [i1319]: https://github.com/evanwtf/local-llm/issues/1319
 [i1334]: https://github.com/evanwtf/local-llm/issues/1334
+[i1348]: https://github.com/evanwtf/local-llm/issues/1348
 [i1177]: https://github.com/evanwtf/local-llm/issues/1177
 [i1231]: https://github.com/evanwtf/local-llm/issues/1231
 [i1244]: https://github.com/evanwtf/local-llm/issues/1244
