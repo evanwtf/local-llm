@@ -5263,3 +5263,23 @@ topology = "remote"
 image = "vllm-ripple:pr65745-d53dfbc2c7"
 image_source = "local"
 recipe_dir = "~/vllm-pr65745/src"
+
+# #1357: the DFlash2 arm. The same build, weights and settings as ripple65bnvfp4vllmprdual2x, plus
+# Ricursive's DFlash2 drafter with the PR recipe's speculative config.
+[backend.ripple65bnvfp4dflash2vllmprdual2x]
+description = "#1357: Ricursive Ripple-65B Preview NVFP4 (@99eea4477a) + Ricursive's DFlash2 drafter (ricursiveAI/Ripple-65B-Preview-DFlash2 @35609b3be3, 4.04B BF16, 7 speculative tokens: the PR recipe's --speculative-config method dflash) on BOTH Sparks, tensor parallel 2 (scripts/vllm_two_node.py). Image vllm-ripple:pr65745-d53dfbc2c7 (nightly a2bcb5657a + PR #65745's Python tree at d53dfbc2c7), built locally. Otherwise the no-draft arm's settings: ripple reasoning and tool parsers, --max-model-len 262144, GMU 0.8. reasoning_effort low sent per request by the client; REMOTE CLIENT"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "ripple-65b-dflash2"
+active_params_b = 65
+aider_model = "openai/ripple-65b-dflash2"
+opencode_model = "vllm8888/ripple-65b-dflash2"
+context_tokens = 262144
+topology = "remote"
+speculative = "DFlash2, Ricursive's drafter, 7 speculative tokens"
+draft_engine = "vllm"
+image = "vllm-ripple:pr65745-d53dfbc2c7"
+image_source = "local"
+recipe_dir = "~/vllm-pr65745/src"

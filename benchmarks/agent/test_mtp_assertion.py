@@ -230,6 +230,8 @@ def test_the_mtp_arms_declare_themselves():
         "nemotron35supervldflashnothinkrcdgx": "vllm",
         # #1231: the same drafter with the model split over both Sparks.
         "nemotron35supervldflashnothinkdual2xv032": "vllm",
+        # #1357: Ripple-65B with Ricursive's DFlash2 drafter on a vLLM PR build, both Sparks.
+        "ripple65bnvfp4dflash2vllmprdual2x": "vllm",
         # #1108: FP4-Local with its checkpoint MTP head, both thinking modes.
         "qwen38fnfp4localrcdgx": "vllm",
         "qwen38fnfp4localnothinkrcdgx": "vllm",
