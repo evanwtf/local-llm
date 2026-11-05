@@ -722,3 +722,26 @@ def test_the_recipe_record_reaches_the_row_env():
     recipe = {"commit": "cc59c36", "state": "pinned", "upstream": "f8f20b3"}
     facts = {"directory": "srv", "env": {"recipe": recipe}, "facts": {}}
     assert remote.stamp({}, facts)["recipe"] == recipe
+
+
+def test_a_locally_built_image_is_checked_through_its_recipe_not_a_registry(tmp_path):
+    """#1357: an image built here from a checkout (a vLLM PR build) has no
+    registry, so `image_item` could only say unknown and refuse. With
+    `image_source = "local"` the checkout it was built from is the currency."""
+    (tmp_path / ".git").mkdir()
+    backend = {
+        "engine": "vllm",
+        "image": "vllm-ripple:pr65745-d53dfbc2c7",
+        "image_source": "local",
+        "recipe_dir": str(tmp_path),
+    }
+    items = currency.backend_items(backend, recipe_runner("0"))
+    assert [i.name for i in items] == [f"recipe {tmp_path}"]
+    assert items[0].state == "current"
+
+
+def test_a_locally_built_image_without_its_recipe_refuses():
+    """No checkout means nothing says the image is current: refuse."""
+    backend = {"engine": "vllm", "image": "x:local", "image_source": "local"}
+    with pytest.raises(ValueError, match="recipe_dir"):
+        currency.backend_items(backend, recipe_runner("0"))
