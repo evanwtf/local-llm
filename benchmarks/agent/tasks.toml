@@ -5259,3 +5259,6 @@ context_tokens = 262144
 topology = "remote"
 # No `image` key: the image is built locally (no registry), so the currency check cannot read it;
 # run.py records vllm_image from the running container (as #896's locally built spark-glm53:v9).
+# recipe_dir is the PR checkout (mgoin/vllm), whose origin/HEAD is the PR branch, so currency
+# flags a new PR commit; the image is rebuilt from it when the PR moves.
+recipe_dir = "~/vllm-pr65745/src"
