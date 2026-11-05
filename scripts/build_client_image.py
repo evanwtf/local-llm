@@ -35,7 +35,7 @@ CONTEXT = REPO / "docker" / "opencode-client"
 #: test failure rather than a surprise at build time.
 PINS = {
     "opencode": "2.2.5",
-    "uv": "0.13.6",
+    "uv": "0.13.7",
     "python": "3.14.10",
     # #968: on PATH, so OpenCode's grep and glob never unpack their own.
     "ripgrep": "15.2.0",
