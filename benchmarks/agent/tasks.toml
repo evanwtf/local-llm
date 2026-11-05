@@ -5241,3 +5241,20 @@ recipe_dir = "~/minimax_m31_recipe"
 # attention switches) waits on its own approval.
 recipe_pin = "7d7c8ef"
 recipe_pin_reason = "the approved recipe commit 7ff046b8 plus two local commits: heat checks off (operator, 2026-10-26) and reasoning effort low server-side; upstream b6e5e82 is not yet approved"
+
+# #1357 (operator 2026-11-05: "Test vllm head after mia"): Ripple-65B Preview, a new dense 65B
+# architecture (RicursiveForCausalLM) that no vLLM release supports yet; served from a build of
+# vllm-project/vllm PR #65745. The no-draft arm; DFlash2 is its own arm.
+[backend.ripple65bnvfp4vllmprdual2x]
+description = "#1357: Ricursive Ripple-65B Preview NVFP4 (ricursiveAI/Ripple-65B-Preview-NVFP4 @99eea4477a: ModelOpt NVFP4 MLPs, BF16 attention) on BOTH Sparks: tensor parallel 2 over the ConnectX fabric (scripts/vllm_two_node.py: mp executor, --nnodes 2, NCCL on all four fabric paths). Image vllm-ripple:pr65745-d53dfbc2c7, built locally: vllm/vllm-openai:nightly-a2bcb5657a (arm64) with the Python tree of vllm-project/vllm PR #65745 at d53dfbc2c7 copied over the package (the only non-Python changes between the two are the DeepGEMM pin and a zentorch extra, neither used on GB10). The PR recipe's parsers: --reasoning-parser ripple, --enable-auto-tool-choice --tool-call-parser ripple; --max-model-len 262144, GMU 0.8, otherwise vLLM defaults; no speculative decoding. reasoning_effort low sent per request by the client; REMOTE CLIENT"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "ripple-65b"
+active_params_b = 65
+aider_model = "openai/ripple-65b"
+opencode_model = "vllm8888/ripple-65b"
+context_tokens = 262144
+topology = "remote"
+image = "vllm-ripple:pr65745-d53dfbc2c7"
