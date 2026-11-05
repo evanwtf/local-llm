@@ -5257,4 +5257,5 @@ aider_model = "openai/ripple-65b"
 opencode_model = "vllm8888/ripple-65b"
 context_tokens = 262144
 topology = "remote"
-image = "vllm-ripple:pr65745-d53dfbc2c7"
+# No `image` key: the image is built locally (no registry), so the currency check cannot read it;
+# run.py records vllm_image from the running container (as #896's locally built spark-glm53:v9).
