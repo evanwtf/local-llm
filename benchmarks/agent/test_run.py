@@ -2739,6 +2739,29 @@ def test_a_zig_tensorfold_build_is_read_from_its_image_label(monkeypatch):
     assert got["tensorfold"] == "zig@2dcce0303451"
 
 
+def test_a_zig_build_is_read_from_the_tf_ref_label(monkeypatch):
+    """#1358: MiaAI's 1104 recipe stamps the engine commit as `tf.ref`, not
+    `org.tensorfold.zig-commit`, so its rows would say tensorfold_version=unknown."""
+    containers = [("tfz", "tensorfold-glm53-spark:74e19a63a9a5", _TF_ZIG_CMD)]
+    labels = (
+        '{"tf.engine":"zig","tf.patches":"74e19a63a9a5",'
+        '"tf.ref":"f350cd3ea253a042e205746928271f9d8f71a82d"}\n'
+    )
+
+    def fake_run(argv, **kw):
+        if argv[:2] == ["docker", "exec"]:
+            return subprocess.CompletedProcess(argv, 1, stdout="", stderr="no module")
+        if "{{json .Config.Labels}}" in argv:
+            return subprocess.CompletedProcess(argv, 0, stdout=labels)
+        return subprocess.CompletedProcess(argv, 0, stdout="{}")
+
+    monkeypatch.setattr(run.subprocess, "run", fake_run)
+    got = run.serving_tensorfold(
+        {"DeepSeek-V4.1-Flash-TF"}, inspect_all=lambda: containers
+    )
+    assert got["tensorfold"] == "zig@f350cd3ea253"
+
+
 def test_a_zig_image_without_the_label_stays_unknown(monkeypatch):
     """No label is no version: the row must say unknown, never a guess."""
     containers = [("tfz", "tensorfold-dsv41-zig:local", _TF_ZIG_CMD)]
