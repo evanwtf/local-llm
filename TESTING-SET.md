@@ -145,6 +145,7 @@ Every live backend in `tasks.toml`, by machine. A `retired` note in
 | `mimov26flashrlexl3tfdflashdual2x` | #1032: MiMo-V2.6-Flash-RL EXL3 3.0 bpw + DFlash, TensorFold python-0.6, both Sparks (TP=2), remote client | TensorFold | 114 GB |
 | `glm53fexl3tfnative113dual2x` | #1095: GLM-5.3-Flash EXL3 4bpw TF quant on stock TensorFold native 1.1.3, both Sparks, remote client | TensorFold | 164 GB |
 | `glm53fexl3tfmiaai1104dual2x` | #1358: GLM-5.3-Flash EXL3 4bpw TF quant on MiaAI's 1104 recipe (TensorFold native Zig f350cd3e + 105 patches), both Sparks, remote client | TensorFold | 164 GB |
+| `glm53fexl3tfmiaai1104p4dual2x` | #1358 arm B: the 1104 recipe at 4 streams and a 262K window (the control's shape), both Sparks, remote client | TensorFold | 164 GB |
 | `ripple65bnvfp4vllmprdual2x` | #1357: Ripple-65B Preview NVFP4 (Ricursive, 65B dense) on a vLLM PR #65745 build, both Sparks, remote client | vLLM | 53 GB |
 | `ripple65bnvfp4dflash2vllmprdual2x` | #1357: Ripple-65B Preview NVFP4 + DFlash2 drafter on a vLLM PR #65745 build, both Sparks, remote client | vLLM | 61 GB |
 | `glm53ffp4localdual2xrc` | NVIDIA's first-party QAD FP4 GLM-5.3-Flash across two Sparks, eugr recipe glm-5.3-flash.yaml @0bdc9c9 with GMU 0.79 (memory floor), thinking on like C1, remote client (#1128) | vLLM TP=2 in eugr/spark-vllm-b12x | 165.3 GiB |
