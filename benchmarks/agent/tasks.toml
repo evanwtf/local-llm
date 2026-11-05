@@ -4360,6 +4360,23 @@ topology = "remote"
 smoke_protocol = "openai"
 engine_tree = "~/tensorfold-native/tensorfold-1.1.3-linux-aarch64"
 
+# #1358 (operator-approved 2026-11-05): MiaAI's new 1104 recipe, the native Zig engine on the pick's own weights.
+# Its control is glm53fexl3tfqmiaai20261010dual2xrc (same weights, older Python-engine recipe, #1337 capped).
+[backend.glm53fexl3tfmiaai1104dual2x]
+description = "#1358: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the pick's weights) across TWO DGX Sparks via MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104 @94b72f5 (a new recipe, not a commit to the #892 one): TensorFold native Zig engine (ashhart/TensorFold f350cd3e + 105 MiaAI patches, Zig 0.17.0, sm_121), image built locally, tagged tensorfold-glm53-spark:74e19a63a9a5. TP2, one rank per Spark, RoCE all-gather over the cable. The recipe's served-pair settings: 8 requests, CONTEXT=auto (up to 1,048,576), fp8 KV on shared pages, q8 dense and head, ABSORB_MMA=1, MEMORY_RESERVE_GIB=9.5, DFlash2 drafts at 4 bits (incoai bf582e4e). THINKING=1 and reasoning_effort low as a server default, for parity with the control (whose recipe thinks by default); the client also sends low per request. Served as GLM-5.3-Flash-EXL3 on :8888. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768 (the recipe's MAX_TOKENS)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "GLM-5.3-Flash-EXL3"
+active_params_b = 18
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "tfmia8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/miaai-glm-1104"
+
 # #1032 (operator-approved 2026-10-24): the speed candidate from the 2026-10-24 two-Spark sweep.
 [backend.mimov26flashrlexl3tfdflashdual2x]
 description = "#1032: Xiaomi MiMo-V2.6-Flash-RL (309B MoE, 15B active) EXL3 3.0 bpw (ajensenwaud/MiMo-V2.6-Flash-RL-exl3-3.0bpw @139d9a4e1e; the same 34 weight files as the recipe pin f2d8d10010) across TWO DGX Sparks, tensor parallel 2, via ajensenwaud/MiMo-V2.6-2x-DGX-Spark-TensorFold @a6292a2f92: TensorFold python-0.6 @ed78d6f + 30 patches, exllamav3 1.6.0, image built locally (mimo-tf:4df8c51482). Recipe defaults: DFlash drafter on (the pack's, 8-token blocks), 4 streams, context sized from free memory; only local overrides are the worker, the fabric addresses, the model path, and NCCL named on all four fabric paths; REMOTE CLIENT"
