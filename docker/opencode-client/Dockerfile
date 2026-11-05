@@ -23,7 +23,7 @@ FROM ubuntu:26.04
 
 # Pins. Every one of these is a variable a row would otherwise carry silently.
 ARG OPENCODE_VERSION=2.2.5
-ARG UV_VERSION=0.13.6
+ARG UV_VERSION=0.13.7
 # The interpreter uv hands the trial's venv. Pinned so the same target commit
 # resolves the same Python on every client.
 ARG PYTHON_VERSION=3.14.10
