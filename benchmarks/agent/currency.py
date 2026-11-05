@@ -588,6 +588,11 @@ def backend_items(backend: dict, run: Runner = _run) -> list[Item]:
     if pin and not backend.get("recipe_pin_reason"):
         # A pin with no reason is the forgotten bump this gate exists to stop.
         raise ValueError("a backend with recipe_pin must give recipe_pin_reason")
+    local_image = backend.get("image_source") == "local"
+    if local_image and not backend.get("recipe_dir"):
+        # #1357: a locally built image has no registry to compare with, so the
+        # checkout it is built from is its only currency. Without one, refuse.
+        raise ValueError('image_source = "local" needs the recipe_dir it is built from')
     if backend.get("recipe_dir"):
         items.append(
             recipe_item(
@@ -596,7 +601,9 @@ def backend_items(backend: dict, run: Runner = _run) -> list[Item]:
                 pin=str(pin) if pin else None,
             )
         )
-    if backend.get("image"):
+    if backend.get("image") and local_image:
+        pass  # checked through recipe_dir above; run.py still reads the container
+    elif backend.get("image"):
         items.append(image_item(backend["image"], run))
         engine_item = engine_release_item(backend["image"], run)
         if engine_item is not None:

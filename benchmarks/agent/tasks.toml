@@ -5257,5 +5257,9 @@ aider_model = "openai/ripple-65b"
 opencode_model = "vllm8888/ripple-65b"
 context_tokens = 262144
 topology = "remote"
-# No `image` key: the image is built locally (no registry), so the currency check cannot read it;
-# run.py records vllm_image from the running container (as #896's locally built spark-glm53:v9).
+# The image is built locally from recipe_dir, the PR checkout (mgoin/vllm), whose origin/HEAD is the
+# PR branch: image_source = "local" makes that checkout the currency check (no registry exists), and
+# `image` keeps run.py reading the vLLM build from the container, not the head's venv (#904).
+image = "vllm-ripple:pr65745-d53dfbc2c7"
+image_source = "local"
+recipe_dir = "~/vllm-pr65745/src"
