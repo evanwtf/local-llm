@@ -138,3 +138,18 @@ def test_an_unpinned_recipe_behind_upstream_still_refuses(tmp_path):
     (tmp_path / ".git").mkdir()
     assert pd.recipe_refusal(tmp_path, set(), _recipe_at("2")) is not None
     assert pd.recipe_refusal(tmp_path, set(), _recipe_at("0")) is None
+
+
+def test_the_daily_gate_warns_when_a_pin_lacks_an_upstream_release(tmp_path, caplog):
+    # #1257: the pin passes, but the daily log names v2.0 so it gets measured.
+    (tmp_path / ".git").mkdir()
+    base = _recipe_at("2")
+
+    def run(argv: list[str], timeout: int = 30) -> str | None:
+        if argv[3:6] == ["tag", "--merged", "origin/main"]:
+            return "v2.0\n"
+        return base(argv, timeout)
+
+    caplog.set_level(logging.INFO)
+    assert pd.recipe_refusal(tmp_path, {"943912c"}, run) is None
+    assert "pinned below upstream release(s) v2.0" in caplog.text

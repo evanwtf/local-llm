@@ -136,6 +136,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `stack_agent_ab.py` | mac | Interleaved agent-suite A/B for two whole STACKS -- engine + weights. #138 |
 | `stack_agent_report.py` | mac | Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen. |
 | `stack_agent_report_191.py` | mac | Read out for the #191 stack A/B: mlx-serve against ds4, one screen. |
+| `stamp_dir_era.py` | any | Stamp the `--dir` era onto the #355 orphan rows, once (#393). |
 | `strip_ab_report.py` | any | Read out the #112 strip-toggle A/B. |
 | `strip_toggle_ab.py` | mac | Does echoing the shim's own scaffolding back carry the tool-call loop? #112 |
 | `sync_sandbox_targets.py` | any | Clone the harness's own copies of the task repositories into `sandbox/`. |

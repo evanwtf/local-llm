@@ -3773,3 +3773,151 @@ def test_a_timed_out_row_leaves_the_report_median_alone(tmp_path, monkeypatch):
     assert before is not None and after is not None
     assert before[2] == after[2] == 200
     assert report.turns([*cell, timed_out]) == report.turns(cell) == 10
+
+
+# --- #213: a local row carries server_argv, or a stated reason ---------------
+#
+# #1381 made scripts/server_facts.py refuse remote facts with no argv for an
+# engine whose argv capture_versions can read. A local row took no such check:
+# a llama.cpp arm on :8022 wrote rows with no argv and no reason, and pooled as
+# "unknown" without a word. run.argv_gaps applies the same rule to local rows.
+
+
+def test_the_argv_engines_match_server_facts():
+    """One rule for both paths: the remote check and the local one name the
+    same engines."""
+    import importlib.util
+
+    path = HERE.parents[1] / "scripts" / "server_facts.py"
+    spec = importlib.util.spec_from_file_location("server_facts_213", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert run.ARGV_ENGINES == mod.ARGV_ENGINES
+    assert run.ARGV_ENGINES == {
+        "vllm",
+        "tensorfold",
+        "sglang",
+        "llama.cpp",
+        "tandemllm",
+        "ds4",
+    }
+
+
+def _llama(port):
+    return {"base_url": f"http://127.0.0.1:{port}", "engine": "llama.cpp"}
+
+
+def test_a_local_row_without_argv_refuses_when_the_engine_has_a_reader():
+    env_for: dict[str, dict] = {"kv8": {}}
+    gaps = run.argv_gaps(env_for, {"kv8": _llama(8022)}, None)
+    assert len(gaps) == 1
+    assert "kv8" in gaps[0]
+    assert "--no-argv-reason" in gaps[0]
+    assert "server_argv_missing" not in env_for["kv8"]
+
+
+def test_a_stated_reason_lets_the_row_through_and_lands_on_it():
+    env_for: dict[str, dict] = {"kv8": {}}
+    gaps = run.argv_gaps(env_for, {"kv8": _llama(8022)}, "  started by hand  ")
+    assert gaps == []
+    assert env_for["kv8"]["server_argv_missing"] == "started by hand"
+
+
+def test_a_blank_reason_is_no_reason():
+    env_for: dict[str, dict] = {"kv8": {}}
+    assert run.argv_gaps(env_for, {"kv8": _llama(8022)}, "   ")
+
+
+def test_a_row_with_argv_needs_no_reason():
+    env_for = {"q": {"server_argv": "/b/llama-server --port 8020"}}
+    assert run.argv_gaps(env_for, {"q": _llama(8020)}, None) == []
+    assert "server_argv_missing" not in env_for["q"]
+
+
+def test_an_engine_without_a_reader_records_why():
+    env_for: dict[str, dict] = {"o": {}}
+    backends = {"o": {"base_url": "http://127.0.0.1:11434", "engine": "ollama"}}
+    assert run.argv_gaps(env_for, backends, None) == []
+    assert env_for["o"]["server_argv_missing"] == (
+        "no launch-argv reader for engine 'ollama' (#213)"
+    )
+
+
+def test_a_hosted_backend_records_that_it_has_no_server():
+    env_for: dict[str, dict] = {"opus": {}}
+    assert run.argv_gaps(env_for, {"opus": {"model": "x"}}, None) == []
+    assert env_for["opus"]["server_argv_missing"] == (
+        "hosted API: no local server process (#213)"
+    )
+
+
+def test_a_remote_reason_from_the_server_facts_stands():
+    """remote.stamp copies the server's own reason; the client keeps it."""
+    env_for = {"r": {"server_argv_missing": "server started by hand"}}
+    assert run.argv_gaps(env_for, {"r": _llama(8022)}, None) == []
+    assert env_for["r"]["server_argv_missing"] == "server started by hand"
+
+
+def test_every_backend_without_argv_is_named():
+    env_for: dict[str, dict] = {"a": {}, "b": {}, "c": {"server_argv": "x"}}
+    backends = {"a": _llama(8021), "b": {"engine": "vllm", "base_url": "h:1"}}
+    backends["c"] = _llama(8020)
+    gaps = run.argv_gaps(env_for, backends, None)
+    assert len(gaps) == 2
+    assert "'a'" in gaps[0] and "'b'" in gaps[1]
+
+
+# The :8022 gap. LLAMACPP_PORTS mapped only :8020 and the :11500 shim, so the
+# arms on :8021-:8023 and the desktop's :8080 read no argv at all.
+
+
+def test_a_direct_llamacpp_backend_reads_argv_on_its_own_port():
+    assert run.llamacpp_server_port(_llama(8022)) == 8022
+    assert run.llamacpp_server_port(_llama(8080)) == 8080
+    assert run.llamacpp_server_port({"base_url": "http://127.0.0.1:11500"}) == 8020
+    assert run.llamacpp_server_port({"base_url": "http://127.0.0.1:8020"}) == 8020
+
+
+def test_a_llamacpp_shim_reads_its_declared_engine_port():
+    b = {**_llama(11501), "engine_url": "http://127.0.0.1:8024"}
+    assert run.llamacpp_server_port(b) == 8024
+
+
+def test_other_engines_have_no_llamacpp_port():
+    vllm = {"base_url": "http://127.0.0.1:8030", "engine": "vllm"}
+    assert run.llamacpp_server_port(vllm) is None
+    assert run.llamacpp_server_port({"model": "hosted"}) is None
+
+
+def test_capture_versions_reads_the_kv8_arms_argv(monkeypatch):
+    _no_identity(monkeypatch)
+    monkeypatch.setattr(run.preflight, "_capture", lambda cmd: LLAMA_PS)
+    argv: dict[str, str] = {}
+    env = run.capture_versions(
+        {"base_commit": "abc"},
+        {"ub": {**_llama(8021), "model": "x"}},
+        allow_unstamped=True,
+        argv_by_backend=argv,
+    )
+    assert argv["ub"].endswith("--port 8021 -ub 512")
+    assert env["server_argv"] == argv["ub"]
+
+
+def test_the_run_takes_a_no_argv_reason():
+    args = run.build_parser().parse_args(["--no-argv-reason", "started by hand"])
+    assert args.no_argv_reason == "started by hand"
+    assert run.build_parser().parse_args([]).no_argv_reason is None
+
+
+def test_every_row_carries_its_dir_era(monkeypatch):
+    """#393: the era is stamped at write time, beside harness_head, so a
+    later git log that cannot reach the sha cannot move the row."""
+    _no_identity(monkeypatch)
+    env = run.capture_versions({"base_commit": "abc"}, {}, allow_unstamped=True)
+    assert env["dir_era"] == {
+        "rule": 1,
+        "fix": "7356460",
+        "era": "after",
+        "basis": "ancestry at write time",
+    }

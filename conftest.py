@@ -228,6 +228,39 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _per_session_tmpdir(tmp_path_factory):
+    """Each pytest session gets its own TMPDIR, inside its own base temp (#1303).
+
+    On 2026-10-28 several agents ran the suite at once on one host. Every
+    session shared `$TMPDIR/agent-bench/trial-tmp`, where `run.agent_env`
+    deletes and recreates a trial's directory by worktree name. One session's
+    `rmtree` raced another's `mkdir`, and a test that passes alone failed with
+    `FileExistsError`.
+
+    `run.TRIAL_TMP_ROOT` is bound at import, and collection imports `run`
+    before any fixture runs. So this sets the environment for child processes,
+    clears `tempfile`'s cached answer for in-process callers, and rebinds the
+    constant if `run` is already loaded. `tests/test_session_tmpdir.py` pins
+    all three.
+    """
+    import sys
+    import tempfile
+
+    private = tmp_path_factory.mktemp("session-tmp")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("TMPDIR", str(private))
+        mp.setattr(tempfile, "tempdir", None)
+        run_module = sys.modules.get("run")
+        if run_module is not None and hasattr(run_module, "TRIAL_TMP_ROOT"):
+            mp.setattr(
+                run_module,
+                "TRIAL_TMP_ROOT",
+                pathlib.Path(os.path.realpath(private)) / "agent-bench" / "trial-tmp",
+            )
+        yield private
+
+
 @pytest.fixture(autouse=True)
 def _metal_drivers_run_anywhere(monkeypatch):
     """The Metal drivers refuse off macOS (#325); the suite fakes every engine.

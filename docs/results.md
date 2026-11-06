@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 5262 rows, sha256 c99c2ccade50.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 5262 rows, sha256 416d798c1c9b.*
 
 #### Every stack measured under OpenCode
 

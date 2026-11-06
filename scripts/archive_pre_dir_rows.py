@@ -61,7 +61,8 @@ ARCHIVE = ROOT / "docs" / "archive" / "results-opencode-pre-dir.jsonl"
 
 #: #392: the classifier is dirfix's, not a copy. This script once kept its own
 #: fixed_commits() without dirfix's #355 allowlist and archived 65 post-fix
-#: rows. The names stay here because scripts/validate_ledgers.py calls
+#: rows; those rows now carry their era stamp (#393), which dirfix.era reads.
+#: The names stay here because scripts/validate_ledgers.py calls
 #: `apdr.fixed_commits`.
 FIX = dirfix.FIX
 fixed_commits = dirfix.fixed_commits
