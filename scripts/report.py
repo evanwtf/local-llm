@@ -206,6 +206,28 @@ class HiddenSummary:
     no_result: int
 
 
+def recipes(rows) -> list[tuple[str, str, str, str, int]]:
+    """Each recipe the rows ran: (commit, state, upstream, pin reason, rows).
+
+    From `env.recipe`, which `server_facts.py` writes since 2026-10-26. A row
+    without it is absent here, not "unknown": older rows predate the field.
+    """
+    counts: collections.Counter[tuple[str, str, str, str]] = collections.Counter()
+    for r in rows:
+        rec = (r.get("env") or {}).get("recipe")
+        if not isinstance(rec, dict):
+            continue
+        counts[
+            (
+                str(rec.get("commit") or "?"),
+                str(rec.get("state") or "?"),
+                str(rec.get("upstream") or "?"),
+                str(rec.get("pin_reason") or ""),
+            )
+        ] += 1
+    return [(*key, n) for key, n in sorted(counts.items())]
+
+
 def hidden_summary(rows) -> HiddenSummary | None:
     """Sum the held-out verdict over `rows`, or None when none holds tests out.
 
@@ -366,6 +388,18 @@ def render(by_cell, backends) -> list[str]:
                 f"  prefill-failure retries: {total} across {measured}/{len(ex)} "
                 f"trials (#266)"
             )
+        # #1257: a pinned winner is a deliberate old build. Name the commit,
+        # the pin and its reason, so a reader can tell it from a forgotten one.
+        every = [r for (bb, _), rows in by_cell.items() if bb == b for r in rows]
+        for commit, state, upstream, reason, n in recipes(every):
+            line = (
+                f"**{b}** recipe: {commit} "
+                f"{'PINNED' if state == 'pinned' else state} in {n} row(s), "
+                f"upstream {upstream}"
+            )
+            if state == "pinned":
+                line += f" -- {reason or 'no reason recorded'} (#1257)"
+            out.append(line)
 
     # #803: the held-out verdict, beside the visible one and never merged into
     # it. Silent unless some row holds tests out (#726).
