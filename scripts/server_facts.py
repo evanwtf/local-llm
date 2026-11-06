@@ -138,7 +138,14 @@ def collect(
         str(spec.get("engine", "")),
         token=spec.get("auth_token") or None,
     )
-    if instance is not None and instance["value"] is None:
+    if instance is None:
+        raise SystemExit(
+            f"server_facts: no instance check is defined for engine "
+            f"{spec.get('engine')!r} (#948). Add a probe to "
+            "remote.INSTANCE_PROBES, or the reason it has none to "
+            "remote.NO_INSTANCE_MARKER."
+        )
+    if instance["kind"] != "none" and instance["value"] is None:
         raise SystemExit(
             f"server_facts: cannot read the {instance['engine']} instance marker "
             f"from {spec.get('base_url')}; start the server first (#948)."
@@ -150,6 +157,10 @@ def collect(
     engine = str(spec.get("engine", "")).lower()
     if why := argv_gap(backend, engine, env, no_argv_reason):
         raise SystemExit(why)
+    if instance["kind"] == "none":
+        # #948: copied onto every row by remote.stamp, so a row never lacks
+        # the restart check silently.
+        env["instance_unchecked"] = instance["reason"]
     if cluster_peer:
         # #680 finding 3: `facts` (memory_gib, cpu_count) describe the head
         # alone and stay per node, so a cluster row compares with the rows

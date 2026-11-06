@@ -605,10 +605,22 @@ def test_read_instance_falls_back_to_metrics_when_health_has_no_counter():
 
 
 def test_an_engine_without_a_marker_is_not_probed():
+    """ds4-server publishes no marker; the record says so and says why."""
+
     def fetch(url, timeout):
         raise AssertionError("must not be called")
 
-    assert remote.read_instance("http://srv:8030", "ds4", fetch) is None
+    got = remote.read_instance("http://srv:8030", "ds4", fetch)
+    assert got is not None
+    assert (got["engine"], got["kind"], got["value"]) == ("ds4", "none", None)
+    assert "/v1/models" in got["reason"]
+
+
+def test_an_unclassified_engine_reads_as_no_record():
+    def fetch(url, timeout):
+        raise AssertionError("must not be called")
+
+    assert remote.read_instance("http://srv:8030", "newengine", fetch) is None
 
 
 def _inst(value, kind="counter"):
@@ -639,8 +651,82 @@ def test_a_marker_of_another_kind_refuses():
     assert remote.instance_mismatch(_inst(1.0, "start_time"), _inst(5), "tensorfold")
 
 
-def test_an_engine_without_a_marker_passes_unchecked():
-    assert remote.instance_mismatch(None, None, "ds4") is None
+def test_an_engine_without_a_marker_passes_with_the_recorded_reason():
+    """#948: ds4 has no marker to compare, so the facts carry the reason and
+    the batch passes on that record, not on a missing one."""
+    rec = remote.read_instance("http://srv:8000", "ds4")
+    assert remote.instance_mismatch(rec, rec, "ds4") is None
+
+
+def test_facts_from_before_the_no_marker_record_refuse():
+    """An old ds4 facts file has no instance record at all: rewrite it."""
+    live = remote.read_instance("http://srv:8000", "ds4")
+    why = remote.instance_mismatch(None, live, "ds4")
+    assert why and "server_facts.py" in why
+
+
+def test_an_unclassified_engine_refuses():
+    """A new engine must be classified, or a stack skips the check by
+    naming an engine nobody has looked at."""
+    why = remote.instance_mismatch(None, None, "newengine")
+    assert why and "INSTANCE_PROBES" in why and "NO_INSTANCE_MARKER" in why
+
+
+def test_check_instance_passes_ds4_on_its_record():
+    rec = remote.read_instance("http://srv:8000", "ds4")
+    facts = {"backend": "b", "instance": rec}
+    backends = {"b": {"engine": "ds4", "base_url": "http://srv:8000"}}
+
+    def fetch(url, timeout):
+        raise AssertionError("ds4 is never probed")
+
+    remote.check_instance(facts, backends, fetch)
+
+
+#: The marker lines of Atlas's /metrics, in the shape metrics_handler prints
+#: them (Enntity/atlas crates/spark-server/src/api/misc_handlers.rs at
+#: 7838b34c): the prometheus registry first, then hand-written lines.
+ATLAS_METRICS = """\
+# HELP atlas_requests_total Total requests processed
+# TYPE atlas_requests_total counter
+atlas_requests_total 37
+# HELP atlas_requests_active Currently active requests
+# TYPE atlas_requests_active gauge
+atlas_requests_active 0
+# TYPE atlas_prefix_cache_hits_total counter
+atlas_prefix_cache_hits_total 120
+# TYPE atlas_kernel_lookups_unresolved gauge
+atlas_kernel_lookups_unresolved 0
+"""
+
+
+def test_atlas_reads_its_request_counter_from_metrics():
+    asked = []
+
+    def fetch(url, timeout):
+        asked.append(url)
+        return ATLAS_METRICS
+
+    got = remote.read_instance("http://srv:8893/v1", "atlas", fetch)
+    assert asked == ["http://srv:8893/metrics"]
+    assert got == {"engine": "atlas", "kind": "counter", "value": 37}
+
+
+def test_a_fresh_atlas_server_reads_as_zero_requests():
+    """atlas_requests_total is registered lazily, on the first request; the
+    kernel-audit gauge is printed on every page, so the page is Atlas's."""
+    page = "atlas_prefix_cache_hits_total 0\natlas_kernel_lookups_unresolved 0\n"
+    assert remote.parse_instance("counter", page) == 0
+
+
+def test_check_instance_refuses_a_restarted_atlas():
+    facts = {
+        "backend": "b",
+        "instance": {"engine": "atlas", "kind": "counter", "value": 900},
+    }
+    backends = {"b": {"engine": "atlas", "base_url": "http://srv:8893"}}
+    with pytest.raises(SystemExit, match="restarted"):
+        remote.check_instance(facts, backends, lambda url, timeout: ATLAS_METRICS)
 
 
 def test_check_instance_refuses_a_restarted_tensorfold():

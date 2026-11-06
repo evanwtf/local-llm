@@ -81,8 +81,11 @@ def recipe_refusal(
     if latest.ok:
         return None
     for pin in sorted(pins):
-        if currency.recipe_item(path, run, pin=pin).ok:
+        item = currency.recipe_item(path, run, pin=pin)
+        if item.ok:
             logger.info("recipe %s: pinned at %s (%s)", path, pin, latest.latest)
+            # Names any upstream release the pin lacks (#1257).
+            currency.log_items([item])
             return None
     return currency.gate(f"recipe:{path}", [latest])
 
