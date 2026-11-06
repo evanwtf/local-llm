@@ -1037,9 +1037,11 @@ the turn with the chat heartbeat when it is due (§3a).
    `server_facts.py --backend <name> --cluster-peer spark-b-cx7` and copy the
    facts file to the client. On the client, `git pull` and
    `uv run python scripts/sync_sandbox_targets.py`, then start
-   `scripts/client_container.py --server dgx.internal --facts … --name <run> -- --backend <name> --client opencode --trials 3 --targets sandbox`
+   `scripts/client_container.py --server <head> --facts … --name <run> -- --backend <name> --client opencode --trials 3 --targets sandbox`
    (add `--replay` or `--replay-hard` for those sets), detached with
-   `setsid nohup`. Claim the head (step 3). Before the first trial,
+   `setsid nohup`. `<head>` is the head's host name. The public repo does not
+   hold it (#1153): read it from `LOCAL_LLM_DGX_HEAD` or from `[dgx] head` in
+   `~/.config/local-llm/hosts.toml`. Claim the head (step 3). Before the first trial,
    `client_container.py` runs the OpenCode tool self-test in the image (about
    8 s, no server needed) and refuses the batch if any tool fails (#968). A
    refusal names the tool and its error. Rebuild the image with

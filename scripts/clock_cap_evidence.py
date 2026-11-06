@@ -55,6 +55,7 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import dgx_hosts
 import dgx_metrics
 
 import logs
@@ -62,7 +63,9 @@ import logs
 logger = logging.getLogger(__name__)
 
 NY = ZoneInfo("America/New_York")
-HEAD, WORKER = "dgx.internal", "dgx2.internal"
+#: `$head` and `$worker` are filled at run time from local config, not the
+#: repo (#1153): `scripts/lib/dgx_hosts.py`.
+HEAD, WORKER = "$head", "$worker"
 STEP_S = 15
 PAD_S = 600  # idle before the first run and after the last, for a baseline
 # gcx thins a range query to about 100 points, so a long window comes back at
@@ -299,13 +302,16 @@ def export(
     start -= start % STEP_S
     counts: dict[str, int] = {}
 
+    # Every node name is resolved before the first query, so a missing one
+    # refuses the run instead of failing halfway through it.
+    selectors = [(name, dgx_hosts.fill(sel)) for name, sel in SERIES]
     series = {
         name: [
             pt
             for a, b in chunks(start, end, PROM_CHUNK_S)
             for pt in matrix_points(prom(sel, a, b, STEP_S))
         ]
-        for name, sel in SERIES
+        for name, sel in selectors
     }
     for name, points in series.items():
         if not points:

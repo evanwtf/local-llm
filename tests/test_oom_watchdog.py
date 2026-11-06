@@ -19,23 +19,23 @@ import oom_watchdog as ow
 
 # Verbatim from the 2026-09-13 lockup (#360, preserved in the incident doc).
 KERNEL_LINE = (
-    "2026-09-13T07:47:06-0400 spark-231e kernel: oom-kill:"
+    "2026-09-13T07:47:06-0400 dgx-head kernel: oom-kill:"
     "constraint=CONSTRAINT_NONE,nodemask=(null),cpuset=/,mems_allowed=0,"
     "global_oom,task_memcg=/user.slice,task=VLLM::EngineCor,pid=2298697,uid=1000"
 )
 KILLED_LINE = (
-    "2026-09-13T07:47:06-0400 spark-231e kernel: Out of memory: "
+    "2026-09-13T07:47:06-0400 dgx-head kernel: Out of memory: "
     "Killed process 2298697 (VLLM::EngineCor) total-vm:155592932kB"
 )
 # Verbatim from the #362 validation, the one time earlyoom did fire.
 EARLYOOM_KILL_LINE = (
-    "2026-09-14T19:16:25-0400 spark-231e earlyoom[373869]: sending SIGTERM to "
+    "2026-09-14T19:16:25-0400 dgx-head earlyoom[373869]: sending SIGTERM to "
     'process 373870 uid 1000 "python3": badness 1546, VmRSS 108256 MiB'
 )
 # Verbatim from the 2026-09-17 lockup: 0% available and NOT a kill, because
 # earlyoom's swap condition was never met (#458).
 EARLYOOM_REPORT_LINE = (
-    "2026-09-17T06:48:20-0400 spark-231e earlyoom[1523]: mem avail: "
+    "2026-09-17T06:48:20-0400 dgx-head earlyoom[1523]: mem avail: "
     "0 of 124610 MiB ( 0.00%), swap free: 14983 of 16383 MiB (91.45%)"
 )
 
@@ -59,9 +59,9 @@ def test_earlyooms_zero_percent_report_is_not_a_kill():
 
 def test_ordinary_journal_noise_is_not_an_event():
     for line in (
-        "2026-09-17T06:46:20-0400 spark-231e kernel: nvfanread arm-ffa-17: telemetry read OK",
-        '2026-09-17T06:46:28-0400 spark-231e ollama[2070]: [GIN] 200 | GET "/api/tags"',
-        "2026-09-17T06:52:14-0400 spark-231e earlyoom[1530]: sending SIGTERM when mem <= 10.00%",
+        "2026-09-17T06:46:20-0400 dgx-head kernel: nvfanread arm-ffa-17: telemetry read OK",
+        '2026-09-17T06:46:28-0400 dgx-head ollama[2070]: [GIN] 200 | GET "/api/tags"',
+        "2026-09-17T06:52:14-0400 dgx-head earlyoom[1530]: sending SIGTERM when mem <= 10.00%",
     ):
         assert ow.classify(line) is None, line
 
@@ -211,8 +211,8 @@ def test_the_earlyoom_label_is_not_read_as_a_kernel_oom():
     """`earlyoom-kill:` contains `oom-kill:`. The first night, every earlyoom
     kill was also reported as a kernel OOM because of it."""
     line = (
-        "2026-09-17T23:21:31-04:00 spark-231e uv[53086]: WARNING earlyoom-kill: "
-        "2026-09-17T23:20:58-04:00 spark-231e earlyoom[1538]: sending SIGTERM "
+        "2026-09-17T23:21:31-04:00 dgx-head uv[53086]: WARNING earlyoom-kill: "
+        "2026-09-17T23:20:58-04:00 dgx-head earlyoom[1538]: sending SIGTERM "
         'to process 51184 uid 1000 "python": badness 1688, VmRSS 108524 MiB'
     )
     assert ow.classify(line) != "kernel-oom"

@@ -138,10 +138,16 @@ def test_summarize_builds_a_run_from_the_raw_series() -> None:
     assert rec["start_new_york"] == "2026-10-30T21:00:00-0400"
 
 
-def test_export_writes_every_file_and_refuses_a_missing_series(tmp_path: Path) -> None:
+def test_export_writes_every_file_and_refuses_a_missing_series(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("LOCAL_LLM_DGX_HEAD", "head.example")
+    monkeypatch.setenv("LOCAL_LLM_DGX_WORKER", "worker.example")
     rows = [run()]
+    seen: set[str] = set()
 
     def prom(sel: str, a: int, b: int, step: int) -> str:
+        seen.add(sel)
         values = [[ts, "1889"] for ts in range(a, b + 1, step)]
         return json.dumps({"data": {"result": [{"values": values}]}})
 
@@ -158,6 +164,9 @@ def test_export_writes_every_file_and_refuses_a_missing_series(tmp_path: Path) -
     assert all(r["head_sm_clock_mhz"] == "1889.0" for r in ts)
     assert {r["phase"] for r in ts} == {"between", "prefill", "c1", "c2"}
     assert counts["phases.csv"] == 3
+    # #1153: the node names come from local config at run time.
+    assert 'DCGM_FI_DEV_SM_CLOCK{instance="head.example:9400"}' in seen
+    assert 'DCGM_FI_DEV_SM_CLOCK{instance="worker.example:9400"}' in seen
 
     def empty(sel: str, a: int, b: int, step: int) -> str:
         return ""
@@ -303,3 +312,23 @@ def test_combine_refuses_sessions_with_different_columns(tmp_path: Path) -> None
     (b / "inlet.csv").write_text("time_utc,inlet_c\n2026-10-31T11:00:00Z,20\n")
     with pytest.raises(SystemExit, match="header differs"):
         ev.combine([a, b], tmp_path / "all")
+
+
+def test_export_refuses_before_any_query_when_a_node_is_unnamed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#1153: no name, no query. A guessed name would read as an idle node."""
+    import dgx_hosts
+
+    monkeypatch.setenv("LOCAL_LLM_DGX_HEAD", "head.example")
+    monkeypatch.delenv("LOCAL_LLM_DGX_WORKER", raising=False)
+    monkeypatch.setattr(dgx_hosts, "HOSTS_FILE", tmp_path / "absent.toml")
+    queried: list[str] = []
+
+    def prom(sel: str, a: int, b: int, step: int) -> str:
+        queried.append(sel)
+        return ""
+
+    with pytest.raises(dgx_hosts.HostUnknown, match="LOCAL_LLM_DGX_WORKER"):
+        ev.export([run()], tmp_path, prom, lambda q: "")
+    assert queried == []
