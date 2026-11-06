@@ -194,6 +194,8 @@ CLIENT_KEYS = frozenset(
         "ollama",
         "harness_head",
         "harness_dirty",
+        # The --dir era of the harness that wrote the row: the client's (#393).
+        "dir_era",
         "target_commit",
         "samplers",
         "client",

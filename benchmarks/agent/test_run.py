@@ -3908,3 +3908,16 @@ def test_the_run_takes_a_no_argv_reason():
     args = run.build_parser().parse_args(["--no-argv-reason", "started by hand"])
     assert args.no_argv_reason == "started by hand"
     assert run.build_parser().parse_args([]).no_argv_reason is None
+
+
+def test_every_row_carries_its_dir_era(monkeypatch):
+    """#393: the era is stamped at write time, beside harness_head, so a
+    later git log that cannot reach the sha cannot move the row."""
+    _no_identity(monkeypatch)
+    env = run.capture_versions({"base_commit": "abc"}, {}, allow_unstamped=True)
+    assert env["dir_era"] == {
+        "rule": 1,
+        "fix": "7356460",
+        "era": "after",
+        "basis": "ancestry at write time",
+    }

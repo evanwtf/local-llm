@@ -45,6 +45,7 @@ import urllib.request
 from typing import Any, ClassVar
 from urllib.parse import urlparse
 
+import dirfix
 import ds4_route
 import engine_identity
 import engine_ttft
@@ -1724,6 +1725,10 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
         env["harness_dirty"] = provenance.code_is_dirty(HERE)
     except RuntimeError:
         pass
+    # #393: the --dir era, judged now. A later `git log` that cannot reach
+    # harness_head (#355) then cannot move the row to the wrong side.
+    if (era := dirfix.stamp(HERE)) is not None:
+        env[dirfix.STAMP_KEY] = era
 
     # Decides whether a ~90 GiB model loads at all. Persisted since 2026-09-01.
     ceiling = metal_ceiling_mb()
