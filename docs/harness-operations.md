@@ -304,6 +304,20 @@ does `scripts/server_facts.py` for remote facts. Both take
 `--no-argv-reason TEXT` to write the rows anyway with that reason. Any other
 engine, and a hosted backend, record their own reason.
 
+**A ledger carries machine headers (#305).** Before a local batch's first row,
+`run.py` appends one record line,
+`{"record": "machine-header", "v": 1, "at": ..., "machine": ..., "facts": {...}}`,
+when the ledger has none or the firmware and OS facts changed since the last
+one. `benchmarks/agent/machine_header.py` collects the facts: the driver, VBIOS,
+GSP and system firmware, governor and DGX OS on Linux; the macOS build, chip,
+firmware and GPU wired limit on a Mac. `facts` has no schema; a fact that does
+not apply is absent. A probe that fails once does not start a new segment. A
+header that names another machine refuses the batch. `results.load()` skips
+header lines; `results.header(path, row)` returns the one in force at a row.
+Rows before a ledger's first header are unknown: never backfill one. A remote
+batch writes no header yet, because the client cannot read the server's
+firmware.
+
 ## Transcripts are on by default
 
 `--client-log` defaults to `~/bench-logs`. A row records *that* a trial failed,

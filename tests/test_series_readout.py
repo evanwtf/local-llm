@@ -57,6 +57,14 @@ def test_excluded_rows_are_dropped(tmp_path: pathlib.Path) -> None:
     assert len(run.rows) == 1
 
 
+def test_a_machine_header_is_not_a_row(tmp_path: pathlib.Path) -> None:
+    """#305: run.py writes a machine-header record into a run file."""
+    header = {"record": "machine-header", "v": 1, "at": "x", "machine": "m"}
+    run = series_readout.read_run(write(tmp_path, "a", [header, row("t1", 10)]))
+    assert len(run.rows) == 1
+    assert series_readout.arm_stats("a", [run]).trials == 1
+
+
 def stats(passes: int, total: float, trials: int = 42) -> series_readout.ArmStats:
     return series_readout.ArmStats(
         name="x",

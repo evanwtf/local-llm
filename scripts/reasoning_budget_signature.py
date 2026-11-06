@@ -105,7 +105,9 @@ def classify(rows: list[dict]) -> dict:
 
 
 def _load(path: pathlib.Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    """The ledger's rows. A record line (#305's machine header) is not a row."""
+    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [r for r in rows if not (isinstance(r, dict) and "record" in r)]
 
 
 def main(argv: list[str] | None = None) -> int:

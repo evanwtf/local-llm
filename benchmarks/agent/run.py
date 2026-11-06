@@ -51,6 +51,7 @@ import engine_identity
 import engine_ttft
 import excise
 import grade
+import machine_header
 import memcap
 import mtp_timing
 import mtplx_trace
@@ -7134,6 +7135,20 @@ def main():
             "separate tier file, or pass --allow-foreign-hardware if you have "
             "decided the mixing is correct."
         )
+
+    # #305: the firmware and OS facts, once per segment of the ledger, before
+    # the batch's first row. A remote row describes the server, whose facts
+    # this machine cannot collect, so a remote batch writes none yet.
+    if server_facts is None:
+        machine_header.ensure(
+            pathlib.Path(args.results),
+            results.machine_dir().name,
+            machine_header.collect(),
+            results.now(),
+            allow_other_machine=args.allow_foreign_hardware,
+        )
+    else:
+        logger.info("remote batch: no machine header; the server facts carry none")
 
     history = [r for r in results.trials(args.results) if not results.is_excluded(r)]
     cell: dict[tuple[str, str], list[dict]] = {}
