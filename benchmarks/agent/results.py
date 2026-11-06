@@ -107,6 +107,10 @@ OPTIONAL: dict[str, type | tuple[type, ...]] = {
     # #770. Whether `git diff HEAD` shows any change outside tests/ after the
     # agent ran. Absent on script tasks and on every row before it.
     "edited_source": bool,
+    # #1221. Set only on a timed-out row whose partial transcript has a
+    # timestamped `step_finish`: seconds from launch to the last one. Beside
+    # `wall_seconds` it tells "worked to the deadline" from "stalled early".
+    "last_step_s": (int, float),
 }
 
 

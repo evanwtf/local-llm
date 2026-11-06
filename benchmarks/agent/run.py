@@ -5156,6 +5156,50 @@ def memory_kill_reason(result: dict, cap_gib: float, peak: float) -> str:
     )
 
 
+def partial_work(parse, stdout, launched_ms):
+    """The work a killed client did before the deadline (#1221).
+
+    A timed-out row recorded no tokens and no steps, so a stack that worked
+    for the whole 1,800 s read the same as one that hung. The partial
+    transcript holds the counts: this reads it with the client's own parser,
+    as for a completed trial. `token_source` says the counts are partial.
+
+    `last_step_s` is the time from launch to the last `step_finish` event. Set
+    beside `wall_seconds`, it tells a stack that worked to the deadline from
+    one that stopped making progress long before it.
+
+    Returns {} when the transcript holds no finished step. A parser error is
+    logged and returns {}: a diagnostic on a timed-out row must never end the
+    batch.
+    """
+    if not (stdout or "").strip():
+        return {}
+    try:
+        got = dict(parse(stdout, launched_ms=launched_ms))
+    except json.JSONDecodeError:
+        return {}
+    except Exception as exc:  # noqa: BLE001 -- any parser, on a cut stream
+        logger.warning("cannot parse the partial transcript: %r", exc)
+        return {}
+    if not got.get("num_turns"):
+        return {}
+    got["token_source"] = "partial-stream"
+    last = None
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict) or event.get("type") != "step_finish":
+            continue
+        ts = event.get("timestamp")
+        if isinstance(ts, int):
+            last = ts if last is None else max(last, ts)
+    if last is not None and isinstance(launched_ms, int) and last >= launched_ms:
+        got["last_step_s"] = round((last - launched_ms) / 1000, 1)
+    return got
+
+
 def timeout_message(name: str, timeout: float, result: dict) -> str:
     """The run-log line for a trial the harness stopped, naming why.
 
@@ -5348,6 +5392,11 @@ def one_trial(
         if prepare_env_first:
             result.update(prepare_env(worktree))
     base = "HEAD"  # replaced by the starting commit's sha once it exists
+    # Bound before the try: the timeout handler reads them (#1221), and a
+    # timeout before the client starts has no client time to record.
+    t0 = None
+    launched_ms = None
+    parse = None
     try:
         if not is_script:
             # 1. Hollow out the target, then make it the repository's only commit.
@@ -5759,6 +5808,14 @@ def one_trial(
             partial=True,
             run_tag=run_tag,
         )
+        # #1221: record the work done before the kill. The verdict is
+        # untouched: the trial still has no `passed` and fails in verdict().
+        # setdefault, so the parser never overwrites what the handler set.
+        if t0 is not None and parse is not None:
+            result["wall_seconds"] = round(time.monotonic() - t0, 1)
+            work = partial_work(parse, _text(exc.stdout), launched_ms)
+            for key, value in work.items():
+                result.setdefault(key, value)
         # #71: the escape list above is recorded on a timeout, so the
         # integrity check that answers it must run here too.
         record_source_repo(result, repo, target, name, target_layout)
