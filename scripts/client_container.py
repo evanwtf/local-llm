@@ -37,7 +37,9 @@ import datetime
 import itertools
 import json
 import logging
+import os
 import pathlib
+import pwd
 import sys
 import tomllib
 import urllib.parse
@@ -542,12 +544,46 @@ def audit_batch(
     return audit_transcripts.main(argv)
 
 
+class LedgerLockError(RuntimeError):
+    """The ledger's lock file is not writable by the host user (#1158)."""
+
+
+def _owner(path: pathlib.Path) -> str:
+    """The user name that owns `path`, or its uid when it has no name."""
+    uid = path.stat().st_uid
+    try:
+        return pwd.getpwuid(uid).pw_name
+    except KeyError:
+        return str(uid)
+
+
+def _refuse_foreign_lock(lock: pathlib.Path) -> None:
+    """Raise LedgerLockError for a lock the host user cannot write (#1158).
+
+    The lock is never replaced. A writer that already opened the old file
+    would lock its inode while the host locked a new one, and both could then
+    write the ledger at once (Codex review). So the message names the file,
+    its owner, and the command that fixes it.
+    """
+    me = pwd.getpwuid(os.getuid()).pw_name
+    raise LedgerLockError(
+        f"{lock} is owned by {_owner(lock)} and is not writable by {me}, so "
+        f"neither this host nor the quarantine can lock the ledger. "
+        f"Fix: sudo chown {me} {lock}"
+    )
+
+
 def prepare_ledger_lock(home: pathlib.Path, facts: pathlib.Path) -> pathlib.Path | None:
     """Create this batch's ledger lock as the host user, before the container runs.
 
     #1066: the container runs as root, and the first append created the lock
     file root-owned, so the host-side quarantine could not open it and a
-    faulted batch stayed unexcluded. A lock that already exists is left alone.
+    faulted batch stayed unexcluded. A writable lock that already exists is
+    left alone.
+
+    #1158: a lock made by a root container before this ran stopped every later
+    batch with a bare PermissionError. A lock the host user cannot write now
+    raises LedgerLockError, which names the file, its owner and the fix.
     """
     ledger = batch_ledger(home, facts)
     if ledger is None:
@@ -556,6 +592,8 @@ def prepare_ledger_lock(home: pathlib.Path, facts: pathlib.Path) -> pathlib.Path
 
     lock = results.lock_path(ledger)
     lock.parent.mkdir(parents=True, exist_ok=True)
+    if lock.exists() and not os.access(lock, os.W_OK):
+        _refuse_foreign_lock(lock)
     lock.touch(exist_ok=True)
     return lock
 
@@ -713,6 +751,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
     if not args.print:
+        # #1158: before the tool smoke, so a lock the host user cannot write
+        # refuses the batch in seconds, by name, not with a traceback.
+        try:
+            prepare_ledger_lock(args.home, args.facts)
+        except LedgerLockError as e:
+            logger.error("REFUSING the batch: %s", e)
+            return 1
         why = (
             check_image_current(args.image)
             or check_facts_current(args.facts, command)
@@ -773,7 +818,6 @@ def main(argv: list[str] | None = None) -> int:
     args.log.parent.mkdir(parents=True, exist_ok=True)
     # The audit's window opens before the launch, with an offset, so it
     # cannot miss the first trial or be read in the wrong zone.
-    prepare_ledger_lock(args.home, args.facts)
     since = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     status = child.run(full, cwd=pathlib.Path.cwd(), log=args.log, append=True)
     backend = backend_of(command)

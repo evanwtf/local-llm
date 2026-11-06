@@ -11,8 +11,10 @@ import datetime as dt
 import json
 import os
 import pathlib
+import pwd
 
 import client_container as mod
+import pytest
 
 HOME = pathlib.Path("/home/someone")
 FACTS = pathlib.Path("/home/someone/facts.json")
@@ -648,3 +650,42 @@ def test_the_ledger_lock_is_created_by_the_host_before_the_container(tmp_path):
     assert lock is not None and lock.exists()
     assert lock.name == "results.jsonl.lock"
     assert lock.stat().st_uid == os.getuid()
+
+
+# #1158: a root container made the lock before prepare_ledger_lock existed, and
+# every later batch stopped on a bare PermissionError from `touch`. A lock the
+# caller cannot write stands in for the root-owned one: the test cannot chown.
+def _foreign_lock(tmp_path, content=b""):
+    facts = tmp_path / "facts.json"
+    facts.write_text(json.dumps({"directory": "box"}))
+    lock = tmp_path / "git" / "local-llm" / "hardware" / "box" / "results.jsonl.lock"
+    lock.parent.mkdir(parents=True)
+    lock.write_bytes(content)
+    lock.chmod(0o444)
+    if os.access(lock, os.W_OK):
+        pytest.skip("running as root: every file is writable")
+    return facts, lock
+
+
+@pytest.mark.parametrize("content", [b"", b"x"])
+def test_a_foreign_lock_is_refused_with_its_owner_and_the_fix(tmp_path, content):
+    """Refused, never replaced: a writer that opened the old inode would lock
+    it while the host locked a new one, and both would write the ledger."""
+    facts, lock = _foreign_lock(tmp_path, content=content)
+    with pytest.raises(mod.LedgerLockError) as err:
+        mod.prepare_ledger_lock(tmp_path, facts)
+    me = pwd.getpwuid(os.getuid()).pw_name
+    assert str(err.value) == (
+        f"{lock} is owned by {me} and is not writable by {me}, so neither this "
+        f"host nor the quarantine can lock the ledger. Fix: sudo chown {me} {lock}"
+    )
+    assert lock.read_bytes() == content
+    assert not os.access(lock, os.W_OK)
+
+
+def test_main_refuses_a_foreign_lock_before_the_tool_smoke(tmp_path, monkeypatch):
+    argv, smoked, launched = _batch(tmp_path, monkeypatch, [])
+    _foreign_lock(tmp_path, content=b"x")
+    assert mod.main([*argv, "--", "--backend", "b"]) == 1
+    assert smoked == []
+    assert launched == []
