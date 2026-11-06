@@ -301,6 +301,7 @@ FAST_MODULES = frozenset(
         "tests/test_currency.py",  # the version gate refuses stale and unknown
         "tests/test_no_lan_addresses.py",  # no LAN address in a public repo (#1151)
         "tests/test_recommendations_budget.py",  # every picks page <= 2,000 words
+        "benchmarks/agent/test_subprocess_decode_contract.py",  # no strict decode
     }
 )
 
