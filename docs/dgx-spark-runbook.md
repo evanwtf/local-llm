@@ -59,7 +59,19 @@ export GRAFANA_TOKEN="$(cat ~/.config/gcx/token)"
 with no credential at all. `gcx datasources list` is the real test.
 
 Series worth knowing. The head's `instance` label is the one
-`scripts/gpu_utilization.py` queries (`PROM_POWER`):
+`scripts/gpu_utilization.py` queries (`PROM_POWER`). The label holds the
+node's host name, which the public repo does not hold (#1153). The scripts
+read it from `LOCAL_LLM_DGX_HEAD` / `LOCAL_LLM_DGX_WORKER`, or from
+`~/.config/local-llm/hosts.toml`, through `scripts/lib/dgx_hosts.py`. With
+neither, the clock-cap scripts refuse before any query, and
+`gpu_utilization.py` logs a warning and uses its own samples:
+
+```toml
+# ~/.config/local-llm/hosts.toml (untracked, one per machine)
+[dgx]
+head = "<head host name>"
+worker = "<worker host name>"
+```
 
 | series | port | use |
 |---|---|---|

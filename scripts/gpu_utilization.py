@@ -47,6 +47,8 @@ import time
 import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+import dgx_hosts
+
 import logs
 
 logger = logging.getLogger(__name__)
@@ -276,7 +278,8 @@ def report(rows: list[dict], hours: float, target: float = TARGET) -> dict:
 
 
 PROM_DATASOURCE = "uMatQbvMk"
-PROM_POWER = 'DCGM_FI_DEV_POWER_USAGE{instance="dgx.internal:9400"}'
+#: `$head` is filled at run time from local config, not the repo (#1153).
+PROM_POWER = 'DCGM_FI_DEV_POWER_USAGE{instance="$head:9400"}'
 # p90 over 15 minutes, validated 2026-09-12 against known-idle stretches:
 #
 #   now        76.6 W   running
@@ -305,6 +308,13 @@ def prometheus_p90(window: str = PROM_WINDOW) -> float | None:
     non-interactive shell never sources -- so it is read explicitly here rather
     than assumed to be in the environment.
     """
+    try:
+        selector = dgx_hosts.fill(PROM_POWER)
+    except dgx_hosts.HostUnknown as err:
+        # Not silent: the caller falls back to its own samples, and this says
+        # why the better source was skipped (#1153).
+        logger.warning("Prometheus power check skipped: %s", err)
+        return None
     token = pathlib.Path.home() / ".config/gcx/token"
     env = dict(os.environ)
     if token.exists():
@@ -320,7 +330,7 @@ def prometheus_p90(window: str = PROM_WINDOW) -> float | None:
                 "query",
                 "-d",
                 PROM_DATASOURCE,
-                f"quantile_over_time(0.9, {PROM_POWER}[{window}])",
+                f"quantile_over_time(0.9, {selector}[{window}])",
                 "-o",
                 "json",
                 "--jq",

@@ -83,7 +83,7 @@ def test_status_busy_when_held(tmp_path, monkeypatch):
     lock.write_text(
         json.dumps(
             {
-                "hostname": "MacBook-Pro.internal",
+                "hostname": "laptop.example",
                 "pid": 1,
                 "what": "decode A/B",
                 "started": "2026-09-06T11:00:00",

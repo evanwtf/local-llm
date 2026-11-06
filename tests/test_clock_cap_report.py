@@ -4,9 +4,18 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import clock_cap_report as rep
+
+
+@pytest.fixture(autouse=True)
+def _node_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#1153: the node names come from local config; tests use neutral ones."""
+    monkeypatch.setenv("LOCAL_LLM_DGX_HEAD", "head.example")
+    monkeypatch.setenv("LOCAL_LLM_DGX_WORKER", "worker.example")
 
 
 def row(arm: str, rnd: int, c1: float, start: str = "2026-10-31T01:00:00Z") -> dict:
@@ -52,7 +61,7 @@ def test_sensors_pin_every_prom_query_to_the_run_and_sum_the_outlets() -> None:
     assert all("[1500s] @ 1793409900" in q for q in seen)
     assert len(seen) == len(rep.PROM)
     assert (
-        'max_over_time(DCGM_FI_DEV_SM_CLOCK{instance="dgx.internal:9400"}'
+        'max_over_time(DCGM_FI_DEV_SM_CLOCK{instance="head.example:9400"}'
         "[1500s] @ 1793409900)"
     ) in seen
     assert out["inlet_f"] == 66.0
