@@ -780,3 +780,42 @@ def test_the_post_run_audit_reads_the_batch_ledger(tmp_path: pathlib.Path) -> No
     assert summary["model_stops"] == 1
     assert summary["harness_fault"] is False
     assert verdict == 0
+
+
+def test_the_post_run_audit_still_faults_a_quick_exit_with_no_answer(
+    tmp_path: pathlib.Path,
+) -> None:
+    """#1283: the ledger joins, but a row with no model output is a dead client.
+
+    The fix must not turn every quick exit into a model stop. A row that records
+    zero output tokens has no answer, so the audit still reports the fault.
+    """
+    import client_container
+
+    home = tmp_path / "home"
+    path = write(home / "bench-logs", [step(0)], name=stem(backend="b"))
+    ledger = home / "git" / "local-llm" / "hardware" / "box" / "results.jsonl"
+    ledger.parent.mkdir(parents=True)
+    row = {
+        "backend": "b",
+        "started": "2026-10-05T12:00:00+0000",
+        "client_log": str(path),
+        "wall_seconds": 7.0,
+        "output_tokens": 0,
+        "token_source": "export",
+    }
+    ledger.write_text(json.dumps(row) + "\n")
+    facts = tmp_path / "facts.json"
+    facts.write_text(json.dumps({"directory": "box"}))
+    log = tmp_path / "batch.log"
+
+    verdict = client_container.audit_batch(
+        "b", "2026-10-05T11:00:00+00:00", home, log, facts
+    )
+
+    summary = json.loads(log.with_name("batch-audit.json").read_text())["backends"]["b"]
+    assert summary["joined_trials"] == 1
+    assert summary["model_stops"] == 0
+    assert summary["quick_exits"] == 1
+    assert summary["harness_fault"] is True
+    assert verdict == 1
