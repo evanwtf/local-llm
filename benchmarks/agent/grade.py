@@ -229,6 +229,7 @@ def gate_applies(tool: str, worktree: pathlib.Path) -> bool:
             cwd=worktree,
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=30,
             check=True,
         )
@@ -264,6 +265,7 @@ def gates(
                 cwd=worktree,
                 capture_output=True,
                 text=True,
+                errors="replace",
                 timeout=timeout,
                 stdin=subprocess.DEVNULL,
                 check=False,
@@ -309,6 +311,7 @@ def _swift_gate(worktree: pathlib.Path, timeout: int) -> int | None:
                 cwd=worktree,
                 capture_output=True,
                 text=True,
+                errors="replace",
                 timeout=timeout,
                 stdin=subprocess.DEVNULL,
                 check=False,

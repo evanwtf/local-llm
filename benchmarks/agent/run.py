@@ -138,6 +138,9 @@ def run(cmd, cwd, env=None, timeout=None):
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
+        # Agent output can hold bytes that are not UTF-8. A strict decode
+        # raises inside communicate() and ends the batch (#1091, #1189).
+        errors="replace",
     )
 
 
@@ -340,6 +343,7 @@ def script_checks(worktree, entrypoint, checks, timeout):
                 cwd=worktree,
                 capture_output=True,
                 text=True,
+                errors="replace",
                 timeout=timeout,
                 check=False,
             )
@@ -906,13 +910,18 @@ def serving_ds4_root():
     """
     try:
         pids = subprocess.run(
-            ["pgrep", "-f", "ds4-server"], capture_output=True, text=True, check=False
+            ["pgrep", "-f", "ds4-server"],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            check=False,
         ).stdout.split()
         for pid in pids:
             out = subprocess.run(
                 ["lsof", "-a", "-p", pid, "-d", "cwd", "-Fn"],
                 capture_output=True,
                 text=True,
+                errors="replace",
                 check=False,
             ).stdout
             for line in out.splitlines():
@@ -941,7 +950,11 @@ def serving_gguf(root=None):
     """
     try:
         out = subprocess.run(
-            ["ps", "ax", "-o", "command="], capture_output=True, text=True, check=False
+            ["ps", "ax", "-o", "command="],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            check=False,
         ).stdout
         for line in out.splitlines():
             if "ds4-server" not in line or "-m" not in line:
@@ -984,7 +997,11 @@ def serving_vllm(backend=None):
     """
     try:
         out = subprocess.run(
-            ["ps", "ax", "-o", "command="], capture_output=True, text=True, check=False
+            ["ps", "ax", "-o", "command="],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            check=False,
         ).stdout
     except Exception:  # noqa: BLE001 - provenance is best-effort
         return None
@@ -1076,6 +1093,7 @@ def _docker_inspect_all():
             ["docker", "ps", "-q"],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=30,
             check=False,
         ).stdout.split()
@@ -1085,6 +1103,7 @@ def _docker_inspect_all():
             ["docker", "inspect", "--format", "{{json .}}", *ids],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=30,
             check=False,
         ).stdout
@@ -1160,6 +1179,7 @@ def container_settings(cid: str) -> dict:
             ["docker", "inspect", "--format", "{{json .}}", cid],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=30,
             check=False,
         ).stdout
@@ -1192,6 +1212,7 @@ def serving_sglang(models, inspect_all=_docker_inspect_all):
             ],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=60,
             check=False,
         ).stdout.strip()
@@ -1261,6 +1282,7 @@ def serving_vllm_container(models, inspect_all=_docker_inspect_all):
             ],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=60,
             check=False,
         )
@@ -1308,6 +1330,7 @@ def serving_tensorfold(models, inspect_all=_docker_inspect_all):
             ],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=60,
             check=False,
         )
@@ -1339,7 +1362,11 @@ def serving_tensorfold_native(models):
     """
     try:
         out = subprocess.run(
-            ["ps", "ax", "-o", "command="], capture_output=True, text=True, check=False
+            ["ps", "ax", "-o", "command="],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            check=False,
         ).stdout
     except (OSError, subprocess.SubprocessError):
         return {}
@@ -1364,6 +1391,7 @@ def serving_tensorfold_native(models):
                 [parts[0], "--version"],
                 capture_output=True,
                 text=True,
+                errors="replace",
                 timeout=30,
                 check=False,
             ).stdout.split()
@@ -1389,6 +1417,7 @@ def serving_tandemllm(models):
             ["ps", "ax", "-o", "pid=,command="],
             capture_output=True,
             text=True,
+            errors="replace",
             check=False,
         ).stdout
     except (OSError, subprocess.SubprocessError):
@@ -1411,6 +1440,7 @@ def serving_tandemllm(models):
                 ["git", "-C", str(tree), "rev-parse", "--short=8", "HEAD"],
                 capture_output=True,
                 text=True,
+                errors="replace",
                 timeout=30,
                 check=False,
             ).stdout.strip()
@@ -1434,6 +1464,7 @@ def _image_label(cid: str, key: str) -> str | None:
             ["docker", "inspect", "--format", "{{json .Config.Labels}}", cid],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=30,
             check=False,
         ).stdout
@@ -1559,6 +1590,7 @@ def metal_ceiling_mb():
             ["sysctl", "-n", "iogpu.wired_limit_mb"],
             capture_output=True,
             text=True,
+            errors="replace",
             check=False,
         ).stdout.strip()
         return int(out) if out.isdigit() else None
@@ -2417,6 +2449,7 @@ def installed_opencode_major() -> int | None:
             ["opencode", "--version"],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=30,
             stdin=subprocess.DEVNULL,
             check=False,
@@ -2537,6 +2570,7 @@ def _opencode_run_help():
             ["opencode", "run", "--help"],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=30,
             stdin=subprocess.DEVNULL,
             check=False,
@@ -2696,6 +2730,7 @@ def opencode_session_export(stdout, worktree, env=None, timeout=120):
             env=env,
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=timeout,
             stdin=subprocess.DEVNULL,
             check=False,
@@ -3610,6 +3645,7 @@ def prepare_env(dest, timeout=600):
             cwd=dest,
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=timeout,
             stdin=subprocess.DEVNULL,
             env=clean_env(),
@@ -6235,6 +6271,7 @@ def _memory_gate(min_avail_gib: float | None, timeout: int) -> None:
         ],
         capture_output=True,
         text=True,
+        errors="replace",
         check=False,
     )
     for line in proc.stdout.splitlines():
