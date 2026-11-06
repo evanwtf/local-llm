@@ -31,6 +31,13 @@ engine = "tensorfold"
 model = "m"
 base_url = "http://127.0.0.1:8888/v1"
 
+[backend.lcpp]
+tier = "gb10-spark-x2"
+topology = "remote"
+engine = "llama.cpp"
+model = "m"
+base_url = "http://127.0.0.1:8020/v1"
+
 [backend.single]
 tier = "gb10-spark"
 topology = "remote"
@@ -101,6 +108,18 @@ def test_the_facts_refuse_a_server_that_does_not_answer_its_marker(tasks, monkey
     monkeypatch.setattr(remote, "_fetch", down)
     with pytest.raises(SystemExit, match="start the server first"):
         server_facts.collect("tf", tasks, cluster_peer="peer")
+
+
+def test_a_llamacpp_server_without_metrics_is_told_the_flag(tasks, monkeypatch):
+    """#948: llama.cpp answers /metrics only when started with --metrics."""
+    import remote
+
+    def no_metrics(url, timeout, token=None):
+        raise OSError("HTTP Error 501: Not Implemented")
+
+    monkeypatch.setattr(remote, "_fetch", no_metrics)
+    with pytest.raises(SystemExit, match="--metrics"):
+        server_facts.collect("lcpp", tasks, cluster_peer="peer")
 
 
 def test_the_facts_name_the_worker_for_the_client(tasks):

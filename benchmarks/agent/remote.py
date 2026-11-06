@@ -321,9 +321,10 @@ def merge_servers(live: dict, saved: dict) -> dict:
 
 #: How each engine marks one server instance over HTTP (#948): the kind of
 #: marker and the route that carries it. A `counter` only grows while one
-#: server runs and starts over after a restart. Only engines checked against a
-#: live server are listed. A `start_time` is the server's own start and must
-#: match exactly. SGLang and llama.cpp wait for a live check.
+#: server runs and starts over after a restart. A `start_time` is the server's
+#: own start and must match exactly. An engine listed here refuses a remote
+#: batch whose marker it cannot read, so its server must export metrics
+#: (`METRICS_FLAGS`).
 INSTANCE_PROBES: dict[str, tuple[str, str]] = {
     "tensorfold": ("counter", "/health"),  # requests_total, v0.6.0
     # One `process_start_time_seconds` line on /metrics, read live from the
@@ -332,7 +333,30 @@ INSTANCE_PROBES: dict[str, tuple[str, str]] = {
     "vllm": ("start_time", "/metrics"),
     # #1067: `qse_requests_total` on /metrics; its /health has only uptime.
     "tandemllm": ("counter", "/metrics"),
+    # Live probe of b11700, 2026-10-24: /metrics has no start time, only
+    # counters that start at 0 and grow. Needs `--metrics` on the server.
+    "llama.cpp": ("counter", "/metrics"),
+    # SGLang exports through prometheus_client's MultiProcessCollector alone
+    # (sglang entrypoints/server_utils.py), so no `process_start_time_seconds`.
+    # Each launch makes a new temporary metrics directory, so the request
+    # counter starts over. Needs `--enable-metrics` on the server.
+    "sglang": ("counter", "/metrics"),
 }
+
+#: The server flag that turns on the route an engine's marker lives on. Named
+#: in the refusal, so the fix is in the message and not in someone's memory.
+METRICS_FLAGS: dict[str, str] = {
+    "llama.cpp": "--metrics",
+    "sglang": "--enable-metrics",
+    "tensorfold": "--metrics-open (native 1.0.x builds)",
+}
+
+
+def metrics_hint(engine: str) -> str:
+    """A sentence on how to make `engine` export its marker, or ''."""
+    flag = METRICS_FLAGS.get(engine)
+    return f" Start the server with {flag} so it exports the marker." if flag else ""
+
 
 #: A second route for an engine whose builds differ (#1066): the native
 #: TensorFold 1.0.x server answers /health with only {"status": "ok"} and
@@ -361,7 +385,16 @@ def parse_instance(kind: str, text: str) -> float | None:
 
 #: Request counters by metric name: native TensorFold 1.0.x (#1066) and
 #: TandemLLM (#1067). Matched by exact name, so a longer name is not counted.
-_COUNTER_NAMES = frozenset({"tensorfold:requests_total", "qse_requests_total"})
+#: llama.cpp (#948) has no request counter; `n_decode_total` counts its
+#: decode calls, at least one per request. SGLang (#948) counts requests.
+_COUNTER_NAMES = frozenset(
+    {
+        "tensorfold:requests_total",
+        "qse_requests_total",
+        "llamacpp:n_decode_total",
+        "sglang:num_requests_total",
+    }
+)
 
 #: Read only when no `_COUNTER_NAMES` line is on the page. TensorFold zig
 #: 46a08c18 (MiaAI's Bolt recipe, #1127) prints no `requests_total`; its
@@ -371,7 +404,9 @@ _FALLBACK_COUNTER_NAMES = frozenset({"tensorfold:e2e_request_latency_seconds_cou
 #: A gauge each server always prints, beside a counter it prints only after
 #: the first request finishes: its presence means "this server, 0 requests".
 #: TandemLLM restarted a moment ago has no `qse_requests_total` line (#1067).
-_ZERO_MARKERS = frozenset({"qse_requests_running"})
+#: SGLang's labelled request counter likewise has no sample before the first
+#: request; its running-requests gauge marks the page as SGLang's.
+_ZERO_MARKERS = frozenset({"qse_requests_running", "sglang:num_running_reqs"})
 
 
 def _metrics_counter(metrics: str) -> int | None:
@@ -496,7 +531,7 @@ def instance_mismatch(saved: dict | None, live: dict | None, engine: str) -> str
             "to the client"
         )
     if not live or live.get("value") is None:
-        return f"cannot read the live {engine} instance marker (#948)"
+        return f"cannot read the live {engine} instance marker (#948).{metrics_hint(engine)}"
     if saved.get("kind") != live.get("kind"):
         return (
             f"the server facts record a {saved.get('kind')!r} marker, but {engine} "

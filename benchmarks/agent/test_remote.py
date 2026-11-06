@@ -608,7 +608,7 @@ def test_an_engine_without_a_marker_is_not_probed():
     def fetch(url, timeout):
         raise AssertionError("must not be called")
 
-    assert remote.read_instance("http://srv:8030", "llama.cpp", fetch) is None
+    assert remote.read_instance("http://srv:8030", "ds4", fetch) is None
 
 
 def _inst(value, kind="counter"):
@@ -640,7 +640,7 @@ def test_a_marker_of_another_kind_refuses():
 
 
 def test_an_engine_without_a_marker_passes_unchecked():
-    assert remote.instance_mismatch(None, None, "llama.cpp") is None
+    assert remote.instance_mismatch(None, None, "ds4") is None
 
 
 def test_check_instance_refuses_a_restarted_tensorfold():
@@ -761,3 +761,90 @@ def test_a_fresh_tandemllm_server_reads_as_zero_requests():
 
 def test_a_page_with_no_known_counter_family_still_yields_no_value():
     assert remote.parse_instance("counter", "other_metric 3\n") is None
+
+
+#: The counter lines of /metrics in llama.cpp b11700's format. The names come
+#: from the live probe of 2026-10-24 (#948): every `_total` line starts at 0
+#: and only grows. `--metrics` must be on, or the route answers an error.
+LLAMACPP_METRICS = """\
+# HELP llamacpp:prompt_tokens_total Number of prompt tokens processed.
+# TYPE llamacpp:prompt_tokens_total counter
+llamacpp:prompt_tokens_total 51234
+llamacpp:tokens_predicted_total 8811
+llamacpp:n_decode_total 1207
+llamacpp:n_busy_slots_per_decode 1
+llamacpp:requests_processing 0
+"""
+
+
+def test_llamacpp_reads_its_decode_counter_from_metrics():
+    asked = []
+
+    def fetch(url, timeout):
+        asked.append(url)
+        return LLAMACPP_METRICS
+
+    got = remote.read_instance("http://srv:8020/v1", "llama.cpp", fetch)
+    assert asked == ["http://srv:8020/metrics"]
+    assert got == {"engine": "llama.cpp", "kind": "counter", "value": 1207}
+
+
+def test_a_fresh_llamacpp_server_reads_as_zero():
+    """llama.cpp prints every counter from the start, at 0."""
+    assert remote.parse_instance("counter", "llamacpp:n_decode_total 0\n") == 0
+
+
+def test_a_restarted_llamacpp_refuses():
+    facts = {
+        "backend": "b",
+        "instance": {"engine": "llama.cpp", "kind": "counter", "value": 1207},
+    }
+    backends = {"b": {"engine": "llama.cpp", "base_url": "http://srv:8020/v1"}}
+    with pytest.raises(SystemExit, match="restarted"):
+        remote.check_instance(
+            facts, backends, lambda url, timeout: "llamacpp:n_decode_total 3\n"
+        )
+
+
+#: The SGLang request counter, as its prometheus_client multiprocess export
+#: prints it (sglang `observability/metrics_collector.py`, `num_requests_total`,
+#: labelled by model and streaming). SGLang exports through
+#: `MultiProcessCollector` alone, so its page has no `process_start_time_seconds`;
+#: each launch gets a new temporary metrics directory, so the counter starts over.
+SGLANG_METRICS = """\
+# HELP sglang:num_requests_total Number of requests processed.
+# TYPE sglang:num_requests_total counter
+sglang:num_requests_total{is_streaming="true",model_name="m"} 40.0
+sglang:num_requests_total{is_streaming="false",model_name="m"} 2.0
+sglang:num_running_reqs{model_name="m"} 0.0
+"""
+
+
+def test_sglang_reads_its_request_counter_from_metrics():
+    asked = []
+
+    def fetch(url, timeout):
+        asked.append(url)
+        return SGLANG_METRICS
+
+    got = remote.read_instance("http://srv:8888/v1", "sglang", fetch)
+    assert asked == ["http://srv:8888/metrics"]
+    assert got == {"engine": "sglang", "kind": "counter", "value": 42}
+
+
+def test_a_fresh_sglang_server_reads_as_zero_requests():
+    """The labelled counter has no sample before the first request; the
+    running-requests gauge says the page is SGLang's."""
+    page = 'sglang:num_running_reqs{model_name="m"} 0.0\n'
+    assert remote.parse_instance("counter", page) == 0
+
+
+@pytest.mark.parametrize(
+    ("engine", "flag"),
+    [("llama.cpp", "--metrics"), ("sglang", "--enable-metrics")],
+)
+def test_an_unreadable_marker_names_the_flag_that_turns_metrics_on(engine, flag):
+    saved = {"engine": engine, "kind": "counter", "value": 5}
+    live = {"engine": engine, "kind": "counter", "value": None}
+    why = remote.instance_mismatch(saved, live, engine)
+    assert why and flag in why
