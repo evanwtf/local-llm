@@ -11,6 +11,10 @@ sha256 and size. This script:
   * compares each LFS file by size first (cheap), then by sha256;
   * compares each small file by its git blob id;
   * reports missing files; files on disk that the revision lacks are ignored;
+  * names every failing file, with the expected and actual size or hash;
+  * follows every page of the Hub's tree listing. With ``expand=1`` the Hub
+    returns 50 entries a page and names the next page in a ``Link`` header.
+    Before #1344 the script read page 1 only: 45 of 82 files on one checkpoint;
   * with ``--manifest``, writes the LFS hashes in ``sha256sum`` format, so a
     node without this checkout can run ``sha256sum -c`` on its copy.
 
@@ -30,10 +34,11 @@ import hashlib
 import json
 import logging
 import pathlib
+import re
 import sys
 import urllib.parse
 import urllib.request
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -46,6 +51,10 @@ logger = logging.getLogger(__name__)
 # `hf download --local-dir` does not write these.
 DEFAULT_SKIP = frozenset({".gitattributes"})
 CHUNK = 16 * 1024 * 1024
+HUB = "https://huggingface.co/"
+#: A guard against a Link loop: 1,000 pages of 50 is 50,000 entries.
+MAX_PAGES = 1000
+_NEXT = re.compile(r'<([^>]+)>\s*;\s*rel="?next"?')
 
 
 @dataclasses.dataclass(frozen=True)
@@ -90,13 +99,33 @@ def parse_tree(tree: Iterable[dict[str, Any]]) -> list[Entry]:
     return sorted(entries, key=lambda e: e.path)
 
 
-def fetch_tree(repo: str, revision: str) -> list[dict[str, Any]]:
-    """The recursive tree of one revision, with LFS metadata."""
+def next_link(header: str | None) -> str | None:
+    """The URL of the `rel="next"` page in a Link header, or None."""
+    if not header:
+        return None
+    m = _NEXT.search(header)
+    return m.group(1) if m else None
+
+
+def fetch_tree(
+    repo: str,
+    revision: str,
+    *,
+    opener: Callable[..., Any] = urllib.request.urlopen,
+) -> list[dict[str, Any]]:
+    """The recursive tree of one revision, with LFS metadata, every page."""
     rev = urllib.parse.quote(revision, safe="")
-    url = f"https://huggingface.co/api/models/{repo}/tree/{rev}?recursive=1&expand=1"
-    with urllib.request.urlopen(url, timeout=60) as r:
-        data: list[dict[str, Any]] = json.load(r)
-    return data
+    url: str | None = f"{HUB}api/models/{repo}/tree/{rev}?recursive=1&expand=1"
+    data: list[dict[str, Any]] = []
+    for _ in range(MAX_PAGES):
+        if url is None:
+            return data
+        if not url.startswith(HUB):
+            raise ValueError(f"the next page is off the Hub: {url}")
+        with opener(url, timeout=60) as r:
+            data.extend(json.load(r))
+            url = next_link(r.headers.get("Link"))
+    raise ValueError(f"{repo} @ {revision}: more than {MAX_PAGES} pages")
 
 
 def file_sha256(path: pathlib.Path) -> str:
@@ -111,17 +140,19 @@ def check_one(root: pathlib.Path, e: Entry) -> str | None:
     """One problem line for this file, or None when it matches."""
     p = root / e.path
     if not p.is_file():
-        return f"{e.path}: missing"
+        return f"{e.path}: missing (expected {e.size} bytes)"
     size = p.stat().st_size
     if size != e.size:
         return f"{e.path}: size {size}, expected {e.size}"
     if e.sha256 is not None:
-        return None if file_sha256(p) == e.sha256 else f"{e.path}: sha256 differs"
-    return (
-        None
-        if git_blob_sha1(p.read_bytes()) == e.git_oid
-        else f"{e.path}: git blob id differs"
-    )
+        got = file_sha256(p)
+        if got == e.sha256:
+            return None
+        return f"{e.path}: sha256 differs: expected {e.sha256}, actual {got}"
+    got = git_blob_sha1(p.read_bytes())
+    if got == e.git_oid:
+        return None
+    return f"{e.path}: git blob id differs: expected {e.git_oid}, actual {got}"
 
 
 def verify(
@@ -176,24 +207,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     report = verify(args.dir, entries, workers=args.workers)
     for problem in report.problems:
         logger.error("%s", problem)
-    total_gib = sum(e.size for e in entries) / 2**30
+    skipped = sorted(e.path for e in entries if e.path in DEFAULT_SKIP)
+    total_gib = sum(e.size for e in entries if e.path not in DEFAULT_SKIP) / 2**30
+    skip_note = f"skipped {len(skipped)} ({', '.join(skipped)})" if skipped else ""
     if report.ok:
         logger.info(
-            "%s @ %s: %d of %d files match (%.1f GiB) in %s",
+            "%s @ %s: all %d checked files match (%.1f GiB) in %s; %s",
             args.repo,
             args.revision,
             report.checked,
-            len(entries),
             total_gib,
             args.dir,
+            skip_note or "skipped none",
         )
         return 0
     logger.error(
-        "%s @ %s: %d problem(s) in %s",
+        "%s @ %s: %d of %d checked files failed in %s; %s",
         args.repo,
         args.revision,
         len(report.problems),
+        report.checked,
         args.dir,
+        skip_note or "skipped none",
     )
     return 1
 
