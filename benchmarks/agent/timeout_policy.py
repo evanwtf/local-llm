@@ -249,6 +249,7 @@ def run_client_with_watchdog(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        errors="replace",
         start_new_session=True,
     )
     start = time.monotonic()
