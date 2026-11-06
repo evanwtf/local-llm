@@ -641,6 +641,30 @@ def test_provider_check_passes_an_output_limit_below_the_context():
     assert mod.check_opencode_provider("b", _BACKEND, config, _PATH) is None
 
 
+# #680 finding 4: the client's OpenCode config capped GLM at 65,536 tokens
+# while tasks.toml and the server said 262,144. The 30 #648 rows claimed a
+# window that OpenCode never used, and nothing compared the two.
+def test_provider_check_refuses_a_context_limit_below_the_backend():
+    backend = {**_BACKEND, "context_tokens": 262144}
+    why = mod.check_opencode_provider("b", backend, _with_limits(65536, 16384), _PATH)
+    assert why is not None
+    assert "65536" in why and "262144" in why and "#680" in why
+
+
+def test_provider_check_passes_a_context_limit_equal_to_the_backend():
+    backend = {**_BACKEND, "context_tokens": 262144}
+    config = _with_limits(262144, 32768)
+    assert mod.check_opencode_provider("b", backend, config, _PATH) is None
+
+
+def test_provider_check_passes_a_backend_or_model_without_a_limit():
+    """No `limit` or no `context_tokens`: nothing to compare, nothing claimed."""
+    backend = {**_BACKEND, "context_tokens": 262144}
+    assert mod.check_opencode_provider("b", backend, _CONFIG, _PATH) is None
+    config = _with_limits(65536, 16384)
+    assert mod.check_opencode_provider("b", _BACKEND, config, _PATH) is None
+
+
 # #1066: the container runs as root and created the ledger's lock file, so the
 # host-side quarantine could not open it and the faulted batch stayed unexcluded.
 def test_the_ledger_lock_is_created_by_the_host_before_the_container(tmp_path):

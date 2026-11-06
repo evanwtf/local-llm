@@ -75,7 +75,8 @@ def read_run(path: pathlib.Path) -> Run:
         if not line.strip():
             continue
         row = json.loads(line)
-        if row.get("excluded") or row.get("dry_run"):
+        # A record line (#305's machine header) is about the file, not a row.
+        if "record" in row or row.get("excluded") or row.get("dry_run"):
             continue
         rows.append(row)
     if not rows:
