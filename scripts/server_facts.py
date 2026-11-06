@@ -5,7 +5,8 @@ Run on the machine that serves the model, then copy the file to the client and
 point `LOCAL_LLM_SERVER_FACTS` at it. The client's rows then describe this
 machine's hardware and land in this machine's ledger, and carry the server's
 launch argv for the #213 pooling guard, which the client cannot read from its
-own process table.
+own process table. It refuses to write facts without that argv for an engine
+whose argv it can read, unless `--no-argv-reason` says why (#213).
 
     uv run python scripts/server_facts.py --backend <name> --out /tmp/server-facts.json
 """
@@ -51,8 +52,49 @@ def check_current(
     return currency.gate(f"server:{backend}", items)
 
 
+#: Engines whose launch argv `run.capture_versions` reads on the server (#213):
+#: vLLM, SGLang and TensorFold from their containers or processes, llama.cpp and
+#: ds4 from the process on the backend's port, TandemLLM from its checkout.
+#: Facts for one of these without a `server_argv` mean the reader missed the
+#: server, so they refuse unless someone states why.
+ARGV_ENGINES = frozenset(
+    {"vllm", "tensorfold", "sglang", "llama.cpp", "tandemllm", "ds4"}
+)
+
+
+def argv_gap(backend: str, engine: str, env: dict, reason: str | None) -> str | None:
+    """The refusal for facts without a launch argv, or None (#213).
+
+    A row records what the engine did, never what it was told, unless it
+    carries `server_argv`; the pooling guard in results.py reads it. Every
+    remote row gets one, or `server_argv_missing` with the reason, so a row
+    never lacks argv silently. Sets `server_argv_missing` in `env`.
+    """
+    if env.get("server_argv"):
+        return None
+    reason = (reason or "").strip()
+    if engine not in ARGV_ENGINES:
+        env["server_argv_missing"] = reason or (
+            f"no launch-argv reader for engine {engine!r} (#213)"
+        )
+        return None
+    if reason:
+        env["server_argv_missing"] = reason
+        return None
+    return (
+        f"server_facts: no server_argv for backend {backend!r}: the {engine} "
+        "launch-argv reader found no serving process or container for its "
+        "model (#213). Check that the server runs on this machine under the "
+        "backend's model name, or pass --no-argv-reason TEXT to record why "
+        "the rows carry none."
+    )
+
+
 def collect(
-    backend: str, tasks_file: pathlib.Path, cluster_peer: str | None = None
+    backend: str,
+    tasks_file: pathlib.Path,
+    cluster_peer: str | None = None,
+    no_argv_reason: str | None = None,
 ) -> dict:
     """The server's hardware facts and the engine provenance for `backend`.
 
@@ -105,6 +147,9 @@ def collect(
     env = run.capture_versions(
         cfg, {backend: cfg["backend"][backend]}, allow_unstamped=True
     )
+    engine = str(spec.get("engine", "")).lower()
+    if why := argv_gap(backend, engine, env, no_argv_reason):
+        raise SystemExit(why)
     if cluster_peer:
         # #680 finding 3: `facts` (memory_gib, cpu_count) describe the head
         # alone and stay per node, so a cluster row compares with the rows
@@ -139,6 +184,12 @@ def main(argv: list[str] | None = None) -> int:
         "hardware, or has no ACTIVE RDMA link -- it never falls back to the "
         "single-node name (#647)",
     )
+    p.add_argument(
+        "--no-argv-reason",
+        metavar="TEXT",
+        help="write the facts although the launch argv could not be read, and "
+        "record TEXT on every row as env.server_argv_missing (#213)",
+    )
     args = p.parse_args(argv)
     import tomllib
 
@@ -150,7 +201,9 @@ def main(argv: list[str] | None = None) -> int:
     if why:
         print(why, file=sys.stderr)
         return 2
-    data = collect(args.backend, args.tasks_file, args.cluster_peer)
+    data = collect(
+        args.backend, args.tasks_file, args.cluster_peer, args.no_argv_reason
+    )
     # Checked by client_container.py before every client batch, so a facts
     # file reused from an earlier batch cannot skip this server's gate.
     items = currency.backend_items(spec)

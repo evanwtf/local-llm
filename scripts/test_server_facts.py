@@ -13,6 +13,7 @@ import pytest
 import server_facts
 
 SINGLE = "Cortex-X925-128GB-GB10"
+ARGV = "vllm serve /models/m --port 8888 --max-num-seqs 8"
 CLUSTER = "Cortex-X925-128GB-GB10-x2"
 
 TASKS = """\
@@ -38,6 +39,13 @@ engine = "llama.cpp"
 model = "m"
 base_url = "http://127.0.0.1:8020/v1"
 
+[backend.atlas]
+tier = "gb10-spark-x2"
+topology = "remote"
+engine = "atlas"
+model = "m"
+base_url = "http://127.0.0.1:8888"
+
 [backend.single]
 tier = "gb10-spark"
 topology = "remote"
@@ -59,7 +67,7 @@ def tasks(tmp_path, monkeypatch) -> pathlib.Path:
     monkeypatch.setattr(server_facts.cluster_id, "peer_lan_name", lambda p: "w.lan")
     monkeypatch.setattr(server_facts.cluster_id, "peer_facts", lambda p: {})
     monkeypatch.setattr(server_facts.preflight, "machine_facts", dict)
-    monkeypatch.setattr(run, "capture_versions", lambda *a, **k: {})
+    monkeypatch.setattr(run, "capture_versions", lambda *a, **k: {"server_argv": ARGV})
     path = tmp_path / "tasks.toml"
     path.write_text(TASKS)
     return path
@@ -145,3 +153,75 @@ def test_cluster_facts_describe_every_node(tasks, monkeypatch):
     got = server_facts.collect("pair", tasks, cluster_peer="peer")["env"]["cluster"]
     assert got == {"nodes": 2, "peer": {"cpu_count": 20, "memory_gib": 121.7}}
     assert "cluster" not in server_facts.collect("single", tasks)["env"]
+
+
+# #213: a row records what the engine did, never what it was told, unless the
+# facts carry the launch argv. A remote row's argv comes only from these facts.
+
+
+@pytest.fixture
+def no_argv(monkeypatch):
+    import run
+
+    monkeypatch.setattr(run, "capture_versions", lambda *a, **k: {})
+
+
+def _quiet_marker(monkeypatch):
+    import remote
+
+    monkeypatch.setattr(
+        remote, "_fetch", lambda url, timeout, token=None: '{"requests_total": 7}'
+    )
+
+
+def test_the_facts_carry_the_launch_argv(tasks, monkeypatch):
+    _quiet_marker(monkeypatch)
+    env = server_facts.collect("tf", tasks, cluster_peer="peer")["env"]
+    assert env["server_argv"] == ARGV
+    assert "server_argv_missing" not in env
+
+
+def test_an_engine_with_an_argv_reader_refuses_facts_without_argv(
+    tasks, monkeypatch, no_argv
+):
+    _quiet_marker(monkeypatch)
+    with pytest.raises(SystemExit, match="server_argv") as exc:
+        server_facts.collect("tf", tasks, cluster_peer="peer")
+    assert "--no-argv-reason" in str(exc.value)
+
+
+def test_a_stated_reason_lets_facts_without_argv_through_and_is_recorded(
+    tasks, monkeypatch, no_argv
+):
+    _quiet_marker(monkeypatch)
+    env = server_facts.collect(
+        "tf", tasks, cluster_peer="peer", no_argv_reason="server started by hand"
+    )["env"]
+    assert "server_argv" not in env
+    assert env["server_argv_missing"] == "server started by hand"
+
+
+@pytest.mark.parametrize("reason", ["", "   "])
+def test_a_blank_reason_is_no_reason(tasks, monkeypatch, no_argv, reason):
+    _quiet_marker(monkeypatch)
+    with pytest.raises(SystemExit, match="server_argv"):
+        server_facts.collect("tf", tasks, cluster_peer="peer", no_argv_reason=reason)
+
+
+def test_an_engine_without_an_argv_reader_records_why(tasks, no_argv):
+    env = server_facts.collect("atlas", tasks, cluster_peer="peer")["env"]
+    assert env["server_argv_missing"] == (
+        "no launch-argv reader for engine 'atlas' (#213)"
+    )
+
+
+def test_the_engines_with_an_argv_reader():
+    """run.capture_versions reads a launch argv for each of these (#213)."""
+    assert server_facts.ARGV_ENGINES == {
+        "vllm",
+        "tensorfold",
+        "sglang",
+        "llama.cpp",
+        "tandemllm",
+        "ds4",
+    }
