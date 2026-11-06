@@ -40,6 +40,9 @@ def _fake_uv_dir(tmp_path: pathlib.Path, out: pathlib.Path) -> pathlib.Path:
     shim = tmp_path / "shim"
     shim.mkdir()
     equiv.write_uv_fake_running_real(shim / "uv", out, ROOT, shim=True)
+    # `start_shim` opens with `pkill -f qwen_tool_shim`, which matches by name
+    # across the machine: another suite's decoy, or a live batch's shim (#1303).
+    equiv.write_fake_pkill(shim)
     return shim
 
 
@@ -139,3 +142,29 @@ def test_the_on_arm_removes_shim_no_strip_on_both_sides(tmp_path, monkeypatch) -
             f"{side} OFF arm left {SHIM_VAR} "
             f"{equiv.env_key_state(envs['off'], SHIM_VAR)}"
         )
+
+
+def test_the_shell_side_signals_no_process_it_did_not_start(tmp_path) -> None:
+    """#1303: `start_shim` opens with `pkill -f qwen_tool_shim`.
+
+    This differential runs the real function, so that `pkill` matched by name
+    across the whole machine. On 2026-10-28 two suites ran at once on one host,
+    and it killed the other suite's `test_a_dry_run_does_not_kill_a_running_shim`
+    decoy. On a machine with a live batch it would kill the real shim. The fake
+    `uv` directory must also hold a no-op `pkill`.
+    """
+    decoy_script = tmp_path / "qwen_tool_shim_bystander.py"
+    decoy_script.write_text("import time\ntime.sleep(60)\n")
+    decoy = subprocess.Popen([sys.executable, str(decoy_script)])
+    try:
+        time.sleep(0.5)
+        assert decoy.poll() is None, "the bystander died before the run"
+        out = tmp_path / "rec.jsonl"
+        shim_dir = _fake_uv_dir(tmp_path, out)
+        _shell_shim_envs(tmp_path, out, shim_dir)
+        assert decoy.poll() is None, (
+            "the shell differential killed a process it did not start"
+        )
+    finally:
+        decoy.kill()
+        decoy.wait(timeout=5)
