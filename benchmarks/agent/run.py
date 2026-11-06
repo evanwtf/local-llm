@@ -63,6 +63,7 @@ import provenance
 import remote
 import replay
 import results
+import runtimes
 import screening
 import shim_strip
 import smoke
@@ -6921,6 +6922,12 @@ def main():
         raise SystemExit(_not_empty)
     if _not_empty:
         logger.warning("%s (proceeding: --allow-contended)", _not_empty)
+
+    # #324: an engine with no runtime on this (OS, arch) refuses now, not after
+    # a server that never comes up. Not bypassed by --allow-contended.
+    _no_runtime = runtimes.refusal(backends)
+    if _no_runtime:
+        raise SystemExit(_no_runtime)
 
     # #149: a gate, not a log line.
     #
