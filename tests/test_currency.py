@@ -745,3 +745,85 @@ def test_a_locally_built_image_without_its_recipe_refuses():
     backend = {"engine": "vllm", "image": "x:local", "image_source": "local"}
     with pytest.raises(ValueError, match="recipe_dir"):
         currency.backend_items(backend, recipe_runner("0"))
+
+
+# #1192: the worker Spark has no `gh`. Every server-side currency read must
+# work there, or the server gate refuses the batch as "unknown". The case the
+# issue found: vllm/vllm-openai:v0.30.0 read "latest unknown" on the worker
+# while the head read v0.32.0.
+
+
+def _no_gh(monkeypatch, answers):
+    """No `gh` on PATH, and the public REST API answering from `answers`."""
+    import shutil
+
+    urls: list[str] = []
+
+    def fetch(url):
+        urls.append(url)
+        return answers.get(url)
+
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    monkeypatch.setattr(
+        currency, "_run", lambda argv, timeout=30: pytest.fail(f"ran {argv}")
+    )
+    monkeypatch.setattr(currency, "_fetch_json", fetch)
+    return urls
+
+
+def test_an_engine_image_is_checked_on_a_node_without_gh(monkeypatch):
+    api = "https://api.github.com/repos/vllm-project/vllm/releases/latest"
+    _no_gh(monkeypatch, {api: {"tag_name": "v0.32.0"}})
+    item = currency.engine_release_item("vllm/vllm-openai:v0.30.0", currency._run)
+    assert item is not None
+    assert (item.installed, item.latest, item.state) == ("v0.30.0", "v0.32.0", "behind")
+
+
+RELEASES_API = "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=50"
+
+
+def test_release_tags_read_the_api_on_a_node_without_gh(monkeypatch):
+    urls = _no_gh(
+        monkeypatch,
+        {
+            RELEASES_API: [
+                {"tag_name": "b11633", "published_at": "2026-10-15T08:00:00Z"},
+                {"tag_name": "b11632", "published_at": "2026-10-15T03:20:55Z"},
+            ]
+        },
+    )
+    got = currency.release_tags("ggml-org/llama.cpp", currency._run)
+    assert got == [
+        ("b11633", "2026-10-15T08:00:00Z"),
+        ("b11632", "2026-10-15T03:20:55Z"),
+    ]
+    assert urls == [RELEASES_API]
+
+
+def test_a_llamacpp_tag_build_is_checked_on_a_node_without_gh(monkeypatch):
+    _no_gh(
+        monkeypatch,
+        {
+            RELEASES_API: [
+                {"tag_name": "b11640", "published_at": "2026-10-15T09:00:00Z"},
+                {"tag_name": "b11633", "published_at": "2026-10-14T21:00:00Z"},
+            ]
+        },
+    )
+
+    def git_only(argv, timeout=30):
+        assert argv[0] == "git", argv
+        return "b11632"
+
+    tree = currency.pathlib.Path("/engines/llama.cpp-b11632")
+    monkeypatch.setattr(currency, "_run", git_only)
+    item = currency.tag_engine_item("llama.cpp", tree, currency._run, now=NOW)
+    assert (item.installed, item.latest, item.state) == ("b11632", "b11640", "behind")
+
+
+def test_release_tags_skip_a_malformed_api_answer(monkeypatch):
+    _no_gh(
+        monkeypatch,
+        {RELEASES_API: [{"tag_name": "b1"}, "junk", {"published_at": "x"}]},
+    )
+    assert currency.release_tags("ggml-org/llama.cpp", currency._run) == []
