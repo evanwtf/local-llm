@@ -2060,6 +2060,13 @@ def main() -> int:
         # means "report running servers only", and that is not a mode that
         # should reach the network.
         log_ci_status(offline=args.offline)
+    # #324: how each engine is obtained on this (OS, arch), or that it is not.
+    import runtimes
+
+    for line in runtimes.describe():
+        logger.info(
+            "preflight: runtime on %s: %s", runtimes.label(runtimes.host()), line
+        )
     # #1049: an engine behind its newest release refuses, unlike the clients
     # above: the operator's rule is the latest version of all software.
     engines_ok = True

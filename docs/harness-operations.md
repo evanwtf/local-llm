@@ -46,6 +46,16 @@ engine, model) and the task set, and marks which backends have valid current
 data. **Read it before you add a variable**, and update it in the same commit.
 A test fails when a live backend in `tasks.toml` is missing from it.
 
+## Which engine runs on which (OS, arch) is a table (#324)
+
+[`benchmarks/agent/runtimes.py`](../benchmarks/agent/runtimes.py) records,
+per engine, whether the M5 Max (Darwin arm64), the DGX Spark (Linux aarch64)
+and the 3080 Ti desktop (Linux x86_64) get it `prebuilt` or build it from
+`source`, or have no runtime at all. `run.py` refuses a local backend whose
+engine has no runtime on the host, before it claims the machine. `preflight.py`
+logs the table for the host. A pair nobody has tried is unknown and does not
+refuse. A new engine in `tasks.toml` fails a test until it has a row.
+
 ## Retire a backend, do not delete it
 
 **Set `retired = "<reason>"` on the backend in `tasks.toml`.** Keep the config
