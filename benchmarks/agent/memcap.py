@@ -124,6 +124,7 @@ def _rss_kib_by_pid() -> dict[int, tuple[int, int]]:
             ["ps", "-axo", "pid=,ppid=,rss="],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=10,
             check=False,
         ).stdout
@@ -258,6 +259,7 @@ def _run_capped_spooled(cmd, cwd, timeout, cap_gib, env, out_f, err_f):
         stdout=out_f,
         stderr=err_f,
         text=True,
+        errors="replace",
         start_new_session=True,  # own process group, so we can kill the tree
     )
     deadline = time.monotonic() + timeout
