@@ -9,6 +9,7 @@ a normal short answer or a healthy long-reasoning answer is not swept in.
 
 from __future__ import annotations
 
+import json
 import pathlib
 import sys
 
@@ -106,3 +107,11 @@ def test_boolean_is_not_treated_as_a_number():
     rows = [_row(backend="b", task="t", reasoning_tokens=True, solution_empty=True)]
     c = rbs.classify(rows)
     assert c["thinking_on"] == [] and c["thinking_off"] == []
+
+
+def test_a_machine_header_is_not_a_row(tmp_path):
+    """#305: the header is a record about the file, never counted as a row."""
+    path = tmp_path / "results.jsonl"
+    header = {"record": "machine-header", "v": 1, "at": "x", "machine": "m"}
+    path.write_text(json.dumps(header) + "\n" + json.dumps({"task": "t"}) + "\n")
+    assert rbs._load(path) == [{"task": "t"}]
