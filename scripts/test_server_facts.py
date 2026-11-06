@@ -22,6 +22,7 @@ base_commit = "abc1234"
 [backend.pair]
 tier = "gb10-spark-x2"
 topology = "remote"
+engine = "ds4"
 model = "m"
 base_url = "http://127.0.0.1:8888"
 
@@ -46,9 +47,17 @@ engine = "atlas"
 model = "m"
 base_url = "http://127.0.0.1:8888"
 
+[backend.newengine]
+tier = "gb10-spark-x2"
+topology = "remote"
+engine = "newengine"
+model = "m"
+base_url = "http://127.0.0.1:8888"
+
 [backend.single]
 tier = "gb10-spark"
 topology = "remote"
+engine = "ds4"
 model = "m"
 base_url = "http://127.0.0.1:8888"
 """
@@ -138,8 +147,19 @@ def test_the_facts_name_the_worker_for_the_client(tasks):
     assert server_facts.collect("single", tasks)["peer_host"] is None
 
 
-def test_an_engine_without_a_marker_records_none(tasks):
-    assert server_facts.collect("pair", tasks, cluster_peer="peer")["instance"] is None
+def test_an_engine_without_a_marker_records_why(tasks):
+    """#948: ds4 publishes no marker. The facts say so, and every row carries
+    the reason, so a row never lacks the check silently."""
+    data = server_facts.collect("pair", tasks, cluster_peer="peer")
+    assert data["instance"]["engine"] == "ds4"
+    assert data["instance"]["kind"] == "none"
+    assert data["instance"]["value"] is None
+    assert data["env"]["instance_unchecked"] == data["instance"]["reason"]
+
+
+def test_an_unclassified_engine_refuses(tasks):
+    with pytest.raises(SystemExit, match="NO_INSTANCE_MARKER"):
+        server_facts.collect("newengine", tasks, cluster_peer="peer")
 
 
 def test_cluster_facts_describe_every_node(tasks, monkeypatch):
@@ -208,7 +228,12 @@ def test_a_blank_reason_is_no_reason(tasks, monkeypatch, no_argv, reason):
         server_facts.collect("tf", tasks, cluster_peer="peer", no_argv_reason=reason)
 
 
-def test_an_engine_without_an_argv_reader_records_why(tasks, no_argv):
+def test_an_engine_without_an_argv_reader_records_why(tasks, monkeypatch, no_argv):
+    import remote
+
+    monkeypatch.setattr(
+        remote, "_fetch", lambda url, timeout, token=None: "atlas_requests_total 3\n"
+    )
     env = server_facts.collect("atlas", tasks, cluster_peer="peer")["env"]
     assert env["server_argv_missing"] == (
         "no launch-argv reader for engine 'atlas' (#213)"
