@@ -123,12 +123,21 @@ def _fetch_json(url: str) -> object | None:
         return None
 
 
+def _have_gh(run: Runner) -> bool:
+    """Whether `gh` can answer: an injected runner (a test's fake) answers for
+    it, and the real one needs `gh` on PATH. The worker Spark has none (#1192).
+    """
+    import shutil
+
+    return run is not _run or shutil.which("gh") is not None
+
+
 def latest_release(
     repo: str,
     run: Runner = _run,
     *,
     have_gh: bool | None = None,
-    fetch: Callable[[str], object | None] = _fetch_json,
+    fetch: Callable[[str], object | None] | None = None,
 ) -> str | None:
     """The tag of `repo`'s latest GitHub release, or None.
 
@@ -138,10 +147,7 @@ def latest_release(
     the server gate refuses the batch.
     """
     if have_gh is None:
-        import shutil
-
-        # An injected runner (a test's fake) answers for `gh` itself.
-        have_gh = run is not _run or shutil.which("gh") is not None
+        have_gh = _have_gh(run)
     if have_gh:
         got = run(
             [
@@ -159,7 +165,10 @@ def latest_release(
         )
         if got or run is not _run:
             return got
-    body = fetch(f"https://api.github.com/repos/{repo}/releases/latest")
+    # Looked up at call time, so a test can stub the module's `_fetch_json`.
+    body = (fetch or _fetch_json)(
+        f"https://api.github.com/repos/{repo}/releases/latest"
+    )
     tag = body.get("tag_name") if isinstance(body, dict) else None
     return tag if isinstance(tag, str) and tag else None
 
@@ -492,24 +501,37 @@ TAG_GRACE_HOURS = 12.0
 def release_tags(repo: str, run: Runner = _run) -> list[tuple[str, str]]:
     """(tag, publishedAt) for the newest releases by date, newest first.
 
-    Ignores the "Latest" flag, which is not the newest release here.
+    Ignores the "Latest" flag, which is not the newest release here. Where
+    `gh` is missing or gives no answer (the worker Spark, #1192), reads the
+    public REST API, which lists releases newest first as well.
     """
-    out = run(
-        [
-            "gh",
-            "release",
-            "list",
-            "--repo",
-            repo,
-            "--limit",
-            "50",
-            "--json",
-            "tagName,publishedAt",
-            "-q",
-            '.[] | .tagName + " " + .publishedAt',
-        ],
-        30,
-    )
+    out = None
+    if _have_gh(run):
+        out = run(
+            [
+                "gh",
+                "release",
+                "list",
+                "--repo",
+                repo,
+                "--limit",
+                "50",
+                "--json",
+                "tagName,publishedAt",
+                "-q",
+                '.[] | .tagName + " " + .publishedAt',
+            ],
+            30,
+        )
+    if not out and run is _run:
+        body = _fetch_json(f"https://api.github.com/repos/{repo}/releases?per_page=50")
+        return [
+            (r["tag_name"], r["published_at"])
+            for r in (body if isinstance(body, list) else [])
+            if isinstance(r, dict)
+            and isinstance(r.get("tag_name"), str)
+            and isinstance(r.get("published_at"), str)
+        ]
     pairs = []
     for line in (out or "").splitlines():
         parts = line.split()
