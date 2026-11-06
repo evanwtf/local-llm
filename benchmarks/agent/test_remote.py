@@ -943,3 +943,29 @@ def test_the_dir_era_stays_the_clients():
     theirs = {**mine, "basis": "server"}
     out = remote.stamp({"dir_era": mine}, {"env": {"dir_era": theirs}})
     assert out["dir_era"] == mine
+
+
+def test_every_remote_speculative_arm_reads_its_counters_over_http():
+    """#680 finding 7: a remote client cannot read a server's log or process
+    table. `draft_engine` defaults to "ds4", whose counters come from `ps` and
+    a log file, so a remote arm that leaves it out would read the client's
+    own machine. Each remote speculative arm must name an engine whose
+    counters `run.py` reads from /metrics (`run.URL_PROBED_ENGINES`)."""
+    import tomllib
+
+    cfg = tomllib.loads((pathlib.Path(run.__file__).parent / "tasks.toml").read_text())
+    arms = {
+        name: b
+        for name, b in cfg["backend"].items()
+        if b.get("topology") == "remote" and b.get("speculative")
+    }
+    # 17 on main at 2026-11-06; the floor keeps a rename from emptying the loop.
+    assert len(arms) >= 17
+    bad = {
+        name: b.get("draft_engine")
+        for name, b in arms.items()
+        if b.get("draft_engine") not in run.URL_PROBED_ENGINES
+    }
+    assert bad == {}, (
+        f"remote speculative arms without an HTTP-read draft_engine: {bad}"
+    )
