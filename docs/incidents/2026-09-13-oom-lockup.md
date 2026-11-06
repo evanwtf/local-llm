@@ -44,7 +44,7 @@ network — hence the power button.
 ## Memory timeline (node_exporter via Prometheus)
 
 Pulled from Prometheus (`gcx metrics query`, datasource `uMatQbvMk`,
-`node_memory_MemAvailable_bytes{instance="dgx.internal:9100"}`). The DGX ran on
+`node_memory_MemAvailable_bytes{instance="<head>:9100"}`). The DGX ran on
 fumes for hours, and the monitoring itself went dark in the OOM windows.
 
 - **Minimum available: 3.1 GiB of 121.7** at 01:25 EDT, during the #354
@@ -140,7 +140,7 @@ Document this on the machine itself: whoever is nearby power-cycles it.
 
 ## Evidence
 
-`/var/log/syslog` and `/var/log/kern.log` on `spark-231e`, 2026-09-12 04:07
+`/var/log/syslog` and `/var/log/kern.log` on the head node, 2026-09-12 04:07
 through 2026-09-13 09:39. Boot history: `journalctl --list-boots` (six boots on
 09-13). Related issues: #360 (unified-memory OOM), #354 (speculation runaways),
 #347 (the field recipe's host-reserve flags).

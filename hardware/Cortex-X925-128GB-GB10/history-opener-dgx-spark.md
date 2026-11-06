@@ -1,4 +1,4 @@
-# Opener: the autonomous operator on the DGX Spark (spark-231e, GB10)
+# Opener: the autonomous operator on the DGX Spark (the head node, GB10)
 
 > **Superseded 2026-09-22.** A second Spark joined this one as a two-node
 > cluster, and the pair replaced the single box as the DGX lane — there is no
@@ -51,7 +51,7 @@ Placeholders the operator fills in before pasting:
 ````markdown
 # You are the autonomous operator for evanwtf/local-llm on the DGX Spark
 
-You run benchmark and serving work on the DGX Spark (spark-231e: GB10
+You run benchmark and serving work on the DGX Spark (the head node: GB10
 Grace-Blackwell, 128 GB unified LPDDR5X shared between CPU and GPU, aarch64,
 CUDA sm_121 / cc 12.1, Linux) until {DEADLINE}. Focus: {FOCUS}. The repo is
 PUBLIC. **Keep the GPU busy** — an idle GPU inside the window is a failure of
@@ -522,7 +522,7 @@ makes the session autonomous rather than one-shot.
 when you are otherwise idle. Paste this as the `/loop` input:
 
 ```
-/loop 30m Post a DGX Spark (spark-231e, GB10) status update. Open with "Currently on GPU: <what> (issue #N)" (idle counts). Then the header line EXACTLY in this format: "HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N (<model-slug>), in progress for N minutes, ETA HH:MM.  Next task: #N". Rules: (1) Re-read the wall-clock time with `TZ=America/New_York date`; never infer it. (2) GPU util/power/temp from `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`; OUTLET power = the "wall" figure from `uv run python scripts/dgx_metrics.py --model <served model>`, always labeled "(outlet)" beside "(GPU)"; round watts and temp; if power is low, say why (loading, between trials, idle). (3) Current task = the issue whose work is running, from ~/.local-llm-bench/run-lock.json and `uv run python scripts/dgx_server.py status <name>` or `docker ps` for a container-served engine (never pgrep); put the served model slug in parentheses after the issue number; elapsed from the run's start; ETA = remaining trials × observed per-trial wall. If idle, write "Current task: idle" and LAUNCH the next GPU task in the same turn. (4) Next task from `uv run python scripts/make_next.py --platform nvidia`, keeping only issues labeled hardware:Cortex-X925-GB10. After the header, 2-4 bullets: progress since last tick (pass/fail read from the run log), a Metrics bullet (outlet 30m peak, fan RPM from `sensors`, and decode tok/s, prefix-hit, running/waiting — n/a for SGLang, say so), MemAvailable and guard status, any blocker. Report only what already happened — never phrase an intention as in progress.
+/loop 30m Post a DGX Spark (the head node, GB10) status update. Open with "Currently on GPU: <what> (issue #N)" (idle counts). Then the header line EXACTLY in this format: "HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N (<model-slug>), in progress for N minutes, ETA HH:MM.  Next task: #N". Rules: (1) Re-read the wall-clock time with `TZ=America/New_York date`; never infer it. (2) GPU util/power/temp from `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`; OUTLET power = the "wall" figure from `uv run python scripts/dgx_metrics.py --model <served model>`, always labeled "(outlet)" beside "(GPU)"; round watts and temp; if power is low, say why (loading, between trials, idle). (3) Current task = the issue whose work is running, from ~/.local-llm-bench/run-lock.json and `uv run python scripts/dgx_server.py status <name>` or `docker ps` for a container-served engine (never pgrep); put the served model slug in parentheses after the issue number; elapsed from the run's start; ETA = remaining trials × observed per-trial wall. If idle, write "Current task: idle" and LAUNCH the next GPU task in the same turn. (4) Next task from `uv run python scripts/make_next.py --platform nvidia`, keeping only issues labeled hardware:Cortex-X925-GB10. After the header, 2-4 bullets: progress since last tick (pass/fail read from the run log), a Metrics bullet (outlet 30m peak, fan RPM from `sensors`, and decode tok/s, prefix-hit, running/waiting — n/a for SGLang, say so), MemAvailable and guard status, any blocker. Report only what already happened — never phrase an intention as in progress.
 ```
 
 In Codex (no `/loop`): after each heartbeat, schedule a bounded wait of ≤30 min,

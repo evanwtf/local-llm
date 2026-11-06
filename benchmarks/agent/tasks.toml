@@ -4699,7 +4699,7 @@ topology = "remote"
 # on one Spark, both arms driven from the same remote client (#562) after the #968
 # grep/glob fix, so #404's 2026-09-16 rows do not compare. Same weights
 # (nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4 @bee75962), same port and the
-# same OpenCode provider entry ("vllm" -> dgx.internal:8030), thinking off as in #404,
+# same OpenCode provider entry ("vllm" -> the head node, port 8030), thinking off as in #404,
 # 131072 context. Only the server differs. Restart the server between arms.
 [backend.nemotron35lvllmrcdgx]
 description = "#1066 control: Nemotron-3.5-Lightning-30B-A3B NVFP4 (nvidia/ModelOpt @bee75962) on vLLM latest (preflight), CUDA sm_121, thinking off, 131072 ctx, :8030. REMOTE CLIENT (#562)"
@@ -4885,7 +4885,7 @@ topology = "remote"
 engine_tree = "~/engines/llama.cpp-b11669"
 
 [backend.comet60bnvfp4mtpnothinkrcdgx]
-description = "#1111: MultiverseComputingCAI/Comet_60B_A12B_NVFP4 (rev 16aaedf9ec, a compressed Nemotron 3.5 Super VL, 60B total / 12B active), the card's vLLM command with its NVFP4 note (TP 1, no expert parallel) plus Super VL's --block-size 64 --prefix-match-unit 64 --enable-mamba-shared-prefix-checkpoint (without them prefix caching got 0 hits); vLLM nightly 3f1bcfd, GMU 0.85, fp8 KV, 262k ctx; reasoning off via --default-chat-template-kwargs enable_thinking=false; REMOTE CLIENT; server on the worker Spark (dgx2.internal), the card recipe kept verbatim, operator 2026-10-17 (#1108)"
+description = "#1111: MultiverseComputingCAI/Comet_60B_A12B_NVFP4 (rev 16aaedf9ec, a compressed Nemotron 3.5 Super VL, 60B total / 12B active), the card's vLLM command with its NVFP4 note (TP 1, no expert parallel) plus Super VL's --block-size 64 --prefix-match-unit 64 --enable-mamba-shared-prefix-checkpoint (without them prefix caching got 0 hits); vLLM nightly 3f1bcfd, GMU 0.85, fp8 KV, 262k ctx; reasoning off via --default-chat-template-kwargs enable_thinking=false; REMOTE CLIENT; server on the worker Spark, the card recipe kept verbatim, operator 2026-10-17 (#1108)"
 tier = "gb10-spark"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
@@ -4949,7 +4949,7 @@ speculative = "DFlash, LiLiCorr drafter, 7 speculative tokens"
 draft_engine = "vllm"
 image = "vllm/vllm-openai:v0.32.0"
 [backend.qwen38fnfp4localrcdgx]
-description = "#1108: nvidia/Qwen3.8-Flash-Next-FP4-Local (rev b9ce18a688, QAD FP4), the model card's DGX Spark recipe verbatim in the community container eugr/spark-vllm-b12x (b12x load format, MTP 4, fp8 KV, max-num-seqs 8, GMU 0.8, 262k ctx), plus VLLM_ENGINE_READY_TIMEOUT_S=3600; thinking on (the card default); REMOTE CLIENT; server on the worker Spark (dgx2.internal), the card recipe kept verbatim, operator 2026-10-17 (#1108)"
+description = "#1108: nvidia/Qwen3.8-Flash-Next-FP4-Local (rev b9ce18a688, QAD FP4), the model card's DGX Spark recipe verbatim in the community container eugr/spark-vllm-b12x (b12x load format, MTP 4, fp8 KV, max-num-seqs 8, GMU 0.8, 262k ctx), plus VLLM_ENGINE_READY_TIMEOUT_S=3600; thinking on (the card default); REMOTE CLIENT; server on the worker Spark, the card recipe kept verbatim, operator 2026-10-17 (#1108)"
 tier = "gb10-spark"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
@@ -4965,7 +4965,7 @@ draft_engine = "vllm"
 image = "eugr/spark-vllm-b12x:latest"
 
 [backend.qwen38fnfp4localnothinkrcdgx]
-description = "#1108: nvidia/Qwen3.8-Flash-Next-FP4-Local (rev b9ce18a688, QAD FP4), the model card's DGX Spark recipe verbatim in the community container eugr/spark-vllm-b12x (b12x load format, MTP 4, fp8 KV, max-num-seqs 8, GMU 0.8, 262k ctx), plus VLLM_ENGINE_READY_TIMEOUT_S=3600; thinking off via --default-chat-template-kwargs enable_thinking=false; REMOTE CLIENT; server on the worker Spark (dgx2.internal), the card recipe kept verbatim, operator 2026-10-17 (#1108)"
+description = "#1108: nvidia/Qwen3.8-Flash-Next-FP4-Local (rev b9ce18a688, QAD FP4), the model card's DGX Spark recipe verbatim in the community container eugr/spark-vllm-b12x (b12x load format, MTP 4, fp8 KV, max-num-seqs 8, GMU 0.8, 262k ctx), plus VLLM_ENGINE_READY_TIMEOUT_S=3600; thinking off via --default-chat-template-kwargs enable_thinking=false; REMOTE CLIENT; server on the worker Spark, the card recipe kept verbatim, operator 2026-10-17 (#1108)"
 tier = "gb10-spark"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"

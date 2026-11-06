@@ -32,6 +32,7 @@ from typing import Any
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import dgx_hosts
 import dgx_metrics
 
 import logs
@@ -39,7 +40,9 @@ import logs
 logger = logging.getLogger(__name__)
 
 UNCAPPED = "uncapped"
-HEAD, WORKER = "dgx.internal", "dgx2.internal"
+#: `$head` and `$worker` are filled at run time from local config, not the
+#: repo (#1153): `scripts/lib/dgx_hosts.py`.
+HEAD, WORKER = "$head", "$worker"
 
 #: (column, reducer, metric, label selector). Built by `promql`, which pins
 #: each query to the run's window with the `@` modifier.
@@ -104,7 +107,8 @@ def sensors(
 ) -> dict[str, float | None]:
     w, t = window(row)
     out: dict[str, float | None] = {
-        name: prom(promql(red, metric, sel, w, t)) for name, red, metric, sel in PROM
+        name: prom(promql(red, metric, dgx_hosts.fill(sel), w, t))
+        for name, red, metric, sel in PROM
     }
     for name, entity, unit, agg, back in FLUX:
         start = parse_utc(row["start_utc"]) - datetime.timedelta(seconds=back)

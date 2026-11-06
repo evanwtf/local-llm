@@ -155,25 +155,23 @@ def test_the_real_run_then_check_is_clean(monkeypatch, tmp_path):
     assert apdr.main(["--check"]) == 0
 
 
-def test_archiver_agrees_with_dirfix_on_the_orphaned_shas():
+def test_archiver_keeps_a_stamped_orphan_out_of_the_archive():
     """#355: `git gc` collected the rebased-but-post-fix shas, so `git log`
-    cannot reach them. dirfix.py unions REBASED_AFTER_FIX to keep those rows
-    classified "after"; the archiver MUST union the same set, or it treats them
-    as pre-dir and moves post-fix rows into the pre-dir "before" archive --
-    which broke test_dirfix's archive invariant and turned main red on
-    2026-09-14. The two classifiers must share one source of truth.
+    cannot reach them. The archiver once moved such rows into the pre-dir
+    archive, which turned main red on 2026-09-14. The rows now carry their era
+    (#393), and the archiver reads it through dirfix, so an unreachable sha
+    with an "after" stamp stays in the ledger.
     """
-    import dirfix
-
     after = apdr.fixed_commits(ROOT)
-    assert set(dirfix.REBASED_AFTER_FIX).issubset(after), (
-        "archiver fixed_commits dropped the #355 orphan shas dirfix keeps"
+    stamp = '{"rule":1,"fix":"7356460","era":"after","basis":"#355"}'
+    row = (
+        f'{{"client":"opencode","env":{{"harness_head":"6f56a28","dir_era":{stamp}}}}}'
     )
-    for sha in dirfix.REBASED_AFTER_FIX:
-        row = f'{{"client":"opencode","env":{{"harness_head":"{sha}"}}}}'
-        assert not apdr.is_pre_dir(row, after), (
-            f"post-fix orphan sha {sha} would be wrongly archived as pre-dir"
-        )
+    assert "6f56a28" not in after
+    assert not apdr.is_pre_dir(row, after)
+    assert apdr.is_pre_dir(
+        '{"client":"opencode","env":{"harness_head":"6f56a28"}}', after
+    )
 
 
 # --- Review of b7a366b, finding 5: a restored row is archived once, not twice.
