@@ -295,6 +295,15 @@ aggregate. Count them with:
 grep -c '"schema_valid": false' benchmarks/agent/results.jsonl
 ```
 
+**A new row carries `env.server_argv`, or `env.server_argv_missing` with the
+reason (#213).** The pooling guard in `results.py` reads the argv, and a row
+without one pools as unknown. For an engine whose argv the harness reads
+(`run.ARGV_ENGINES`: vLLM, SGLang, TensorFold, llama.cpp, TandemLLM, ds4), a
+missing argv means the reader missed the server, so `run.py` refuses, and so
+does `scripts/server_facts.py` for remote facts. Both take
+`--no-argv-reason TEXT` to write the rows anyway with that reason. Any other
+engine, and a hosted backend, record their own reason.
+
 ## Transcripts are on by default
 
 `--client-log` defaults to `~/bench-logs`. A row records *that* a trial failed,
