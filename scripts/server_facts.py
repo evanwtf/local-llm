@@ -99,7 +99,8 @@ def collect(
     if instance is not None and instance["value"] is None:
         raise SystemExit(
             f"server_facts: cannot read the {instance['engine']} instance marker "
-            f"from {spec.get('base_url')}; start the server first (#948)"
+            f"from {spec.get('base_url')}; start the server first (#948)."
+            + remote.metrics_hint(instance["engine"])
         )
     env = run.capture_versions(
         cfg, {backend: cfg["backend"][backend]}, allow_unstamped=True
