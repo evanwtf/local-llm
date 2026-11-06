@@ -25,21 +25,16 @@ logger = logging.getLogger(__name__)
 
 FIX = "7356460"  # opencode_argv gained --dir
 
-# harness_head shas that a rebase orphaned after a run had already stamped them
-# into rows (#355). The runs were post-FIX and the measurements are valid -- the
-# trees were identical, only the commit parents changed -- but `git gc` has
-# collected the originals, so `git log` cannot reach them and the rows would
-# wrongly classify as "before". Each key is the orphaned sha as recorded in the
-# rows; each value is the reachable ancestor of main it was rebased into, kept
-# so the provenance is still followable. This annotates the classifier, never
-# the rows (append-only; annotate, never rewrite). The rule that prevents new
-# entries -- keep a stamped sha an ancestor of main -- is in
-# docs/agent-workflow.md, and run.py enforces it (provenance.on_main, #1281).
-REBASED_AFTER_FIX = {
-    "6f56a28": "2b734f2",  # #355, hardware/Cortex-X925-128GB-GB10 (5 rows)
-    "62d7de1": "29fee77",  # (30 rows)
-    "66d5e3a": "693f339",  # (30 rows)
-}
+#: The era rule a stamp was made under (#393). Rule 1: a row is "after" when
+#: the harness that wrote it descends from FIX. A row stores the rule and the
+#: fix commit with its era, never a bare before/after bit, so a later rule
+#: reads an old row under the rule that produced it.
+RULE = 1
+
+#: The env key run.py stamps at write time, and scripts/stamp_dir_era.py wrote
+#: once onto the #355 orphans. It replaced the REBASED_AFTER_FIX allowlist.
+STAMP_KEY = "dir_era"
+
 # The pre---dir rows were moved out of results.jsonl by
 # scripts/archive_pre_dir_rows.py, so this reads both files. Without the
 # archive the "before" column silently empties and the fix looks unmeasured.
@@ -67,17 +62,62 @@ def fixed_commits(repo: pathlib.Path) -> set[str]:
     heads = {c[:7] for c in r.stdout.split()}
     if not heads:
         raise SystemExit(f"no commits from {FIX} in {repo}: {r.stderr.strip()}")
-    # Union the orphaned-but-post-fix shas (#355) after the empty-set guard, so
-    # a non-repo still refuses rather than passing on the allowlist alone.
-    return heads | set(REBASED_AFTER_FIX)
+    return heads
+
+
+def stamp(repo: pathlib.Path) -> dict | None:
+    """The era provenance for a row the harness at `repo` writes now (#393).
+
+    run.py puts it in every row's env, so the era never depends on a later
+    `git log` that may no longer reach the row's harness_head (#355). It
+    reads HEAD's ancestry, not the working tree: a dirty tree is recorded by
+    `harness_dirty`, beside it. None when git cannot answer (no repository,
+    or a shallow clone without FIX); the row then stays unstamped, and era()
+    classifies it from git as before.
+    """
+    r = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", FIX, "HEAD"],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        check=False,
+    )
+    if r.returncode not in (0, 1):
+        return None
+    return {
+        "rule": RULE,
+        "fix": FIX,
+        "era": "after" if r.returncode == 0 else "before",
+        "basis": "ancestry at write time",
+    }
+
+
+def stamped_era(row: dict) -> str | None:
+    """The era a row's own stamp records under RULE, or None.
+
+    A stamp under another rule or fix is not read as this one: the row stays
+    for git to classify, rather than be read under a rule that did not make
+    it.
+    """
+    got = (row.get("env") or {}).get(STAMP_KEY)
+    if not isinstance(got, dict):
+        return None
+    if got.get("rule") != RULE or got.get("fix") != FIX:
+        return None
+    era = got.get("era")
+    return era if era in ("before", "after") else None
 
 
 def era(row: dict, after: set[str]) -> str:
     """Which side of the fix a row was recorded on.
 
-    Provenance lives under `env`. A row predating that field has no
-    harness_head at all, which is itself "before".
+    The row's own stamp decides when it has one (#393). Otherwise its
+    harness_head is looked up in `after`, the commits from FIX to HEAD. A row
+    predating the provenance field has no harness_head at all, which is
+    itself "before".
     """
+    if (stamped := stamped_era(row)) is not None:
+        return stamped
     return (
         "after"
         if str(row.get("env", {}).get("harness_head", ""))[:7] in after

@@ -256,9 +256,25 @@ rows, so it may run from a branch. The check reads the local `origin/main`: if
 it refuses a commit that is on `main`, run `git fetch` and retry.
 
 Rows from before the squash policy are safe: the merge commits still hold their
-shas. `dirfix.REBASED_AFTER_FIX` maps the #355 orphans to the reachable commit
-each was rebased into, so the rows classify correctly while `harness_head`
-stays as written.
+shas.
+
+**A row carries its `--dir` era (#393).** `run.py` stamps `env.dir_era` at
+write time: the rule version, the fix commit (`7356460`), the era, and the
+basis. `dirfix.era()` reads the stamp first, so a sha that `git log` can no
+longer reach cannot move a row. The cases:
+
+- **A new row** is judged by HEAD's ancestry when it is written. A dirty tree
+  is judged by HEAD too; `harness_dirty`, beside it, records the dirt.
+- **A rebase or a cherry-pick** cannot orphan a live row's sha: `run.py` runs only from
+  a commit on `main`. A branch dry run is judged by the branch's ancestry.
+- **A row from an older runner** has no stamp. `dirfix.era()` classifies it
+  from git, as before; one with no `harness_head` is "before".
+- **The #355 orphans**, 65 GB10 rows, got the stamp once from
+  `scripts/stamp_dir_era.py`, with the commit each was rebased into as the
+  basis. That retired the `REBASED_AFTER_FIX` allowlist. No other row was
+  stamped: git still proves each one, and a guess is worse than no stamp.
+- **A new rule** bumps `dirfix.RULE`. A stamp under another rule is not read
+  as the current one.
 
 ## Before you run a queued measurement, check the repo
 

@@ -934,3 +934,12 @@ def test_an_unreadable_marker_names_the_flag_that_turns_metrics_on(engine, flag)
     live = {"engine": engine, "kind": "counter", "value": None}
     why = remote.instance_mismatch(saved, live, engine)
     assert why and flag in why
+
+
+def test_the_dir_era_stays_the_clients():
+    """#393: the era describes the harness that wrote the row, which is the
+    client's; the server's own checkout must not replace it."""
+    mine = {"rule": 1, "fix": "7356460", "era": "after", "basis": "client"}
+    theirs = {**mine, "basis": "server"}
+    out = remote.stamp({"dir_era": mine}, {"env": {"dir_era": theirs}})
+    assert out["dir_era"] == mine
