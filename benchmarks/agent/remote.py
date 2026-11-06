@@ -341,6 +341,28 @@ INSTANCE_PROBES: dict[str, tuple[str, str]] = {
     # Each launch makes a new temporary metrics directory, so the request
     # counter starts over. Needs `--enable-metrics` on the server.
     "sglang": ("counter", "/metrics"),
+    # Atlas (Enntity/atlas 7838b34c, the sparkglm pin): `atlas_requests_total`,
+    # a process-wide IntCounter (crates/spark-server/src/metrics.rs), raised
+    # once per chat, Responses or Anthropic request in chat_completions_inner.
+    # The prometheus crate is built without its process collector, so there is
+    # no start time. /metrics is always routed; no flag is needed.
+    "atlas": ("counter", "/metrics"),
+}
+
+#: Engines checked and found to publish no instance marker over HTTP (#948).
+#: The facts record the reason and every row carries it as
+#: `env.instance_unchecked`. A batch on one of these passes on that record. An
+#: engine in neither table refuses: it has not been looked at, and a stack
+#: must not skip the check by naming such an engine.
+NO_INSTANCE_MARKER: dict[str, str] = {
+    # ds4_server.c client_main at evanwtf/ds4 b3f50180ec: GET /v1/models and
+    # /v1/models/<id> (with a constant `created`), and the POST /v1 routes.
+    # No /health, /metrics, start time, uptime or request counter.
+    "ds4": (
+        "ds4-server answers only /v1/models (a constant `created`) and the "
+        "POST /v1 routes; it publishes no start time or request counter, so "
+        "a restart under the same model name is not detected (#948)"
+    ),
 }
 
 #: The server flag that turns on the route an engine's marker lives on. Named
@@ -393,6 +415,7 @@ _COUNTER_NAMES = frozenset(
         "qse_requests_total",
         "llamacpp:n_decode_total",
         "sglang:num_requests_total",
+        "atlas_requests_total",
     }
 )
 
@@ -405,8 +428,16 @@ _FALLBACK_COUNTER_NAMES = frozenset({"tensorfold:e2e_request_latency_seconds_cou
 #: the first request finishes: its presence means "this server, 0 requests".
 #: TandemLLM restarted a moment ago has no `qse_requests_total` line (#1067).
 #: SGLang's labelled request counter likewise has no sample before the first
-#: request; its running-requests gauge marks the page as SGLang's.
-_ZERO_MARKERS = frozenset({"qse_requests_running", "sglang:num_running_reqs"})
+#: request; its running-requests gauge marks the page as SGLang's. Atlas
+#: registers `atlas_requests_total` lazily, on the first request; its
+#: metrics_handler prints `atlas_kernel_lookups_unresolved` on every page.
+_ZERO_MARKERS = frozenset(
+    {
+        "qse_requests_running",
+        "sglang:num_running_reqs",
+        "atlas_kernel_lookups_unresolved",
+    }
+)
 
 
 def _metrics_counter(metrics: str) -> int | None:
@@ -492,9 +523,18 @@ def read_instance(
 ) -> dict | None:
     """The live instance marker of the server at `base_url`, or None.
 
-    None means the engine has no marker. A marker the server does not answer
-    is recorded with `value: None`, so the check refuses rather than passes.
+    None means nobody has classified the engine. An engine with no marker
+    (`NO_INSTANCE_MARKER`) gets `kind: "none"` and the reason. A marker the
+    server does not answer is recorded with `value: None`, so the check
+    refuses rather than passes.
     """
+    if engine in NO_INSTANCE_MARKER:
+        return {
+            "engine": engine,
+            "kind": "none",
+            "value": None,
+            "reason": NO_INSTANCE_MARKER[engine],
+        }
     probe = INSTANCE_PROBES.get(engine)
     if probe is None:
         return None
@@ -522,8 +562,20 @@ def read_instance(
 
 def instance_mismatch(saved: dict | None, live: dict | None, engine: str) -> str | None:
     """Why `live` is not the server instance `saved` describes, or None."""
+    if engine in NO_INSTANCE_MARKER:
+        if saved and saved.get("kind") == "none":
+            return None
+        return (
+            f"the server facts carry no {engine} instance record (#948); run "
+            "scripts/server_facts.py on the server again and copy the new file "
+            "to the client"
+        )
     if engine not in INSTANCE_PROBES:
-        return None
+        return (
+            f"no instance check is defined for engine {engine!r} (#948): add a "
+            "probe to remote.INSTANCE_PROBES, or the reason it has none to "
+            "remote.NO_INSTANCE_MARKER"
+        )
     if not saved or saved.get("value") is None:
         return (
             f"the server facts carry no {engine} instance marker (#948); run "
@@ -570,6 +622,10 @@ def check_instance(facts: dict, backends: dict[str, dict], fetch=None) -> None:
         )
         if why := instance_mismatch(facts.get("instance"), live, engine):
             raise SystemExit(f"backend {name!r}: {why}")
+        if engine in NO_INSTANCE_MARKER:
+            logger.warning(
+                "backend %r: restart not checked: %s", name, NO_INSTANCE_MARKER[engine]
+            )
 
 
 def stamp(env: dict, facts: dict) -> dict:
