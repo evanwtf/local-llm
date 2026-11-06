@@ -27,7 +27,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
-import archive_pre_dir_rows as apdr  # is_pre_dir + fixed_commits (unions #355 allowlist)
+import archive_pre_dir_rows as apdr  # is_pre_dir + fixed_commits; era stamp (#393)
 import machines
 import results
 

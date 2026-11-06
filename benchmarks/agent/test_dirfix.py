@@ -24,20 +24,70 @@ def row(**kw):
     return {**base, **kw, "env": env}
 
 
-def test_a_rebased_orphan_sha_counts_as_after() -> None:
-    """#355: a post-fix sha a rebase orphaned still classifies as after, so its
-    valid rows are not dropped as pre---dir. era() only needs the sha in the
-    after-set; the union that puts it there is asserted below against the repo."""
-    for orphan in dirfix.REBASED_AFTER_FIX:
-        assert dirfix.era(row(head=orphan), set(dirfix.REBASED_AFTER_FIX)) == "after"
+# --- #393: the era is stamped on the row at write time ----------------------
+#
+# The #355 orphans needed an allowlist, REBASED_AFTER_FIX, because `git log`
+# could no longer reach their harness_head. A row now carries its era, with
+# the rule and the fix it was judged under, so a lost sha cannot move it.
+
+ORPHANS = {"6f56a28": 5, "62d7de1": 30, "66d5e3a": 30}
+GB10 = (
+    pathlib.Path(__file__).resolve().parents[2]
+    / "hardware"
+    / ("Cortex-X925-128GB-GB10/results.jsonl")
+)
 
 
-@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
-def test_fixed_commits_includes_the_rebased_orphans() -> None:
-    """The union is live: fixed_commits() carries the #355 orphans, so the 65
-    rows that name them are classified after the fix, not archived as before."""
-    heads = dirfix.fixed_commits(results.default_path().parent)
-    assert set(dirfix.REBASED_AFTER_FIX) <= heads
+def stamped(head: str, era: str = "after", **over) -> dict:
+    stamp = {"rule": dirfix.RULE, "fix": dirfix.FIX, "era": era, **over}
+    return {**row(head=head), "env": {"harness_head": head, "dir_era": stamp}}
+
+
+def test_the_allowlist_is_retired() -> None:
+    assert not hasattr(dirfix, "REBASED_AFTER_FIX")
+
+
+def test_a_stamped_row_needs_no_git_history() -> None:
+    """An unreachable sha with a stamp classifies by its stamp."""
+    assert dirfix.era(stamped("deadbee"), set()) == "after"
+
+
+def test_a_stamp_outranks_the_commit_set() -> None:
+    assert dirfix.era(stamped("x", era="before"), {"x"}) == "before"
+
+
+def test_a_stamp_under_another_rule_is_not_read_as_this_one() -> None:
+    assert dirfix.era(stamped("deadbee", rule=2), set()) == "before"
+    assert dirfix.era(stamped("deadbee", fix="0000000"), set()) == "before"
+    assert dirfix.era(stamped("deadbee", era="maybe"), set()) == "before"
+
+
+def test_the_write_time_stamp_of_this_tree() -> None:
+    got = dirfix.stamp(pathlib.Path(__file__).resolve().parent)
+    assert got == {
+        "rule": 1,
+        "fix": "7356460",
+        "era": "after",
+        "basis": "ancestry at write time",
+    }
+
+
+def test_no_repository_gives_no_stamp(tmp_path) -> None:
+    """git cannot answer, so the row stays unstamped rather than guessed."""
+    assert dirfix.stamp(tmp_path) is None
+
+
+def test_the_355_orphans_are_after_from_their_own_rows() -> None:
+    """The 65 GB10 rows the allowlist kept are "after" with no commit set."""
+    rows = [json.loads(x) for x in GB10.read_text().splitlines() if x.strip()]
+    got: dict[str, int] = {}
+    for r in rows:
+        head = str((r.get("env") or {}).get("harness_head", ""))[:7]
+        if head in ORPHANS:
+            assert dirfix.era(r, set()) == "after"
+            assert r["env"]["dir_era"]["basis"].startswith("#355")
+            got[head] = got.get(head, 0) + 1
+    assert got == ORPHANS
 
 
 def test_a_row_from_after_the_fix_is_counted_as_after() -> None:

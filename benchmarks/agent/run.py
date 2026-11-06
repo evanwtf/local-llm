@@ -45,11 +45,13 @@ import urllib.request
 from typing import Any, ClassVar
 from urllib.parse import urlparse
 
+import dirfix
 import ds4_route
 import engine_identity
 import engine_ttft
 import excise
 import grade
+import machine_header
 import memcap
 import mtp_timing
 import mtplx_trace
@@ -1545,13 +1547,77 @@ LLAMACPP_DEFAULT_PORT = 8080
 LLAMACPP_PORTS = {8020: 8020, 11500: 8020}
 
 
+def llamacpp_server_port(backend):
+    """The llama-server port behind one backend, or None (#213).
+
+    A backend on a port in LLAMACPP_PORTS reaches the server that map names.
+    Any other backend that declares `engine = "llama.cpp"` reaches the server
+    named by its `engine_url`, else by its own `base_url`: the arms on
+    :8021-:8023 and the desktop's :8080 talk to llama-server directly. A shim
+    with no `engine_url` then finds no llama-server on its port, so its row
+    states no argv rather than another server's.
+    """
+    port = urlparse(backend.get("base_url") or "").port
+    if port in LLAMACPP_PORTS:
+        return LLAMACPP_PORTS[port]
+    if str(backend.get("engine") or "").lower() != "llama.cpp":
+        return None
+    return urlparse(backend.get("engine_url") or "").port or port
+
+
 def llamacpp_port(backends):
     """The llama-server port the run's llama.cpp backend reaches, or None."""
     for b in backends.values():
-        port = urlparse(b.get("base_url") or "").port
-        if port in LLAMACPP_PORTS:
-            return LLAMACPP_PORTS[port]
+        if (port := llamacpp_server_port(b)) is not None:
+            return port
     return None
+
+
+#: Engines whose launch argv `capture_versions` reads (#213): vLLM, SGLang and
+#: TensorFold from their containers or processes, llama.cpp and ds4 from the
+#: process on the backend's port, TandemLLM from its checkout. The same set as
+#: `scripts/server_facts.ARGV_ENGINES`, which applies the rule to remote facts;
+#: a test keeps the two equal.
+ARGV_ENGINES = frozenset(
+    {"vllm", "tensorfold", "sglang", "llama.cpp", "tandemllm", "ds4"}
+)
+
+
+def argv_gaps(env_for, backends, reason):
+    """The refusals for local rows without a launch argv (#213).
+
+    The local half of #1381's rule: a new row carries `server_argv`, or
+    `server_argv_missing` with the reason. For an engine in ARGV_ENGINES, no
+    argv means the reader missed the server, so the row needs `reason` (the
+    `--no-argv-reason` text). An engine with no reader, and a hosted backend,
+    record why on their own. A reason already on the env (a remote row's,
+    from the server facts) stands. Sets `server_argv_missing` in each env and
+    returns one refusal per backend that has neither.
+    """
+    reason = (reason or "").strip()
+    gaps = []
+    for name, b in backends.items():
+        env = env_for[name]
+        if env.get("server_argv") or env.get("server_argv_missing"):
+            continue
+        engine = str(b.get("engine") or "").lower()
+        if not b.get("base_url"):
+            env["server_argv_missing"] = "hosted API: no local server process (#213)"
+        elif engine not in ARGV_ENGINES:
+            env["server_argv_missing"] = reason or (
+                f"no launch-argv reader for engine {engine!r} (#213)"
+            )
+        elif reason:
+            env["server_argv_missing"] = reason
+        else:
+            gaps.append(
+                f"no server_argv for backend {name!r}: the {engine} launch-argv "
+                "reader found no serving process or container for it (#213). "
+                "Check that the server runs on this machine on the backend's "
+                "port (a shim must declare engine_url), or pass "
+                "--no-argv-reason TEXT to record why the rows carry none."
+            )
+    return gaps
 
 
 def llamacpp_argv(ps_text, port):
@@ -1660,6 +1726,10 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
         env["harness_dirty"] = provenance.code_is_dirty(HERE)
     except RuntimeError:
         pass
+    # #393: the --dir era, judged now. A later `git log` that cannot reach
+    # harness_head (#355) then cannot move the row to the wrong side.
+    if (era := dirfix.stamp(HERE)) is not None:
+        env[dirfix.STAMP_KEY] = era
 
     # Decides whether a ~90 GiB model loads at all. Persisted since 2026-09-01.
     ceiling = metal_ceiling_mb()
@@ -1758,20 +1828,21 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
             env["llamacpp_server_mtime"] = time.strftime(
                 "%Y-%m-%dT%H:%M:%S%z", time.localtime(server.stat().st_mtime)
             )
-        # #213: how it was launched, from the process on the backend's port.
-        # setdefault: a run that also serves ds4 keeps the ds4 argv it has.
-        port = llamacpp_port(backends)
-        if port is not None:
-            # _capture, not out(): out() keeps only the first line.
-            ps_text = preflight._capture(["ps", "ax", "-o", "command="])
-            argv = llamacpp_argv(ps_text, port)
-            if argv:
-                env.setdefault("server_argv", argv)
-            for name, b in backends.items():
-                bport = urlparse(b.get("base_url") or "").port
-                lport = LLAMACPP_PORTS.get(bport) if bport is not None else None
-                if lport is not None and (own := llamacpp_argv(ps_text, lport)):
-                    argv_by_backend.setdefault(name, own)
+    # #213: how llama-server was launched, from the process on the backend's
+    # port. Outside the block above: the arms on :8021-:8023 and :8080 are
+    # llama.cpp too, and before this they recorded no argv at all.
+    # setdefault: a run that also serves ds4 keeps the ds4 argv it has.
+    port = llamacpp_port(backends)
+    if port is not None:
+        # _capture, not out(): out() keeps only the first line.
+        ps_text = preflight._capture(["ps", "ax", "-o", "command="])
+        argv = llamacpp_argv(ps_text, port)
+        if argv:
+            env.setdefault("server_argv", argv)
+        for name, b in backends.items():
+            lport = llamacpp_server_port(b)
+            if lport is not None and (own := llamacpp_argv(ps_text, lport)):
+                argv_by_backend.setdefault(name, own)
     # vLLM is a wheel, not a checkout, so there is no commit to pin and the
     # ~/git/<engine> shape the two blocks above rely on does not exist. What
     # identifies the build is the wheel version plus the torch underneath it:
@@ -6174,6 +6245,14 @@ def build_parser():
         "`servers_unidentified` and say so.",
     )
     p.add_argument(
+        "--no-argv-reason",
+        metavar="TEXT",
+        help="run although a backend's launch argv could not be read, and "
+        "record TEXT on each of its rows as env.server_argv_missing (#213). "
+        "The run refuses by default for an engine whose argv the harness can "
+        "read, because a row without argv pools as unknown.",
+    )
+    p.add_argument(
         "--targets",
         choices=("legacy", "sandbox"),
         default="legacy",
@@ -7013,6 +7092,13 @@ def main():
         versions = remote.stamp(versions, server_facts)
     versions["client"] = ",".join(clients)
     env_for = versions_per_backend(versions, backends, argv_by_backend)
+    # #213: a row carries the server's launch argv or says why it has none. A
+    # dry run writes its rows elsewhere, so it warns instead of refusing.
+    if gaps := argv_gaps(env_for, backends, args.no_argv_reason):
+        if not args.dry_run:
+            raise SystemExit("\n".join(gaps))
+        for gap in gaps:
+            logger.warning("dry run: %s", gap)
 
     # #54: every target at a known commit that exists upstream, with no strays,
     # before a single trial runs. A benchmark that starts from an unknown state
@@ -7049,6 +7135,20 @@ def main():
             "separate tier file, or pass --allow-foreign-hardware if you have "
             "decided the mixing is correct."
         )
+
+    # #305: the firmware and OS facts, once per segment of the ledger, before
+    # the batch's first row. A remote row describes the server, whose facts
+    # this machine cannot collect, so a remote batch writes none yet.
+    if server_facts is None:
+        machine_header.ensure(
+            pathlib.Path(args.results),
+            results.machine_dir().name,
+            machine_header.collect(),
+            results.now(),
+            allow_other_machine=args.allow_foreign_hardware,
+        )
+    else:
+        logger.info("remote batch: no machine header; the server facts carry none")
 
     history = [r for r in results.trials(args.results) if not results.is_excluded(r)]
     cell: dict[tuple[str, str], list[dict]] = {}

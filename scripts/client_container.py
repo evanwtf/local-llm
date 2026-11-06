@@ -217,6 +217,17 @@ def check_opencode_provider(
                 "than the window holds and the server refuses it. Set the output "
                 "limit below the context, e.g. 32768 (#1066)"
             )
+        # #680 finding 4: a row records the backend's `context_tokens`. An
+        # OpenCode window below it compacts or truncates earlier, so the row
+        # would claim a window the client never used.
+        want_ctx = backend.get("context_tokens")
+        if isinstance(ctx, int) and isinstance(want_ctx, int) and ctx < want_ctx:
+            return (
+                f"preflight: OpenCode model {model!r} in {config_path} has context "
+                f"limit {ctx}, but backend {name!r} declares context_tokens "
+                f"{want_ctx}, which every row records. Raise the limit to "
+                f"{want_ctx}, or lower context_tokens to what the client uses (#680)"
+            )
     options = provider.get("options")
     base = options.get("baseURL") if isinstance(options, dict) else None
     want = _port(str(backend.get("base_url", "")))
