@@ -251,3 +251,44 @@ def test_a_non_tick_turn_without_a_heartbeat_records_nothing(
     hook = transcript(tmp_path, [user("hello"), said("hi")])
     assert gate.decide(hook, now=NOW) is None
     assert "sent_at" not in hb.read_state(state_file)
+
+
+# -- the retry after a rejection (#1195) ----------------------------------------
+
+
+def test_a_heartbeat_sent_on_the_retry_after_a_rejection_is_recorded(
+    tmp_path, state_file
+) -> None:
+    """The hook rejected a tick, then the retry sent a valid heartbeat, but
+    `--due` still showed the earlier send (2026-10-20, 15:01 and 23:40)."""
+    earlier = NOW - dt.timedelta(minutes=30)
+    hb.write_state(state_file, {"sent_at": earlier.isoformat()}, NOW, stamp=False)
+    first = transcript(tmp_path, [user(TICK), said("freehand")])
+    assert gate.decide(first, now=NOW) is not None
+    assert hb.read_state(state_file)["sent_at"] == earlier.isoformat()
+    retry_at = NOW + dt.timedelta(minutes=1)
+    retry = transcript(
+        tmp_path, [user(TICK), said("freehand"), tool_use(), said(signed())]
+    ) | {"stop_hook_active": True}
+    assert gate.decide(retry, now=retry_at) is None
+    assert hb.read_state(state_file)["sent_at"] == "2026-09-30T08:05:00-04:00"
+    assert not hb.send_due(hb.read_state(state_file), retry_at)
+
+
+def test_a_retry_given_in_the_hook_input_is_recorded(tmp_path, state_file) -> None:
+    hook = {
+        "transcript_path": "x",
+        "stop_hook_active": True,
+        "last_assistant_message": signed(),
+    }
+    stale = [user(TICK), said("freehand")]
+    assert gate.decide(hook, reader=lambda _: stale, now=NOW) is None
+    assert hb.read_state(state_file)["sent_at"] == "2026-09-30T08:04:00-04:00"
+
+
+def test_a_bad_retry_is_allowed_but_not_recorded(tmp_path, state_file) -> None:
+    hook = transcript(tmp_path, [user(TICK), said("freehand")])
+    hook["stop_hook_active"] = True
+    hook["last_assistant_message"] = "freehand"
+    assert gate.decide(hook, now=NOW) is None
+    assert "sent_at" not in hb.read_state(state_file)
