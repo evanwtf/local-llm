@@ -19,7 +19,9 @@ stdin (`transcript_path`, `stop_hook_active`). The hook reads the transcript:
   session the reason on stderr, so it runs the script and sends its output.
 
 It blocks once per turn. When `stop_hook_active` is set, the session has
-already been told once, and the hook allows the stop rather than loop.
+already been told once, and the hook allows the stop rather than loop. It
+still records `sent_at` when that retry carries a valid heartbeat (#1195):
+otherwise `--due` keeps the earlier send time and the next tick sends again.
 
 Wire it in the user settings of each machine that runs the loop:
 
@@ -109,8 +111,9 @@ def decide(
     now: dt.datetime | None = None,
 ) -> str | None:
     """None to allow the stop; else the reason to block it."""
-    if hook.get("stop_hook_active"):
-        return None
+    # A retry after this hook blocked the turn: never block again (that would
+    # loop), but still check the message, so a valid heartbeat is recorded.
+    retry = bool(hook.get("stop_hook_active"))
     path = hook.get("transcript_path")
     if not path:
         return None
@@ -155,6 +158,8 @@ def decide(
             when,
             stamp=False,
         )
+        return None
+    if retry:
         return None
     if SIGNATURE_MARK not in (text or "") and not hb.send_due(
         hb.read_state(STATE_PATH), when
