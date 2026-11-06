@@ -79,6 +79,9 @@ class Item:
     # current / behind / ahead / unknown / grace (tag builds) / pinned
     state: str
     fix: str = ""
+    # A pinned recipe only: the release tags upstream has and the pin lacks,
+    # newest first. Each one is a candidate to test against the pin (#1257).
+    newer_releases: tuple[str, ...] = ()
 
     @property
     def ok(self) -> bool:
@@ -254,7 +257,23 @@ def recipe_item(path: pathlib.Path, run: Runner = _run, pin: str | None = None) 
             tip if int(behind) == 0 else f"{tip} ({behind} commits ahead of HEAD)"
         )
         if head.startswith(pin) or pin.startswith(head):
-            return Item(name, head, upstream, "pinned")
+            # Tags on upstream that the pin does not contain. A pin with local
+            # commits (e5cc36f) sits off upstream, so `--contains` would miss
+            # them; `--no-merged HEAD` does not (#1257).
+            tags = run(
+                [
+                    *g,
+                    "tag",
+                    "--merged",
+                    default,
+                    "--no-merged",
+                    "HEAD",
+                    "--sort=-v:refname",
+                ],
+                15,
+            )
+            newer = tuple(t for t in (tags or "").split() if t)
+            return Item(name, head, upstream, "pinned", newer_releases=newer)
         return Item(
             name,
             head,
@@ -669,6 +688,16 @@ def log_items(items: Iterable[Item]) -> None:
             i.installed or "?",
             i.latest or "unknown",
         )
+        if i.newer_releases:
+            # The pin still passes: the operator decides when a pin ends. But
+            # a release the pin has not been measured against is how a pin
+            # turns into a forgotten old build (#1257).
+            logger.warning(
+                "preflight: %s: pinned below upstream release(s) %s; run the "
+                "newest as an arm against the pin before keeping it",
+                i.name,
+                ", ".join(i.newer_releases),
+            )
 
 
 def write_stamp(
@@ -721,13 +750,15 @@ def recipe_record(items: Iterable[Item], backend: dict) -> dict | None:
     """
     for item in items:
         if item.name.startswith("recipe "):
-            rec = {
+            rec: dict[str, object] = {
                 "commit": item.installed,
                 "state": item.state,
                 "upstream": item.latest,
             }
             if item.state == "pinned":
                 rec["pin_reason"] = backend.get("recipe_pin_reason")
+            if item.newer_releases:
+                rec["newer_releases"] = list(item.newer_releases)
             return rec
     return None
 
