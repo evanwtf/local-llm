@@ -449,6 +449,8 @@ def main(argv: list[str] | None = None) -> int:
         json.loads(line) for line in args.manifest.read_text().splitlines() if line
     ]
     rows = [json.loads(line) for line in args.results.read_text().splitlines() if line]
+    # A record line (#305's machine header) is about the file, not a trial.
+    rows = [r for r in rows if "record" not in r]
 
     # A VOID row means the batch was cut short on purpose. Refuse the whole
     # read-out and name the reason and run number; a partial batch is no result,
