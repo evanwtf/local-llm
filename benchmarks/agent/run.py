@@ -5156,6 +5156,10 @@ def memory_kill_reason(result: dict, cap_gib: float, peak: float) -> str:
     )
 
 
+#: The parser's counts a timed-out row keeps, each as `partial_<name>` (#1221).
+PARTIAL_FIELDS = ("num_turns", "input_tokens", "output_tokens", "reasoning_tokens")
+
+
 def partial_work(parse, stdout, launched_ms):
     """The work a killed client did before the deadline (#1221).
 
@@ -5164,9 +5168,16 @@ def partial_work(parse, stdout, launched_ms):
     transcript holds the counts: this reads it with the client's own parser,
     as for a completed trial. `token_source` says the counts are partial.
 
+    The counts go under `partial_*` names, never the usual fields. Readers
+    take medians of `num_turns` and the token counts over every row without
+    filtering on `error` (scripts/report.py turns, summarize.py,
+    client_effort.py, variance.py), and stack_agent_report.py and
+    results._model_attempted read them to classify a row. A timed-out row
+    must leave all of those as they were.
+
     `last_step_s` is the time from launch to the last `step_finish` event. Set
-    beside `wall_seconds`, it tells a stack that worked to the deadline from
-    one that stopped making progress long before it.
+    beside `timeout_elapsed_s`, it tells a stack that worked to the deadline
+    from one that stopped making progress long before it.
 
     Returns {} when the transcript holds no finished step. A parser error is
     logged and returns {}: a diagnostic on a timed-out row must never end the
@@ -5181,9 +5192,15 @@ def partial_work(parse, stdout, launched_ms):
     except Exception as exc:  # noqa: BLE001 -- any parser, on a cut stream
         logger.warning("cannot parse the partial transcript: %r", exc)
         return {}
-    if not got.get("num_turns"):
+    work = {
+        f"partial_{key}": got[key]
+        for key in PARTIAL_FIELDS
+        if isinstance(got.get(key), int) and not isinstance(got.get(key), bool)
+    }
+    # Not keyed on num_turns: Codex reports tokens with num_turns None.
+    if not any(work.values()):
         return {}
-    got["token_source"] = "partial-stream"
+    work["token_source"] = "partial-stream"
     last = None
     for line in stdout.splitlines():
         try:
@@ -5196,8 +5213,8 @@ def partial_work(parse, stdout, launched_ms):
         if isinstance(ts, int):
             last = ts if last is None else max(last, ts)
     if last is not None and isinstance(launched_ms, int) and last >= launched_ms:
-        got["last_step_s"] = round((last - launched_ms) / 1000, 1)
-    return got
+        work["last_step_s"] = round((last - launched_ms) / 1000, 1)
+    return work
 
 
 def timeout_message(name: str, timeout: float, result: dict) -> str:
@@ -5810,9 +5827,11 @@ def one_trial(
         )
         # #1221: record the work done before the kill. The verdict is
         # untouched: the trial still has no `passed` and fails in verdict().
-        # setdefault, so the parser never overwrites what the handler set.
+        # `wall_seconds` stays null: readers take medians of it over every
+        # row without filtering on `error`, so the elapsed time goes in its
+        # own field. setdefault, so nothing overwrites what the handler set.
         if t0 is not None and parse is not None:
-            result["wall_seconds"] = round(time.monotonic() - t0, 1)
+            result["timeout_elapsed_s"] = round(time.monotonic() - t0, 1)
             work = partial_work(parse, _text(exc.stdout), launched_ms)
             for key, value in work.items():
                 result.setdefault(key, value)
