@@ -107,6 +107,18 @@ OPTIONAL: dict[str, type | tuple[type, ...]] = {
     # #770. Whether `git diff HEAD` shows any change outside tests/ after the
     # agent ran. Absent on script tasks and on every row before it.
     "edited_source": bool,
+    # #1221. Set only on a timed-out row, whose `wall_seconds` stays null so
+    # no median over all rows moves. `timeout_elapsed_s`: seconds from launch
+    # to the kill. `last_step_s`: seconds from launch to the last timestamped
+    # `step_finish`; beside the first, it tells "worked to the deadline" from
+    # "stalled early". The `partial_*` counts come from the partial transcript
+    # and stay out of `num_turns` and the token fields for the same reason.
+    "timeout_elapsed_s": (int, float),
+    "last_step_s": (int, float),
+    "partial_num_turns": int,
+    "partial_input_tokens": int,
+    "partial_output_tokens": int,
+    "partial_reasoning_tokens": int,
 }
 
 

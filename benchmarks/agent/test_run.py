@@ -1682,13 +1682,16 @@ def test_one_trial_builds_the_trial_from_the_parked_checkout(tmp_path):
 # nothing to say about whether the checkout was touched.
 
 
-def _timed_out_trial(tmp_path, monkeypatch, script_for):
+def _timed_out_trial(tmp_path, monkeypatch, script_for, parse=None):
     repo, commit = _tiny_repo(tmp_path)
     script = script_for(repo)
     monkeypatch.setitem(
         run.CLIENTS,
         "sleeper",
-        (lambda task, backend, worktree=None: ["python3", "-c", script], lambda _: {}),
+        (
+            lambda task, backend, worktree=None: ["python3", "-c", script],
+            parse or (lambda stdout, **_: {}),
+        ),
     )
     row = run.one_trial(
         {"repo": str(repo), "base_commit": commit},
@@ -3642,3 +3645,131 @@ def test_a_dry_run_off_main_is_not_refused(monkeypatch):
     with pytest.raises(SystemExit) as got:
         run.main()
     assert str(got.value) == "reached configure"
+
+
+# --- #1221: a timed-out trial records the work it did -----------------------
+#
+# A trial killed at the deadline wrote wall_seconds, tokens and steps as null,
+# so a stack that worked for 1,800 s read the same as one that hung. The
+# partial transcript holds the counts; the verdict stays a failure.
+
+LAUNCHED_MS = 1_760_000_000_000
+
+
+def _step_finish(ts, inp, out):
+    return json.dumps(
+        {
+            "type": "step_finish",
+            "timestamp": ts,
+            "part": {"tokens": {"input": inp, "output": out, "reasoning": 0}},
+        }
+    )
+
+
+#: Two finished steps, then a line the kill cut in half.
+PARTIAL_STREAM = "\n".join(
+    [
+        json.dumps({"type": "step_start", "timestamp": LAUNCHED_MS + 1_000}),
+        _step_finish(LAUNCHED_MS + 30_000, 12_000, 400),
+        json.dumps({"type": "step_start", "timestamp": LAUNCHED_MS + 31_000}),
+        _step_finish(LAUNCHED_MS + 95_500, 15_500, 250),
+        '{"type": "step_start", "timest',
+    ]
+)
+
+
+def test_partial_work_reads_steps_tokens_and_the_last_step_time():
+    got = run.partial_work(run.opencode_parse, PARTIAL_STREAM, LAUNCHED_MS)
+    assert got == {
+        "partial_num_turns": 2,
+        "partial_input_tokens": 15_500,
+        "partial_output_tokens": 650,
+        "partial_reasoning_tokens": 0,
+        "token_source": "partial-stream",
+        # The last step_finish came 95.5 s after launch.
+        "last_step_s": 95.5,
+    }
+
+
+def test_partial_work_keeps_codex_tokens_without_a_turn_count():
+    # codex_parse reports num_turns None by design; its tokens still count.
+    stream = json.dumps(
+        {
+            "type": "turn.completed",
+            "usage": {"input_tokens": 9_000, "output_tokens": 300},
+        }
+    )
+    got = run.partial_work(run.codex_parse, stream, LAUNCHED_MS)
+    assert got["partial_output_tokens"] == 300
+    assert got["partial_input_tokens"] == 9_000
+    assert "partial_num_turns" not in got
+    assert got["token_source"] == "partial-stream"
+
+
+def test_partial_work_of_a_client_that_did_nothing_is_empty():
+    assert run.partial_work(run.opencode_parse, "", LAUNCHED_MS) == {}
+    assert run.partial_work(run.opencode_parse, "not json\n", LAUNCHED_MS) == {}
+
+
+def test_partial_work_survives_a_parser_that_raises():
+    def broken(stdout, **_):
+        raise KeyError("result")
+
+    assert run.partial_work(broken, PARTIAL_STREAM, LAUNCHED_MS) == {}
+
+
+def test_a_timeout_records_the_work_and_stays_a_failure(tmp_path, monkeypatch):
+    stream = PARTIAL_STREAM.rsplit("\n", 1)[0]
+
+    def worked_then_hung(repo):
+        return (
+            f"import sys, time; sys.stdout.write({stream!r} + '\\n'); "
+            "sys.stdout.flush(); time.sleep(30)"
+        )
+
+    row = _timed_out_trial(
+        tmp_path, monkeypatch, worked_then_hung, parse=run.opencode_parse
+    )
+    assert row["error"] == "timeout"
+    assert row["timeout_reason"] == "wall-clock"
+    assert row.get("passed") is None
+    assert results.verdict(row) is False
+    # wall_seconds stays null, as before #1221; the kill time has its own
+    # field. timeout=1: the kill came about a second in.
+    assert row.get("wall_seconds") is None
+    assert 0.9 <= row["timeout_elapsed_s"] < 10
+    # The usual count fields stay empty; the partial counts have their own.
+    for key in ("num_turns", "input_tokens", "output_tokens", "reasoning_tokens"):
+        assert row.get(key) is None
+    assert row["partial_num_turns"] == 2
+    assert row["partial_output_tokens"] == 650
+    assert row["partial_input_tokens"] == 15_500
+    assert row["token_source"] == "partial-stream"
+    # The caller stamps `finished`; every new field must hold its declared type.
+    assert results.validate({**row, "finished": row["started"]}) == []
+
+
+def test_a_timed_out_row_leaves_the_report_median_alone(tmp_path, monkeypatch):
+    # scripts/report.py takes the median wall time over every row in a cell,
+    # with no filter on `error`. A timed-out row must not move it (#1221).
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
+    import report
+
+    stream = PARTIAL_STREAM.rsplit("\n", 1)[0]
+    timed_out = _timed_out_trial(
+        tmp_path,
+        monkeypatch,
+        lambda repo: (
+            f"import sys, time; sys.stdout.write({stream!r} + '\\n'); "
+            "sys.stdout.flush(); time.sleep(30)"
+        ),
+        parse=run.opencode_parse,
+    )
+    cell = [
+        {"wall_seconds": w, "passed": True, "num_turns": 10} for w in (100, 200, 300)
+    ]
+    before = report.summarize(cell)
+    after = report.summarize([*cell, timed_out])
+    assert before is not None and after is not None
+    assert before[2] == after[2] == 200
+    assert report.turns([*cell, timed_out]) == report.turns(cell) == 10
