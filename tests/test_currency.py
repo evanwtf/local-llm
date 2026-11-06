@@ -8,6 +8,7 @@ touch the network, git or docker.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import pathlib
 import sys
@@ -827,3 +828,65 @@ def test_release_tags_skip_a_malformed_api_answer(monkeypatch):
         {RELEASES_API: [{"tag_name": "b1"}, "junk", {"published_at": "x"}]},
     )
     assert currency.release_tags("ggml-org/llama.cpp", currency._run) == []
+
+
+def test_a_pin_names_the_upstream_releases_it_has_not_taken(tmp_path, caplog):
+    # #1257: a pin ends when upstream ships a release that beats it. The gate
+    # still passes, but names each release tag upstream has and the pin lacks,
+    # so the new release becomes an arm against the pin (as #1244 was).
+    (tmp_path / ".git").mkdir()
+    run = fake(
+        {
+            "fetch --quiet origin": "",
+            "rev-parse --short HEAD": "cc59c36",
+            "rev-parse --abbrev-ref origin/HEAD": "origin/main",
+            "rev-parse --short origin/main": "f8f20b3",
+            "rev-list --count HEAD..origin/main": "2",
+            "tag --merged origin/main --no-merged HEAD": "v2.0\nv1.2\n",
+        }
+    )
+    spec = {
+        "recipe_dir": str(tmp_path),
+        "recipe_pin": "cc59c36",
+        "recipe_pin_reason": "the pick (#1160)",
+    }
+    items = currency.backend_items(spec, run)
+    assert items[0].state == "pinned"
+    assert items[0].ok
+    assert items[0].newer_releases == ("v2.0", "v1.2")
+    with caplog.at_level("WARNING"):
+        currency.log_items(items)
+    assert "pinned below upstream release(s) v2.0, v1.2" in caplog.text
+    rec = currency.recipe_record(items, spec)
+    assert rec is not None
+    assert rec["newer_releases"] == ["v2.0", "v1.2"]
+
+
+def test_a_pin_with_no_newer_release_warns_nothing(tmp_path, caplog):
+    (tmp_path / ".git").mkdir()
+    item = currency.recipe_item(tmp_path, recipe_runner("2"), pin="943912c")
+    assert item.newer_releases == ()
+    with caplog.at_level("WARNING"):
+        currency.log_items([item])
+    assert "WARNING" not in caplog.text
+
+
+def test_a_recipe_pin_never_covers_the_client(tmp_path):
+    # Operator, 2026-10-25: "we should always use the latest client." A pin is
+    # a backend's recipe only. The client-image gate reads no backend, so a
+    # stale OpenCode refuses even while every live backend is pinned (#1257).
+    (tmp_path / ".git").mkdir()
+    spec = {
+        "recipe_dir": str(tmp_path),
+        "recipe_pin": "943912c",
+        "recipe_pin_reason": "the pick (#1255)",
+    }
+    assert [i.state for i in currency.backend_items(spec, recipe_runner("2"))] == [
+        "pinned"
+    ]
+    items = currency.pin_items({"opencode": "1.18.32"}, fake(RELEASES))
+    assert [i.state for i in items] == ["behind"]
+    assert currency.refusal(items) is not None
+    # No path from a backend's pin into the client gate.
+    assert "recipe_pin" not in inspect.getsource(client_container)
+    assert "pin" not in inspect.signature(currency.pin_items).parameters
