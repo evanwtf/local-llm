@@ -72,10 +72,10 @@ Selected flags (`--help` for all):
 | flag | what it does |
 |---|---|
 | `--backend`, `--task`, `--trials` | what to run, and how many times |
-| `--replay`, `--replay-hard` | add the replay and hard task sets (need `--targets sandbox`) |
+| `--replay`, `--replay-hard` | add the replay and hard task sets (need the `sandbox` layout) |
 | `--client {aider,claude,codex,opencode,unreal}` | which agent drives the loop (default `opencode`) |
 | `--results PATH` | ledger to append to (per machine) |
-| `--targets {legacy,sandbox}` | build trial checkouts from `sandbox/` instead of `~/git` (#146) |
+| `--targets {sandbox,legacy}` | where trial checkouts come from: `sandbox/` (default) or the parked `~/git` checkout; the M5 Max passes `legacy` (#146) |
 | `--require-harness-head SHA` | refuse to start unless the harness is at this commit, clean |
 | `--dry-run`, `--no-lock`, `--skip-smoke` | inspection and batch control |
 

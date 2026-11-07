@@ -88,6 +88,7 @@ run_trial() {
     echo "[$(date +%H:%M:%S)] starting run $n..."
     (cd "$(dirname "$0")/.." && \
         uv run python benchmarks/agent/run.py \
+            --targets legacy \
             --backend qwen38fnds4mtp7shim --trials 1 --client opencode --no-lock \
             --server-log "$LOGDIR/ds4server-trial$n.log" --draft-log-engine ds4 \
             > "$LOGDIR/armB-restart-run$n.log" 2>&1)

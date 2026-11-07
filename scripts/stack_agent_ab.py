@@ -340,6 +340,11 @@ def run_argv(
         harness_head,
         "--server-log",
         str(out / f"server-{tag}.log"),
+        # #146: the M5 Max stays on the legacy layout until its next fresh
+        # series; run.py defaults to sandbox. An arm's RUN_FLAGS come later
+        # and win, so a fresh series can still ask for sandbox.
+        "--targets",
+        "legacy",
     ]
     # `arm.draft_log_engine` is None for an engine that does no speculative
     # decoding, and the flag is then OMITTED rather than passed with a name

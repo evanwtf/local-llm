@@ -86,3 +86,8 @@ service, so a move into this directory cannot make the number look better.
 
 The replacements matter most. If one is deleted, this directory stops being an
 archive and holds the only copy, and then somebody will run it.
+
+**`--targets legacy` added on 2026-11-07 (#146).** Every `run.py` call in
+these drivers now passes it. These drivers ran when `legacy` was the default,
+and `run.py` now defaults to `sandbox`, so the flag keeps each file's meaning
+and keeps the differentials against the ports equal.

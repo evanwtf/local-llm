@@ -151,6 +151,7 @@ bypass)
     # contaminated nothing" should not rest on reading the caller correctly.
     set +e
     (cd "$REPO" && uv run python benchmarks/agent/run.py \
+        --targets legacy \
         --backend qwen38fnds4mtp7shim --client opencode --trials 1 \
         --task "$BYPASS_TASK" --no-lock \
         --results "$LOGDIR/bypass-scratch.jsonl" \
@@ -173,6 +174,7 @@ treated)
     start_server yes "$KV_TREATED"
     assert_graph on
     (cd "$REPO" && uv run python benchmarks/agent/run.py \
+        --targets legacy \
         --backend qwen38fnds4mtp7shim --client opencode --trials "$TRIALS" \
         --no-lock --batch 210-treated \
         --server-log "$SERVER_LOG" --draft-log-engine ds4 --require-draft) \
@@ -234,6 +236,7 @@ replay)
     # row is a by-product; --no-require-draft because a zero here is the
     # thing being investigated, not a reason to stop.
     (cd "$REPO" && uv run python benchmarks/agent/run.py \
+        --targets legacy \
         --backend qwen38fnds4mtp7shim --client opencode --trials 1 \
         --task "$BYPASS_TASK" --no-lock \
         --results "$LOGDIR/replay-capture.jsonl" --batch 151-replay-capture \
@@ -263,6 +266,7 @@ silent)
     start_server yes "$KV_TREATED"
     assert_graph on
     (cd "$REPO" && uv run python benchmarks/agent/run.py \
+        --targets legacy \
         --backend qwen38fnds4mtp7shim --client opencode --trials "$TRIALS" \
         --no-lock --batch 210-silent-arm \
         --server-log "$SERVER_LOG" --draft-log-engine ds4 --no-require-draft) \

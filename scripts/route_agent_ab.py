@@ -391,6 +391,10 @@ def arm_argv(tag: str, out: pathlib.Path, trials: int, harness_head: str) -> lis
         str(trials),
         "--no-lock",
         "--allow-unverified-route",
+        # #146: the M5 Max stays on the legacy layout until its next fresh
+        # series; run.py defaults to sandbox.
+        "--targets",
+        "legacy",
         "--require-harness-head",
         harness_head,
         "--server-log",

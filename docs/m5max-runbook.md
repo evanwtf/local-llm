@@ -273,10 +273,15 @@ changes the tool under test is the problem #131 exists to prevent.
 
 `~/git/gmail-archive` stays on its own branch **`local-llm-benchmark`** at the
 pinned `base_commit` in `tasks.toml`, so its `main` can track upstream freely.
-Under the default `--targets legacy`, the harness moves the real checkout aside
-to `<name>-real` for the run and restores it at exit with
+**Pass `--targets legacy` on every `run.py` command on this machine.**
+`run.py` defaults to `--targets sandbox` since 2026-11-07 (#146). The M5 Max
+stays on `legacy` until its next fresh series, so its tables do not mix the
+two layouts. The M5 Max drivers in `scripts/` already pass it.
+
+Under `--targets legacy`, the harness moves the real checkout aside to
+`<name>-real` for the run and restores it at exit with
 `run.restore_targets()`; never `pkill` a run. `--targets sandbox` uses the
-harness's own clones instead (#146).
+harness's own clones instead.
 
 ## Check before every batch
 

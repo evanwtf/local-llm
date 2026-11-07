@@ -89,7 +89,7 @@ def report_greedy_mtp() -> None:
     ):
         tag = f"{kind}-sweep1"
         port_run = run_flags_only(gm.arm_argv(backend, tag, LOGDIR, BATCH, TRIALS))
-        # shell, greedy_mtp_ab.sh:114-120 (run_arm)
+        # shell, greedy_mtp_ab.sh:114-121 (run_arm)
         shell_run = [
             "--backend",
             backend,
@@ -104,6 +104,8 @@ def report_greedy_mtp() -> None:
             str(LOGDIR / f"ds4server-{tag}.log"),
             "--draft-log-engine",
             "ds4",
+            "--targets",
+            "legacy",
         ]
         shell_only, port_only = equiv.argv_difference(shell_run, port_run, DECLARED)
         equiv.assert_flags_declared(port_run, DECLARED)
@@ -170,8 +172,8 @@ def _batch(driver_backend: str, driver_prefix: str):
 def report_strip_toggle() -> None:
     section("strip_toggle_ab  (run.py + ds4-server, shim strip on/off #112)")
     b = _batch(st.BACKEND, st.PREFIX)
-    port_run = run_flags_only(batchlib.argv(b, ()))
-    # shell, strip_toggle_ab.sh:190-195 (run_one)
+    port_run = run_flags_only(batchlib.argv(b, st.RUN_FLAGS))
+    # shell, strip_toggle_ab.sh:190-196 (run_one)
     shell_run = [
         "--backend",
         st.BACKEND,
@@ -187,6 +189,8 @@ def report_strip_toggle() -> None:
         HEAD,
         "--batch",
         BATCH,
+        "--targets",
+        "legacy",
     ]
     shell_only, port_only = equiv.argv_difference(shell_run, port_run, DECLARED)
     equiv.assert_flags_declared(port_run, DECLARED)

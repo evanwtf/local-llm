@@ -113,6 +113,7 @@ start_server() {
 run_arm() {
     local backend="$1" tag="$2"
     (cd "$REPO" && uv run python benchmarks/agent/run.py \
+        --targets legacy \
         --backend "$backend" --client opencode --trials "$TRIALS" --no-lock \
         --batch "$BATCH" \
         --server-log "$LOGDIR/ds4server-$tag.log" --draft-log-engine ds4) \

@@ -9,7 +9,7 @@ Two recordings feed `tests/test_equiv.py`:
   with `child.run`. This side cannot drift from what the port really emits.
 - `route_agent_ab-shell.jsonl` -- the shell driver's emissions. Derived by
   transcribing `route_agent_ab.sh`'s run.py and ds4-server command lines (lines
-  156-162 and 197-201). The .sh cannot be run here: it needs the machine lock,
+  156-162 and 197-202). The .sh cannot be run here: it needs the machine lock,
   a clean checkout, and a GPU, and it still carries the #264 flag the port
   removed. So the shell side is a transcription of a frozen .sh, and the tests
   diff the port against it and pin what differs.
@@ -147,6 +147,8 @@ def record_shell_side() -> None:
         "--client",
         "opencode",
         "--no-lock",
+        "--targets",  # #146: run.py defaults to sandbox; the M5 Max stays legacy
+        "legacy",
         "--skip-tensor-gate",  # #264: run.py removed it; the shell still passes it
         "--require-harness-head",
         HARNESS_HEAD,

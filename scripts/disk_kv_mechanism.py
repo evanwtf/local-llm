@@ -125,6 +125,10 @@ def run_argv(trials: int) -> list[str]:
         str(trials),
         "--client",
         "opencode",
+        # #146: the M5 Max stays on the legacy layout until its next fresh
+        # series; run.py defaults to sandbox.
+        "--targets",
+        "legacy",
     ]
 
 

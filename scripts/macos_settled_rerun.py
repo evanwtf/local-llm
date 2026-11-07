@@ -219,6 +219,10 @@ def run_argv(stack: Stack, batch: str) -> list[str]:
         "opencode",
         "--trials",
         str(TRIALS),
+        # #146: the M5 Max stays on the legacy layout until its next fresh
+        # series; run.py defaults to sandbox.
+        "--targets",
+        "legacy",
         "--no-early-stop",
         "--no-early-stop-reason",
         "#499 settled rerun: every stack runs the full fixed set",

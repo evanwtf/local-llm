@@ -3646,8 +3646,9 @@ def setup_targets(pairs, layout):
     and never touch the operator's checkouts. No marker, no notice, no
     restore -- there is nothing to restore, which is the point. Nothing stands
     at the guessed path, so the profile denies it instead and the guess fails
-    closed. That is a behavior change the pass rate can see; measure it
-    before making sandbox the default.
+    closed. That is a behavior change the pass rate can see. The paired run
+    (batch 0906-2206) returned no call, and sandbox is the default since
+    2026-11-07; the M5 Max passes legacy until its next fresh series.
     """
     if layout == "sandbox":
         ensure_sandbox_targets(pairs)
@@ -6256,14 +6257,15 @@ def build_parser():
     p.add_argument(
         "--targets",
         choices=("legacy", "sandbox"),
-        default="legacy",
-        help="where the trial checkouts come from. legacy (#54): the "
-        "operator's checkout is parked aside and the export stands at the "
-        "path the model guesses. sandbox (#146): the export builds from this "
-        "repo's sandbox/<name> clones (sync with scripts/"
-        "sync_sandbox_targets.py first), nothing in ~/git is renamed, and the "
-        "guessed path is denied at the sandbox profile. Sandbox changes what "
-        "the agent sees when it guesses -- measure before making it default.",
+        default="sandbox",
+        help="where the trial checkouts come from. sandbox (#146, the "
+        "default since 2026-11-07): the export builds from this repo's "
+        "sandbox/<name> clones (sync with scripts/sync_sandbox_targets.py "
+        "first), nothing in ~/git is renamed, and the guessed path is denied "
+        "at the sandbox profile. legacy (#54): the operator's checkout is "
+        "parked aside and the export stands at the path the model guesses. "
+        "The M5 Max passes legacy until its next fresh series, so its tables "
+        "do not mix the two layouts.",
     )
     p.add_argument(
         "--require-harness-head",
