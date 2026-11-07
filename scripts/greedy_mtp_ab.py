@@ -257,6 +257,10 @@ def arm_argv(
         "--no-lock",
         "--batch",
         batch,
+        # #146: the M5 Max stays on the legacy layout until its next fresh
+        # series; run.py defaults to sandbox.
+        "--targets",
+        "legacy",
         "--server-log",
         str(logdir / f"ds4server-{tag}.log"),
         "--draft-log-engine",

@@ -71,6 +71,7 @@ restart_ds4
 echo "[$(date +%H:%M:%S)] starting arm A, 3 trials, single continuous server..."
 (cd "$(dirname "$0")/.." && \
     uv run python benchmarks/agent/run.py \
+        --targets legacy \
         --backend qwen38fnds4shim --trials 3 --client opencode \
         > "$LOGDIR/armA-kv32768.log" 2>&1)
 echo "[$(date +%H:%M:%S)] run done"

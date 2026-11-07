@@ -134,10 +134,13 @@ The directory is destroyed afterwards. §9 explains why this replaced a
 - **Task order does not matter.** Runs are independent, so they can be
   reordered or re-run without invalidating comparisons.
 - **The reference checkout is never edited.** Under the default
-  `--targets legacy` (#54), `run.py` parks it aside for the batch and puts the
-  export at the path a model guesses. Under `--targets sandbox` (#146), the
-  export builds from the harness's own `sandbox/` clones
-  (`scripts/sync_sandbox_targets.py`), and nothing in `~/git` moves.
+  `--targets sandbox` (#146, the default since 2026-11-07), the export builds
+  from the harness's own `sandbox/` clones
+  (`scripts/sync_sandbox_targets.py`), and nothing in `~/git` moves. Under
+  `--targets legacy` (#54), `run.py` parks the checkout aside for the batch
+  and puts the export at the path a model guesses. The M5 Max passes
+  `legacy` until its next fresh series, so its tables do not mix the two
+  layouts; every row records its `target_layout`.
 - **The agent is confined.** `sandbox-exec` on macOS and `bwrap` on Linux keep
   it inside its checkout and away from the answers; each row's `confinement`
   field records what was enforced

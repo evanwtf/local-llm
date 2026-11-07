@@ -80,6 +80,7 @@ run_trial() {
     echo "[$(date +%H:%M:%S)] starting run $n..."
     (cd "$(dirname "$0")/.." && \
         uv run python benchmarks/agent/run.py \
+            --targets legacy \
             --backend qwen38fnds4shim --trials 1 --client opencode --no-lock \
             > "$LOGDIR/armA-restart-run$n.log" 2>&1)
     echo "[$(date +%H:%M:%S)] run $n done"

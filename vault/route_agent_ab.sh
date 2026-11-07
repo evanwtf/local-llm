@@ -195,6 +195,7 @@ sweep() {
   started=$(date '+%H:%M:%S')
   echo "[$(date +%H:%M:%S)] === $tag ($arm arm, $BACKEND) ==="
   ( cd "$REPO" && uv run python benchmarks/agent/run.py \
+      --targets legacy \
       --backend "$BACKEND" --trials 1 --client opencode --no-lock \
       --skip-tensor-gate \
       --require-harness-head "$HARNESS_HEAD" \
