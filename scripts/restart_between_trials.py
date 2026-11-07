@@ -171,6 +171,10 @@ def run_argv(arm: ArmSpec, server_log: pathlib.Path) -> list[str]:
         "--no-lock",
         "--server-log",
         str(server_log),
+        # #146: the M5 Max stays on the legacy layout until its next fresh
+        # series; run.py defaults to sandbox.
+        "--targets",
+        "legacy",
     ]
     if arm.want_mtp:
         argv += ["--draft-log-engine", "ds4"]

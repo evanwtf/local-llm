@@ -416,6 +416,7 @@ sweep() {
   # `set -e` does not exit on.
   local run_rc=0
   ( cd "$REPO" && uv run python benchmarks/agent/run.py \
+      --targets legacy \
       --backend "$backend" --trials 1 --client opencode --no-lock \
       --require-harness-head "$HARNESS_HEAD" \
       --server-log "$OUT/server-$tag.log" $draft_flag $run_flags \

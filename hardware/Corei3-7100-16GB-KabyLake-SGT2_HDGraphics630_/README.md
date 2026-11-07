@@ -55,9 +55,10 @@ and each row records the image's OpenCode, uv and Python versions in
 
 1. **The machine serves other things.** A Postgres-backed web service with an
    IMAP importer runs in Docker from `~/git/gmail-archive`, beside a
-   node_exporter. That checkout is also a benchmark target repo, and the
-   default `--targets legacy` parks it aside during a run, under the running
-   service. **Use `--targets sandbox`**, which uses the harness's own clones.
+   node_exporter. That checkout is also a benchmark target repo, and
+   `--targets legacy` parks it aside during a run, under the running service.
+   **Do not pass `--targets legacy` here.** The default, `--targets sandbox`,
+   uses the harness's own clones.
 2. **It is a small client.** Two cores and 15 GiB, against the Spark's 20 cores
    and 121.7 GiB. OpenCode, the agent's own test runs and the oracle's pytest
    all run on the i3, so a trial's wall time includes more client-side time

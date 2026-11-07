@@ -76,6 +76,9 @@ BACKEND = "qwen38fnds4shim"
 MODEL_ID = "qwen3.8-flash-next-q4"
 PREFIX = "112-strip"
 ARMS = ("on", "off")
+#: #146: the M5 Max stays on the legacy layout until its next fresh series;
+#: run.py defaults to sandbox. Both arms pass it, so it is not an arm flag.
+RUN_FLAGS = ("--targets", "legacy")
 SHIM_PORT = 8101
 SERVER_PORT = 8000
 DEFAULT_RESULTS = REPO / "benchmarks" / "agent" / "results-112-strip-ab.jsonl"
@@ -172,7 +175,7 @@ def sweep(
                     port=SERVER_PORT,
                 ),
             ):
-                if batchlib.run_one(b, run, arm, utc=True) != 0:
+                if batchlib.run_one(b, run, arm, RUN_FLAGS, utc=True) != 0:
                     failed += 1
     logger.info("batch complete; manifest: %s", manifest)
     return 1 if failed else 0

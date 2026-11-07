@@ -188,6 +188,7 @@ run_one() {
     started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "[$(date +%H:%M:%S)] run $n, arm=$arm, starting"
     (cd "$REPO" && uv run python benchmarks/agent/run.py \
+        --targets legacy \
         --backend qwen38fnds4shim --trials 1 --client opencode --no-lock \
         --allow-implausible --results "$RESULTS" \
         --require-harness-head "$HEAD_SHA" --batch "$BATCH" \

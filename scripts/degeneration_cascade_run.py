@@ -170,6 +170,10 @@ def run_argv(
         "--trials",
         str(trials),
         "--no-lock",
+        # #146: the M5 Max stays on the legacy layout until its next fresh
+        # series; run.py defaults to sandbox.
+        "--targets",
+        "legacy",
         "--batch",
         batch,
         "--client-log",

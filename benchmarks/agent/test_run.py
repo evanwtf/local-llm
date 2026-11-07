@@ -3921,3 +3921,15 @@ def test_every_row_carries_its_dir_era(monkeypatch):
         "era": "after",
         "basis": "ancestry at write time",
     }
+
+
+# #146, operator 2026-11-07: sandbox is the default layout. The M5 Max keeps
+# `--targets legacy` until its next fresh series, so legacy must still parse.
+def test_the_default_target_layout_is_sandbox() -> None:
+    args = run.build_parser().parse_args(["--backend", "b"])
+    assert args.targets == "sandbox"
+
+
+def test_targets_legacy_still_parses() -> None:
+    args = run.build_parser().parse_args(["--backend", "b", "--targets", "legacy"])
+    assert args.targets == "legacy"

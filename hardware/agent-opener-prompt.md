@@ -771,6 +771,10 @@ the operator's working laptop.
 
 **Hard rules, on this machine:**
 
+- **Pass `--targets legacy` on every `run.py` command** (#146). `run.py`
+  defaults to `sandbox` since 2026-11-07; the M5 Max stays on `legacy` until
+  its next fresh series, so its tables do not mix the two layouts. The M5 Max
+  drivers in `scripts/` pass it already.
 - **Test any one model or engine at most once a week** (operator, 2026-09-27,
   #762): "this is not a 'test machine' it's my actual laptop, and if it's
   benchmarking stuff then I can't actually use it." Before a launch, check the
