@@ -921,11 +921,12 @@ the turn with the chat heartbeat when it is due (§3a).
   fabric is fine whatever the RTT says. Under it, reboot the worker and measure
   again before you blame the engine.
 - **Step 3.** Also `gh issue list --label wip --state open`. The lock lives on
-  the head. **A remote-client run does not take the head's lock**: the harness
-  runs in the client container on the client machine, so `machine_state.py` reads
-  FREE mid-run (#680). Before you launch trials, claim the head:
-  `LOCAL_LLM_AGENT=… uv run python scripts/machine_claim.py acquire --what "<issue> <model> remote-client trials" --expected-finish HH:MM`,
-  and `release` it when the pair is free again.
+  the head. **The client container claims both nodes for a two-node batch**
+  (#680): it ssh's to the head and the worker, takes a `machine_claim.py`
+  session claim on each before the first trial, and releases both when the
+  batch ends. So release any claim you hold on either node before you start
+  the batch, or the batch refuses. Run it with `LOCAL_LLM_AGENT`,
+  `LOCAL_LLM_MODEL` and `LOCAL_LLM_EFFORT` set on the client.
 - **Step 4.**
 
   ```sh

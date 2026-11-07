@@ -33,6 +33,7 @@ decision that would otherwise be made wrong silently:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime
 import itertools
 import json
@@ -40,6 +41,7 @@ import logging
 import os
 import pathlib
 import pwd
+import signal
 import sys
 import tomllib
 import urllib.parse
@@ -54,6 +56,7 @@ import currency
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 import child
+import node_claims
 
 import logs
 
@@ -700,6 +703,47 @@ def credential_leaks(argv: list[str], home: pathlib.Path) -> list[str]:
     return leaks
 
 
+def two_node_targets(facts: pathlib.Path) -> list[tuple[str, str]]:
+    """The (role, host) pairs to check and claim, or [] for a one-node server.
+
+    Raises node_claims.ClaimError when the facts say two nodes but the node
+    names are not configured on this client (#1153).
+    """
+    try:
+        data = json.loads(facts.read_text())
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, dict) or not node_claims.is_two_node(data):
+        return []
+    return node_claims.nodes()
+
+
+@contextlib.contextmanager
+def signals_raise() -> Any:
+    """Turn SIGTERM and SIGHUP into SystemExit for the body of the `with`.
+
+    Python's default SIGTERM ends the process with no `finally`, so a stopped
+    batch would leave its claims on both Sparks (#680). SIGINT already raises
+    KeyboardInterrupt.
+    """
+
+    def stop(signum: int, _frame: object) -> None:
+        raise SystemExit(128 + signum)
+
+    # A signal already ignored stays ignored: under `nohup`, SIGHUP must not
+    # start to end the batch.
+    saved = {
+        sig: signal.signal(sig, stop)
+        for sig in (signal.SIGTERM, signal.SIGHUP)
+        if signal.getsignal(sig) is not signal.SIG_IGN
+    }
+    try:
+        yield
+    finally:
+        for sig, handler in saved.items():
+            signal.signal(sig, handler)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--image", default=DEFAULT_IMAGE)
@@ -761,6 +805,7 @@ def main(argv: list[str] | None = None) -> int:
             ", ".join(str(args.home / rel) for rel, mode in MOUNTS if mode == "rw"),
         )
         return 1
+    targets: list[tuple[str, str]] = []
     if not args.print:
         # #1158: before the tool smoke, so a lock the host user cannot write
         # refuses the batch in seconds, by name, not with a traceback.
@@ -776,6 +821,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         if why:
             print(why, file=sys.stderr)
+            return 1
+        # #680 findings 5, 6 and 9: a two-node batch checks earlyoom on both
+        # nodes here, and claims both before the first trial (below).
+        try:
+            targets = two_node_targets(args.facts)
+        except node_claims.ClaimError as e:
+            logger.error("REFUSING the batch: %s", e)
+            return 1
+        earlyoom = node_claims.check_earlyoom(targets) if targets else None
+        if earlyoom:
+            logger.error("REFUSING the batch: %s", earlyoom)
             return 1
         if args.skip_tool_smoke:
             logger.warning(
@@ -830,7 +886,19 @@ def main(argv: list[str] | None = None) -> int:
     # The audit's window opens before the launch, with an offset, so it
     # cannot miss the first trial or be read in the wrong zone.
     since = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
-    status = child.run(full, cwd=pathlib.Path.cwd(), log=args.log, append=True)
+    # #680 findings 5 and 6: the run lock lives in the container, so neither
+    # Spark knew a batch was on it. Claim both for the whole batch; the claims
+    # come off on every exit path, after child.run has the trials down.
+    claims: contextlib.AbstractContextManager[None] = contextlib.nullcontext()
+    if targets:
+        what = f"two-node batch {backend_of(command)} from the client (#680)"
+        claims = node_claims.held(targets, what)
+    try:
+        with signals_raise(), claims:
+            status = child.run(full, cwd=pathlib.Path.cwd(), log=args.log, append=True)
+    except node_claims.ClaimError as e:
+        logger.error("REFUSING the batch: %s", e)
+        return 1
     backend = backend_of(command)
     if backend is None:
         return status
