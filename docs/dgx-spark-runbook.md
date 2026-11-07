@@ -207,6 +207,13 @@ A server launched without these (a bare `vllm serve`, a recipe script) leans
 on earlyoom alone. **earlyoom firing on a benchmark means an upstream cap was
 wrong**: a lost measurement, not a lost machine.
 
+**Two-node servers: earlyoom is the guard (operator, 2026-11-07, #680 finding
+9).** The 14 GiB server watcher covers `dgx_server.py` on :8030 only, and its
+floor cannot fit two-node recipes, which idle at 3 to 4 GiB available. No
+per-backend floor is set. Instead, `scripts/client_container.py` refuses a
+two-node batch unless `systemctl is-active earlyoom` reads `active` on both
+nodes (`scripts/lib/node_claims.py`, tested in `tests/test_node_claims.py`).
+
 ### earlyoom: the universal net
 
 **Its configuration is code.** `scripts/setup_earlyoom.py` holds the
@@ -319,8 +326,15 @@ What remote mode changes (`benchmarks/agent/remote.py`):
   (`:9100`), not the client's.
 - Rows describe the Spark. The client's hardware goes under
   `env.client_machine`, and `env.topology` is `"remote"`.
-- The run lock is the client's. Nothing on the Spark stops another model
-  loading mid-run; the head's claim (opener, step 3) is the guard.
+- The run lock is the client's, so for a two-node batch (facts with
+  `env.cluster.nodes = 2`) `client_container.py` also takes a
+  `machine_claim.py` session claim on **both** nodes over ssh before the first
+  trial (#680 findings 5 and 6). It holds them for the batch and releases
+  them on every exit path, SIGTERM included. If either claim fails, it refuses
+  the batch and releases the claim it took. `machine_state.py` on either node
+  then reads BUSY mid-batch. The client needs the node names
+  (`LOCAL_LLM_DGX_HEAD`, `LOCAL_LLM_DGX_WORKER`, or the hosts file above), ssh
+  access to both nodes, and the agent identity variables.
 
 ## NVMe interrupt coalescing is off (#884)
 

@@ -713,3 +713,114 @@ def test_main_refuses_a_foreign_lock_before_the_tool_smoke(tmp_path, monkeypatch
     assert mod.main([*argv, "--", "--backend", "b"]) == 1
     assert smoked == []
     assert launched == []
+
+
+# #680 findings 5, 6 and 9: a two-node batch checks earlyoom on both Sparks
+# and holds a claim on each for the whole batch. A fake ssh stands in for both.
+def _two_node(tmp_path, monkeypatch, fail=None):
+    import node_claims
+
+    argv, _smoked, launched = _batch(tmp_path, monkeypatch, [])
+    (tmp_path / "facts.json").write_text(
+        json.dumps({"env": {"cluster": {"nodes": 2, "peer": {}}}})
+    )
+    monkeypatch.setenv("LOCAL_LLM_DGX_HEAD", "head.example")
+    monkeypatch.setenv("LOCAL_LLM_DGX_WORKER", "worker.example")
+    for var, value in (
+        ("LOCAL_LLM_AGENT", "claude"),
+        ("LOCAL_LLM_MODEL", "opus"),
+        ("LOCAL_LLM_EFFORT", "medium"),
+    ):
+        monkeypatch.setenv(var, value)
+    calls = []
+
+    def ssh(argv, timeout):
+        host, command = argv[-2], argv[-1]
+        action = next(
+            a for a in ("acquire", "release", "earlyoom", "run-lock") if a in command
+        )
+        calls.append((host, action))
+        if (host, action) in (fail or {}):
+            return fail[(host, action)]
+        return 0, "active" if action == "earlyoom" else "ok"
+
+    monkeypatch.setattr(node_claims, "_run", ssh)
+    return argv, launched, calls
+
+
+def test_a_two_node_batch_holds_both_claims_around_the_trials(tmp_path, monkeypatch):
+    argv, launched, calls = _two_node(tmp_path, monkeypatch)
+    at_launch = []
+    launch_impl = mod.child.run
+
+    def launch(full, **kw):
+        at_launch.append(list(calls))
+        return launch_impl(full, **kw)
+
+    monkeypatch.setattr(mod.child, "run", launch)
+    assert mod.main([*argv, "--", "--backend", "b"]) == 0
+    assert len(launched) == 1
+    assert at_launch == [
+        [
+            ("head.example", "earlyoom"),
+            ("worker.example", "earlyoom"),
+            ("head.example", "acquire"),
+            ("worker.example", "acquire"),
+        ]
+    ]
+    assert calls[4:] == [("worker.example", "release"), ("head.example", "release")]
+
+
+def test_a_two_node_batch_without_earlyoom_is_refused(tmp_path, monkeypatch):
+    fail = {("worker.example", "earlyoom"): (3, "inactive")}
+    argv, launched, calls = _two_node(tmp_path, monkeypatch, fail)
+    assert mod.main([*argv, "--", "--backend", "b"]) == 1
+    assert launched == []
+    assert not any(action == "acquire" for _, action in calls)
+
+
+def test_a_busy_worker_refuses_the_batch_and_frees_the_head(tmp_path, monkeypatch):
+    fail = {("worker.example", "acquire"): (1, "machine busy")}
+    argv, launched, calls = _two_node(tmp_path, monkeypatch, fail)
+    assert mod.main([*argv, "--", "--backend", "b"]) == 1
+    assert launched == []
+    assert calls[-1] == ("head.example", "release")
+
+
+def test_sigterm_mid_batch_releases_both_claims(tmp_path, monkeypatch):
+    """Python's default SIGTERM skips every `finally`; the batch must not."""
+    import signal
+
+    argv, _launched, calls = _two_node(tmp_path, monkeypatch)
+
+    def launch(full, **kw):
+        os.kill(os.getpid(), signal.SIGTERM)
+        return 0
+
+    monkeypatch.setattr(mod.child, "run", launch)
+    before = signal.getsignal(signal.SIGTERM)
+    with pytest.raises(SystemExit) as stopped:
+        mod.main([*argv, "--", "--backend", "b"])
+    assert stopped.value.code == 128 + signal.SIGTERM
+    assert calls[-2:] == [("worker.example", "release"), ("head.example", "release")]
+    assert signal.getsignal(signal.SIGTERM) is before
+
+
+def test_a_one_node_batch_touches_no_node(tmp_path, monkeypatch):
+    argv, _launched, calls = _two_node(tmp_path, monkeypatch)
+    (tmp_path / "facts.json").write_text("{}")
+    assert mod.main([*argv, "--", "--backend", "b"]) == 0
+    assert calls == []
+
+
+def test_an_ignored_sighup_stays_ignored():
+    """Under `nohup` a hangup must not start to end the batch."""
+    import signal
+
+    before = signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    try:
+        with mod.signals_raise():
+            assert signal.getsignal(signal.SIGHUP) is signal.SIG_IGN
+            assert signal.getsignal(signal.SIGTERM) is not signal.SIG_IGN
+    finally:
+        signal.signal(signal.SIGHUP, before)
