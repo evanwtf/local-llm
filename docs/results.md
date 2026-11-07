@@ -85,13 +85,14 @@ other is telling you something.
 | qwen3827bsglangdsparkpinnednothinkdgx | 89/90 | 54s | 191s | 5.3x | 2.6x | 12.3x |
 | qwen38fnq3nothinktopkdgx | 30/30 | 54s | 136s | 3.3x | 1.3x | 3.8x |
 | qwen38fnnvfp4miaainothinkdgx | 88/90 | 55s | 1657s | 33.7x | 6.7x | 71.4x |
-| qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 36.5x | 2.3x | 43.9x |
 | qwen38fnq3nothinkkv8b11700rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.31) | 30/30 | 62s | 138s | 1.8x | 1.4x | 5.5x |
 | qwen38fnq3nothinkrcdgx @ Ryzen9-7900X-32GB+image | 180/181 | 63s | 394s | 12.3x | 3.1x | 17.6x |
+| qwen38fnq3nothinkkv8dgx | 120/120 | 63s | 1528s | 36.5x | 2.4x | 43.9x |
 | qwen38fnq3nothinkkv8b11827rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3) | 30/30 | 64s | 212s | 4.6x | 1.7x | 10.3x |
 | qwen3827bsglangdsparknothinkdgx | 90/90 | 66s | 278s | 8.0x | 3.1x | 11.7x |
 | qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 90/90 | 66s | 260s | 4.8x | 3.4x | 10.1x |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Ryzen9-7900X-32GB+image | 89/90 | 66s | 772s | 14.1x | 5.7x | 35.9x |
+| qwen38fnq3nothinkub2048dgx | 33/34 | 66s | 475s | 10.4x | 1.7x | 19.0x |
 | qwen38fnq3nothinkdgx | 331/331 | 67s | 1059s | 37.3x | 5.2x | 43.8x |
 | qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 28.1x | 3.6x | 48.5x |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 89/90 | 69s | 1627s | 26.5x | 2.5x | 63.8x |
@@ -102,7 +103,6 @@ other is telling you something.
 | qwen38fnexl3nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 25/29 | 81s | 1713s | 32.3x | 1.8x | 51.1x |
 | qwen3827btandem083nvfp4nothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 8/10 | 82s | 132s | — | — | 2.6x |
 | qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB+image | 91/91 | 82s | 225s | 3.7x | 2.4x | 8.8x |
-| qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | — | — | 14.2x |
 | nemotron35boltdflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 30/30 | 86s | 124s | 1.6x | 1.4x | 4.8x |
 | qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 179/180 | 88s | 792s | 12.8x | 2.3x | 19.6x |
 | qwen38fnnvfp4dgx | 60/60 | 95s | 338s | 6.1x | 2.7x | 9.5x |
@@ -253,11 +253,11 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | qwen38fnq3dgx | 59s |
 | qwen38fnnvfp4dgx | 59s |
 | qwen38fnq3nothinkrcdgx @ Ryzen9-7900X-32GB+image | 61s |
+| qwen38fnq3nothinkub2048dgx | 63s |
 | qwen38fnexl3nomtpnothinkdgx | 66s |
-| qwen38fnq3nothinkub2048dgx | 69s |
 | qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB+image | 69s |
+| qwen38fnq3nothinkkv8dgx | 71s |
 | qwen38fnq3nothinktopkdgx | 71s |
-| qwen38fnq3nothinkkv8dgx | 72s |
 | qwen36codinggguf | 73s |
 | qwen38fnq3rcdgx @ Corei3-7100-16GB | 73s |
 | qwen38fnq3nothinkdgx | 73s |
