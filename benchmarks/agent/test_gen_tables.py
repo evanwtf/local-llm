@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import json
 
+import dirfix
 import gen_tables
+import results
 
 
 def _trial(backend: str, wall: float = 100.0, passed: bool = True) -> dict:
@@ -360,3 +362,63 @@ def test_three_clients_get_as_many_fields_as_it_takes() -> None:
     ]
     names = gen_tables.client_names(rows)
     assert len(set(names.values())) == 3
+
+
+# --- #393 follow-up: the tables read the era the way dirfix does -------------
+#
+# valid_opencode() had its own git-log check and never read env.dir_era, so the
+# 65 #355 orphan rows, whose harness_head git can no longer reach, stayed out of
+# docs/results.md although #1391 stamped them "after". The operator decided on
+# 2026-11-07 to use the shared dirfix.era() check here.
+
+GB10 = gen_tables.HERE.parents[1] / "hardware/Cortex-X925-128GB-GB10/results.jsonl"
+
+
+def _stamped(head: str, era: str = "after") -> dict:
+    stamp = {"rule": dirfix.RULE, "fix": dirfix.FIX, "era": era, "basis": "test"}
+    return {"client": "opencode", "env": {"harness_head": head, "dir_era": stamp}}
+
+
+def test_a_row_stamped_after_the_fix_is_valid_without_git_history() -> None:
+    """An unreachable harness_head with an "after" stamp is counted."""
+    row = _stamped("deadbee")
+    assert gen_tables.valid_opencode([row]) == [row]
+
+
+def test_a_stamp_outranks_the_commit_set_in_the_tables() -> None:
+    row = _stamped(min(gen_tables._after_fix()), era="before")
+    assert gen_tables.valid_opencode([row]) == []
+
+
+def test_an_unstamped_row_still_falls_back_to_git() -> None:
+    """No stamp: the harness_head decides, exactly as before."""
+    inside = {
+        "client": "opencode",
+        "env": {"harness_head": min(gen_tables._after_fix())},
+    }
+    outside = {"client": "opencode", "env": {"harness_head": "deadbee"}}
+    bare = {"client": "opencode"}
+    assert gen_tables.valid_opencode([inside, outside, bare]) == [inside]
+
+
+def test_a_stamped_row_from_another_client_is_not_opencode() -> None:
+    row = {**_stamped("deadbee"), "client": "claude"}
+    assert gen_tables.valid_opencode([row]) == []
+
+
+def test_the_gb10_orphans_enter_the_tables() -> None:
+    """60 of the 65 stamped #355 rows are trials; the 5 at 6f56a28 are excluded.
+
+    The 5 rows at 6f56a28 carry excluded=true (#69: the client never reached
+    the model), so results.trials() drops them before valid_opencode() runs.
+    On 2026-11-07 this took the GB10 ledger from 5049 valid OpenCode trials
+    to 5109. The check counts only the #355 backfill, by its basis, so a new
+    stamped row from run.py does not move it.
+    """
+    got: dict[str, int] = {}
+    for r in gen_tables.valid_opencode(results.trials(GB10)):
+        stamp = r["env"].get("dir_era") or {}
+        if str(stamp.get("basis", "")).startswith("#355"):
+            head = r["env"]["harness_head"][:7]
+            got[head] = got.get(head, 0) + 1
+    assert got == {"62d7de1": 30, "66d5e3a": 30}

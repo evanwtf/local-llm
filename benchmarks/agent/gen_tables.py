@@ -19,14 +19,14 @@ from __future__ import annotations
 import collections
 import pathlib
 import statistics
-import subprocess
 from typing import Any
 
+import dirfix
 import provenance
 import results
 
 HERE = pathlib.Path(__file__).parent
-FIX = "7356460"
+FIX = dirfix.FIX
 
 # These tables are spliced into docs/results.md, one directory below the repo
 # root, so the link needs `../`. It was root-relative while the tables lived in
@@ -50,17 +50,8 @@ TASK_SUMMARY = {
 
 
 def _after_fix() -> set[str]:
-    out = subprocess.run(
-        ["git", "log", "--format=%h", f"{FIX}~1..HEAD"],
-        capture_output=True,
-        text=True,
-        cwd=HERE,
-        check=False,
-    ).stdout.split()
-    heads = {c[:7] for c in out}
-    if not heads:
-        raise SystemExit("cannot resolve the --dir fix commit; refusing to guess")
-    return heads
+    """The commits from the --dir fix to HEAD; dirfix refuses an empty set."""
+    return dirfix.fixed_commits(HERE)
 
 
 def load(path: pathlib.Path | None = None) -> list[dict[str, Any]]:
@@ -83,12 +74,18 @@ def load(path: pathlib.Path | None = None) -> list[dict[str, Any]]:
 
 
 def valid_opencode(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """OpenCode rows recorded after the --dir fix, by dirfix.era() (#393).
+
+    A row's own env.dir_era stamp decides first; a row without one falls back
+    to its harness_head in the git range, as before. This had its own git-log
+    check, so the 65 #355 orphan rows, stamped "after" but unreachable by git,
+    never reached docs/results.md. One check now serves both readers.
+    """
     after = _after_fix()
     return [
         r
         for r in rows
-        if r.get("client") == "opencode"
-        and str(r.get("env", {}).get("harness_head", ""))[:7] in after
+        if r.get("client") == "opencode" and dirfix.era(r, after) == "after"
     ]
 
 
