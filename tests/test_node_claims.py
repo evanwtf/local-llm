@@ -77,11 +77,17 @@ def test_the_acquire_command_carries_the_identity_and_the_intent() -> None:
     with node_claims.held(TARGETS[:1], "two-node batch b (#680)", run):
         pass
     assert seen[0][:-1] == [*SSH, "head.example"]
-    assert re.fullmatch(
-        r"cd ~/git/local-llm && LOCAL_LLM_AGENT=claude LOCAL_LLM_MODEL=opus "
-        r"LOCAL_LLM_EFFORT=medium uv run python scripts/machine_claim\.py "
-        r"acquire --what 'two-node batch b \(#680\) \[batch [0-9a-f]{12}\]'",
-        seen[0][-1],
+    token = re.search(r"\[batch ([0-9a-f]{12})\]", seen[0][-1])
+    assert token is not None
+    # The whole remote command, uv fallback included: a non-interactive ssh
+    # shell on a Spark has no ~/.local/bin on PATH (2026-11-07).
+    assert seen[0][-1] == (
+        'UV="$(command -v uv || echo "$HOME/.local/bin/uv")"; '
+        '[ -x "$UV" ] || { echo "uv not found: not on PATH and not at '
+        '$HOME/.local/bin/uv" >&2; exit 127; }; '
+        "cd ~/git/local-llm && LOCAL_LLM_AGENT=claude LOCAL_LLM_MODEL=opus "
+        'LOCAL_LLM_EFFORT=medium "$UV" run python scripts/machine_claim.py '
+        f"acquire --what 'two-node batch b (#680) [batch {token.group(1)}]'"
     )
     assert seen[1][-1].endswith("scripts/machine_claim.py release")
 
@@ -253,3 +259,19 @@ def test_a_signal_during_the_acquire_still_reconciles() -> None:
         ("head.example", "read"),
         ("head.example", "release"),
     ]
+
+
+def test_a_node_without_uv_is_named_in_the_refusal() -> None:
+    ssh = FakeSsh(
+        {
+            ("worker.example", "acquire"): (
+                127,
+                "uv not found: not on PATH and not at /home/x/.local/bin/uv",
+            )
+        }
+    )
+    with (
+        pytest.raises(node_claims.ClaimError, match=r"worker \(exit 127\).*uv not"),
+        node_claims.held(TARGETS, "batch", ssh),
+    ):
+        pass

@@ -46,6 +46,15 @@ SSH = ("ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10")
 REMOTE_REPO = "~/git/local-llm"
 #: The run lock on each node (preflight.LOCK_PATH).
 REMOTE_LOCK = "~/.local-llm-bench/run-lock.json"
+#: Finds uv on the node. A non-interactive ssh shell does not read the login
+#: profile, so `~/.local/bin` is not on PATH on either Spark and a bare `uv`
+#: is not found (checked 2026-11-07). Exit 127 names the cause; the client's
+#: error names the node.
+FIND_UV = (
+    'UV="$(command -v uv || echo "$HOME/.local/bin/uv")"; '
+    '[ -x "$UV" ] || { echo "uv not found: not on PATH and not at '
+    '$HOME/.local/bin/uv" >&2; exit 127; }; '
+)
 #: A claim is a short `uv run`; the first one on a node may sync the venv.
 CLAIM_TIMEOUT_S = 120.0
 EARLYOOM_TIMEOUT_S = 30.0
@@ -127,8 +136,8 @@ def _claim_command(action: str, what: str | None = None) -> str:
     )
     tail = f" --what {shlex.quote(what)}" if what is not None else ""
     return (
-        f"cd {REMOTE_REPO} && {ident} "
-        f"uv run python scripts/machine_claim.py {action}{tail}"
+        f"{FIND_UV}cd {REMOTE_REPO} && {ident} "
+        f'"$UV" run python scripts/machine_claim.py {action}{tail}'
     )
 
 
