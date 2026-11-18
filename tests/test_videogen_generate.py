@@ -55,16 +55,49 @@ def arms() -> dict[str, Any]:
 # ------------------------------------------------------------- the file ----
 
 
-def test_arms_file_is_a_draft_with_four_arms_three_seeds_and_fallbacks() -> None:
+def test_arms_file_has_four_arms_three_seeds_and_fallbacks() -> None:
     data = arms()
     generate.check_arms(data)
-    assert data["status"] == "draft"
     assert data["seeds"] == [1, 2, 3]
     assert data["clips"] == ["dog-a", "dog-b", "dog-c"]
     assert sorted(data["arms"]) == ["h3-i2v", "h3-t2v", "wan-i2v", "wan-t2v"]
     sizes = {name: arm["fallback"] for name, arm in data["arms"].items()}
     assert sizes["h3-t2v"] == sizes["h3-i2v"] == {"width": 1024, "height": 576}
     assert sizes["wan-t2v"] == sizes["wan-i2v"] == {"width": 832, "height": 480}
+
+
+def test_the_locked_values() -> None:
+    """v1 was locked on 2026-11-17 after the timing probes (#1406). A change
+    to these is a new version file, not an edit."""
+    data = arms()
+    assert data["status"] == "locked"
+    size = {
+        name: (arm["form"]["width"], arm["form"]["height"])
+        for name, arm in data["arms"].items()
+    }
+    assert size == {
+        "h3-t2v": (1280, 704),
+        "h3-i2v": (1280, 704),
+        "wan-t2v": (832, 480),
+        "wan-i2v": (832, 480),
+    }
+    locked = data["locked"]
+    assert [(p["arm"], p["size"]) for p in locked["probes"]] == [
+        ("h3-t2v", "1280x704"),
+        ("wan-t2v", "1280x720"),
+        ("wan-t2v", "832x480"),
+    ]
+    assert [p["s_per_step"] for p in locked["probes"]] == [46.9, 205.3, 58.3]
+    assert "different resolutions" in locked["comparison_note"]
+
+
+def draft_copy(tmp_path: pathlib.Path) -> pathlib.Path:
+    """The arms file with status "draft", for the tests of the draft refusal."""
+    data = arms()
+    data["status"] = "draft"
+    path = tmp_path / "arms-draft.json"
+    path.write_text(json.dumps(data, ensure_ascii=False))
+    return path
 
 
 def test_every_size_is_a_multiple_of_32_for_h3_and_16_for_wan() -> None:
@@ -169,8 +202,8 @@ EXPECTED: dict[str, dict[str, str]] = {
     },
     "wan-t2v": {
         "model": WAN_T2V,
-        "width": "1280",
-        "height": "720",
+        "width": "832",
+        "height": "480",
         "num_frames": "81",
         "fps": "16",
         "num_inference_steps": "40",
@@ -181,8 +214,8 @@ EXPECTED: dict[str, dict[str, str]] = {
     },
     "wan-i2v": {
         "model": WAN_I2V,
-        "width": "1280",
-        "height": "720",
+        "width": "832",
+        "height": "480",
         "num_frames": "81",
         "fps": "16",
         "num_inference_steps": "40",
@@ -368,7 +401,6 @@ def go(
     **kw: Any,
 ) -> int:
     deps_kw = {k: kw.pop(k) for k in ("points", "gpu", "found") if k in kw}
-    kw.setdefault("allow_draft", True)
     return generate.run_one(
         plan, "http://h:8040", out, deps=deps_for(server, plan, **deps_kw), **kw
     )
@@ -625,18 +657,43 @@ def test_a_scored_run_from_a_draft_file_is_refused(
     tmp_path: pathlib.Path, first_frame: pathlib.Path
 ) -> None:
     server = FakeServer(ok_reply())
-    rc = go(make("h3-t2v", first_frame), tmp_path / "o", server, allow_draft=False)
+    plan = generate.make_plan(
+        "h3-t2v", "dog-a", 1, frames_root=first_frame, arms_file=draft_copy(tmp_path)
+    )
+    assert plan.arms_status == "draft"
+    rc = go(plan, tmp_path / "o", server)
     assert rc == generate.REFUSED
     assert server.forms == []
     assert not (tmp_path / "o").exists()
+
+
+def test_allow_draft_lets_a_draft_file_run(
+    tmp_path: pathlib.Path, first_frame: pathlib.Path
+) -> None:
+    plan = generate.make_plan(
+        "h3-t2v", "dog-a", 1, frames_root=first_frame, arms_file=draft_copy(tmp_path)
+    )
+    rc = go(plan, tmp_path / "o", FakeServer(ok_reply()), allow_draft=True)
+    assert rc == 0
+    assert read_run(tmp_path / "o")["arms_status"] == "draft"
+
+
+def test_a_scored_run_from_the_locked_file_needs_no_flag(
+    tmp_path: pathlib.Path, first_frame: pathlib.Path
+) -> None:
+    rc = go(make("h3-t2v", first_frame), tmp_path / "o", FakeServer(ok_reply()))
+    assert rc == 0
+    assert read_run(tmp_path / "o")["arms_status"] == "locked"
 
 
 def test_a_probe_may_run_from_a_draft_file(
     tmp_path: pathlib.Path, first_frame: pathlib.Path
 ) -> None:
     server = FakeServer(ok_reply())
-    plan = make("h3-t2v", first_frame)
-    rc = go(plan, tmp_path / "o", server, allow_draft=False, probe=True)
+    plan = generate.make_plan(
+        "h3-t2v", "dog-a", 1, frames_root=first_frame, arms_file=draft_copy(tmp_path)
+    )
+    rc = go(plan, tmp_path / "o", server, probe=True)
     assert rc == 0
     assert read_run(tmp_path / "o")["probe"] is True
 
