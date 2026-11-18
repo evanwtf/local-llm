@@ -231,8 +231,14 @@ def test_the_report_is_captured_not_echoed(tmp_path, monkeypatch, capsys) -> Non
 
     monkeypatch.setattr(ab_status.decode_ab_report, "main", fake_main)
     root = logging.getLogger()
-    root.addHandler(logging.StreamHandler(sys.stdout))
-    got = ab_status.median_line([tmp_path / "r-run1"])
+    handler = logging.StreamHandler(sys.stdout)
+    root.addHandler(handler)
+    try:
+        got = ab_status.median_line([tmp_path / "r-run1"])
+    finally:
+        # capsys closes this stream after the test; a handler left on it
+        # breaks every later test that logs (#1417).
+        root.removeHandler(handler)
     assert got == "4 runs: median b/a 1.176 (+17.6%)"
     assert "1.176" not in capsys.readouterr().out
     assert said and said[0][0] == "decode_ab_report"

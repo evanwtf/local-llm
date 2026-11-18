@@ -41,7 +41,8 @@ every frame `frames.py` makes from it.
 | `outlet.py` | Reads a node's smart plug from InfluxDB over a window, in chunks under Grafana's point cap, and integrates it to Wh. It says whether the readings cover the window. |
 | `gallery.py` | Builds a static web gallery of every clip in `~/bench-logs/videogen/gallery/` (#1413). It groups the clips by prompt: the reference clip first, then each arm and seed. It links the videos with symlinks and does not copy them. `batch.py` runs it after each clip. |
 | `judge.py` | `blind` copies each scored run's frames into folders with random ids, writes one judge prompt per clip, and writes the key outside the folders. `ingest` checks a judge reply and writes the score files the gallery reads (#1406). |
-| `gallery_serve.py` | Serves the gallery on the LAN at `:8043`, read-only, with HTTP Range so a browser can seek in a video. It checks the `Host` header and sends the page's CSP. |
+| `gallery_serve.py` | Serves the gallery at `:8043` behind a login, read-only, with HTTP Range so a browser can seek in a video. It checks the `Host` header and sends the page's CSP. `set-password` writes the credentials file. |
+| `gallery_auth.py` | The login gate's parts: the YAML credentials file (scrypt hash, session secret, mode 0600), the signed session cookie, the client address behind a trusted proxy, and the lockout after failed logins. |
 | `common.py` | Shared code: the default output root, the guard on output paths, and the ffmpeg runner. |
 
 Both scripts need `ffmpeg` and `ffprobe` on `PATH`. `frames.py` also needs the
@@ -222,9 +223,47 @@ scored"; a bad file shows why and does not stop the build.
  "judge": "blind judge v1", "notes": "optional free text"}
 ```
 
-**The server.** `gallery_serve.py` uses only the Python standard library.
+**The login gate.** The gallery can be reached from the internet through a
+reverse proxy, so every request needs a login. Only the login form itself
+(`GET /login` and `POST /login`) is open.
 
-- It answers GET and HEAD, and 405 to every other method.
+- Without a session, the page gets a 303 to `login`, and any other file gets
+  401. Every link and redirect is relative, so the site works under a path
+  prefix such as `/videogen/` and at the root.
+- The form has a username, a password and one button. A failure says "Wrong
+  username or password." and does not say which field was wrong.
+- The credentials live in `~/.config/local-llm/videogen-gallery/auth.yaml`
+  (`--auth-file`), never in this repository. The file holds one user, a
+  salted scrypt hash of the password (never the password) and the session
+  secret. The server refuses to start when the file is missing, or when its
+  mode is not 0600. There is no open mode.
+- A session is a signed cookie that lasts 30 days (`HttpOnly`,
+  `SameSite=Lax`, and `Secure` when a trusted proxy says the client used
+  HTTPS). The cookie has no `Path`, so the browser scopes it to the
+  directory of the login URL. The **log out** button on the page ends it:
+  the server refuses that cookie from then on, until it would have expired.
+  It keeps that list in memory, so a restart forgets it.
+- A login over plain HTTP on the LAN (`http://<head IP>:8043/`) sends the
+  password and the cookie in cleartext. Prefer the HTTPS URL.
+- A login or logout POST from another site is refused (403), by its
+  `Sec-Fetch-Site` and `Origin` headers.
+- `set-password` makes a new session secret, so a new password ends every
+  session. The server reads the file again when it changes; no restart is
+  needed.
+- After 5 failed logins from one client in 10 minutes, the server refuses
+  logins from that client for 10 minutes (429). An IPv6 client counts by
+  its /64. At most 2 password checks run at once; more get 429. The client
+  is the peer address. Only when the peer is a `--trusted-proxy` does the server read the
+  client from `X-Forwarded-For` (the entry that the proxy added) and the
+  scheme from `X-Forwarded-Proto`.
+- The server logs each login, good or bad, with the client address. It never
+  logs a password.
+
+**The server.** `gallery_serve.py` uses the Python standard library, and
+PyYAML for the credentials file.
+
+- It answers GET and HEAD for files, POST only for `login` and `logout`, and
+  405 to every other method.
 - It serves a file only from the gallery directory. It refuses a `..`
   segment, a hidden name, a directory, and a file type other than HTML, CSS,
   JS, MP4 and PNG. The link name and the real file must have the same type.
@@ -234,12 +273,12 @@ scored"; a bad file shows why and does not stop the build.
   given with `--host-name`. Any other `Host` gets 421. This blocks a
   DNS-rebinding page in a LAN browser.
 - It sends the Content-Security-Policy that `gallery.py` writes to
-  `gallery/.csp`. The policy names the page's own CSS and JS by sha256, and
-  allows nothing from another origin.
+  `gallery/.csp`. The policy names the page's own CSS and JS by sha256,
+  allows nothing from another origin, and lets a form post only to this
+  server. The login page has its own policy of the same kind.
 - It closes a connection that is idle for 30 s, and it serves at most 64
   connections at once.
-- It binds `0.0.0.0:8043` with no login: the port is for the home LAN only.
-  Do not forward it to the internet.
+- It binds `0.0.0.0:8043`.
 
 The systemd **user** unit `systemd/local-llm-videogen-gallery.service` runs
 the server from `~/git/local-llm` on the head. Linger must be on
@@ -257,30 +296,59 @@ uv run python scripts/videogen/gallery.py
 
 # The same, into another directory (for a test build).
 uv run python scripts/videogen/gallery.py --root "$VG" --out "$(mktemp -d)/gallery"
+```
 
-# Install and start the server (on the head, as the operator's user).
+**Deploy or update the server** (on the head, as the operator's user). The
+unit runs `uv run --frozen --no-sync`, so it never installs a package. Run
+`uv sync` first: the server needs PyYAML in `~/git/local-llm/.venv`.
+
+```sh
+cd ~/git/local-llm
+git pull
+uv sync
+
+# Set the one user and password. It asks twice, with no echo. Piped input
+# works too (one line). It writes auth.yaml at mode 0600, in a 0700 directory.
+export GALLERY_USER=NAME
+uv run python scripts/videogen/gallery_serve.py set-password --user "$GALLERY_USER"
+
 cp systemd/local-llm-videogen-gallery.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now local-llm-videogen-gallery.service
+systemctl --user restart local-llm-videogen-gallery.service
 
-# Check it.
+# Check it: without a session, the page redirects to the login form.
 systemctl --user status local-llm-videogen-gallery.service
-curl -sI http://127.0.0.1:8043/ | head -n 1
+curl -sI http://127.0.0.1:8043/ | head -n 3
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8043/login
 journalctl --user -u local-llm-videogen-gallery.service -n 20
 ```
 
-**Open the gallery by name.** The server answers an IP address with no more
-setup: `http://<head IP>:8043/`. To use the head's name in the browser, add
-that name in a drop-in. The repository holds no host name. The unit passes
-`$GALLERY_HOST_ARGS` to the server, and an unset variable adds nothing.
+To change the password, run `set-password` again. Every open session ends at
+once.
+
+**Host names and the proxy.** The server answers an IP address with no more
+setup: `http://<head IP>:8043/`. To use a name, or to serve through a reverse
+proxy, add a drop-in. This repository is public, so it holds no host name and
+no LAN address. The unit passes `$GALLERY_HOST_ARGS` to the server, and an
+unset variable adds nothing.
+
+- `--host-name NAME`: a name that the browser or the proxy sends in `Host`.
+  Add the proxy's public name too.
+- `--trusted-proxy IP`: the reverse proxy's address. Without it, the server
+  ignores `X-Forwarded-For` and `X-Forwarded-Proto`: the lockout then counts
+  every internet client as the proxy, and the cookie never gets `Secure`.
 
 ```sh
-# Opens an editor on a drop-in. Add the two lines below, with your names.
+# Opens an editor on a drop-in. Add the two lines below, with your values.
 systemctl --user edit local-llm-videogen-gallery.service
 #   [Service]
-#   Environment="GALLERY_HOST_ARGS=--host-name NAME --host-name NAME.lan"
+#   Environment="GALLERY_HOST_ARGS=--host-name NAME --host-name PUBLIC_NAME --trusted-proxy PROXY_IP"
 systemctl --user restart local-llm-videogen-gallery.service
 ```
+
+The proxy must pass the path below its prefix (`/videogen/x` to `/x`) and set
+`X-Forwarded-For` and `X-Forwarded-Proto`.
 
 ## The blind judge (#1402, #1406)
 

@@ -11,9 +11,11 @@ import os
 import pathlib
 import re
 import sys
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
+from logging_isolation import isolated_root_logger
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -46,6 +48,13 @@ REFS = {
 }
 
 NEGATIVE = "low quality, blurry, " * 20
+
+
+@pytest.fixture(autouse=True)
+def _isolated_root_logger() -> Iterator[None]:
+    """Another test's leaked root handler must not write into this one (#1417)."""
+    with isolated_root_logger():
+        yield
 
 
 def run_v1(arm: str, clip: str, seed: int, **change: Any) -> dict[str, Any]:
@@ -236,6 +245,7 @@ class Page(html.parser.HTMLParser):
         self.external: list[str] = []
         self.videos: list[dict[str, str | None]] = []
         self.images: list[dict[str, str | None]] = []
+        self.forms: list[dict[str, str | None]] = []
         self.tags: list[str] = []
         self.styles: list[str] = []
         self.scripts: list[str] = []
@@ -261,8 +271,11 @@ class Page(html.parser.HTMLParser):
             value = a.get(key)
             if value is not None and not value.startswith("media/"):
                 self.external.append(value)
-        if tag in ("link", "iframe", "base", "form"):
+        if tag in ("link", "iframe", "base"):
             self.external.append(tag)
+        if tag == "form":
+            # The one form is the logout button, posting to a relative URL.
+            self.forms.append(a)
 
     def handle_endtag(self, tag: str) -> None:
         self._in = None
@@ -455,8 +468,10 @@ def test_the_csp_names_the_inline_css_and_js_by_hash(layout: Layout) -> None:
     assert directives["style-src"] == sha(page.styles[0])
     assert directives["script-src"] == sha(page.scripts[0])
     assert directives["default-src"] == "'none'"
-    for name in ("base-uri", "form-action", "frame-ancestors"):
+    for name in ("base-uri", "frame-ancestors"):
         assert directives[name] == "'none'"
+    # The logout form posts back to this server, and nowhere else.
+    assert directives["form-action"] == "'self'"
     assert "unsafe-inline" not in policy
 
 
@@ -695,3 +710,8 @@ def test_a_score_for_another_clip_is_refused(layout: Layout) -> None:
     _, text, _ = build(layout)
     assert "score is for another clip" not in text
     assert "adherence 3/4 (75%), defects 1" in text
+
+
+def test_the_page_has_a_relative_logout_form(layout: Layout) -> None:
+    _, _, page = build(layout)
+    assert page.forms == [{"class": "logout", "method": "post", "action": "logout"}]

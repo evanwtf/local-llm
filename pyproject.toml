@@ -3,7 +3,9 @@ name = "local-llm"
 version = "1.2.0"
 description = "Benchmarks and recommended stacks for running coding agents against local models"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "pyyaml>=6.0.3",
+]
 
 [dependency-groups]
 dev = [
