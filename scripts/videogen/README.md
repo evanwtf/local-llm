@@ -39,6 +39,8 @@ every frame `frames.py` makes from it.
 | `batch.py` | Runs `generate.py` for every clip and seed of one arm, in a fixed order. It skips a run whose `run.json` is good, stops at the first failure, and then runs `frames.py` on each clip. |
 | `serve.py` | Logs, or with `--start` launches, the exact vLLM-Omni server command for one model, from the `servers` block of `arms-v1.json`. It refuses a `--boundary-ratio` flag. |
 | `outlet.py` | Reads a node's smart plug from InfluxDB over a window, in chunks under Grafana's point cap, and integrates it to Wh. It says whether the readings cover the window. |
+| `gallery.py` | Builds a static web gallery of every clip in `~/bench-logs/videogen/gallery/` (#1413). It groups the clips by prompt: the reference clip first, then each arm and seed. It links the videos with symlinks and does not copy them. `batch.py` runs it after each clip. |
+| `gallery_serve.py` | Serves the gallery on the LAN at `:8043`, read-only, with HTTP Range so a browser can seek in a video. |
 | `common.py` | Shared code: the default output root, the guard on output paths, and the ffmpeg runner. |
 
 Both scripts need `ffmpeg` and `ffprobe` on `PATH`. `frames.py` also needs the
@@ -165,3 +167,68 @@ window and no gap is over 30 s. An incomplete reading keeps its partial Wh
 under `outlet`, and the top-level `energy_wh` is null. The arm's server
 `node` (`head` or `worker`) picks the plug; `--node` overrides it. `gcx`
 needs `~/.config/gcx/token`.
+
+## The gallery (#1413)
+
+`gallery.py` builds one page, `index.html`, in `~/bench-logs/videogen/gallery/`.
+The page groups the clips by prompt. Each group shows the prompt text, the
+reference clip, and then every run in `out/` and `probe/`, in order of arm,
+then seed. Each card shows the video, the arm, the model, the size, the seed,
+the status, probe or scored, the wall time, the energy, the peak memory, the
+date and the scores. Filters select a model, an arm, probe or scored, and a
+seed. The page makes no external request, so it works with no internet.
+
+- The page does not copy a video. `media/` holds relative symlinks into
+  `out/`, `probe/` and `ref/`.
+- A rebuild is safe to run at any time. It writes `index.html` through a temp
+  file and a rename, it does not touch an unchanged page, and it removes the
+  link of a run that is gone.
+- `gallery.py` refuses an output inside a git work tree, like the other
+  scripts here.
+- `batch.py` rebuilds the gallery after each clip it makes. A failed rebuild
+  logs a warning and the batch continues. `--no-gallery` turns it off.
+  `generate.py` does not rebuild it, so run `gallery.py` after a probe.
+
+**Scores.** The judge writes one file per run to
+`$VG/scores/<arm>/<run dir name>.json`. For a scored run that is
+`$VG/scores/<arm>/<clip>-s<seed>.json`. A run with no file shows "not
+scored"; a bad file shows why and does not stop the build.
+
+```json
+{"schema": 1, "adherence": {"passed": 11, "total": 12}, "defects": 0,
+ "judge": "blind judge v1", "notes": "optional free text"}
+```
+
+**The server.** `gallery_serve.py` uses only the Python standard library. It
+answers GET and HEAD, and 405 to every other method. It serves a file only
+from the gallery directory. It refuses a `..` segment, a hidden name, a
+directory, and a file type other than HTML, CSS, JS and MP4. It refuses a
+symlink whose real path is outside `~/bench-logs/videogen/` (`--allow`). It
+binds `0.0.0.0:8043` with no login: the port is for the home LAN only. Do not
+forward it to the internet.
+
+The systemd **user** unit `systemd/local-llm-videogen-gallery.service` runs
+the server from `~/git/local-llm` on the head. Linger must be on
+(`loginctl show-user "$USER" -p Linger`).
+
+```sh
+export VG=~/bench-logs/videogen
+
+# Build or refresh the gallery by hand.
+uv run python scripts/videogen/gallery.py
+
+# The same, into another directory (for a test build).
+uv run python scripts/videogen/gallery.py --root "$VG" --out "$(mktemp -d)/gallery"
+
+# Install and start the server (on the head, as the operator's user).
+cp systemd/local-llm-videogen-gallery.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now local-llm-videogen-gallery.service
+
+# Check it.
+systemctl --user status local-llm-videogen-gallery.service
+curl -sI http://127.0.0.1:8043/ | head -n 1
+journalctl --user -u local-llm-videogen-gallery.service -n 20
+```
+
+Then open `http://<head>:8043/` in a browser on the LAN.

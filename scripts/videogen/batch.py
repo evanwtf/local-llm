@@ -18,6 +18,11 @@ The order is fixed: the clips, then the seeds, as `arms-v1.json` lists them
 Then `frames.py` runs on each good clip into
 `~/bench-logs/videogen/frames-out/<arm>/<clip>-s<seed>/`. A frames directory
 whose `meta.json` already names the clip's sha256 is skipped.
+
+After each clip it makes (good or failed), the batch rebuilds the gallery
+(`gallery.py`, #1413) in `<out-root>/../gallery/`. The rebuild is
+best-effort: a failure logs a warning and never stops the batch, because a
+web page is not worth a lost 40-minute clip. `--no-gallery` turns it off.
 """
 
 from __future__ import annotations
@@ -34,7 +39,7 @@ from typing import Any
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from videogen import generate
+from videogen import gallery, generate
 from videogen.common import DEFAULT_ROOT, InsideRepo, refuse_inside_repo, sha256
 
 import logs
@@ -47,6 +52,8 @@ FRAMES_PY = pathlib.Path(__file__).resolve().parent / "frames.py"
 FramesRunner = Callable[[pathlib.Path, pathlib.Path, bool], int]
 #: (plan, out dir) -> exit status of one generate run.
 Generator = Callable[[generate.Plan, pathlib.Path], int]
+#: (video-gen root) -> anything; rebuilds the gallery for that root.
+GalleryBuilder = Callable[[pathlib.Path], object]
 
 GOOD, TODO, MISMATCH = "good", "todo", "mismatch"
 
@@ -57,6 +64,21 @@ def run_frames(clip: pathlib.Path, out: pathlib.Path, overwrite: bool) -> int:
     if overwrite:
         argv.append("--overwrite")
     return subprocess.run(argv, check=False).returncode
+
+
+def build_gallery(root: pathlib.Path) -> object:
+    """The gallery for `root`, in `root/gallery`."""
+    return gallery.build(root, root / "gallery")
+
+
+def refresh_gallery(builder: GalleryBuilder | None, root: pathlib.Path) -> None:
+    """Run `builder` and log, never raise: the gallery must not stop a batch."""
+    if builder is None:
+        return
+    try:
+        builder(root)
+    except Exception as err:  # noqa: BLE001 -- any failure; a page must not cost a clip
+        logger.warning("gallery rebuild failed (the batch goes on): %r", err)
 
 
 def read_run(out: pathlib.Path) -> dict[str, Any] | None:
@@ -121,6 +143,7 @@ def run_batch(
     arms_file: pathlib.Path = generate.ARMS_FILE,
     generator: Generator | None = None,
     frames_runner: FramesRunner = run_frames,
+    gallery_builder: GalleryBuilder | None = build_gallery,
 ) -> int:
     """Make the arm's clips in order, then their frames. Returns 0 or the
     first nonzero status."""
@@ -180,6 +203,8 @@ def run_batch(
                 break
             logger.info("%s %s seed %d: generating (%s)", arm, clip, seed, why)
             rc = make(plan, out)
+            # out_root is <root>/out, so its parent holds probe/, ref/, scores/.
+            refresh_gallery(gallery_builder, out_root.parent)
             if rc != 0:
                 logger.error("%s %s seed %d failed (%d); stopping", arm, clip, seed, rc)
                 status = rc
@@ -226,6 +251,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="allow scored runs from a draft arms file, and count them as done",
     )
+    p.add_argument(
+        "--no-gallery",
+        action="store_true",
+        help="do not rebuild the gallery after each clip",
+    )
     return p
 
 
@@ -242,6 +272,7 @@ def main(argv: list[str] | None = None) -> int:
         allow_draft=args.allow_draft,
         node=args.node,
         metrics_host=args.metrics_host,
+        gallery_builder=None if args.no_gallery else build_gallery,
     )
 
 

@@ -1,0 +1,35 @@
+# #1413: the video-gen gallery, read-only, on the LAN at :8043.
+#
+# Serves ~/bench-logs/videogen/gallery/ (built by scripts/videogen/gallery.py;
+# batch.py rebuilds it after each clip). The server answers GET and HEAD only,
+# and refuses a file whose real path is outside ~/bench-logs/videogen/.
+# There is no login: the port is for the home LAN only. Never forward it.
+#
+# The port is fixed. 8040 is H3, 8041 is vLLM-Omni, 8042 is dgx_server.py's
+# ad-hoc clip viewer. tests/test_videogen_gallery_serve.py pins this file's
+# --port to gallery_serve.DEFAULT_PORT.
+#
+# Install (as the operator's user, on the head; linger must be on):
+#   cp systemd/local-llm-videogen-gallery.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now local-llm-videogen-gallery.service
+[Unit]
+Description=local-llm video-gen gallery (read-only static server, LAN :8043)
+Documentation=https://github.com/evanwtf/local-llm/issues/1413
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/git/local-llm
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+# --no-sync: the server is stdlib only, and a service must not rewrite .venv.
+ExecStart=%h/.local/bin/uv run --frozen --no-sync python scripts/videogen/gallery_serve.py --port 8043
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=yes
+# No ReadOnlyPaths: on the head (systemd 255, user manager) it was accepted
+# and silently not applied, so it would only look like a guard. The server
+# itself has no write path: GET and HEAD only.
+
+[Install]
+WantedBy=default.target
