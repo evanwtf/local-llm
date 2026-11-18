@@ -1,0 +1,183 @@
+{
+  "version": "v1",
+  "status": "draft",
+  "issues": [1402, 1406, 1407],
+  "prompts": "prompts/v1.json",
+  "note": "Fixed request settings per arm for the video-gen eval. 'draft' until one timing probe per model sets them; then 'status' becomes 'locked' and nothing here changes. A probe may move a model to its 'fallback' size: copy the fallback into 'form' before you lock. scripts/videogen/generate.py refuses a scored run from a draft file.",
+  "endpoint": "/v1/videos/sync",
+  "verified_against": {
+    "vllm_omni": "0.32.0",
+    "form_fields": "vllm_omni/entrypoints/openai/video/generation/helpers.py:1002 _parse_video_form (negative_prompt :1034; the model-name check :1142)",
+    "served_model_name": "vllm_omni/entrypoints/openai/api_server.py:904-923 (--served-model-name names /v1/models and the video handler, :1269)",
+    "h3_duration_to_frames": "vllm_omni/model_executor/models/minimax_h3/encoder_processing.py:172-194 (round(duration*fps), then up to 17n+5: 5.0 s at 24 fps is 120, then 124 frames)",
+    "h3_task": "vllm_omni/model_executor/models/minimax_h3/encoder_processing.py:225 _resolve_task",
+    "h3_i2v_resize": "vllm_omni/model_executor/models/minimax_h3/encoder_processing.py:265 (fl2va resizes the first frame to width x height)",
+    "wan_guidance": "vllm_omni/diffusion/models/wan2_2/pipeline_wan2_2.py:679-693: guidance_scale drives the high-noise expert (transformer), guidance_scale_2 the low-noise expert (transformer_2)"
+  },
+  "upstream": {
+    "wan": "https://github.com/Wan-Video/Wan2.2 at 1ea34ff48f87168174e12956e200b1d908b1c5ff",
+    "wan_shared": "https://github.com/Wan-Video/Wan2.2/blob/1ea34ff48f87168174e12956e200b1d908b1c5ff/wan/configs/shared_config.py",
+    "wan_t2v": "https://github.com/Wan-Video/Wan2.2/blob/1ea34ff48f87168174e12956e200b1d908b1c5ff/wan/configs/wan_t2v_A14B.py",
+    "wan_i2v": "https://github.com/Wan-Video/Wan2.2/blob/1ea34ff48f87168174e12956e200b1d908b1c5ff/wan/configs/wan_i2v_A14B.py",
+    "h3": "hardware/Cortex-X925-128GB-GB10/H3-VIDEO-GEN.md (from the vllm-project/vllm-omni GB10 recipe): flow_shift 12, audio_flow_shift 3.0, no negative prompt"
+  },
+  "servers": {
+    "h3": {
+      "node": "head",
+      "port": 8040,
+      "served_model_name": "MiniMaxAI/MiniMax-H3",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
+        "VLLM_OMNI_VIDEO_SYNC_TIMEOUT": "7200"
+      },
+      "scope": {"unit": "h3-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/MiniMax-H3/FL2VA",
+        "--omni", "--trust-remote-code",
+        "--host", "0.0.0.0", "--port", "8040", "--init-timeout", "3600",
+        "--num-gpus", "1", "--tensor-parallel-size", "1", "--text-encoder-tp-size", "1",
+        "--usp", "1", "--ring", "1", "--vae-patch-parallel-size", "1",
+        "--vae-parallel-mode", "tile", "--vae-use-tiling",
+        "--quantization", "fp8", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--served-model-name", "MiniMaxAI/MiniMax-H3"
+      ],
+      "note": "The H3 runbook section 3 command, in the 0.32.0 venv, plus --served-model-name so the request can name the model."
+    },
+    "wan-t2v": {
+      "node": "worker",
+      "port": 8041,
+      "served_model_name": "Wan-AI/Wan2.2-T2V-A14B-Diffusers",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
+        "VLLM_OMNI_VIDEO_SYNC_TIMEOUT": "7200"
+      },
+      "scope": {"unit": "wan-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/Wan2.2-T2V-A14B-Diffusers",
+        "--omni", "--host", "0.0.0.0", "--port", "8041", "--init-timeout", "3600",
+        "--num-gpus", "1", "--vae-use-tiling",
+        "--quantization", "fp8", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--served-model-name", "Wan-AI/Wan2.2-T2V-A14B-Diffusers"
+      ],
+      "note": "No --boundary-ratio: a value set at startup overrides the boundary_ratio in each request."
+    },
+    "wan-i2v": {
+      "node": "worker",
+      "port": 8041,
+      "served_model_name": "Wan-AI/Wan2.2-I2V-A14B-Diffusers",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
+        "VLLM_OMNI_VIDEO_SYNC_TIMEOUT": "7200"
+      },
+      "scope": {"unit": "wan-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/Wan2.2-I2V-A14B-Diffusers",
+        "--omni", "--host", "0.0.0.0", "--port", "8041", "--init-timeout", "3600",
+        "--num-gpus", "1", "--vae-use-tiling",
+        "--quantization", "fp8", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--served-model-name", "Wan-AI/Wan2.2-I2V-A14B-Diffusers"
+      ],
+      "note": "No --boundary-ratio: a value set at startup overrides the boundary_ratio in each request. The weights path assumes the I2V repo lands beside the T2V one."
+    }
+  },
+  "clips": ["dog-a", "dog-b", "dog-c"],
+  "seeds": [1, 2, 3],
+  "arms": {
+    "h3-t2v": {
+      "mode": "t2v",
+      "server": "h3",
+      "model": "MiniMaxAI/MiniMax-H3",
+      "revision": "0919fb68",
+      "weights": "FL2VA partition; the NAS copy (rev 42ed227) is file-identical to HF main 0919fb68",
+      "form": {
+        "width": 1280,
+        "height": 704,
+        "aspect_ratio": "16:9",
+        "fps": 24,
+        "num_inference_steps": 50,
+        "flow_shift": 12
+      },
+      "extra_params": {"task": "t2va", "duration": 5.0, "audio_flow_shift": 3.0},
+      "expect": {"frames": 124, "audio": true},
+      "fallback": {"width": 1024, "height": 576},
+      "sources": "flow_shift 12 and audio_flow_shift 3.0: the H3 runbook (upstream GB10 recipe). 50 steps: H3's full-quality setting. No negative_prompt: the runbook sends none."
+    },
+    "h3-i2v": {
+      "mode": "i2v",
+      "server": "h3",
+      "model": "MiniMaxAI/MiniMax-H3",
+      "revision": "0919fb68",
+      "weights": "FL2VA partition; the NAS copy (rev 42ed227) is file-identical to HF main 0919fb68",
+      "form": {
+        "width": 1280,
+        "height": 704,
+        "fps": 24,
+        "num_inference_steps": 50,
+        "flow_shift": 12
+      },
+      "extra_params": {"task": "fl2va", "duration": 5.0, "audio_flow_shift": 3.0},
+      "input_reference": "first.png",
+      "input_note": "No aspect_ratio: for fl2va the server takes the ratio from the image. Because width and height are sent, the server resizes the 1920x1080 first frame to 1280x704 before H3 sees it, which stretches it about 2% wide (16:9 is 1.778; 1280x704 is 1.818).",
+      "expect": {"frames": 124, "audio": true},
+      "fallback": {"width": 1024, "height": 576},
+      "sources": "As h3-t2v."
+    },
+    "wan-t2v": {
+      "mode": "t2v",
+      "server": "wan-t2v",
+      "model": "Wan-AI/Wan2.2-T2V-A14B-Diffusers",
+      "revision": "5be7df96",
+      "form": {
+        "width": 1280,
+        "height": 720,
+        "num_frames": 81,
+        "fps": 16,
+        "num_inference_steps": 40,
+        "guidance_scale": 4.0,
+        "guidance_scale_2": 3.0,
+        "boundary_ratio": 0.875,
+        "flow_shift": 12.0,
+        "negative_prompt": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"
+      },
+      "extra_params": {},
+      "expect": {"frames": 81, "audio": false},
+      "fallback": {"width": 832, "height": 480},
+      "sources": "Upstream wan_t2v_A14B.py: sample_shift 12.0, sample_steps 40, boundary 0.875, sample_guide_scale (3.0 low noise, 4.0 high noise), so guidance_scale 4.0 (high-noise expert) and guidance_scale_2 3.0 (low-noise expert). shared_config.py: sample_fps 16, frame_num 81, sample_neg_prompt (copied exactly)."
+    },
+    "wan-i2v": {
+      "mode": "i2v",
+      "server": "wan-i2v",
+      "model": "Wan-AI/Wan2.2-I2V-A14B-Diffusers",
+      "revision": "596658fd",
+      "form": {
+        "width": 1280,
+        "height": 720,
+        "num_frames": 81,
+        "fps": 16,
+        "num_inference_steps": 40,
+        "guidance_scale": 3.5,
+        "guidance_scale_2": 3.5,
+        "boundary_ratio": 0.9,
+        "flow_shift": 5.0,
+        "negative_prompt": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"
+      },
+      "extra_params": {},
+      "input_reference": "first.png",
+      "expect": {"frames": 81, "audio": false},
+      "fallback": {"width": 832, "height": 480},
+      "sources": "Upstream wan_i2v_A14B.py: sample_shift 5.0, sample_steps 40, boundary 0.900, sample_guide_scale (3.5, 3.5). The I2V-Diffusers model_index.json at 596658fd also has boundary_ratio 0.9 (the T2V repo's is 0.875); without it the server uses 0.875. shared_config.py: sample_fps 16, frame_num 81, sample_neg_prompt (copied exactly)."
+    }
+  }
+}
