@@ -25,7 +25,7 @@ On a failure it writes `run.json` with the error, leaves no `clip.mp4`, and
 exits 1. It refuses (exit 2, nothing written) an output inside a git work
 tree, a scored run from a draft arms file, an existing output without
 `--overwrite`, a wrong first frame, a server that serves another model, and
-a GPU that is not idle before the request.
+a GPU that does not fall to the idle floor within 120 s of the request.
 
 **Power and memory.** While the request runs, a thread reads the server
 node's GPU power from its DCGM exporter (:9400) and its MemAvailable from its
@@ -98,6 +98,14 @@ SAMPLE_S = 1.0
 #: request that starts above it shares the GPU, and its time and energy
 #: would measure two jobs.
 IDLE_W = heartbeat.IDLE_FLOOR_W["gb10"]
+#: How long to wait for the GPU to fall to the idle floor before refusing.
+#: When one clip ends, batch.py starts the next in the same second, and the
+#: GPU still reads its working draw (40.1 W on 2026-11-18 at 00:18:11, which
+#: stopped the H3 arm after 2 of 9 clips). It falls to idle within seconds.
+#: A GPU still above the floor after 2 minutes is running another job.
+SETTLE_MAX_S = 120.0
+#: Seconds between GPU-power reads while it settles.
+SETTLE_POLL_S = 1.0
 #: run.json keeps at most this many bytes of an error.
 ERROR_BYTES = 500
 
@@ -649,6 +657,7 @@ class Deps:
     mem: Callable[[str], dict[str, float] | None] = read_meminfo
     flux: outlet.Flux = outlet.gcx_flux
     sleep: Callable[[float], None] = time.sleep
+    clock: Callable[[], float] = time.monotonic
     now: Callable[[], datetime.datetime] = ny_now
     machine: Callable[[], str | None] = client_machine
     ffprobe: Callable[[pathlib.Path], dict[str, Any]] = ffprobe_clip
@@ -696,20 +705,46 @@ def preflight(
             f"{server} serves {ids}, not {want}. Start it with "
             f"scripts/videogen/serve.py --model {plan.arm['server']}."
         )
-    watts = deps.gpu(host)
-    if watts is None:
-        logger.warning("could not read the GPU power on %s before the request", host)
-    elif watts > IDLE_W:
-        raise Refused(
-            f"the GPU on the {role} draws {watts:.1f} W before the "
-            f"request, above the {IDLE_W:g} W idle floor: something else is "
-            "running on it, and this clip's time and energy would include it"
-        )
+    settled = wait_for_idle(host, role, deps)
     return {
         "served_model": want,
         "vllm_version": vllm_version(server, deps.get),
-        "gpu_w_before": watts,
+        **settled,
     }
+
+
+def wait_for_idle(host: str, role: str, deps: Deps) -> dict[str, Any]:
+    """Poll the GPU power once a second until it is at or below the idle
+    floor, for at most SETTLE_MAX_S. Raise Refused if it never gets there.
+
+    Returns `gpu_w_before` (the reading that passed, or None if the power
+    cannot be read), `settle_s` (how long it waited) and `settle_readings`
+    ([seconds since the first read, watts] for every read).
+    """
+    readings: list[list[float | None]] = []
+    t0 = deps.clock()
+    while True:
+        watts = deps.gpu(host)
+        elapsed = round(deps.clock() - t0, 1)
+        readings.append([elapsed, watts])
+        if watts is None:
+            logger.warning(
+                "could not read the GPU power on %s before the request", host
+            )
+            break
+        if watts <= IDLE_W:
+            if elapsed > 0:
+                logger.info("the GPU settled to %.1f W in %.1f s", watts, elapsed)
+            break
+        if elapsed >= SETTLE_MAX_S:
+            raise Refused(
+                f"the GPU on the {role} still draws {watts:.1f} W after "
+                f"{elapsed:g} s, above the {IDLE_W:g} W idle floor: something "
+                "else is running on it, and this clip's time and energy would "
+                "include it"
+            )
+        deps.sleep(SETTLE_POLL_S)
+    return {"gpu_w_before": watts, "settle_s": elapsed, "settle_readings": readings}
 
 
 def run_one(

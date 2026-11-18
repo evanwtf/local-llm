@@ -308,14 +308,33 @@ def clock(*times: datetime.datetime) -> Iterator[datetime.datetime]:
 
 
 class Gpu:
-    """Idle before the request, then working."""
+    """The readings before the request, one per call, then the working draw."""
 
-    def __init__(self, before: float = 12.0, during: float = 60.0) -> None:
-        self.values = [before]
+    def __init__(
+        self, before: list[float | None] | None = None, during: float = 60.0
+    ) -> None:
+        self.values: list[float | None] = [12.0] if before is None else list(before)
         self.during = during
+        self.calls = 0
 
-    def __call__(self, host: str) -> float:
+    def __call__(self, host: str) -> float | None:
+        self.calls += 1
         return self.values.pop(0) if self.values else self.during
+
+
+class FakeClock:
+    """A monotonic clock that only `sleep` moves, so no test waits."""
+
+    def __init__(self) -> None:
+        self.t = 1000.0
+        self.slept: list[float] = []
+
+    def now(self) -> float:
+        return self.t
+
+    def sleep(self, seconds: float) -> None:
+        self.slept.append(seconds)
+        self.t += seconds
 
 
 def probe_as_expected(plan: generate.Plan) -> Any:
@@ -342,13 +361,15 @@ def deps_for(
             (T0 + datetime.timedelta(seconds=s), 120.0) for s in range(-5, 371, 5)
         ]
     table = flux_table(points)
+    fake_clock = FakeClock()
     return generate.Deps(
         post=server.post,
         get=server.get,
         gpu=gpu or Gpu(),
         mem=lambda host: {"MemTotal": 119.5, "MemAvailable": 22.0},
         flux=lambda query: table,
-        sleep=lambda s: None,
+        sleep=fake_clock.sleep,
+        clock=fake_clock.now,
         now=lambda: next(times),
         machine=lambda: "Cortex-X925-128GB-GB10",
         ffprobe=(lambda p: found) if found is not None else probe_as_expected(plan),
@@ -475,6 +496,8 @@ def test_run_json_records_what_the_issues_ask_for(
         "served_model": H3,
         "vllm_version": "0.32.0",
         "gpu_w_before": 12.0,
+        "settle_s": 0.0,
+        "settle_readings": [[0.0, 12.0]],
     }
     block = arms()["servers"]["h3"]
     assert run["server_config"] == {
@@ -629,16 +652,67 @@ def test_an_unreadable_model_list_is_refused(
     assert server.forms == []
 
 
-def test_a_busy_gpu_is_refused(
+def test_a_gpu_that_stays_busy_for_the_whole_window_is_refused(
     tmp_path: pathlib.Path,
     first_frame: pathlib.Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     server = FakeServer(ok_reply())
-    rc = go(make("h3-t2v", first_frame), tmp_path / "o", server, gpu=Gpu(before=45.0))
+    gpu = Gpu(before=[40.0] * 500)
+    rc = go(make("h3-t2v", first_frame), tmp_path / "o", server, gpu=gpu)
     assert rc == generate.REFUSED
     assert server.forms == []
-    assert "45.0 W before the request, above the 20 W idle floor" in caplog.text
+    assert not (tmp_path / "o").exists()
+    assert gpu.calls == 121  # one read a second, from 0 s to 120 s
+    assert "still draws 40.0 W after 120 s, above the 20 W idle floor" in caplog.text
+
+
+def test_the_run_waits_for_the_gpu_to_settle(
+    tmp_path: pathlib.Path, first_frame: pathlib.Path
+) -> None:
+    # batch.py starts the next clip in the second the last one ends, while
+    # the GPU still reads its working draw (00:18:11 on 2026-11-18).
+    server = FakeServer(ok_reply())
+    gpu = Gpu(before=[40.0, 38.0, 30.0, 15.0])
+    rc = go(make("h3-t2v", first_frame), tmp_path / "o", server, gpu=gpu)
+    assert rc == 0
+    assert len(server.forms) == 1
+    seen = read_run(tmp_path / "o")["server"]
+    assert seen["gpu_w_before"] == 15.0
+    assert seen["settle_s"] == 3.0
+    assert seen["settle_readings"] == [
+        [0.0, 40.0],
+        [1.0, 38.0],
+        [2.0, 30.0],
+        [3.0, 15.0],
+    ]
+
+
+def test_wait_for_idle_polls_once_a_second() -> None:
+    clock = FakeClock()
+    deps = generate.Deps(
+        gpu=Gpu(before=[40.0, 21.0, 20.0]), sleep=clock.sleep, clock=clock.now
+    )
+    got = generate.wait_for_idle("h", "head", deps)
+    assert clock.slept == [1.0, 1.0]
+    assert got["gpu_w_before"] == 20.0  # at the floor counts as idle
+    assert got["settle_s"] == 2.0
+
+
+def test_an_unreadable_gpu_proceeds_with_a_warning(
+    tmp_path: pathlib.Path,
+    first_frame: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    server = FakeServer(ok_reply())
+    rc = go(make("h3-t2v", first_frame), tmp_path / "o", server, gpu=Gpu(before=[None]))
+    assert rc == 0
+    assert len(server.forms) == 1
+    assert "could not read the GPU power" in caplog.text
+    seen = read_run(tmp_path / "o")["server"]
+    assert seen["gpu_w_before"] is None
+    assert seen["settle_s"] == 0.0
+    assert seen["settle_readings"] == [[0.0, None]]
 
 
 def test_the_idle_floor_is_the_heartbeat_gb10_floor() -> None:
