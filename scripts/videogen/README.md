@@ -40,7 +40,7 @@ every frame `frames.py` makes from it.
 | `serve.py` | Logs, or with `--start` launches, the exact vLLM-Omni server command for one model, from the `servers` block of `arms-v1.json`. It refuses a `--boundary-ratio` flag. |
 | `outlet.py` | Reads a node's smart plug from InfluxDB over a window, in chunks under Grafana's point cap, and integrates it to Wh. It says whether the readings cover the window. |
 | `gallery.py` | Builds a static web gallery of every clip in `~/bench-logs/videogen/gallery/` (#1413). It groups the clips by prompt: the reference clip first, then each arm and seed. It links the videos with symlinks and does not copy them. `batch.py` runs it after each clip. |
-| `gallery_serve.py` | Serves the gallery on the LAN at `:8043`, read-only, with HTTP Range so a browser can seek in a video. |
+| `gallery_serve.py` | Serves the gallery on the LAN at `:8043`, read-only, with HTTP Range so a browser can seek in a video. It checks the `Host` header and sends the page's CSP. |
 | `common.py` | Shared code: the default output root, the guard on output paths, and the ffmpeg runner. |
 
 Both scripts need `ffmpeg` and `ffprobe` on `PATH`. `frames.py` also needs the
@@ -173,13 +173,31 @@ needs `~/.config/gcx/token`.
 `gallery.py` builds one page, `index.html`, in `~/bench-logs/videogen/gallery/`.
 The page groups the clips by prompt. Each group shows the prompt text, the
 reference clip, and then every run in `out/` and `probe/`, in order of arm,
-then seed. Each card shows the video, the arm, the model, the size, the seed,
-the status, probe or scored, the wall time, the energy, the peak memory, the
-date and the scores. Filters select a model, an arm, probe or scored, and a
-seed. The page makes no external request, so it works with no internet.
+then seed. Filters select a model, an arm, probe or scored, and a seed. The
+page makes no external request, so it works with no internet.
+
+Each card shows the video and a short summary: the model, the size, the
+status, the wall time, the energy, the peak memory, the date and the scores.
+Under the summary, collapsed groups hold the full metadata from `run.json`.
+Tap a group to open it.
+
+| group | what it shows |
+|---|---|
+| Request | T2V or I2V, the full prompt, the negative prompt (folded when long), the size, the frames or the length, fps, steps, `guidance_scale`, `guidance_scale_2`, `flow_shift`, `boundary_ratio`, `task`, `audio_flow_shift`, the seed, and for I2V the first frame sent (`frames/<clip>/first.png`) |
+| Server | the model and revision, the served model id, the vLLM-Omni version, the quantization, the node role, the memory cap and the server argv |
+| Measurements | the wall time, the server's inference time (`x-inference-time-s`), the stage durations, the energy and whether it is complete (with the largest gap), the outlet and GPU power, the GPU power before the request, and the peak memory |
+| Clip check | what ffprobe found (frames, size, fps, audio, codec), the sha256 and the file size |
+| Raw run.json | the whole file, pretty-printed |
+
+A field that `run.json` does not hold shows "—". The first probes wrote
+schema 1, which has fewer fields; they still render. The reference card shows
+how the clip was cut (source, window, crop, sha256), from
+[`refs-v1.json`](../../benchmarks/videogen/refs-v1.json).
 
 - The page does not copy a video. `media/` holds relative symlinks into
-  `out/`, `probe/` and `ref/`.
+  `out/`, `probe/`, `ref/` and `frames/`.
+- The arm, clip and seed of a card come from its directory names, not from
+  `run.json`. A name with a character outside `[A-Za-z0-9_-]` is skipped.
 - A rebuild is safe to run at any time. It writes `index.html` through a temp
   file and a rename, it does not touch an unchanged page, and it removes the
   link of a run that is gone.
@@ -199,17 +217,32 @@ scored"; a bad file shows why and does not stop the build.
  "judge": "blind judge v1", "notes": "optional free text"}
 ```
 
-**The server.** `gallery_serve.py` uses only the Python standard library. It
-answers GET and HEAD, and 405 to every other method. It serves a file only
-from the gallery directory. It refuses a `..` segment, a hidden name, a
-directory, and a file type other than HTML, CSS, JS and MP4. It refuses a
-symlink whose real path is outside `~/bench-logs/videogen/` (`--allow`). It
-binds `0.0.0.0:8043` with no login: the port is for the home LAN only. Do not
-forward it to the internet.
+**The server.** `gallery_serve.py` uses only the Python standard library.
+
+- It answers GET and HEAD, and 405 to every other method.
+- It serves a file only from the gallery directory. It refuses a `..`
+  segment, a hidden name, a directory, and a file type other than HTML, CSS,
+  JS, MP4 and PNG. The link name and the real file must have the same type.
+- It refuses a symlink whose real path is outside `~/bench-logs/videogen/`
+  (`--allow`).
+- It answers only a `Host` that is an IP literal, `localhost`, or a name
+  given with `--host-name`. Any other `Host` gets 421. This blocks a
+  DNS-rebinding page in a LAN browser.
+- It sends the Content-Security-Policy that `gallery.py` writes to
+  `gallery/.csp`. The policy names the page's own CSS and JS by sha256, and
+  allows nothing from another origin.
+- It closes a connection that is idle for 30 s, and it serves at most 64
+  connections at once.
+- It binds `0.0.0.0:8043` with no login: the port is for the home LAN only.
+  Do not forward it to the internet.
 
 The systemd **user** unit `systemd/local-llm-videogen-gallery.service` runs
 the server from `~/git/local-llm` on the head. Linger must be on
 (`loginctl show-user "$USER" -p Linger`).
+
+**Browsing adds load.** A video streams from the head's disk and CPU. Do not
+browse the gallery while a scored clip runs on the head. If you must, note
+the time, so the run can record it as background load.
 
 ```sh
 export VG=~/bench-logs/videogen
@@ -231,4 +264,15 @@ curl -sI http://127.0.0.1:8043/ | head -n 1
 journalctl --user -u local-llm-videogen-gallery.service -n 20
 ```
 
-Then open `http://<head>:8043/` in a browser on the LAN.
+**Open the gallery by name.** The server answers an IP address with no more
+setup: `http://<head IP>:8043/`. To use the head's name in the browser, add
+that name in a drop-in. The repository holds no host name. The unit passes
+`$GALLERY_HOST_ARGS` to the server, and an unset variable adds nothing.
+
+```sh
+# Opens an editor on a drop-in. Add the two lines below, with your names.
+systemctl --user edit local-llm-videogen-gallery.service
+#   [Service]
+#   Environment="GALLERY_HOST_ARGS=--host-name NAME --host-name NAME.lan"
+systemctl --user restart local-llm-videogen-gallery.service
+```

@@ -4,6 +4,7 @@
 # batch.py rebuilds it after each clip). The server answers GET and HEAD only,
 # and refuses a file whose real path is outside ~/bench-logs/videogen/.
 # There is no login: the port is for the home LAN only. Never forward it.
+# It answers only a Host that is an IP literal, localhost, or a --host-name.
 #
 # The port is fixed. 8040 is H3, 8041 is vLLM-Omni, 8042 is dgx_server.py's
 # ad-hoc clip viewer. tests/test_videogen_gallery_serve.py pins this file's
@@ -16,14 +17,16 @@
 [Unit]
 Description=local-llm video-gen gallery (read-only static server, LAN :8043)
 Documentation=https://github.com/evanwtf/local-llm/issues/1413
-After=network-online.target
 
 [Service]
 Type=simple
 WorkingDirectory=%h/git/local-llm
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 # --no-sync: the server is stdlib only, and a service must not rewrite .venv.
-ExecStart=%h/.local/bin/uv run --frozen --no-sync python scripts/videogen/gallery_serve.py --port 8043
+# $GALLERY_HOST_ARGS is empty here: no host name goes in the repo. Set it in
+# a drop-in (systemctl --user edit; see scripts/videogen/README.md). An unset
+# variable expands to no argument at all.
+ExecStart=%h/.local/bin/uv run --frozen --no-sync python scripts/videogen/gallery_serve.py --port 8043 $GALLERY_HOST_ARGS
 Restart=on-failure
 RestartSec=10
 NoNewPrivileges=yes

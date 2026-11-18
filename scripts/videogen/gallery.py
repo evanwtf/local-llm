@@ -4,20 +4,24 @@
 
 The site has one page, `index.html`. It groups the clips by prompt (clip id).
 Each group shows the prompt text, the reference clip first, then every
-model's output, ordered by arm, then seed. Each card shows the arm, the model,
-the size, the seed, the status, probe or scored, the wall time, the outlet
-energy, the peak memory, the date and the judge's scores.
+model's output, ordered by arm, then seed. Each card shows a short summary
+under the player, then collapsed groups with the full metadata from its
+`run.json`: the request, the server, the measurements, the clip check, the
+judge's scores and the raw `run.json`. A field that `run.json` does not hold
+shows "—", so an older (schema 1) probe still renders. The reference card
+shows its cut (source, window, crop, sha256) from `refs-v1.json`.
 
 The script does not copy a video. It makes a relative symlink under
-`media/` for each clip, so the site stays small and a rebuild is cheap.
-`gallery_serve.py` serves the site, and it refuses a link that resolves
-outside the video-gen root.
+`media/` for each clip (and for each I2V first frame), so the site stays
+small and a rebuild is cheap. `gallery_serve.py` serves the site, and it
+refuses a link that resolves outside the video-gen root.
 
 Inputs, all under `--root`:
 
 - `out/<arm>/<clip>-s<seed>/{clip.mp4,run.json}`: scored runs.
 - `probe/<arm>/<clip>-s<seed>-<stamp>/{clip.mp4,run.json}`: probes.
 - `ref/<clip>.mp4`: the reference clips.
+- `frames/<clip>/first.png`: the I2V input frame.
 - `scores/<arm>/<run dir name>.json`: optional judge scores. For a scored run
   that is `scores/<arm>/<clip>-s<seed>.json`. The schema:
 
@@ -27,9 +31,16 @@ Inputs, all under `--root`:
   `adherence` and `defects` are required; `judge` and `notes` are optional.
   A run with no file shows "not scored".
 
+The arm, clip and seed of a card come from its directory names, never from
+`run.json`, and a name with any character outside `[A-Za-z0-9_-]` is
+skipped: the names become link paths, and a field in a file must not choose
+where a link goes.
+
 A rebuild is idempotent. It writes `index.html` through a temp file and a
 rename, so a browser never reads half a page, and it leaves the file alone
-when the page has not changed. It removes a link whose run is gone.
+when the page has not changed. It removes a link whose run is gone. It also
+writes `.csp`, the Content-Security-Policy that names the sha256 of the
+page's inline CSS and JS; `gallery_serve.py` sends it with every response.
 
 The output must be outside every git work tree: the clips are private and
 this repository is public.
@@ -38,13 +49,16 @@ this repository is public.
 from __future__ import annotations
 
 import argparse
+import base64
 import dataclasses
+import hashlib
 import html
 import json
 import logging
 import os
 import pathlib
 import re
+import shlex
 import sys
 import tempfile
 import urllib.parse
@@ -62,12 +76,21 @@ logger = logging.getLogger(__name__)
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 PROMPTS_FILE = REPO / "benchmarks" / "videogen" / "prompts" / "v1.json"
+REFS_FILE = REPO / "benchmarks" / "videogen" / "refs-v1.json"
 
 INDEX = "index.html"
+#: The CSP for the page, beside it. A hidden name, so the server never
+#: serves it as a file; it reads it and sends it as a header.
+CSP_FILE = ".csp"
 MEDIA = "media"
 SCORED, PROBE = "scored", "probe"
 REFUSED = 2
+DASH = "—"
+#: A negative prompt longer than this is folded into its own <details>.
+LONG_TEXT = 120
 
+#: One path component we are willing to put in a link: no dot, no slash.
+SAFE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 #: `<clip>-s<seed>` (scored) or `<clip>-s<seed>-<stamp>` (probe).
 RUN_DIR = re.compile(r"^(?P<clip>.+?)-s(?P<seed>\d+)(?:-(?P<stamp>[0-9T]+))?$")
 
@@ -83,7 +106,10 @@ class Score:
 
 @dataclasses.dataclass(frozen=True)
 class Card:
-    """One generated clip (or one failed attempt) and what its run.json says."""
+    """One generated clip (or one failed attempt) and what its run.json says.
+
+    `arm`, `clip` and `seed` come from the directory names (see `find_cards`).
+    """
 
     kind: str  # SCORED or PROBE
     arm: str
@@ -96,7 +122,7 @@ class Card:
 
     @property
     def key(self) -> str:
-        """`<kind dir>/<arm>/<run dir name>`, unique per card."""
+        """`<out|probe>/<arm dir>/<run dir>`, unique per card."""
         top = "out" if self.kind == SCORED else "probe"
         return f"{top}/{self.arm}/{self.run_dir.name}"
 
@@ -144,6 +170,11 @@ def read_json(path: pathlib.Path) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
+def as_dict(value: Any) -> dict[str, Any]:
+    """`value` if it is a dict, else {}: run.json fields can be null or absent."""
+    return value if isinstance(value, dict) else {}
+
+
 def load_prompts(path: pathlib.Path) -> dict[str, Prompt]:
     """Clip id (the reference file's stem, `dog-a`) -> its frozen prompt."""
     data = read_json(path)
@@ -157,6 +188,9 @@ def load_prompts(path: pathlib.Path) -> dict[str, Prompt]:
         if not isinstance(item, dict) or not item.get("ref"):
             continue
         clip = pathlib.PurePath(str(item["ref"])).stem
+        if not SAFE.match(clip):
+            logger.warning("skipped prompt %r: not a safe clip id", clip)
+            continue
         seconds = item.get("seconds")
         found[clip] = Prompt(
             clip=clip,
@@ -165,6 +199,19 @@ def load_prompts(path: pathlib.Path) -> dict[str, Prompt]:
             seconds=float(seconds) if isinstance(seconds, (int, float)) else None,
         )
     return found
+
+
+def load_refs(path: pathlib.Path) -> dict[str, dict[str, Any]]:
+    """Clip id -> its entry in refs-v1.json (how the reference was cut)."""
+    data = read_json(path)
+    if data is None:
+        logger.warning("cannot read the refs file %s", path)
+        return {}
+    return {
+        str(item["id"]): item
+        for item in data.get("clips") or []
+        if isinstance(item, dict) and item.get("id")
+    }
 
 
 def parse_score(data: Mapping[str, Any]) -> Score:
@@ -210,29 +257,28 @@ def load_score(path: pathlib.Path) -> tuple[Score | None, str | None]:
 
 
 def find_cards(root: pathlib.Path) -> list[Card]:
-    """Every run directory under out/ and probe/ that holds a run.json."""
+    """Every run directory under out/ and probe/ that holds a run.json.
+
+    The arm, clip and seed come from the directory names, which also build
+    the link and score paths; a name that is not SAFE is skipped.
+    """
     cards: list[Card] = []
     for kind, top in ((SCORED, "out"), (PROBE, "probe")):
         for run_json in sorted((root / top).glob("*/*/run.json")):
             run_dir = run_json.parent
+            arm = run_dir.parent.name
+            match = RUN_DIR.match(run_dir.name)
+            if not (SAFE.match(arm) and SAFE.match(run_dir.name) and match):
+                logger.warning("skipped %s: not an <arm>/<clip>-s<seed> name", run_dir)
+                continue
+            clip = match["clip"]
+            if not SAFE.match(clip):
+                logger.warning("skipped %s: not a safe clip id", run_dir)
+                continue
             run = read_json(run_json)
             if run is None:
                 logger.warning("skipped %s: run.json is not a JSON object", run_dir)
                 continue
-            match = RUN_DIR.match(run_dir.name)
-            clip = run.get("clip") or (match["clip"] if match else None)
-            seed = run.get("seed")
-            if seed is None and match:
-                seed = match["seed"]
-            try:
-                seed_int = int(seed)  # type: ignore[arg-type]
-            except (TypeError, ValueError):
-                logger.warning("skipped %s: no clip id or seed", run_dir)
-                continue
-            if not clip:
-                logger.warning("skipped %s: no clip id or seed", run_dir)
-                continue
-            arm = str(run.get("arm") or run_dir.parent.name)
             score, score_error = load_score(
                 root / "scores" / arm / f"{run_dir.name}.json"
             )
@@ -240,8 +286,8 @@ def find_cards(root: pathlib.Path) -> list[Card]:
                 Card(
                     kind=kind,
                     arm=arm,
-                    clip=str(clip),
-                    seed=seed_int,
+                    clip=clip,
+                    seed=int(match["seed"]),
                     run_dir=run_dir,
                     run=run,
                     score=score,
@@ -254,36 +300,56 @@ def find_cards(root: pathlib.Path) -> list[Card]:
 # ------------------------------------------------------------- formatting ----
 
 
+def is_num(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def fmt_wall(seconds: Any) -> str:
-    """`40 min 39 s` from 2438.7; `-` when unknown."""
-    if not isinstance(seconds, (int, float)) or isinstance(seconds, bool):
-        return "-"
+    """`40 min 39 s` from 2438.7; a dash when unknown."""
+    if not is_num(seconds):
+        return DASH
     total = round(seconds)
     minutes, secs = divmod(total, 60)
     return f"{minutes} min {secs} s" if minutes else f"{secs} s"
 
 
+def fmt_num(value: Any, unit: str = "", digits: int = 1) -> str:
+    """A number with a unit; a numeric string is accepted; else a dash."""
+    if isinstance(value, str):
+        try:
+            value = float(value)
+        except ValueError:
+            return value or DASH
+    if not is_num(value):
+        return DASH
+    text = f"{value:.{digits}f}"
+    return f"{text} {unit}" if unit else text
+
+
 def fmt_energy(run: Mapping[str, Any]) -> str:
     """The outlet energy; a partial reading is marked so."""
     wh = run.get("energy_wh")
-    if isinstance(wh, (int, float)):
+    if is_num(wh):
         return f"{wh:.1f} Wh"
-    partial = (run.get("outlet") or {}).get("energy_wh")
-    if isinstance(partial, (int, float)):
+    partial = as_dict(run.get("outlet")).get("energy_wh")
+    if is_num(partial):
         return f"{partial:.1f} Wh (incomplete)"
-    return "-"
+    return DASH
 
 
 def fmt_peak(run: Mapping[str, Any]) -> str:
-    peak = (run.get("memory") or {}).get("peak_used_gib")
-    return f"{peak:.1f} GiB" if isinstance(peak, (int, float)) else "-"
+    return fmt_num(as_dict(run.get("memory")).get("peak_used_gib"), "GiB")
+
+
+def fields_of(run: Mapping[str, Any]) -> dict[str, Any]:
+    return as_dict(as_dict(run.get("request")).get("fields"))
 
 
 def fmt_size(run: Mapping[str, Any]) -> str:
-    """`1280x704 (primary)`, from the request that was sent."""
-    fields = (run.get("request") or {}).get("fields") or {}
+    """`1280×704 (primary)`, from the request that was sent."""
+    fields = fields_of(run)
     width, height = fields.get("width"), fields.get("height")
-    dims = f"{width}x{height}" if width and height else "-"
+    dims = f"{width}×{height}" if width and height else DASH
     label = run.get("size")
     return f"{dims} ({label})" if label else dims
 
@@ -292,8 +358,45 @@ def fmt_date(run: Mapping[str, Any]) -> str:
     """`2026-11-17 21:55` from the ISO start; the full value goes in a title."""
     start = run.get("start")
     if not isinstance(start, str) or len(start) < 16:
-        return "-"
+        return DASH
     return start[:16].replace("T", " ")
+
+
+def fmt_bytes(value: Any) -> str:
+    if not is_num(value):
+        return DASH
+    return f"{value / (1 << 20):.1f} MiB ({value:,} bytes)"
+
+
+def extra_params(fields: Mapping[str, Any]) -> dict[str, Any]:
+    """The request's extra_params, a JSON string in the form; {} if absent."""
+    raw = fields.get("extra_params")
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+        except ValueError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def mode_of(run: Mapping[str, Any]) -> str:
+    mode = run.get("mode")
+    if isinstance(mode, str) and mode:
+        return mode.upper()
+    return "I2V" if as_dict(run.get("request")).get("input_reference") else "T2V"
+
+
+def flag_value(argv: Any, flag: str) -> str | None:
+    """The value after `flag` in an argv list, or None."""
+    if not isinstance(argv, list):
+        return None
+    for i, arg in enumerate(argv[:-1]):
+        if arg == flag:
+            return str(argv[i + 1])
+    return None
 
 
 def media_url(rel: pathlib.PurePosixPath, version: str | None = None) -> str:
@@ -308,11 +411,16 @@ def media_url(rel: pathlib.PurePosixPath, version: str | None = None) -> str:
 
 
 def link_path(card: Card) -> pathlib.PurePosixPath:
-    return pathlib.PurePosixPath(MEDIA, *card.key.split("/")).with_suffix(".mp4")
+    top = "out" if card.kind == SCORED else "probe"
+    return pathlib.PurePosixPath(MEDIA, top, card.arm, card.run_dir.name + ".mp4")
 
 
 def ref_link_path(clip: str) -> pathlib.PurePosixPath:
     return pathlib.PurePosixPath(MEDIA, "ref", f"{clip}.mp4")
+
+
+def frame_link_path(clip: str) -> pathlib.PurePosixPath:
+    return pathlib.PurePosixPath(MEDIA, "frames", clip, "first.png")
 
 
 def ensure_link(link: pathlib.Path, target: pathlib.Path) -> bool:
@@ -354,10 +462,11 @@ def prune_links(media: pathlib.Path, keep: set[pathlib.Path]) -> int:
 CSS = """
 :root { color-scheme: light dark; --bg: #f6f6f4; --fg: #1c1c1c; --muted: #5e5e5e;
   --card: #ffffff; --line: #d9d9d4; --ok: #1d7a3a; --bad: #b3261e; --probe: #8a5a00;
-  --accent: #2456a6; }
+  --accent: #2456a6; --code: #efefec; }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #141414; --fg: #e8e8e6; --muted: #a3a3a0; --card: #1f1f1f;
-    --line: #333331; --ok: #5cc27a; --bad: #f2867e; --probe: #e0b45c; --accent: #8ab4f8; }
+    --line: #333331; --ok: #5cc27a; --bad: #f2867e; --probe: #e0b45c; --accent: #8ab4f8;
+    --code: #2a2a2a; }
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -376,18 +485,29 @@ section.prompt { border-top: 1px solid var(--line); padding: 16px 0; }
   justify-content: space-between; }
 .prompt-text { color: var(--muted); margin: 4px 0 12px; max-width: 110ch; }
 .grid { display: grid; gap: 12px;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
   padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .card.ref { border-color: var(--accent); }
 video { width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 4px; }
+img.frame { width: 100%; height: auto; border-radius: 4px; }
 .novideo { aspect-ratio: 16 / 9; display: grid; place-items: center;
   border: 1px dashed var(--line); border-radius: 4px; color: var(--muted); }
 .title { font-weight: 600; overflow-wrap: anywhere; }
 dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 0;
   font-size: 0.9rem; }
 dt { color: var(--muted); }
-dd { margin: 0; overflow-wrap: anywhere; }
+dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+details { border-top: 1px solid var(--line); padding-top: 4px; font-size: 0.9rem; }
+details details { border: 0; padding: 0; }
+summary { cursor: pointer; overflow-wrap: anywhere; }
+summary b { font-weight: 600; }
+details > dl, details > pre { margin-top: 4px; }
+pre, code { font: 0.8rem/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--code); border-radius: 4px; }
+pre { padding: 6px; overflow-x: auto; max-height: 60vh; white-space: pre-wrap;
+  overflow-wrap: anywhere; }
+code { padding: 0 3px; overflow-wrap: anywhere; }
 .tag { display: inline-block; font-size: 0.8rem; padding: 0 6px; border-radius: 4px;
   border: 1px solid currentColor; margin-left: 4px; }
 .ok { color: var(--ok); } .bad { color: var(--bad); } .probe { color: var(--probe); }
@@ -430,8 +550,72 @@ JS = """
 """
 
 
+def csp_hash(text: str) -> str:
+    """`'sha256-...'` for one inline <style> or <script> body."""
+    digest = hashlib.sha256(text.encode("utf-8")).digest()
+    return "'sha256-" + base64.b64encode(digest).decode("ascii") + "'"
+
+
+def csp() -> str:
+    """The page's Content-Security-Policy.
+
+    Only the page's own inline CSS and JS run, named by hash; media and the
+    first frames load from this server; nothing loads from anywhere else,
+    and no injected <base>, form or frame can work.
+    """
+    return (
+        "default-src 'none'; "
+        f"style-src {csp_hash(CSS)}; "
+        f"script-src {csp_hash(JS)}; "
+        "media-src 'self'; img-src 'self'; "
+        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    )
+
+
 def esc(value: Any) -> str:
     return html.escape(str(value), quote=True)
+
+
+def val(value: Any) -> str:
+    """An escaped value, or a dash for a missing one."""
+    if value is None or value == "":
+        return DASH
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    return esc(value)
+
+
+def dl(rows: Iterable[tuple[str, str]]) -> str:
+    """Rows of (label, already-escaped html)."""
+    return "<dl>" + "".join(f"<dt>{esc(k)}</dt><dd>{v}</dd>" for k, v in rows) + "</dl>"
+
+
+def group(title: str, summary: str, body: str) -> str:
+    """A collapsed group whose summary line stays visible."""
+    return f"<details><summary><b>{esc(title)}</b>: {summary}</summary>{body}</details>"
+
+
+def fold(text: Any) -> str:
+    """Escaped text; long text is folded into its own <details>."""
+    if text is None or text == "":
+        return DASH
+    text = str(text)
+    if len(text) <= LONG_TEXT:
+        return esc(text)
+    return (
+        f"<details><summary>{esc(text[:60])}… ({len(text)} chars)</summary>"
+        f"{esc(text)}</details>"
+    )
+
+
+def short_sha(sha: Any) -> str:
+    """The first 12 hex of a sha256; the full value folds out on a tap."""
+    if not isinstance(sha, str) or not sha:
+        return DASH
+    return (
+        f'<details><summary><code title="{esc(sha)}">{esc(sha[:12])}…</code>'
+        f"</summary><code>{esc(sha)}</code></details>"
+    )
 
 
 def video_tag(src: str | None) -> str:
@@ -456,22 +640,192 @@ def score_html(card: Card) -> str:
     return out
 
 
-def run_card(card: Card, src: str | None) -> str:
+def request_group(card: Card, frame_src: str | None, frames_root: pathlib.Path) -> str:
+    run = card.run
+    fields = fields_of(run)
+    extra = extra_params(fields)
+    mode = mode_of(run)
+    frames = fields.get("num_frames")
+    duration = extra.get("duration")
+    length = (
+        f"{frames} frames"
+        if frames
+        else (f"{duration} s" if duration not in (None, "") else None)
+    )
+    rows = [
+        ("mode", esc(mode)),
+        ("prompt", val(fields.get("prompt"))),
+        ("negative prompt", fold(fields.get("negative_prompt"))),
+        ("size", esc(fmt_size(run))),
+        ("frames or length", val(length)),
+        ("fps", val(fields.get("fps"))),
+        ("steps", val(fields.get("num_inference_steps"))),
+        ("guidance_scale", val(fields.get("guidance_scale"))),
+        ("guidance_scale_2", val(fields.get("guidance_scale_2"))),
+        ("flow_shift", val(fields.get("flow_shift"))),
+        ("boundary_ratio", val(fields.get("boundary_ratio"))),
+        ("task", val(extra.get("task"))),
+        ("audio_flow_shift", val(extra.get("audio_flow_shift"))),
+        ("seed", val(fields.get("seed", run.get("seed")))),
+    ]
+    image = as_dict(as_dict(run.get("request")).get("input_reference"))
+    if mode == "I2V" or image:
+        name = image.get("name") or "first.png"
+        if frame_src is not None:
+            shown = (
+                f'<img class="frame" loading="lazy" alt="the first frame sent" '
+                f'src="{esc(frame_src)}">'
+            )
+        else:
+            shown = (
+                f"<code>{esc(frames_root / card.clip / str(name))}</code> (not found)"
+            )
+        rows.append(("first frame", shown))
+        rows.append(("frame sha256", short_sha(image.get("sha256"))))
+    steps = fields.get("num_inference_steps")
+    summary = esc(
+        f"{mode}, {fmt_size(run)}, {length or DASH}, "
+        f"{fields.get('fps') or DASH} fps, {steps or DASH} steps"
+    )
+    return group("Request", summary, dl(rows))
+
+
+def server_group(run: Mapping[str, Any]) -> str:
+    seen = as_dict(run.get("server"))
+    config = as_dict(run.get("server_config"))
+    argv = config.get("argv")
+    served = seen.get("served_model") or config.get("served_model_name")
+    version = seen.get("vllm_version") or config.get("vllm_omni")
+    quant = flag_value(argv, "--quantization")
+    # No argv recorded (schema 1) is unknown, not "no quantization".
+    if quant is None and isinstance(argv, list) and argv:
+        quant_text = "no quantization flag"
+    else:
+        quant_text = quant or DASH
+    role = as_dict(run.get("node")).get("role")
+    argv_text = (
+        shlex.join(str(a) for a in argv) if isinstance(argv, list) and argv else None
+    )
+    scope = as_dict(config.get("scope"))
+    rows = [
+        ("model", val(run.get("model"))),
+        ("revision", val(run.get("revision"))),
+        ("served model", val(served)),
+        ("vLLM-Omni", val(version)),
+        ("quantization", esc(quant_text)),
+        ("node role", val(role)),
+        ("server block", val(config.get("name"))),
+        ("memory cap", val(scope.get("MemoryMax"))),
+        ("argv", f"<code>{esc(argv_text)}</code>" if argv_text else DASH),
+    ]
+    summary = esc(
+        f"{run.get('model') or DASH}, vLLM-Omni {version or DASH}, "
+        f"{quant_text}, {role or DASH}"
+    )
+    return group("Server", summary, dl(rows))
+
+
+def stage_rows(raw: Any) -> str:
+    """The x-stage-durations header: a JSON object of stage -> seconds, or text."""
+    if raw is None or raw == "":
+        return DASH
+    parsed: Any = raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+        except ValueError:
+            return esc(raw)
+    if isinstance(parsed, dict):
+        return "<br>".join(
+            f"{esc(k)}: {esc(fmt_num(v, 's', 2))}" for k, v in parsed.items()
+        )
+    return esc(raw)
+
+
+def measure_group(run: Mapping[str, Any]) -> str:
+    headers = as_dict(run.get("server_headers"))
+    outlet = as_dict(run.get("outlet"))
+    gpu = as_dict(run.get("gpu_power"))
+    seen = as_dict(run.get("server"))
+    complete = outlet.get("complete")
+    wall = run.get("wall_s")
+    wall_text = fmt_wall(wall) + (f" ({wall} s)" if is_num(wall) else "")
+    gap = outlet.get("max_gap_s")
+    rows = [
+        ("wall", esc(wall_text)),
+        ("server inference", esc(fmt_num(headers.get("x-inference-time-s"), "s"))),
+        ("stages", stage_rows(headers.get("x-stage-durations"))),
+        ("energy", esc(fmt_energy(run))),
+        (
+            "energy complete",
+            val(complete) + (f" (max gap {esc(gap)} s)" if gap is not None else ""),
+        ),
+        (
+            "outlet mean / peak",
+            esc(
+                f"{fmt_num(outlet.get('mean_w'), 'W')} / "
+                f"{fmt_num(outlet.get('peak_w'), 'W')}"
+            ),
+        ),
+        (
+            "GPU mean / peak",
+            esc(
+                f"{fmt_num(gpu.get('mean_w'), 'W')} / {fmt_num(gpu.get('peak_w'), 'W')}"
+            ),
+        ),
+        ("GPU before", esc(fmt_num(seen.get("gpu_w_before"), "W"))),
+        ("peak memory", esc(fmt_peak(run))),
+        ("server peak memory", esc(fmt_num(headers.get("x-peak-memory-mb"), "MB", 0))),
+        ("HTTP status", val(run.get("http_status"))),
+        ("start", val(run.get("start"))),
+        ("end", val(run.get("end"))),
+    ]
+    summary = esc(f"{fmt_wall(wall)}, {fmt_energy(run)}, {fmt_peak(run)}")
+    return group("Measurements", summary, dl(rows))
+
+
+def clip_group(run: Mapping[str, Any]) -> str:
+    probe = as_dict(run.get("ffprobe"))
+    output = as_dict(run.get("output"))
+    width, height = probe.get("width"), probe.get("height")
+    size = f"{width}×{height}" if width and height else None
+    rows = [
+        ("frames", val(probe.get("frames"))),
+        ("size", val(size)),
+        ("fps", val(probe.get("fps"))),
+        ("audio", val(probe.get("audio"))),
+        ("codec", val(probe.get("video_codec"))),
+        ("sha256", short_sha(output.get("sha256"))),
+        ("file size", esc(fmt_bytes(output.get("bytes")))),
+    ]
+    frames = probe.get("frames")
+    summary = esc(
+        f"{frames if frames is not None else DASH} frames, {size or DASH}, "
+        f"{fmt_bytes(output.get('bytes')).split(' (')[0]}"
+    )
+    return group("Clip check", summary, dl(rows))
+
+
+def raw_group(run: Mapping[str, Any]) -> str:
+    text = json.dumps(run, indent=2, ensure_ascii=False, sort_keys=True)
+    return group("Raw run.json", esc(f"{len(text):,} chars"), f"<pre>{esc(text)}</pre>")
+
+
+def run_card(
+    card: Card, src: str | None, frame_src: str | None, frames_root: pathlib.Path
+) -> str:
     run = card.run
     status = str(run.get("status") or "unknown")
     status_cls = "ok" if status == "ok" else "bad"
-    model = str(run.get("model") or "-")
-    revision = run.get("revision")
-    model_text = f"{model} @{revision}" if revision else model
+    model = str(run.get("model") or DASH)
     kind_tag = (
         '<span class="tag probe">probe</span>'
         if card.kind == PROBE
         else '<span class="tag ok">scored</span>'
     )
     rows = [
-        ("model", esc(model_text)),
+        ("model", esc(model)),
         ("size", esc(fmt_size(run))),
-        ("seed", esc(card.seed)),
         ("status", f'<span class="{status_cls}">{esc(status)}</span>'),
         ("wall", esc(fmt_wall(run.get("wall_s")))),
         ("energy", esc(fmt_energy(run))),
@@ -483,26 +837,46 @@ def run_card(card: Card, src: str | None) -> str:
         ("scores", score_html(card)),
     ]
     if run.get("error"):
-        rows.insert(4, ("error", f'<span class="bad">{esc(run["error"])}</span>'))
-    body = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows)
+        rows.insert(3, ("error", f'<span class="bad">{esc(run["error"])}</span>'))
+    groups = "".join(
+        [
+            request_group(card, frame_src, frames_root),
+            server_group(run),
+            measure_group(run),
+            clip_group(run),
+            raw_group(run),
+        ]
+    )
     return (
         f'<article class="card run" data-run="{esc(card.key)}" '
         f'data-arm="{esc(card.arm)}" data-model="{esc(model)}" '
         f'data-kind="{esc(card.kind)}" data-seed="{esc(card.seed)}">'
         f"{video_tag(src)}"
         f'<div class="title">{esc(card.arm)} · seed {esc(card.seed)}{kind_tag}</div>'
-        f"<dl>{body}</dl></article>"
+        f"{dl(rows)}{groups}</article>"
     )
 
 
-def ref_card(clip: str, src: str | None, prompt: Prompt | None) -> str:
-    length = f"{prompt.seconds:g} s" if prompt is not None and prompt.seconds else "-"
+def ref_card(
+    clip: str, src: str | None, prompt: Prompt | None, ref: Mapping[str, Any]
+) -> str:
+    length = f"{prompt.seconds:g} s" if prompt is not None and prompt.seconds else None
+    start, duration = ref.get("start"), ref.get("duration")
+    window = f"{start} s + {duration} s" if start is not None and duration else None
+    rows = [
+        ("source", val(ref.get("source"))),
+        ("window", val(window)),
+        ("crop", val(ref.get("crop") or ("none" if "crop" in ref else None))),
+        ("length", val(length)),
+        ("frames", val(ref.get("video_frames"))),
+        ("fps", val(ref.get("fps"))),
+        ("sha256", short_sha(ref.get("sha256"))),
+    ]
     return (
         f'<article class="card ref" data-ref="{esc(clip)}">'
         f"{video_tag(src)}"
         f'<div class="title">reference: {esc(clip)}</div>'
-        f"<dl><dt>source</dt><dd>the real clip the prompt was written from</dd>"
-        f"<dt>length</dt><dd>{esc(length)}</dd></dl></article>"
+        f"{dl(rows)}</article>"
     )
 
 
@@ -516,30 +890,41 @@ def select(name: str, label: str, values: Iterable[str]) -> str:
     )
 
 
+@dataclasses.dataclass(frozen=True)
+class Links:
+    """The site-relative URL of each linked file, or None where none exists."""
+
+    refs: Mapping[str, str | None]
+    videos: Mapping[str, str | None]
+    frames: Mapping[str, str | None]
+
+
 def render(
     cards: list[Card],
     prompts: Mapping[str, Prompt],
-    refs: Mapping[str, str | None],
-    srcs: Mapping[str, str | None],
+    refs_info: Mapping[str, Mapping[str, Any]],
+    links: Links,
+    frames_root: pathlib.Path,
 ) -> str:
     """The whole page. Deterministic: the same inputs give the same bytes."""
     clips = sorted({c.clip for c in cards} | set(prompts))
     sections = []
     for clip in clips:
-        group = sorted((c for c in cards if c.clip == clip), key=Card.sort_key)
+        group_cards = sorted((c for c in cards if c.clip == clip), key=Card.sort_key)
         prompt = prompts.get(clip)
         text = prompt.text if prompt else None
         if not text:
-            for card in group:
-                sent = ((card.run.get("request") or {}).get("fields") or {}).get(
-                    "prompt"
-                )
+            for card in group_cards:
+                sent = fields_of(card.run).get("prompt")
                 if sent:
                     text = str(sent)
                     break
         pid = f" ({prompt.prompt_id})" if prompt and prompt.prompt_id else ""
-        items = [ref_card(clip, refs.get(clip), prompt)]
-        items += [run_card(c, srcs.get(c.key)) for c in group]
+        items = [ref_card(clip, links.refs.get(clip), prompt, refs_info.get(clip, {}))]
+        items += [
+            run_card(c, links.videos.get(c.key), links.frames.get(c.clip), frames_root)
+            for c in group_cards
+        ]
         sections.append(
             f'<section class="prompt" data-clip="{esc(clip)}">'
             f'<div class="prompt-head"><h2>{esc(clip)}{esc(pid)}</h2>'
@@ -548,10 +933,10 @@ def render(
             f'<p class="prompt-text">{esc(text or "no prompt text found")}</p>'
             f'<div class="grid">{"".join(items)}</div></section>'
         )
-    models = sorted({str(c.run.get("model") or "-") for c in cards})
+    models = sorted({str(c.run.get("model") or DASH) for c in cards})
     arms = sorted({c.arm for c in cards})
     seeds = sorted({c.seed for c in cards})
-    newest = max((fmt_date(c.run) for c in cards), default="-")
+    newest = max((fmt_date(c.run) for c in cards), default=DASH)
     filters = "".join(
         [
             select("model", "model", models),
@@ -612,6 +997,7 @@ def build(
     out: pathlib.Path | None = None,
     *,
     prompts_file: pathlib.Path = PROMPTS_FILE,
+    refs_file: pathlib.Path = REFS_FILE,
 ) -> BuildResult:
     """Build or refresh the site. Raises InsideRepo for an output in a repo."""
     root = root.expanduser().resolve()
@@ -620,43 +1006,59 @@ def build(
     out.mkdir(parents=True, exist_ok=True)
     out = out.resolve()
     media = out / MEDIA
+    frames_root = root / "frames"
 
     cards = find_cards(root)
     prompts = load_prompts(prompts_file)
+    refs_info = load_refs(refs_file)
     keep: set[pathlib.Path] = set()
-    links = 0
+    made = 0
+
+    def link(rel: pathlib.PurePosixPath, target: pathlib.Path) -> None:
+        nonlocal made
+        made += ensure_link(out / rel, target)
+        keep.add(out / rel)
 
     refs: dict[str, str | None] = {}
     for clip in sorted({c.clip for c in cards} | set(prompts)):
         target = root / "ref" / f"{clip}.mp4"
-        if not target.is_file():
-            refs[clip] = None
-            continue
-        rel = ref_link_path(clip)
-        links += ensure_link(out / rel, target)
-        keep.add(out / rel)
-        refs[clip] = media_url(rel)
+        refs[clip] = None
+        if target.is_file():
+            link(ref_link_path(clip), target)
+            refs[clip] = media_url(ref_link_path(clip))
 
-    srcs: dict[str, str | None] = {}
+    frames: dict[str, str | None] = {}
+    for clip in sorted({c.clip for c in cards if mode_of(c.run) == "I2V"}):
+        target = frames_root / clip / "first.png"
+        frames[clip] = None
+        if target.is_file():
+            link(frame_link_path(clip), target)
+            frames[clip] = media_url(frame_link_path(clip))
+
+    videos: dict[str, str | None] = {}
     for card in cards:
         video = card.video
+        videos[card.key] = None
         if video is None:
-            srcs[card.key] = None
             continue
-        rel = link_path(card)
-        links += ensure_link(out / rel, video)
-        keep.add(out / rel)
-        sha = (card.run.get("output") or {}).get("sha256")
-        srcs[card.key] = media_url(rel, sha if isinstance(sha, str) else None)
+        link(link_path(card), video)
+        sha = as_dict(card.run.get("output")).get("sha256")
+        videos[card.key] = media_url(
+            link_path(card), sha if isinstance(sha, str) else None
+        )
 
     removed = prune_links(media, keep)
+    # The policy first: a page whose hashes the server does not yet send
+    # would load with its CSS and JS blocked.
+    write_atomic(out / CSP_FILE, csp() + "\n")
     index = out / INDEX
-    changed = write_atomic(index, render(cards, prompts, refs, srcs))
+    page = render(cards, prompts, refs_info, Links(refs, videos, frames), frames_root)
+    changed = write_atomic(index, page)
     result = BuildResult(
         index=index,
         cards=len(cards),
         refs=sum(1 for v in refs.values() if v),
-        links=links,
+        links=made,
         removed=removed,
         changed=changed,
     )
@@ -678,7 +1080,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--root",
         type=pathlib.Path,
         default=DEFAULT_ROOT,
-        help="the video-gen root that holds out/, probe/, ref/ and scores/",
+        help="the video-gen root that holds out/, probe/, ref/, frames/ and scores/",
     )
     p.add_argument(
         "--out",
@@ -686,6 +1088,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="where to write the site (default: ROOT/gallery)",
     )
     p.add_argument("--prompts", type=pathlib.Path, default=PROMPTS_FILE)
+    p.add_argument("--refs", type=pathlib.Path, default=REFS_FILE)
     return p
 
 
@@ -693,7 +1096,7 @@ def main(argv: list[str] | None = None) -> int:
     logs.configure()
     args = build_parser().parse_args(argv)
     try:
-        build(args.root, args.out, prompts_file=args.prompts)
+        build(args.root, args.out, prompts_file=args.prompts, refs_file=args.refs)
     except InsideRepo as err:
         logger.error("%s", err)
         return REFUSED
