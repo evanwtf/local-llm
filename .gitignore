@@ -71,3 +71,14 @@ benchmarks/ds4/decode-ab/
 
 # GitHub Pages build output (scripts/clock_cap_site.py and the pages workflow)
 _site/
+
+# #1404: video files never belong in this public repo. The video-gen reference
+# clips are the operator's own videos and can carry a GPS tag; they and their
+# frames live in ~/bench-logs/videogen/. scripts/videogen/ refuses an output
+# path inside the repo, and the refuse-video-files pre-commit hook refuses a
+# forced `git add -f`. This rule keeps them out of `git status` and `git add .`.
+*.mp4
+*.mov
+*.MOV
+*.m4v
+*.mkv

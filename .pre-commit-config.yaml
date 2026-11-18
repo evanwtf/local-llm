@@ -32,6 +32,20 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
+      # #1404: no video, and no video-gen frame, ever lands in this repo. The
+      # repo is public; the reference clips are the operator's own videos and
+      # can carry a GPS tag. .gitignore hides them from `git add .`, but an
+      # ignore rule does not stop `git add -f`, and a commit is permanent. This
+      # refuses the commit instead. Second, not first: the run-lock guard above
+      # must stay first (tests/test_refuse_commit_hook.py), and this hook only
+      # needs to run before anything that could rewrite a file. `language:
+      # fail` runs no code: any staged path that matches `files` fails it.
+      - id: refuse-video-files
+        name: no video files or video-gen frames in the repo (#1404)
+        entry: "video files and frames stay in ~/bench-logs/videogen/, never in this public repo (#1404):"
+        language: fail
+        files: '(?i)(\.(mp4|mov|m4v|mkv)$|^benchmarks/videogen/.*\.(jpe?g|png)$)'
+        stages: [pre-commit]
       # The push gate. `pytest -m fast` is the ~180 repo-CONTRACT guards --
       # registry, generated docs, script index, ledger shape, tasks.toml -- out
       # of ~3,500 tests. Those are the failures worth blocking a push on,
