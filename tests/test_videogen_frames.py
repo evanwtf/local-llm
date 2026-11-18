@@ -13,7 +13,7 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from videogen import frames
+from videogen import common, frames
 
 HAS_FFMPEG = shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None
 needs_ffmpeg = pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg is not on PATH")
@@ -72,29 +72,45 @@ def test_parse_ydif_refuses_a_value_with_no_frame() -> None:
         frames.parse_ydif("lavfi.signalstats.YDIF=1.0\n")
 
 
-@needs_ffmpeg
-def test_frames_writes_every_output(tmp_path: pathlib.Path) -> None:
-    clip = tmp_path / "clip.mp4"
+def make_clip(path: pathlib.Path, *lavfi: str, lossless: bool = False) -> None:
+    """Encode a synthetic clip from a lavfi graph."""
+    quality = ["-qp", "0"] if lossless else ["-preset", "ultrafast"]
     subprocess.run(
         [
-            "ffmpeg",
-            "-v",
-            "error",
-            "-y",
-            "-f",
-            "lavfi",
-            "-i",
-            "testsrc2=duration=3:size=320x180:rate=30",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "ultrafast",
-            "-pix_fmt",
-            "yuv420p",
-            str(clip),
+            *("ffmpeg", "-v", "error", "-y"),
+            *lavfi,
+            *("-c:v", "libx264", *quality, "-pix_fmt", "yuv420p"),
+            str(path),
         ],
         check=True,
     )
+
+
+def test_the_strip_starts_one_frame_before_the_window() -> None:
+    """YDIF[k] is the change from frame k-1 into frame k."""
+    assert frames.strip_start(0) == 0
+    assert frames.strip_start(1) == 0
+    assert frames.strip_start(47) == 46
+
+
+def test_the_strip_filter_is_frame_exact() -> None:
+    font = pathlib.Path("/fonts/DejaVuSans.ttf")
+    vf = frames.strip_filter(46, 60, font)
+    assert vf.startswith("trim=start_frame=46:end_frame=106,fps=4,scale=640:-2,")
+    assert "fontfile=/fonts/DejaVuSans.ttf" in vf
+    assert vf.endswith(",tile=4x2")
+    assert not frames.strip_filter(0, 60, font, tile=False).endswith("tile=4x2")
+
+
+def test_a_font_path_with_a_filter_special_character_is_refused() -> None:
+    with pytest.raises(common.FfmpegError):
+        frames.drawtext(pathlib.Path("/odd:dir/DejaVuSans.ttf"))
+
+
+@needs_ffmpeg
+def test_frames_writes_every_output(tmp_path: pathlib.Path) -> None:
+    clip = tmp_path / "clip.mp4"
+    make_clip(clip, "-f", "lavfi", "-i", "testsrc2=duration=3:size=320x180:rate=30")
     out = tmp_path / "frames"
     assert frames.main([str(clip), str(out)]) == 0
     names = sorted(p.name for p in out.iterdir())
@@ -110,13 +126,90 @@ def test_frames_writes_every_output(tmp_path: pathlib.Path) -> None:
     assert meta["frame_count"] == 3
     assert meta["video_frames"] == 90
     assert meta["window_frames"] == 60
+    assert meta["fps"] == 30.0
     assert meta["duration_s"] == pytest.approx(3.0, abs=0.05)
-    assert 0.0 <= meta["busiest_start_s"] <= 1.0 + 1e-6
-    assert meta["ffmpeg_version"]
+    assert meta["params"] == frames.PARAMS
+    assert meta["font"] == "DejaVuSans.ttf"
+    assert meta["ffmpeg_version"] and meta["arch"]
+    assert sorted(meta["outputs_sha256"]) == [
+        "first.png",
+        "s01.jpg",
+        "s02.jpg",
+        "s03.jpg",
+        "strip.jpg",
+    ]
+    for name, digest in meta["outputs_sha256"].items():
+        assert common.sha256(out / name) == digest
 
     # A second run into the same directory is refused unless asked for.
     assert frames.main([str(clip), str(out)]) == 2
     assert frames.main([str(clip), str(out), "--overwrite"]) == 0
+
+
+@needs_ffmpeg
+def test_a_known_motion_burst_is_picked_tiled_and_reproduced(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Flat gray for 8 s, with moving testsrc2 on frames 90..105 only.
+
+    The clip is lossless, so every static frame decodes the same and its YDIF
+    is exactly 0. Nonzero YDIF sits at 90 (gray into testsrc2) through 106
+    (testsrc2 back into gray). Every 60-frame window from 47 to 90 holds all
+    of it, so the sums tie and the earliest, 47, wins. The strip starts one
+    frame earlier, at 46.
+    """
+    clip = tmp_path / "burst.mp4"
+    make_clip(
+        clip,
+        *("-f", "lavfi", "-i", "color=c=gray:size=320x180:rate=30:duration=8"),
+        *("-f", "lavfi", "-i", "testsrc2=size=320x180:rate=30:duration=8"),
+        *("-filter_complex", "[0][1]overlay=enable='between(n,90,105)'"),
+        lossless=True,
+    )
+    meta = frames.extract(clip, tmp_path / "a")
+    assert meta["video_frames"] == 240
+    assert meta["busiest_window_index"] == 47
+    assert meta["busiest_start_frame"] == 46
+    assert meta["busiest_start_s"] == pytest.approx(46 / 30, abs=1e-4)
+
+    # Eight frames go into the strip, so the 4x2 tile holds no blank cell.
+    font = frames.find_font()
+    crc = subprocess.run(
+        [
+            *("ffmpeg", "-v", "error", "-i", common.file_url(clip)),
+            *("-vf", frames.strip_filter(46, 60, font, tile=False)),
+            *("-f", "framecrc", "-"),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert len([ln for ln in crc.splitlines() if not ln.startswith("#")]) == 8
+    size = subprocess.run(
+        [
+            *("ffprobe", "-v", "error", "-show_entries", "stream=width,height"),
+            *("-of", "csv=p=0", common.file_url(tmp_path / "a" / "strip.jpg")),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert size == "2560,720"
+
+    # A rerun gives the same bytes.
+    again = frames.extract(clip, tmp_path / "b")
+    assert again["outputs_sha256"] == meta["outputs_sha256"]
+
+
+@needs_ffmpeg
+def test_a_clip_shorter_than_the_window_fails_and_writes_nothing(
+    tmp_path: pathlib.Path,
+) -> None:
+    clip = tmp_path / "short.mp4"
+    make_clip(clip, "-f", "lavfi", "-i", "testsrc2=duration=1:size=320x180:rate=30")
+    out = tmp_path / "frames"
+    assert frames.main([str(clip), str(out)]) == 1
+    assert not out.exists()
 
 
 def test_frames_refuses_an_output_inside_the_repo(tmp_path: pathlib.Path) -> None:
