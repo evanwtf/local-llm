@@ -325,3 +325,82 @@ def test_no_gallery_turns_the_rebuild_off() -> None:
         .parse_args(["--arm", "h3-t2v", "--server", "http://h:8040", "--no-gallery"])
         .no_gallery
     )
+
+
+# ------------------------------------------------- metrics export (#1406) ----
+
+
+def run_with_metrics(
+    tmp_path: pathlib.Path, fakes: Fakes, writer: batch.MetricsWriter | None
+) -> int:
+    return batch.run_batch(
+        "h3-t2v",
+        server="http://h:8040",
+        out_root=tmp_path / "out",
+        frames_out_root=tmp_path / "frames-out",
+        frames_root=tmp_path / "frames",
+        generator=fakes.generator,
+        frames_runner=fakes.frames,
+        gallery_builder=None,
+        metrics_writer=writer,
+    )
+
+
+def test_the_metrics_are_written_after_each_clip_made(tmp_path: pathlib.Path) -> None:
+    write_good(plan("dog-a", 1, tmp_path), tmp_path / "out" / "h3-t2v" / "dog-a-s1")
+    fakes = Fakes(fail_at=("dog-b", 2))
+    calls: list[tuple[pathlib.Path, int]] = []
+
+    def writer(root: pathlib.Path) -> None:
+        calls.append((root, len(fakes.made)))
+
+    assert run_with_metrics(tmp_path, fakes, writer) == generate.FAILED
+    assert [n for _, n in calls] == [1, 2, 3, 4]
+    assert {root for root, _ in calls} == {tmp_path}
+
+
+def test_a_metrics_failure_never_fails_the_batch_and_warns_once(
+    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    calls: list[pathlib.Path] = []
+
+    def writer(root: pathlib.Path) -> None:
+        calls.append(root)
+        raise FileNotFoundError("no textfile collector directory")
+
+    fakes = Fakes()
+    with caplog.at_level(logging.WARNING):
+        assert run_with_metrics(tmp_path, fakes, writer) == 0
+    assert fakes.made == ORDER
+    # It keeps trying (the operator may fix the directory mid-batch), but
+    # warns only once.
+    assert len(calls) == len(ORDER)
+    warnings = [r for r in caplog.records if "metrics export failed" in r.getMessage()]
+    assert len(warnings) == 1
+
+
+def test_run_batch_writes_no_metrics_by_default(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(root: pathlib.Path) -> object:
+        raise AssertionError("run_batch must not write the system directory")
+
+    monkeypatch.setattr(batch, "write_metrics", boom)
+    assert run(tmp_path, Fakes()) == 0
+
+
+@pytest.mark.parametrize(("extra", "want"), [([], True), (["--no-metrics"], False)])
+def test_main_wires_the_metrics_writer(
+    monkeypatch: pytest.MonkeyPatch, extra: list[str], want: bool
+) -> None:
+    seen: dict[str, Any] = {}
+
+    def fake_run_batch(arm: str, **kwargs: Any) -> int:
+        seen.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(batch, "run_batch", fake_run_batch)
+    assert batch.main(["--arm", "h3-t2v", "--server", "http://h:8040", *extra]) == 0
+    assert (seen["metrics_writer"] is batch.write_metrics) is want
+    if not want:
+        assert seen["metrics_writer"] is None

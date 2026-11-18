@@ -40,6 +40,7 @@ every frame `frames.py` makes from it.
 | `serve.py` | Logs, or with `--start` launches, the exact vLLM-Omni server command for one model, from the `servers` block of `arms-v1.json`. It refuses a `--boundary-ratio` flag. |
 | `outlet.py` | Reads a node's smart plug from InfluxDB over a window, in chunks under Grafana's point cap, and integrates it to Wh. It says whether the readings cover the window. |
 | `gallery.py` | Builds a static web gallery of every clip in `~/bench-logs/videogen/gallery/` (#1413). It groups the clips by prompt: the reference clip first, then each arm and seed. It links the videos with symlinks and does not copy them. `batch.py` runs it after each clip. |
+| `metrics.py` | Writes the clips' throughput, time, energy and memory from each `run.json` to `videogen.prom` in node_exporter's textfile directory, for Prometheus (#1406). `batch.py` runs it after each clip. |
 | `judge.py` | `blind` copies each scored run's frames into folders with random ids, writes one judge prompt per clip, and writes the key outside the folders. `ingest` checks a judge reply and writes the score files the gallery reads (#1406). |
 | `gallery_serve.py` | Serves the gallery at `:8043` behind a login, read-only, with HTTP Range so a browser can seek in a video. It checks the `Host` header and sends the page's CSP. `set-password` writes the credentials file. |
 | `gallery_auth.py` | The login gate's parts: the YAML credentials file (scrypt hash, session secret, mode 0600), the signed session cookie, the client address behind a trusted proxy, and the lockout after failed logins. |
@@ -349,6 +350,133 @@ systemctl --user restart local-llm-videogen-gallery.service
 
 The proxy must pass the path below its prefix (`/videogen/x` to `/x`) and set
 `X-Forwarded-For` and `X-Forwarded-Proto`.
+
+## Prometheus metrics (#1406)
+
+vLLM-Omni's own `/metrics` has the latency of each request and the seconds
+per step. It has no count of video frames or video seconds, and its token
+counters read 0 for a diffusion model. `metrics.py` takes those facts from
+each `run.json` and writes them to
+`/var/lib/node_exporter/textfile_collector/videogen.prom`. node_exporter on
+the DGX head reads that directory (`--collector.textfile.directory`), and
+Prometheus already scrapes node_exporter.
+
+- It reads the scored runs in `out/`. `--include-probes` adds `probe/`, with
+  `kind="probe"`.
+- The file is a function of the `run.json` files only (and the build time),
+  so a rerun writes the same series.
+- It writes a temp file (`.videogen.prom.tmp.<pid>`) in the same directory,
+  syncs it and renames it. A scrape never reads half a file, and
+  node_exporter does not read the temp file, because its name does not end
+  in `.prom`.
+- It skips a `run.json` that is not a JSON object, that has no status, or
+  that says ok but lacks the ffprobe frames (at least 1), the fps, `wall_s`
+  or `end`. It logs a warning for each, and goes on. The first schema-1
+  probe has no ffprobe block; it logs that one at INFO.
+- `batch.py` runs it after each clip, after the gallery and outside the timed
+  request. A missing or unwritable directory logs one warning per batch, and
+  the batch goes on. `--no-metrics` turns it off.
+- Two batches (head and worker) write the same file, so the scan and the
+  write hold an exclusive lock on `$VG/.metrics.lock`. A writer waits up to
+  60 s for it, then gives up with an error.
+
+Each series has these labels: `arm`, `model` (the served model id), `node`
+(`head` or `worker`), `mode` (`t2v` or `i2v`), `kind` (`scored` or `probe`),
+`width`, `height` and `fps` (the output fps). The size is what the run asked
+for (`expected`, then the request, then ffprobe), and never 0. A throughput
+compares only at one size, so the size is a label. There is no clip or seed
+label, so the number of series stays small.
+
+**Every series is a gauge.** The file is a snapshot of the `run.json` files
+on disk now, not a running count, and its sums can fall. A remake deletes the
+old `run.json` at the start of its request and writes the new one about 40
+minutes later. The other node's batch writes the file in that gap, so the
+sums dip by one clip and then come back. A counter that falls looks like a
+reset to Prometheus, and `rate()` would then count the whole sum again. With
+a gauge, use `delta()`: over a window that holds the dip and its recovery,
+the two cancel, and the net change is zero, which is the truth.
+
+The units are Prometheus base units: seconds, joules and bytes.
+
+| metric | what it is |
+|---|---|
+| `videogen_clips` | Runs with a `run.json`, with a `status` label (`ok`, `failed`). |
+| `videogen_frames` | Output frames (ffprobe), summed over the ok runs. |
+| `videogen_video_seconds` | Seconds of output video (frames ÷ fps), summed over the ok runs. |
+| `videogen_wall_seconds` | Client wall seconds, summed over the ok runs. |
+| `videogen_server_seconds` | Server inference seconds (`x-inference-time-s`), summed over the ok runs that report it. |
+| `videogen_server_clips` | The ok runs that report the server time. |
+| `videogen_energy_joules` | Outlet energy (J), summed over the ok runs with a complete reading. |
+| `videogen_energy_clips` | The ok runs with a complete energy reading. |
+| `videogen_steps` | Denoising steps requested (`num_inference_steps`), summed over the ok runs that record it. |
+| `videogen_step_clips` | The ok runs that record the steps. |
+| `videogen_last_frames_per_second` | The latest ok run: output frames ÷ wall seconds. |
+| `videogen_last_wall_seconds` | The latest ok run: wall seconds. |
+| `videogen_last_realtime_factor` | The latest ok run: wall seconds ÷ video seconds. |
+| `videogen_last_peak_memory_bytes` | The latest ok run: peak used memory of the node, bytes. |
+| `videogen_last_energy_joules` | The latest ok run: outlet energy (J), only when the reading is complete. |
+| `videogen_last_timestamp_seconds` | The latest ok run: its end time. |
+| `videogen_metrics_build_timestamp_seconds` | When `metrics.py` last wrote the file. |
+
+"Latest" is by the run's end time, per label set. **Frames per second
+counts output frames**, the frames in the MP4, not the latent frames that
+the model denoises.
+
+**Divide like with like.** `videogen_server_seconds`, `videogen_energy_joules`
+and `videogen_steps` sum only the runs that have the value. Divide each by its
+own count (`videogen_server_clips`, `videogen_energy_clips`,
+`videogen_step_clips`), not by `videogen_clips` and not by
+`videogen_wall_seconds`.
+
+**Queries.** One clip takes about 40 minutes, and the file changes only when
+a clip ends. Use a window of several clips.
+
+```promql
+# Output frames per wall second over a window.
+delta(videogen_frames[6h]) / delta(videogen_wall_seconds[6h])
+
+# Real-time factor over a window: wall seconds per second of video.
+delta(videogen_wall_seconds[6h]) / delta(videogen_video_seconds[6h])
+
+# The same over every run on disk.
+videogen_frames / videogen_wall_seconds
+videogen_wall_seconds / videogen_video_seconds
+
+# Energy per clip in Wh, from complete readings only.
+videogen_energy_joules / videogen_energy_clips / 3600
+
+# Server seconds per clip, from the runs that report it.
+videogen_server_seconds / videogen_server_clips
+
+# The latest run's energy in Wh and peak memory in GiB.
+videogen_last_energy_joules / 3600
+videogen_last_peak_memory_bytes / 2^30
+```
+
+**One-time setup** (on the head). The textfile directory belongs to root.
+The script writes a temp file in it and renames it, so the operator's user
+needs write access to the directory itself, not only to `videogen.prom`.
+Give it once with an ACL:
+
+```sh
+sudo setfacl -m u:$USER:rwx /var/lib/node_exporter/textfile_collector
+getfacl /var/lib/node_exporter/textfile_collector
+```
+
+```sh
+export VG=~/bench-logs/videogen
+
+# Write the file by hand.
+uv run python scripts/videogen/metrics.py
+
+# A test run into a scratch directory, with the probes.
+export PROM_DIR="$(mktemp -d)"
+uv run python scripts/videogen/metrics.py --root "$VG" --textfile-dir "$PROM_DIR" --include-probes
+cat "$PROM_DIR/videogen.prom"
+
+# Check what node_exporter serves (port 9100 on the head).
+curl -s http://127.0.0.1:9100/metrics | grep '^videogen_'
+```
 
 ## The blind judge (#1402, #1406)
 
