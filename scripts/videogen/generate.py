@@ -1,34 +1,38 @@
 """Generate one video-gen eval clip from a vLLM-Omni server and record it (#1406, #1407).
 
     generate.py --arm h3-t2v --clip dog-a --seed 1 --server http://HOST:8040
-    generate.py --arm wan-i2v --clip dog-b --seed 2 --server http://HOST:PORT --probe
+    generate.py --arm wan-i2v --clip dog-b --seed 2 --server http://HOST:8041 --probe
 
 One request to `POST /v1/videos/sync` (multipart form). The prompt comes from
 `benchmarks/videogen/prompts/v1.json`, and every other request field comes
 from `benchmarks/videogen/arms-v1.json`, so the same arm, clip and seed make
-the same request every time. An I2V arm attaches the clip's first frame from
-`~/bench-logs/videogen/frames/<clip>/first.png` (made by `frames.py`), and the
-script refuses a frame whose sha256 is not the one `refs-v1.json` records.
+the same request every time. The request names the model (`model` = the
+arm's `served_model_name`), and the script reads `/v1/models` first and
+refuses a server that serves another model. An I2V arm attaches the clip's
+first frame from `~/bench-logs/videogen/frames/<clip>/first.png` (made by
+`frames.py`), and the script refuses a frame whose sha256 is not the one
+`refs-v1.json` records.
 
-It writes `clip.mp4` and `run.json` into the output directory. `run.json`
-holds the arm, the model and revision, every field sent, the seed, start and
-end (America/New_York, with offset), wall seconds, outlet energy in Wh, mean
-and peak GPU power, peak memory, the server version, the node, the output
-sha256 and the HTTP status. On a failure it writes `run.json` with the error,
-leaves no `clip.mp4`, and exits 1. It refuses (exit 2, nothing written) an
-output inside a git work tree, a scored run from a draft arms file, an
-existing output without `--overwrite`, or a wrong first frame.
+It writes `clip.mp4` and `run.json`. `run.json` holds the arm, the model and
+revision, the server block from arms-v1.json (served name, argv, env,
+vllm-omni version), every field sent, the seed, start and end
+(America/New_York, with offset), wall seconds, outlet energy in Wh, mean and
+peak GPU power, peak memory, what ffprobe found in the clip, the node role,
+the output sha256 and the HTTP status. ffprobe must find the expected frame
+count, size and fps (and, for H3, an audio stream), or the run fails.
+
+On a failure it writes `run.json` with the error, leaves no `clip.mp4`, and
+exits 1. It refuses (exit 2, nothing written) an output inside a git work
+tree, a scored run from a draft arms file, an existing output without
+`--overwrite`, a wrong first frame, a server that serves another model, and
+a GPU that is not idle before the request.
 
 **Power and memory.** While the request runs, a thread reads the server
 node's GPU power from its DCGM exporter (:9400) and its MemAvailable from its
 node_exporter (:9100) once a second, with the readers in
 `benchmarks/agent/remote.py`. Peak memory is MemTotal minus the lowest
 MemAvailable: the whole node, which is what the repo's memory gates read. The
-outlet meter is a smart plug that Home Assistant records into InfluxDB at its
-own pace (about every 5 s), so polling it once a second adds nothing. After
-the request ends, the script reads the plug's raw readings for the request
-window and integrates them by the trapezoid rule
-(`clock_cap_evidence.raw_flux`, `flux_points`, `energy_wh`).
+outlet energy comes from `outlet.py` after the request ends.
 
 `--probe` runs one request into `~/bench-logs/videogen/probe/` and logs the
 timing. A probe is not a scored clip, and it may run from a draft arms file.
@@ -40,6 +44,7 @@ import argparse
 import dataclasses
 import datetime
 import hashlib
+import http.client
 import json
 import logging
 import os
@@ -60,11 +65,18 @@ sys.path.insert(0, str(REPO / "scripts" / "lib"))
 sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
-import clock_cap_evidence
-import dgx_hosts
-import dgx_metrics
+import heartbeat
 import remote
-from videogen.common import DEFAULT_ROOT, InsideRepo, refuse_inside_repo, sha256
+from videogen import outlet
+from videogen.common import (
+    DEFAULT_ROOT,
+    FfmpegError,
+    InsideRepo,
+    file_url,
+    refuse_inside_repo,
+    run,
+    sha256,
+)
 
 import logs
 
@@ -78,22 +90,22 @@ ENDPOINT = "/v1/videos/sync"
 
 #: Two hours. A 50-step H3 clip at 1280x704 can take over an hour on one
 #: Spark. The server has its own limit, VLLM_OMNI_VIDEO_SYNC_TIMEOUT (600 s
-#: by default), so start it with 7200 too (the H3 runbook does).
+#: by default), so the server block in arms-v1.json sets it to 7200 too.
 TIMEOUT_S = 7200.0
 #: Seconds between GPU-power and memory samples.
 SAMPLE_S = 1.0
-#: How long to wait for the plug's readings to reach InfluxDB after the
-#: request ends, per try, and how many tries.
-OUTLET_SETTLE_S = 15.0
-OUTLET_TRIES = 4
-#: Plug readings this far before the start are read too, so the value held
-#: at the start of the window is known.
-OUTLET_PAD = datetime.timedelta(seconds=120)
+#: At or below this GPU power a GB10 is idle (scripts/heartbeat.py). A
+#: request that starts above it shares the GPU, and its time and energy
+#: would measure two jobs.
+IDLE_W = heartbeat.IDLE_FLOOR_W["gb10"]
+#: run.json keeps at most this many bytes of an error.
+ERROR_BYTES = 500
 
-#: Every form field `POST /v1/videos/sync` accepts in vllm-omni 0.28.0
-#: (`_parse_video_form` in vllm_omni/entrypoints/openai/api_server.py). An
-#: arms file that names anything else is refused: FastAPI drops an unknown
-#: form field without a word, so a typo would change nothing and look fine.
+#: The form fields this script may send. Each is a field of
+#: `_parse_video_form` in vllm-omni 0.32.0
+#: (vllm_omni/entrypoints/openai/video/generation/helpers.py:1002). An arms
+#: file that names anything else is refused: FastAPI drops an unknown form
+#: field without a word, so a typo would change nothing and look fine.
 FORM_FIELDS = frozenset(
     {
         "prompt",
@@ -120,14 +132,24 @@ FORM_FIELDS = frozenset(
         "extra_params",
     }
 )
+#: Set per request, never in an arm's form.
+PER_REQUEST = ("prompt", "seed", "extra_params", "input_reference", "model")
+#: The extra_params keys H3 reads (encoder_processing.py:172 and :225 in
+#: 0.32.0, and the pipeline's audio_flow_shift). The server ignores others.
+EXTRA_PARAMS = frozenset({"task", "duration", "audio_flow_shift"})
+#: Server flags no server block may carry. A boundary ratio set at startup
+#: overrides the one in each request (pipeline_wan2_2.py:676), so the two Wan
+#: arms would silently run at one value.
+FORBIDDEN_SERVER_FLAGS = ("--boundary-ratio", "--boundary_ratio")
 
-#: The response headers the sync endpoint sets, kept in run.json.
+#: The response headers the sync endpoint sets, kept in run.json. Starlette
+#: sends header names in lower case, so both sides are lower case.
 SERVER_HEADERS = (
-    "X-Request-Id",
-    "X-Model",
-    "X-Inference-Time-S",
-    "X-Stage-Durations",
-    "X-Peak-Memory-MB",
+    "x-request-id",
+    "x-model",
+    "x-inference-time-s",
+    "x-stage-durations",
+    "x-peak-memory-mb",
 )
 
 #: Exit codes: refused before any request, and a request that failed.
@@ -148,19 +170,61 @@ def load_json(path: pathlib.Path) -> dict[str, Any]:
     return data
 
 
+def forbidden_flags(argv: Sequence[str]) -> list[str]:
+    """The items of `argv` that set a forbidden server flag."""
+    return [
+        item
+        for item in argv
+        for flag in FORBIDDEN_SERVER_FLAGS
+        if item == flag or item.startswith(flag + "=")
+    ]
+
+
+def check_server(name: str, block: Mapping[str, Any]) -> None:
+    """Raise ValueError if a server block is incomplete or unsafe."""
+    for key in ("node", "port", "served_model_name", "vllm_omni", "env", "scope"):
+        if key not in block:
+            raise ValueError(f"server {name}: no {key}")
+    argv = list(block["argv"])
+    bad = forbidden_flags(argv)
+    if bad:
+        raise ValueError(f"server {name}: argv sets {bad}; a request sets it")
+    try:
+        named = argv[argv.index("--served-model-name") + 1]
+    except (ValueError, IndexError):
+        named = None
+    if named != block["served_model_name"]:
+        raise ValueError(f"server {name}: argv must pass --served-model-name")
+    if block["env"].get("VLLM_OMNI_VIDEO_SYNC_TIMEOUT") != str(int(TIMEOUT_S)):
+        raise ValueError(f"server {name}: VLLM_OMNI_VIDEO_SYNC_TIMEOUT must be 7200")
+    if block["node"] not in ("head", "worker"):
+        raise ValueError(f"server {name}: node must be head or worker")
+
+
 def check_arms(arms: Mapping[str, Any]) -> None:
-    """Raise ValueError if the arms file names a field the server ignores."""
+    """Raise ValueError if the arms file names a field the server ignores,
+    or a server block is unsafe."""
+    for name, block in arms["servers"].items():
+        check_server(name, block)
     for name, arm in arms["arms"].items():
         unknown = set(arm["form"]) - FORM_FIELDS
         if unknown:
             raise ValueError(f"arm {name}: unknown form field(s) {sorted(unknown)}")
-        for reserved in ("prompt", "seed", "extra_params", "input_reference"):
+        for reserved in PER_REQUEST:
             if reserved in arm["form"]:
                 raise ValueError(f"arm {name}: {reserved} is set per request")
+        extra = set(arm.get("extra_params") or {}) - EXTRA_PARAMS
+        if extra:
+            raise ValueError(f"arm {name}: unknown extra_params {sorted(extra)}")
         if arm["mode"] not in ("t2v", "i2v"):
             raise ValueError(f"arm {name}: mode must be t2v or i2v")
         if (arm["mode"] == "i2v") != ("input_reference" in arm):
             raise ValueError(f"arm {name}: an i2v arm, and only one, has an image")
+        if arm["server"] not in arms["servers"]:
+            raise ValueError(f"arm {name}: no server block {arm['server']!r}")
+        for key in ("frames", "audio"):
+            if key not in arm["expect"]:
+                raise ValueError(f"arm {name}: expect has no {key}")
 
 
 def prompt_for(prompts: Mapping[str, Any], clip: str) -> tuple[str, str]:
@@ -180,7 +244,12 @@ def first_frame_sha(refs: Mapping[str, Any], clip: str) -> str:
 
 
 def build_fields(
-    arm: Mapping[str, Any], prompt: str, seed: int, *, fallback: bool = False
+    arm: Mapping[str, Any],
+    prompt: str,
+    seed: int,
+    model: str,
+    *,
+    fallback: bool = False,
 ) -> dict[str, str]:
     """The form fields as sent, every value a string.
 
@@ -190,7 +259,7 @@ def build_fields(
     form = dict(arm["form"])
     if fallback:
         form.update(arm["fallback"])
-    fields = {"prompt": prompt}
+    fields = {"prompt": prompt, "model": model}
     fields.update({k: str(v) for k, v in form.items()})
     fields["seed"] = str(seed)
     if arm.get("extra_params"):
@@ -259,10 +328,32 @@ class Plan:
     fields: dict[str, str]
     image: Image | None
     fallback: bool
+    server: Mapping[str, Any]
     arms_file: pathlib.Path = ARMS_FILE
 
     def request(self) -> dict[str, Any]:
         return request_record(self.fields, self.image)
+
+    def server_config(self) -> dict[str, Any]:
+        """The server block as run.json records it; batch.py compares it."""
+        return {
+            "name": self.arm["server"],
+            "served_model_name": self.server["served_model_name"],
+            "vllm_omni": self.server["vllm_omni"],
+            "argv": list(self.server["argv"]),
+            "env": dict(self.server["env"]),
+            "scope": dict(self.server["scope"]),
+        }
+
+    def expect(self) -> dict[str, Any]:
+        """What ffprobe must find in the clip."""
+        return {
+            "frames": int(self.arm["expect"]["frames"]),
+            "width": int(self.fields["width"]),
+            "height": int(self.fields["height"]),
+            "fps": float(self.fields["fps"]),
+            "audio": bool(self.arm["expect"]["audio"]),
+        }
 
 
 def make_plan(
@@ -282,6 +373,7 @@ def make_plan(
     if clip not in arms["clips"]:
         raise Refused(f"no clip {clip!r}; the clips are {arms['clips']}")
     arm = arms["arms"][arm_name]
+    server = arms["servers"][arm["server"]]
     prompt_id, prompt = prompt_for(load_json(PROMPTS_FILE), clip)
     image = load_image(arm, clip, frames_root, load_json(REFS_FILE))
     return Plan(
@@ -291,9 +383,12 @@ def make_plan(
         clip=clip,
         prompt_id=prompt_id,
         seed=seed,
-        fields=build_fields(arm, prompt, seed, fallback=fallback),
+        fields=build_fields(
+            arm, prompt, seed, str(server["served_model_name"]), fallback=fallback
+        ),
         image=image,
         fallback=fallback,
+        server=server,
         arms_file=arms_file,
     )
 
@@ -330,11 +425,15 @@ class Reply:
     body: bytes
 
 
-#: (url, body, content type, timeout) -> Reply. Raises OSError when no
-#: answer arrives at all.
+#: (url, body, content type, timeout) -> Reply. Raises OSError or
+#: http.client.HTTPException when no whole answer arrives.
 Post = Callable[[str, bytes, str, float], Reply]
 #: (url, timeout) -> response text, or None when it cannot be read.
 Get = Callable[[str, float], str | None]
+
+
+def lower_headers(items: Any) -> dict[str, str]:
+    return {str(k).lower(): str(v) for k, v in items}
 
 
 def urllib_post(url: str, body: bytes, content_type: str, timeout: float) -> Reply:
@@ -344,9 +443,9 @@ def urllib_post(url: str, body: bytes, content_type: str, timeout: float) -> Rep
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return Reply(resp.status, dict(resp.headers.items()), resp.read())
+            return Reply(resp.status, lower_headers(resp.headers.items()), resp.read())
     except urllib.error.HTTPError as err:
-        return Reply(err.code, dict(err.headers.items()), err.read())
+        return Reply(err.code, lower_headers(err.headers.items()), err.read())
 
 
 def urllib_get(url: str, timeout: float) -> str | None:
@@ -354,32 +453,91 @@ def urllib_get(url: str, timeout: float) -> str | None:
         with urllib.request.urlopen(url, timeout=timeout) as resp:
             text: str = resp.read().decode("utf-8", "replace")
             return text
-    except (urllib.error.URLError, OSError, ValueError):
+    except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException):
         return None
 
 
-def server_info(server: str, get: Get) -> dict[str, Any]:
-    """The server's vLLM version (`/version`) and served model (`/v1/models`).
-
-    vllm-omni serves no version of its own; `/version` is the vLLM it runs on.
-    """
-    info: dict[str, Any] = {"vllm_version": None, "served_model": None}
-    text = get(server.rstrip("/") + "/version", 10.0)
-    try:
-        info["vllm_version"] = json.loads(text or "")["version"]
-    except (ValueError, KeyError, TypeError):
-        pass
+def served_models(server: str, get: Get) -> list[str] | None:
+    """The model ids `/v1/models` lists, or None if it cannot be read."""
     text = get(server.rstrip("/") + "/v1/models", 10.0)
     try:
-        info["served_model"] = json.loads(text or "")["data"][0]["id"]
-    except (ValueError, KeyError, TypeError, IndexError):
-        pass
-    return info
+        return [str(m["id"]) for m in json.loads(text or "")["data"]]
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def vllm_version(server: str, get: Get) -> str | None:
+    """`/version`: the vLLM under vllm-omni (vllm-omni serves no version)."""
+    try:
+        return str(
+            json.loads(get(server.rstrip("/") + "/version", 10.0) or "")["version"]
+        )
+    except (ValueError, KeyError, TypeError):
+        return None
 
 
 def is_mp4(body: bytes) -> bool:
     """An MP4 opens with a box whose type, at bytes 4..8, is `ftyp`."""
     return len(body) > 8 and body[4:8] == b"ftyp"
+
+
+def clip_error(text: str) -> str:
+    """At most ERROR_BYTES of UTF-8, cut on a character boundary."""
+    return text.encode()[:ERROR_BYTES].decode("utf-8", "ignore")
+
+
+# --------------------------------------------------------------- ffprobe ----
+
+
+def parse_ffprobe(text: str) -> dict[str, Any]:
+    """Frames, size, fps and audio from `ffprobe -count_frames -of json`."""
+    streams = json.loads(text).get("streams") or []
+    video = next((s for s in streams if s.get("codec_type") == "video"), None)
+    if video is None:
+        raise FfmpegError("the clip has no video stream")
+    num, _, den = str(video.get("avg_frame_rate", "0/1")).partition("/")
+    fps = float(num) / float(den or 1) if float(den or 1) else 0.0
+    return {
+        "frames": int(video.get("nb_read_frames", 0)),
+        "width": int(video.get("width", 0)),
+        "height": int(video.get("height", 0)),
+        "fps": round(fps, 3),
+        "audio": any(s.get("codec_type") == "audio" for s in streams),
+        "video_codec": video.get("codec_name"),
+    }
+
+
+def ffprobe_clip(path: pathlib.Path) -> dict[str, Any]:
+    """Decode the clip once with ffprobe and count its frames."""
+    return parse_ffprobe(
+        run(
+            [
+                *("ffprobe", "-v", "error", "-count_frames"),
+                *(
+                    "-show_entries",
+                    (
+                        "stream=codec_type,codec_name,width,height,"
+                        "avg_frame_rate,nb_read_frames"
+                    ),
+                ),
+                *("-of", "json", file_url(path)),
+            ]
+        )
+    )
+
+
+def video_mismatches(found: Mapping[str, Any], expect: Mapping[str, Any]) -> list[str]:
+    """Each way the clip differs from what the arm asked for."""
+    bad = [
+        f"{key} {found.get(key)} (expected {expect[key]})"
+        for key in ("frames", "width", "height")
+        if found.get(key) != expect[key]
+    ]
+    if abs(float(found.get("fps") or 0) - expect["fps"]) > 1e-3:
+        bad.append(f"fps {found.get('fps')} (expected {expect['fps']:g})")
+    if expect["audio"] and not found.get("audio"):
+        bad.append("no audio stream (expected one)")
+    return bad
 
 
 # ---------------------------------------------------------------- sample ----
@@ -458,87 +616,6 @@ def read_meminfo(host: str, timeout: float = 5.0) -> dict[str, float] | None:
     return got or None
 
 
-# ---------------------------------------------------------------- outlet ----
-
-
-Flux = Callable[[str], str]
-
-
-def gcx_flux(query: str) -> str:
-    """One Flux query against the Home Assistant InfluxDB, through gcx."""
-    return clock_cap_evidence._gcx(
-        ["datasources", "query", dgx_metrics.INFLUX_DATASOURCE, query]
-    )
-
-
-def outlet_entity(role: str) -> str:
-    """The Home Assistant entity of the node's smart plug."""
-    return {
-        "head": dgx_metrics.OUTLET_ENTITY,
-        "worker": dgx_metrics.WORKER_OUTLET_ENTITY,
-    }[role]
-
-
-def integrate_outlet(
-    points: Sequence[tuple[datetime.datetime, float]],
-    start: datetime.datetime,
-    end: datetime.datetime,
-) -> float | None:
-    """Wh from start to end. The reading in force at the start (the plug
-    records on its own clock, not ours) is added at the start edge."""
-    pts = list(points)
-    edge = clock_cap_evidence.held_value(pts, start)
-    if edge is not None:
-        pts.append((start, edge))
-    pts.sort(key=lambda p: p[0])
-    return clock_cap_evidence.energy_wh(pts, start, end)
-
-
-def outlet_energy(
-    entity: str,
-    start: datetime.datetime,
-    end: datetime.datetime,
-    *,
-    flux: Flux,
-    sleep: Callable[[float], None] = time.sleep,
-    settle_s: float = OUTLET_SETTLE_S,
-    tries: int = OUTLET_TRIES,
-) -> dict[str, Any]:
-    """Read the plug's raw readings for the window and integrate them.
-
-    Waits for a reading at or after `end`, so the last seconds are not cut
-    off by InfluxDB lag. After `tries` waits it uses what it has and says so.
-    """
-    query = clock_cap_evidence.raw_flux(
-        entity,
-        "W",
-        clock_cap_evidence.utc_text(start - OUTLET_PAD),
-        clock_cap_evidence.utc_text(end + datetime.timedelta(seconds=60)),
-    )
-    points: list[tuple[datetime.datetime, float]] = []
-    complete = False
-    for attempt in range(tries):
-        sleep(settle_s)
-        points = clock_cap_evidence.flux_points(flux(query))
-        if any(t >= end for t, _ in points):
-            complete = True
-            break
-        logger.info("outlet: no reading after the end yet (try %d)", attempt + 1)
-    inside = [v for t, v in points if start <= t <= end]
-    return {
-        "entity": entity,
-        "energy_wh": _round(integrate_outlet(points, start, end), 3),
-        "readings": len(inside),
-        "mean_w": _round(sum(inside) / len(inside), 1) if inside else None,
-        "peak_w": _round(max(inside), 1) if inside else None,
-        "complete": complete,
-    }
-
-
-def _round(value: float | None, digits: int) -> float | None:
-    return None if value is None else round(value, digits)
-
-
 # ------------------------------------------------------------------- run ----
 
 
@@ -549,15 +626,6 @@ def ny_now() -> datetime.datetime:
 def iso(t: datetime.datetime) -> str:
     """ISO 8601 with offset, America/New_York: the repo's one timestamp shape."""
     return t.astimezone(NY).strftime("%Y-%m-%dT%H:%M:%S%z")
-
-
-def node_host(role: str) -> str | None:
-    """The node's host name from local config (dgx_hosts), never an address."""
-    try:
-        return dgx_hosts.lookup(role)
-    except dgx_hosts.HostUnknown as err:
-        logger.warning("%s", err)
-        return None
 
 
 def client_machine() -> str | None:
@@ -579,32 +647,29 @@ class Deps:
     get: Get = urllib_get
     gpu: Callable[[str], float | None] = remote.gpu_watts
     mem: Callable[[str], dict[str, float] | None] = read_meminfo
-    flux: Flux = gcx_flux
+    flux: outlet.Flux = outlet.gcx_flux
     sleep: Callable[[float], None] = time.sleep
     now: Callable[[], datetime.datetime] = ny_now
-    node_host: Callable[[str], str | None] = node_host
     machine: Callable[[], str | None] = client_machine
+    ffprobe: Callable[[pathlib.Path], dict[str, Any]] = ffprobe_clip
     sample_s: float = SAMPLE_S
 
 
 def write_json(path: pathlib.Path, data: Mapping[str, Any]) -> None:
     """Write JSON through a temp file and a rename, so no reader sees half."""
     tmp = path.with_name(path.name + ".partial")
-    tmp.write_text(json.dumps(data, indent=2) + "\n")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     os.replace(tmp, path)
 
 
-def write_clip(path: pathlib.Path, body: bytes) -> None:
-    """Write the clip through `.partial` and a rename: never a half file."""
+def write_partial(path: pathlib.Path, body: bytes) -> pathlib.Path:
+    """Write the clip to `<path>.partial` and return that path."""
     tmp = path.with_name(path.name + ".partial")
-    try:
-        with tmp.open("wb") as fh:
-            fh.write(body)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    finally:
-        tmp.unlink(missing_ok=True)
+    with tmp.open("wb") as fh:
+        fh.write(body)
+        fh.flush()
+        os.fsync(fh.fileno())
+    return tmp
 
 
 def default_out(
@@ -613,6 +678,38 @@ def default_out(
     if probe:
         return DEFAULT_ROOT / "probe" / arm / f"{clip}-s{seed}-{stamp}"
     return DEFAULT_ROOT / "out" / arm / f"{clip}-s{seed}"
+
+
+def preflight(
+    plan: Plan, server: str, host: str, role: str, deps: Deps
+) -> dict[str, Any]:
+    """Check the server and the GPU before the request. Raise Refused.
+
+    Returns what run.json records of them.
+    """
+    want = str(plan.server["served_model_name"])
+    ids = served_models(server, deps.get)
+    if ids is None:
+        raise Refused(f"cannot read {server}/v1/models; is the server up?")
+    if want not in ids:
+        raise Refused(
+            f"{server} serves {ids}, not {want}. Start it with "
+            f"scripts/videogen/serve.py --model {plan.arm['server']}."
+        )
+    watts = deps.gpu(host)
+    if watts is None:
+        logger.warning("could not read the GPU power on %s before the request", host)
+    elif watts > IDLE_W:
+        raise Refused(
+            f"the GPU on the {role} draws {watts:.1f} W before the "
+            f"request, above the {IDLE_W:g} W idle floor: something else is "
+            "running on it, and this clip's time and energy would include it"
+        )
+    return {
+        "served_model": want,
+        "vllm_version": vllm_version(server, deps.get),
+        "gpu_w_before": watts,
+    }
 
 
 def run_one(
@@ -645,16 +742,22 @@ def run_one(
     if (clip_path.exists() or run_path.exists()) and not overwrite:
         logger.error("%s already holds a run; pass --overwrite to replace it", out)
         return REFUSED
+    role = node or str(plan.server["node"])
+    host = metrics_host or urllib.parse.urlsplit(server).hostname or ""
+    try:
+        server_seen = preflight(plan, server, host, role, deps)
+    except Refused as err:
+        logger.error("%s", err)
+        return REFUSED
+
     out.mkdir(parents=True, exist_ok=True)
     # Clear the old pair first, so a failure below cannot leave an old clip
     # beside a new run.json that describes a different request.
     clip_path.unlink(missing_ok=True)
     run_path.unlink(missing_ok=True)
 
-    role = node or str(plan.arm["node"])
-    host = metrics_host or urllib.parse.urlsplit(server).hostname or ""
     record: dict[str, Any] = {
-        "schema": 1,
+        "schema": 2,
         "probe": probe,
         "arm": plan.arm_name,
         "mode": plan.arm["mode"],
@@ -669,10 +772,11 @@ def run_one(
         "size": "fallback" if plan.fallback else "primary",
         "seed": plan.seed,
         "request": plan.request(),
+        "server_config": plan.server_config(),
+        "server": server_seen,
         "endpoint": ENDPOINT,
-        "node": {"role": role, "host": deps.node_host(role)},
+        "node": {"role": role},
         "client_machine": deps.machine(),
-        "server": server_info(server, deps.get),
     }
 
     gpu = Sampler(lambda: deps.gpu(host), deps.sample_s)
@@ -692,8 +796,8 @@ def run_one(
             f"multipart/form-data; boundary={boundary}",
             TIMEOUT_S,
         )
-    except (OSError, ValueError) as err:
-        error = f"request failed: {err}"
+    except (OSError, ValueError, http.client.HTTPException) as err:
+        error = f"request failed: {type(err).__name__}: {err}"
     finally:
         wall = time.monotonic() - t0
         end = deps.now()
@@ -724,22 +828,21 @@ def run_one(
             error = f"the reply is not an MP4 ({len(reply.body)} bytes)"
 
     if error is None and reply is not None:
-        try:
-            write_clip(clip_path, reply.body)
-        except OSError as err:
-            error = f"could not write the clip: {err}"
+        error = keep_clip(plan, clip_path, reply.body, record, deps)
     if error is None:
         record["output"] = {
             "file": clip_path.name,
             "bytes": clip_path.stat().st_size,
             "sha256": sha256(clip_path),
         }
-    record["outlet"] = outlet_energy(
-        outlet_entity(role), start, end, flux=deps.flux, sleep=deps.sleep
+    record["outlet"] = outlet.energy(
+        outlet.entity(role), start, end, flux=deps.flux, sleep=deps.sleep
     )
-    record["energy_wh"] = record["outlet"]["energy_wh"]
+    # A partial reading stays under `outlet`; only a complete one is a number.
+    complete = record["outlet"]["complete"]
+    record["energy_wh"] = record["outlet"]["energy_wh"] if complete else None
     record["status"] = "failed" if error else "ok"
-    record["error"] = error
+    record["error"] = clip_error(error) if error else None
     write_json(run_path, record)
 
     if error:
@@ -748,6 +851,13 @@ def run_one(
             "%s %s seed %d failed: %s", plan.arm_name, plan.clip, plan.seed, error
         )
         return FAILED
+    if not complete:
+        logger.warning(
+            "the outlet reading is incomplete (max gap %s s, %s); energy_wh is "
+            "None and batch.py will not count this run",
+            record["outlet"]["max_gap_s"],
+            record["outlet"]["error"] or "the readings do not cover the window",
+        )
     logger.info(
         "%s%s %s seed %d: %.1f s wall (server %s s), %s Wh, GPU mean %s W, "
         "peak memory %s GiB -> %s",
@@ -756,13 +866,43 @@ def run_one(
         plan.clip,
         plan.seed,
         wall,
-        record["server_headers"].get("X-Inference-Time-S", "n/a"),
+        record["server_headers"].get("x-inference-time-s", "n/a"),
         record["energy_wh"],
         record["gpu_power"]["mean_w"],
         record["memory"]["peak_used_gib"],
         clip_path,
     )
     return 0
+
+
+def keep_clip(
+    plan: Plan,
+    clip_path: pathlib.Path,
+    body: bytes,
+    record: dict[str, Any],
+    deps: Deps,
+) -> str | None:
+    """Write the clip to .partial, check it with ffprobe, then rename it.
+
+    Returns an error, or None once clip.mp4 holds a checked clip. The
+    .partial file never survives.
+    """
+    tmp: pathlib.Path | None = None
+    try:
+        tmp = write_partial(clip_path, body)
+        found = deps.ffprobe(tmp)
+        record["ffprobe"] = found
+        record["expected"] = plan.expect()
+        bad = video_mismatches(found, plan.expect())
+        if bad:
+            return "the clip is not what the arm asked for: " + "; ".join(bad)
+        os.replace(tmp, clip_path)
+        return None
+    except (OSError, FfmpegError, ValueError, TypeError) as err:
+        return f"could not write or probe the clip: {err}"
+    finally:
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
 
 
 # ------------------------------------------------------------------- cli ----

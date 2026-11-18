@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import pathlib
 import sys
+from typing import Any
 
 import pytest
 
@@ -17,16 +19,21 @@ from videogen import batch, generate
 ORDER = [(c, s) for c in ("dog-a", "dog-b", "dog-c") for s in (1, 2, 3)]
 
 
-def write_good(plan: generate.Plan, out: pathlib.Path) -> None:
-    """What a successful generate.run_one leaves behind."""
+def write_good(plan: generate.Plan, out: pathlib.Path, **change: Any) -> None:
+    """What a successful generate.run_one from a locked file leaves behind."""
     out.mkdir(parents=True, exist_ok=True)
     body = f"clip {plan.clip} {plan.seed}".encode()
     (out / "clip.mp4").write_bytes(body)
     run = {
         "status": "ok",
         "probe": False,
+        "arms_status": "locked",
         "request": plan.request(),
+        "server_config": plan.server_config(),
+        "energy_wh": 41.5,
+        "outlet": {"energy_wh": 41.5, "complete": True, "max_gap_s": 5.0},
         "output": {"sha256": hashlib.sha256(body).hexdigest()},
+        **change,
     }
     (out / "run.json").write_text(json.dumps(run))
 
@@ -158,3 +165,96 @@ def test_an_output_root_inside_a_repo_is_refused(
     assert rc == generate.REFUSED
     assert fakes.made == []
     assert not roots[which].exists()
+
+
+# ---------------------------------------------------------- what is good ----
+
+
+def dog_a_s1(tmp_path: pathlib.Path) -> pathlib.Path:
+    return tmp_path / "out" / "h3-t2v" / "dog-a-s1"
+
+
+def test_state_good(tmp_path: pathlib.Path) -> None:
+    p = plan("dog-a", 1, tmp_path)
+    write_good(p, dog_a_s1(tmp_path))
+    assert batch.state(dog_a_s1(tmp_path), p) == (batch.GOOD, "done")
+
+
+def test_a_run_from_a_draft_file_is_good_only_with_allow_draft(
+    tmp_path: pathlib.Path,
+) -> None:
+    p = plan("dog-a", 1, tmp_path)
+    write_good(p, dog_a_s1(tmp_path), arms_status="draft")
+    assert batch.state(dog_a_s1(tmp_path), p) == (
+        batch.TODO,
+        "it was made from a draft arms file",
+    )
+    assert batch.state(dog_a_s1(tmp_path), p, allow_draft=True)[0] == batch.GOOD
+
+
+def test_incomplete_energy_is_not_good_and_says_why(
+    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    p = plan("dog-a", 1, tmp_path)
+    write_good(
+        p,
+        dog_a_s1(tmp_path),
+        energy_wh=None,
+        outlet={"energy_wh": 30.1, "complete": False, "max_gap_s": 65.0, "error": None},
+    )
+    found, why = batch.state(dog_a_s1(tmp_path), p)
+    assert found == batch.TODO
+    assert "outlet energy is incomplete (max gap 65.0 s" in why
+    fakes = Fakes()
+    run(tmp_path, fakes)
+    assert fakes.made[0] == ("dog-a", 1)
+    assert "max gap 65.0 s" in caplog.text
+
+
+def test_another_server_block_stops_the_batch(tmp_path: pathlib.Path) -> None:
+    p = plan("dog-a", 1, tmp_path)
+    other = p.server_config()
+    other["argv"] = [*other["argv"], "--seed", "7"]
+    write_good(p, dog_a_s1(tmp_path), server_config=other)
+    assert batch.state(dog_a_s1(tmp_path), p) == (
+        batch.MISMATCH,
+        "it records a different server block",
+    )
+    fakes = Fakes()
+    assert run(tmp_path, fakes) == generate.REFUSED
+    assert fakes.made == []
+
+
+def test_node_and_metrics_host_reach_generate(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[dict[str, Any]] = []
+
+    def fake_run_one(
+        plan: generate.Plan, server: str, out: pathlib.Path, **kw: Any
+    ) -> int:
+        seen.append({"server": server, **kw})
+        return generate.FAILED
+
+    monkeypatch.setattr(generate, "run_one", fake_run_one)
+    rc = batch.run_batch(
+        "h3-t2v",
+        server="http://h:8040",
+        out_root=tmp_path / "out",
+        frames_out_root=tmp_path / "fo",
+        frames_root=tmp_path / "frames",
+        node="worker",
+        metrics_host="spark-a",
+        allow_draft=True,
+    )
+    assert rc == generate.FAILED
+    assert seen == [
+        {
+            "server": "http://h:8040",
+            "node": "worker",
+            "metrics_host": "spark-a",
+            "allow_draft": True,
+            "overwrite": True,
+        }
+    ]

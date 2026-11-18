@@ -6,13 +6,14 @@ The order is fixed: the clips, then the seeds, as `arms-v1.json` lists them
 (dog-a s1, s2, s3, dog-b s1, ...). Each output goes to
 `~/bench-logs/videogen/out/<arm>/<clip>-s<seed>/` through `generate.run_one`.
 
-- A directory whose `run.json` says ok, whose `clip.mp4` still has the
-  recorded sha256, and whose request matches today's arms file is skipped.
-- A run.json that says ok but records another request (the arms file or the
-  first frame changed) stops the batch: replacing a scored clip by accident
-  is worse than stopping.
-- A failed or missing run is made again, once. The first failure stops the
-  batch. There is no retry loop: a failure is a finding, so read run.json.
+- A directory is skipped when its run is good: `run.json` says ok and not a
+  probe, `clip.mp4` still has the recorded sha256, the arms file was locked
+  (or `--allow-draft`), and the outlet energy is complete.
+- A good-looking run that records another request or another server block
+  (the arms file or the first frame changed) stops the batch: replacing a
+  scored clip by accident is worse than stopping.
+- Any other run is made again, once. The first failure stops the batch.
+  There is no retry loop: a failure is a finding, so read run.json.
 
 Then `frames.py` runs on each good clip into
 `~/bench-logs/videogen/frames-out/<arm>/<clip>-s<seed>/`. A frames directory
@@ -47,6 +48,8 @@ FramesRunner = Callable[[pathlib.Path, pathlib.Path, bool], int]
 #: (plan, out dir) -> exit status of one generate run.
 Generator = Callable[[generate.Plan, pathlib.Path], int]
 
+GOOD, TODO, MISMATCH = "good", "todo", "mismatch"
+
 
 def run_frames(clip: pathlib.Path, out: pathlib.Path, overwrite: bool) -> int:
     """frames.py in its own process, as an operator would run it."""
@@ -64,18 +67,34 @@ def read_run(out: pathlib.Path) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def state(out: pathlib.Path, plan: generate.Plan) -> str:
-    """`good`, `mismatch` (ok, but another request), or `todo`."""
+def state(
+    out: pathlib.Path, plan: generate.Plan, *, allow_draft: bool = False
+) -> tuple[str, str]:
+    """(GOOD, TODO or MISMATCH, and why) for the run in `out`."""
     run = read_run(out)
-    if run is None or run.get("status") != "ok" or run.get("probe"):
-        return "todo"
+    if run is None:
+        return TODO, "no run.json"
+    if run.get("status") != "ok":
+        return TODO, f"the last run failed: {run.get('error')}"
+    if run.get("probe"):
+        return TODO, "a probe, not a scored run"
     clip = out / "clip.mp4"
     want = (run.get("output") or {}).get("sha256")
     if not clip.is_file() or sha256(clip) != want:
-        return "todo"
+        return TODO, "clip.mp4 is missing or does not match its recorded sha256"
     if run.get("request") != plan.request():
-        return "mismatch"
-    return "good"
+        return MISMATCH, "it records a different request"
+    if run.get("server_config") != plan.server_config():
+        return MISMATCH, "it records a different server block"
+    if run.get("arms_status") != "locked" and not allow_draft:
+        return TODO, "it was made from a draft arms file"
+    if run.get("energy_wh") is None:
+        outlet = run.get("outlet") or {}
+        return TODO, (
+            f"its outlet energy is incomplete (max gap {outlet.get('max_gap_s')} s, "
+            f"{outlet.get('error') or 'the readings do not cover the window'})"
+        )
+    return GOOD, "done"
 
 
 def frames_done(clip: pathlib.Path, frames_out: pathlib.Path) -> bool | None:
@@ -97,6 +116,8 @@ def run_batch(
     frames_root: pathlib.Path,
     fallback: bool = False,
     allow_draft: bool = False,
+    node: str | None = None,
+    metrics_host: str | None = None,
     arms_file: pathlib.Path = generate.ARMS_FILE,
     generator: Generator | None = None,
     frames_runner: FramesRunner = run_frames,
@@ -113,13 +134,18 @@ def run_batch(
 
     def default_generator(plan: generate.Plan, out: pathlib.Path) -> int:
         # overwrite=True: state() already said this directory is not a good
-        # run, so whatever is in it is a failed or partial one.
+        # run, so whatever is in it is a failed, partial or stale one.
         return generate.run_one(
-            plan, server, out, allow_draft=allow_draft, overwrite=True
+            plan,
+            server,
+            out,
+            node=node,
+            metrics_host=metrics_host,
+            allow_draft=allow_draft,
+            overwrite=True,
         )
 
     make = generator or default_generator
-
     status = 0
     good: list[tuple[str, int, pathlib.Path]] = []
     for clip in arms["clips"]:
@@ -138,20 +164,21 @@ def run_batch(
                 logger.error("%s", err)
                 status = generate.REFUSED
                 break
-            found = state(out, plan)
-            if found == "good":
+            found, why = state(out, plan, allow_draft=allow_draft)
+            if found == GOOD:
                 logger.info("%s %s seed %d: done already, skipped", arm, clip, seed)
                 good.append((clip, int(seed), out))
                 continue
-            if found == "mismatch":
+            if found == MISMATCH:
                 logger.error(
-                    "%s holds a good run of a different request; move it away "
-                    "or restore the arms file it was made with",
+                    "%s holds a good run, but %s; move it away or restore the "
+                    "arms file it was made with",
                     out,
+                    why,
                 )
                 status = generate.REFUSED
                 break
-            logger.info("%s %s seed %d: generating into %s", arm, clip, seed, out)
+            logger.info("%s %s seed %d: generating (%s)", arm, clip, seed, why)
             rc = make(plan, out)
             if rc != 0:
                 logger.error("%s %s seed %d failed (%d); stopping", arm, clip, seed, rc)
@@ -170,7 +197,7 @@ def run_batch(
         if rc != 0:
             logger.error("frames.py failed (%d) on %s; stopping", rc, out)
             return status or rc
-    logger.info("%s: %d clip(s) good", arm, len(good))
+    logger.info("%s: %d clip(s) made or kept", arm, len(good))
     return status
 
 
@@ -189,10 +216,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="where frames.py wrote each reference clip's first.png",
     )
     p.add_argument("--fallback", action="store_true", help="use the fallback size")
+    p.add_argument("--node", choices=["head", "worker"], help="override the arm's node")
+    p.add_argument(
+        "--metrics-host",
+        help="host of the node's exporters (default: the --server host)",
+    )
     p.add_argument(
         "--allow-draft",
         action="store_true",
-        help="allow scored runs from a draft arms file",
+        help="allow scored runs from a draft arms file, and count them as done",
     )
     return p
 
@@ -208,6 +240,8 @@ def main(argv: list[str] | None = None) -> int:
         frames_root=args.frames_root.expanduser(),
         fallback=args.fallback,
         allow_draft=args.allow_draft,
+        node=args.node,
+        metrics_host=args.metrics_host,
     )
 
 
