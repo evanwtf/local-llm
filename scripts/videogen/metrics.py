@@ -39,6 +39,21 @@ Nothing in a run stops the export.
 Two batches (one per node) write the same file, so the scan and the write
 hold an exclusive `flock` on `<root>/.metrics.lock`.
 
+**Images (#1424)** get their own families, `videogen_images{status}` and
+`videogen_image_*`, with the labels `arm`, `model`, `node`, `mode` (t2i or
+edit), `kind`, `width` and `height`; no `fps`. Their own families, not a
+label on the clip families: an image has no frames, no fps and no video
+seconds, and a label would put image wall seconds into
+`videogen_wall_seconds`, so every existing query over it (frames per wall
+second, the real-time factor) would mix the two. There is no image server
+time: the image endpoints send no `x-inference-time-s`.
+
+An image's energy is not its own: one image takes a few seconds, and the
+outlet reports about every 5 s. batch.py measures an arm's images as one
+block and writes `out/<arm>/block.json`; the `videogen_image_block_*`
+families report that block (Wh per image is the block's Wh over its
+images), never a per-request reading.
+
 The file is a pure function of the run.json files, except
 `videogen_metrics_build_timestamp_seconds`. The script writes it through a
 temp file in the same directory and a rename, so a scrape never reads half
@@ -79,6 +94,8 @@ SCORED, PROBE = "scored", "probe"
 UNKNOWN = "unknown"
 #: The label names of every series, in this order.
 LABELS = ("arm", "model", "node", "mode", "kind", "width", "height", "fps")
+#: The label names of the image series (#1424): an image has no fps.
+IMAGE_LABELS = ("arm", "model", "node", "mode", "kind", "width", "height")
 #: Held around the scan and the write, so two batches cannot interleave.
 LOCK_FILE = ".metrics.lock"
 #: How long a writer waits for the lock. A scan takes milliseconds; a holder
@@ -109,11 +126,38 @@ class Ok:
 
 
 @dataclasses.dataclass(frozen=True)
+class ImageOk:
+    """The measurements of one ok image run (#1424)."""
+
+    wall_s: float
+    end: float
+    energy_wh: float | None
+    steps: int | None
+    peak_gib: float | None
+
+
+@dataclasses.dataclass(frozen=True)
+class Block:
+    """An image arm's latest block energy, from `out/<arm>/block.json`."""
+
+    joules: float | None
+    images: int
+    seconds: float | None
+    joules_per_image: float | None
+    end: float | None
+
+
+@dataclasses.dataclass(frozen=True)
 class Run:
     path: pathlib.Path
     labels: LabelSet
     status: str
     ok: Ok | None
+    #: "video" (labels in LABELS, `ok`) or "image" (IMAGE_LABELS, `image`).
+    media: str = "video"
+    image: ImageOk | None = None
+    #: An image run's arm block (block.json), if batch.py wrote one.
+    block: Block | None = None
 
 
 # ---------------------------------------------------------------- reading ----
@@ -237,7 +281,74 @@ def ok_of(run: Mapping[str, Any]) -> Ok | str:
     )
 
 
-def read_run(path: pathlib.Path, kind: str) -> Run | None:
+def image_size(run: Mapping[str, Any]) -> tuple[Any, Any]:
+    """(width, height) an image run asked for: `expected`, the request's
+    `WxH` size, then the PNG it found."""
+    expected = as_dict(run.get("expected"))
+    size = as_dict(as_dict(run.get("request")).get("fields")).get("size")
+    asked = str(size).partition("x") if isinstance(size, str) else ("", "", "")
+    found = as_dict(run.get("found"))
+    return (
+        label_number(expected.get("width"), asked[0], found.get("width")),
+        label_number(expected.get("height"), asked[2], found.get("height")),
+    )
+
+
+def image_labels_of(run: Mapping[str, Any], arm: str, kind: str) -> LabelSet:
+    """The label values of an image run, in IMAGE_LABELS order."""
+    width, height = image_size(run)
+    return labels_of(run, arm, kind)[:5] + (width, height)
+
+
+def image_ok_of(run: Mapping[str, Any]) -> ImageOk | str:
+    """The measurements of an ok image run, or why they are incomplete."""
+    wall = positive(run.get("wall_s"))
+    end = timestamp(run.get("end"))
+    if wall is None or end is None:
+        missing = [n for n, v in (("wall_s", wall), ("end", end)) if v is None]
+        return "it says ok but has no " + ", ".join(missing)
+    steps = positive(
+        as_dict(as_dict(run.get("request")).get("fields")).get("num_inference_steps")
+    )
+    return ImageOk(
+        wall_s=wall,
+        end=end,
+        energy_wh=number(run.get("energy_wh")),
+        steps=int(steps) if steps is not None else None,
+        peak_gib=positive(as_dict(run.get("memory")).get("peak_used_gib")),
+    )
+
+
+def read_block(arm_dir: pathlib.Path) -> Block | None:
+    """`<arm_dir>/block.json` as a Block, or None if absent or bad."""
+    path = arm_dir / "block.json"
+    try:
+        data = json.loads(path.read_text())
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as err:
+        logger.warning("skipped %s: unreadable (%s)", path, err)
+        return None
+    if not isinstance(data, dict):
+        logger.warning("skipped %s: not a JSON object", path)
+        return None
+    wh = number(data.get("energy_wh"))
+    per = number(data.get("wh_per_image"))
+    images = positive(data.get("images"))
+    return Block(
+        joules=None if wh is None else wh * JOULES_PER_WH,
+        images=int(images) if images is not None else 0,
+        seconds=positive(data.get("duration_s")),
+        joules_per_image=None if per is None else per * JOULES_PER_WH,
+        end=timestamp(data.get("end")),
+    )
+
+
+def read_run(
+    path: pathlib.Path,
+    kind: str,
+    blocks: dict[pathlib.Path, Block | None] | None = None,
+) -> Run | None:
     """One run.json as a Run, or None (with a log line) if it is bad."""
     try:
         data = json.loads(path.read_text())
@@ -251,6 +362,28 @@ def read_run(path: pathlib.Path, kind: str) -> Run | None:
     if status is None:
         logger.warning("skipped %s: no status", path)
         return None
+    arm = path.parent.parent.name
+    if data.get("media") == "image":
+        image: ImageOk | None = None
+        if status == "ok":
+            got = image_ok_of(data)
+            if isinstance(got, str):
+                logger.warning("skipped %s: %s", path, got)
+                return None
+            image = got
+        arm_dir = path.parent.parent
+        cache = {} if blocks is None else blocks
+        if arm_dir not in cache:
+            cache[arm_dir] = read_block(arm_dir)
+        return Run(
+            path=path,
+            labels=image_labels_of(data, arm, kind),
+            status=status,
+            ok=None,
+            media="image",
+            image=image,
+            block=cache[arm_dir],
+        )
     ok: Ok | None = None
     if status == "ok":
         found = ok_of(data)
@@ -266,7 +399,7 @@ def read_run(path: pathlib.Path, kind: str) -> Run | None:
             )
             return None
         ok = found
-    labels = labels_of(data, path.parent.parent.name, kind)
+    labels = labels_of(data, arm, kind)
     return Run(path=path, labels=labels, status=status, ok=ok)
 
 
@@ -274,9 +407,10 @@ def find_runs(root: pathlib.Path, *, include_probes: bool = False) -> list[Run]:
     """Every readable run under out/, and under probe/ if asked, in path order."""
     tops = [(SCORED, "out")] + ([(PROBE, "probe")] if include_probes else [])
     runs: list[Run] = []
+    blocks: dict[pathlib.Path, Block | None] = {}
     for kind, top in tops:
         for path in sorted((root / top).glob("*/*/run.json")):
-            run = read_run(path, kind)
+            run = read_run(path, kind, blocks)
             if run is not None:
                 runs.append(run)
     return runs
@@ -336,7 +470,8 @@ class Family:
 
 def render(runs: Iterable[Run], *, now: float) -> str:
     """The Prometheus text exposition of `runs`; `now` is the build time."""
-    runs = list(runs)
+    every = list(runs)
+    runs = [r for r in every if r.media == "video"]
     by_status: dict[tuple[LabelSet, str], int] = {}
     oks: dict[LabelSet, list[Ok]] = {}
     latest: dict[LabelSet, tuple[float, str, Ok]] = {}
@@ -450,6 +585,10 @@ def render(runs: Iterable[Run], *, now: float) -> str:
             last_energy.add(labels, last.energy_wh * JOULES_PER_WH)
         last_ts.add(labels, last.end)
 
+    # Only with an image run: a video-only file stays as it was before #1424.
+    image_runs = [r for r in every if r.media == "image"]
+    image_families = render_images(image_runs) if image_runs else []
+
     build = gauge(
         "videogen_metrics_build_timestamp_seconds",
         "When metrics.py last wrote this file, Unix seconds.",
@@ -473,9 +612,118 @@ def render(runs: Iterable[Run], *, now: float) -> str:
         last_peak,
         last_energy,
         last_ts,
+        *image_families,
         build,
     ]
     return "\n".join(line for family in families for line in family.lines()) + "\n"
+
+
+def render_images(runs: Sequence[Run]) -> list[Family]:
+    """The image families (#1424): one sample per IMAGE_LABELS set."""
+    by_status: dict[tuple[LabelSet, str], int] = {}
+    oks: dict[LabelSet, list[ImageOk]] = {}
+    latest: dict[LabelSet, tuple[float, str, ImageOk]] = {}
+    blocks: dict[LabelSet, Block] = {}
+    for run in runs:
+        key = (run.labels, run.status)
+        by_status[key] = by_status.get(key, 0) + 1
+        if run.block is not None:
+            blocks[run.labels] = run.block
+        if run.image is None:
+            continue
+        oks.setdefault(run.labels, []).append(run.image)
+        mark = (run.image.end, str(run.path), run.image)
+        if run.labels not in latest or mark[:2] > latest[run.labels][:2]:
+            latest[run.labels] = mark
+
+    def gauge(name: str, text: str) -> Family:
+        return Family(name, "gauge", text)
+
+    images = gauge(
+        "videogen_images",
+        "Image-gen runs with a run.json now, by status (ok, failed). A gauge: "
+        "a remade run is absent while it runs.",
+    )
+    for labels, status in sorted(by_status):
+        images.add(
+            (*labels, status), by_status[(labels, status)], (*IMAGE_LABELS, "status")
+        )
+    wall = gauge(
+        "videogen_image_wall_seconds", "Client wall seconds summed over the ok images."
+    )
+    block_per_image = gauge(
+        "videogen_image_block_energy_joules_per_image",
+        "Block energy per image: the outlet joules of the arm's latest block "
+        "(block.json: its images back to back on one server start) over its "
+        "images. Not a per-request reading; absent when the block reading "
+        "is incomplete or a request in it failed.",
+    )
+    block_energy = gauge(
+        "videogen_image_block_energy_joules",
+        "The outlet joules of the arm's latest block (block.json), when its "
+        "reading is complete.",
+    )
+    block_images = gauge(
+        "videogen_image_block_images", "The images in the arm's latest block."
+    )
+    block_seconds = gauge(
+        "videogen_image_block_seconds",
+        "The arm's latest block: seconds from its first request's start to "
+        "its last request's end.",
+    )
+    steps = gauge(
+        "videogen_image_steps",
+        "Denoising steps requested, summed over the ok images that record it; "
+        "divide by videogen_image_step_images.",
+    )
+    steps_n = gauge(
+        "videogen_image_step_images", "The ok images that record num_inference_steps."
+    )
+    last_wall = gauge(
+        "videogen_image_last_wall_seconds", "The latest ok image: wall seconds."
+    )
+    last_peak = gauge(
+        "videogen_image_last_peak_memory_bytes",
+        "The latest ok image: peak used memory of the whole node, bytes.",
+    )
+    last_ts = gauge(
+        "videogen_image_last_timestamp_seconds",
+        "The latest ok image: its end time, Unix seconds.",
+    )
+    for labels in sorted(oks):
+        group = oks[labels]
+        wall.add(labels, sum(o.wall_s for o in group), IMAGE_LABELS)
+        with_steps = [o.steps for o in group if o.steps is not None]
+        if with_steps:
+            steps.add(labels, sum(with_steps), IMAGE_LABELS)
+        steps_n.add(labels, len(with_steps), IMAGE_LABELS)
+        last = latest[labels][2]
+        last_wall.add(labels, last.wall_s, IMAGE_LABELS)
+        if last.peak_gib is not None:
+            last_peak.add(labels, last.peak_gib * BYTES_PER_GIB, IMAGE_LABELS)
+        last_ts.add(labels, last.end, IMAGE_LABELS)
+    for labels in sorted(blocks):
+        block = blocks[labels]
+        if block.joules_per_image is not None:
+            block_per_image.add(labels, block.joules_per_image, IMAGE_LABELS)
+        if block.joules is not None:
+            block_energy.add(labels, block.joules, IMAGE_LABELS)
+        block_images.add(labels, block.images, IMAGE_LABELS)
+        if block.seconds is not None:
+            block_seconds.add(labels, block.seconds, IMAGE_LABELS)
+    return [
+        images,
+        wall,
+        steps,
+        steps_n,
+        last_wall,
+        last_peak,
+        last_ts,
+        block_per_image,
+        block_energy,
+        block_images,
+        block_seconds,
+    ]
 
 
 # ---------------------------------------------------------------- writing ----
@@ -549,7 +797,7 @@ def write(
     logger.info(
         "videogen metrics: %d runs (%d ok) -> %s",
         len(runs),
-        sum(1 for r in runs if r.ok is not None),
+        sum(1 for r in runs if r.ok is not None or r.image is not None),
         path,
     )
     return path

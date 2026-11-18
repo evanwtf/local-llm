@@ -94,6 +94,9 @@ TYPES = {
     ".js": "text/javascript; charset=utf-8",
     ".mp4": "video/mp4",
     ".png": "image/png",
+    # An image edit's input images (#1424).
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
 }
 
 #: Sent when the gallery has no `.csp` yet: nothing inline runs and nothing

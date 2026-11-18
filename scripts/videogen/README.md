@@ -44,7 +44,8 @@ every frame `frames.py` makes from it.
 | `judge.py` | `blind` copies each scored run's frames into folders with random ids, writes one judge prompt per clip, and writes the key outside the folders. `ingest` checks a judge reply and writes the score files the gallery reads (#1406). |
 | `gallery_serve.py` | Serves the gallery at `:8043` behind a login, read-only, with HTTP Range so a browser can seek in a video. It checks the `Host` header and sends the page's CSP. `set-password` writes the credentials file. |
 | `gallery_auth.py` | The login gate's parts: the YAML credentials file (scrypt hash, session secret, mode 0600), the signed session cookie, the client address behind a trusted proxy, and the lockout after failed logins. |
-| `common.py` | Shared code: the default output root, the guard on output paths, and the ffmpeg runner. |
+| `imagegen.py` | The image arms (#1424): one `POST /v1/images/generations` (text-to-image, JSON) or `POST /v1/images/edits` (an edit, a form with one or more input images) per run. It writes `image.png` and `run.json`. `generate.py` and `batch.py` call it for an image arm; it has no CLI of its own. |
+| `common.py` | Shared code: the default output root, the guard on output paths, the ffmpeg runner, the prompt name, and the PNG size reader. |
 
 Both scripts need `ffmpeg` and `ffprobe` on `PATH`. `frames.py` also needs the
 DejaVu Sans font (`fonts-dejavu-core` on Debian and Ubuntu).
@@ -175,6 +176,104 @@ under `outlet`, and the top-level `energy_wh` is null. The arm's server
 `node` (`head` or `worker`) picks the plug; `--node` overrides it. `gcx`
 needs `~/.config/gcx/token`.
 
+## Images and image edits (#1424)
+
+The image screen uses the same scripts. Two more arms files hold its
+settings, and each names its own prompts file:
+
+| file | arms | prompts |
+|---|---|---|
+| [`image-arms-v1.json`](../../benchmarks/videogen/image-arms-v1.json) | `qwen-image`, `hidream-o1`, `z-image-turbo`, `flux2-klein-4b` | [`prompts/image-v1.json`](../../benchmarks/videogen/prompts/image-v1.json): `meme-text`, `photo-dog`, `cartoon`, `crowded` |
+| [`edit-arms-v1.json`](../../benchmarks/videogen/edit-arms-v1.json) | `qwen-image-edit`, `flux2-klein-4b-edit` | [`prompts/edit-v1.json`](../../benchmarks/videogen/prompts/edit-v1.json): `caption-swap`, `restyle`, `face-swap` |
+
+Both files are `draft`. Lock each one after one timing probe per model, as
+for video. Each arm's `sources` names where its steps and guidance come
+from (the model card at the pinned revision). Each file's
+`verified_against` cites the vLLM-Omni 0.32.0 source for every field it
+sends. Two facts from that source matter:
+
+- The image endpoints send no `x-inference-time-s`. `server_metrics`
+  keeps the `metrics` object of the reply (`peak_memory_mb`,
+  `stage_durations`). `server_s` is the sum of the `stage_<id>_<what>_ms`
+  keys of `stage_durations`, in seconds, and `server_s_from` lists the
+  keys it summed.
+- vLLM-Omni 0.32.0 runs HiDream-O1 with its UniPC scheduler at shift 3.0
+  for every request. The Dev model card's recipe (flash scheduler, shift
+  1.0) is not available, so `hidream-o1` is not the upstream recipe.
+- vLLM-Omni 0.32.0 snaps every HiDream-O1 size to the nearest aspect ratio
+  in a fixed list, and the smallest is 2048x2048
+  (`pipeline_hidream_o1_image.py:42-75`, `:540-552`). So `hidream-o1`
+  asks for 2048x2048, and the other arms ask for 1024x1024. **HiDream-O1
+  draws 4x the pixels: its seconds and Wh are not like-for-like** with the
+  other arms. The judge sees every candidate at 1024x1024 (see the judge
+  section).
+- Qwen-Image-2.1's card lists sizes of about 4 MP. `qwen-image` asks for
+  1024x1024 (1 MP), the size a chat bot posts.
+
+**Weights** go to `~/models/imagegen/<server name>` on the node that the
+server block names. `serve.py` reads every arms file; a server that serves
+arms in two files (`flux2-klein-4b`) must have the same block in both, and
+a test holds that.
+
+**Input images** of the edit prompts live in
+`~/bench-logs/videogen/ref/imagegen/` (`--inputs-root`), never in this
+repository. `prompts/edit-v1.json` pins each one by sha256, in the order
+the request sends them, and `generate.py` refuses an input with another
+hash. `face-swap` sends two images: image 1 is the still, image 2 is the
+face. No file here names or describes a person in an input image.
+
+**What makes an image count.** The reply must be JSON with exactly one
+base64 PNG. The PNG must have the size the arm asked for (1024x1024 for
+text-to-image, 2048x2048 for `hidream-o1`, 1024x576 for an edit).
+Anything else fails the run, and the run leaves no `image.png`. `run.json`
+records the same measurements as a clip (wall seconds, outlet reading, GPU
+power samples, peak memory), plus `media: image`, the PNG size, and
+`inputs`: the name, path, size and sha256 of each input image.
+`request.inputs` holds the name and sha256 only, so a move of the input
+root is not a new request.
+
+**Energy is per block, not per image.** One image takes a few seconds,
+and the outlet reports about every 5 s. So:
+
+- A run's own `energy_wh` is null unless its outlet window is complete,
+  holds at least 3 readings and lasts at least 30 s. `outlet` (with its
+  `readings` count) stays in `run.json` either way.
+- `batch.py` runs an arm as one block on one server start: one discarded
+  warm-up request (its wall time is logged, never scored), one GPU settle,
+  then every request back to back with no settle between them. After the
+  block, one outlet read writes `out/<arm>/block.json`: the block's Wh,
+  image count, Wh per image, readings and duration. Wh per image is null
+  when the reading is incomplete or a request in the block failed.
+- The gallery and the metrics report the block's Wh per image for an image
+  arm, and say so.
+- A run under 10 s keeps its GPU power samples (`gpu_power.readings`) but
+  has no GPU mean: the sampler reads about once a second and lags the load,
+  so a 3 s image read only the idle 7 W.
+
+Run one `batch.py` per server start: the warm-up is once per batch.
+
+```sh
+export VG=~/bench-logs/videogen
+# Replace HEAD_HOST with the head's name.
+export HEAD=http://HEAD_HOST:8040
+export WORKER=http://10.0.0.2:8041
+
+# Log the server command, or start it (one model per Spark).
+uv run python scripts/videogen/serve.py --model z-image-turbo
+uv run python scripts/videogen/serve.py --model z-image-turbo --start
+uv run python scripts/videogen/serve.py --model flux2-klein-4b --start
+
+# One timing probe per model, into $VG/probe/.
+uv run python scripts/videogen/generate.py --arm z-image-turbo --prompt meme-text \
+    --seed 1 --server "$HEAD" --probe
+uv run python scripts/videogen/generate.py --arm flux2-klein-4b-edit \
+    --prompt face-swap --seed 1 --server "$WORKER" --probe
+
+# A whole arm: every prompt x seed, into $VG/out/<arm>/<prompt>-s<seed>/.
+uv run python scripts/videogen/batch.py --arm z-image-turbo --server "$HEAD"
+uv run python scripts/videogen/batch.py --arm flux2-klein-4b --server "$WORKER"
+```
+
 ## The gallery (#1413)
 
 `gallery.py` builds one page, `index.html`, in `~/bench-logs/videogen/gallery/`.
@@ -195,6 +294,17 @@ Tap a group to open it.
 | Measurements | the wall time, the server's inference time (`x-inference-time-s`), the stage durations, the energy and whether it is complete (with the largest gap), the outlet and GPU power, the GPU power before the request, and the peak memory |
 | Clip check | what ffprobe found (frames, size, fps, audio, codec), the sha256 and the file size |
 | Raw run.json | the whole file, pretty-printed |
+
+An image run (#1424) gets an image card in its own part of the page, under
+"Images" or "Image edits", after the video prompts. The card shows the PNG,
+the same summary as a clip plus the steps and the seed, and the groups
+Request, Server, Measurements, Image check and Raw run.json. An edit card
+shows its input images beside the output, as image 1 and image 2. The
+page links them from `ref/imagegen/` as `media/inputs/<file>`. An image
+prompt gets a section only once it has a run. The energy row of an image
+card is "block energy": the Wh per image from its arm's `block.json`. The
+filters count "items shown", and hide a part heading when they hide every
+section under it.
 
 A field that `run.json` does not hold shows "—". The first probes wrote
 schema 1, which has fewer fields; they still render. The reference card shows
@@ -267,7 +377,8 @@ PyYAML for the credentials file.
   405 to every other method.
 - It serves a file only from the gallery directory. It refuses a `..`
   segment, a hidden name, a directory, and a file type other than HTML, CSS,
-  JS, MP4 and PNG. The link name and the real file must have the same type.
+  JS, MP4, PNG and JPEG (an edit's input image). The link name and the real
+  file must have the same type.
 - It refuses a symlink whose real path is outside `~/bench-logs/videogen/`
   (`--allow`).
 - It answers only a `Host` that is an IP literal, `localhost`, or a name
@@ -418,6 +529,29 @@ The units are Prometheus base units: seconds, joules and bytes.
 | `videogen_last_timestamp_seconds` | The latest ok run: its end time. |
 | `videogen_metrics_build_timestamp_seconds` | When `metrics.py` last wrote the file. |
 
+**Images (#1424)** have their own families, with the labels `arm`,
+`model`, `node`, `mode` (`t2i` or `edit`), `kind`, `width` and `height`.
+An image has no frames, no fps and no video seconds. A `kind` label on the
+clip families would add image wall seconds to `videogen_wall_seconds`, and
+every query above that divides by it would mix clips and images. The image
+families appear only when there is an image run. There is no image server
+time, because the image endpoints do not send it. The energy families
+report the arm's latest block (`out/<arm>/block.json`), not one request.
+
+| metric | what it is |
+|---|---|
+| `videogen_images` | Image runs with a `run.json`, with a `status` label. |
+| `videogen_image_wall_seconds` | Client wall seconds, summed over the ok images. |
+| `videogen_image_block_energy_joules_per_image` | Block energy per image (J): the latest block's outlet joules over its images. Absent when the reading is incomplete or a request in the block failed. |
+| `videogen_image_block_energy_joules` | The latest block's outlet energy (J), when the reading is complete. |
+| `videogen_image_block_images` | The images in the latest block. |
+| `videogen_image_block_seconds` | The latest block, first start to last end, in seconds. |
+| `videogen_image_steps` | Denoising steps requested, summed over the ok images that record them. |
+| `videogen_image_step_images` | The ok images that record the steps. |
+| `videogen_image_last_wall_seconds` | The latest ok image: wall seconds. |
+| `videogen_image_last_peak_memory_bytes` | The latest ok image: peak used memory of the node, bytes. |
+| `videogen_image_last_timestamp_seconds` | The latest ok image: its end time. |
+
 "Latest" is by the run's end time, per label set. **Frames per second
 counts output frames**, the frames in the MP4, not the latent frames that
 the model denoises.
@@ -540,6 +674,36 @@ mkdir -p "$BLIND-answers"
 uv run python scripts/videogen/judge.py ingest --blind "$BLIND" \
     --answers "$BLIND-answers/dog-a.json" --judge "blind judge v1"
 uv run python scripts/videogen/gallery.py
+```
+
+**Images (#1424).** `blind` works the same way for the image arms. Name
+arms from one arms file; `--arms-file`, `--prompts` and `--clips` then
+default to that file, its prompts file and its prompt list.
+
+- The image is the evidence: `blind` writes `image.png` to
+  `OUT/<prompt>/<id>/image.png`, with no frame extraction. The image must
+  match the sha256 that its `run.json` records.
+- `blind` does not copy the server's PNG. It re-encodes it: RGB, alpha
+  flattened on white, LANCZOS to 1024x1024 (text-to-image) or 1024x576
+  (edits), one compress level, and no ancillary chunk. The encoder, the
+  chunks and the 2048x2048 size of `hidream-o1` would each name a model.
+  The key records the source sha256 and the blind copy's own sha256, and
+  `ingest` refuses a reply when the blind copy changed.
+- An edit prompt's input images go once to
+  `OUT/<prompt>/input/image-1.jpg`, `image-2.jpg`, and so on, in the order
+  the request sent them. Each must match the sha256 that `edit-v1.json`
+  pins. `PROMPT.md` names them as the reference, not as candidates.
+- The random ids, the fixed mtime, the random order, the key outside `OUT`
+  and every `ingest` check are the same as for clips.
+
+```sh
+export VG=~/bench-logs/videogen
+export BLIND=$VG/judge/image-v1
+uv run python scripts/videogen/judge.py blind \
+    --arms qwen-image hidream-o1 z-image-turbo flux2-klein-4b --out "$BLIND"
+export BLIND=$VG/judge/edit-v1
+uv run python scripts/videogen/judge.py blind \
+    --arms qwen-image-edit flux2-klein-4b-edit --out "$BLIND"
 ```
 
 The first blind directories kept the key inside the tree, as `key.json`,

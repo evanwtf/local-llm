@@ -948,3 +948,42 @@ def test_a_host_name_without_a_trusted_proxy_warns(
         )
         server.server_close()
     assert "no --trusted-proxy" not in caplog.text
+
+
+# ----------------------------------------------------------------- images ----
+
+
+def test_an_image_and_an_edit_input_are_served_with_their_types(
+    tmp_path: pathlib.Path,
+) -> None:
+    """#1424: the output PNG and an edit's JPEG input, behind the login."""
+    site_dir, allow = make_tree(tmp_path)
+    run = allow / "out" / "z-image-turbo" / "meme-text-s1"
+    run.mkdir(parents=True)
+    (run / "image.png").write_bytes(b"\x89PNG\r\n\x1a\n" + BODY)
+    inputs = allow / "ref" / "imagegen"
+    inputs.mkdir(parents=True)
+    (inputs / "meme-base.jpg").write_bytes(b"\xff\xd8\xff" + BODY)
+    out_link = site_dir / "media" / "out" / "z-image-turbo" / "meme-text-s1.png"
+    out_link.parent.mkdir(parents=True)
+    out_link.symlink_to(run / "image.png")
+    in_link = site_dir / "media" / "inputs" / "meme-base.jpg"
+    in_link.parent.mkdir(parents=True)
+    in_link.symlink_to(inputs / "meme-base.jpg")
+    # The link name and the real file disagree: a .png name for a JPEG.
+    (site_dir / "media" / "inputs" / "jpeg-as.png").symlink_to(inputs / "meme-base.jpg")
+    with serving(site_dir, allow) as site:
+        status, headers, body = request(
+            site, "/media/out/z-image-turbo/meme-text-s1.png?v=cccccccccccc"
+        )
+        assert status == 200 and headers["content-type"] == "image/png"
+        assert headers["x-content-type-options"] == "nosniff"
+        assert body.endswith(BODY)
+        status, headers, _ = request(site, "/media/inputs/meme-base.jpg")
+        assert status == 200 and headers["content-type"] == "image/jpeg"
+        status, _, _ = request(site, "/media/inputs/jpeg-as.png")
+        assert status == 404
+        status, _, _ = request(
+            site, "/media/out/z-image-turbo/meme-text-s1.png", cookie=NO_COOKIE
+        )
+        assert status == 401

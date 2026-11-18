@@ -571,3 +571,169 @@ def test_a_second_writer_waits_for_the_lock_then_writes(
         release.join()
     assert waited >= 0.25
     assert (prom / "videogen.prom").is_file()
+
+
+# ----------------------------------------------------------------- images ----
+# #1424: images get their own families, so the clip families and every
+# query over them stay as they were.
+
+Z_IMAGE = "Tongyi-MAI/Z-Image-Turbo"
+
+
+def image_json(**change: Any) -> dict[str, Any]:
+    """An ok text-to-image run, as imagegen.py writes it."""
+    run: dict[str, Any] = {
+        "schema": 2,
+        "media": "image",
+        "probe": False,
+        "arm": "z-image-turbo",
+        "mode": "t2i",
+        "model": Z_IMAGE,
+        "request": {
+            "fields": {"size": "1024x1024", "num_inference_steps": 9},
+            "inputs": [],
+        },
+        "server_config": {"served_model_name": Z_IMAGE},
+        "node": {"role": "head"},
+        "start": "2026-11-18T20:00:00-0500",
+        "end": "2026-11-18T20:00:10-0500",
+        "wall_s": 10.0,
+        "server_s": None,
+        "memory": {"peak_used_gib": 30.0},
+        "expected": {"width": 1024, "height": 1024},
+        "found": {"width": 1024, "height": 1024, "format": "png"},
+        "outlet": {"energy_wh": 0.5, "complete": True},
+        "energy_wh": 0.5,
+        "status": "ok",
+        "error": None,
+    }
+    run.update(change)
+    return run
+
+
+def test_a_video_only_root_writes_no_image_family(tmp_path: pathlib.Path) -> None:
+    put(tmp_path, "out/h3-t2v/dog-a-s1", run_json())
+    assert "videogen_image" not in render(tmp_path)
+
+
+def test_images_have_their_own_families_and_leave_the_clips_alone(
+    tmp_path: pathlib.Path,
+) -> None:
+    put(tmp_path, "out/h3-t2v/dog-a-s1", run_json())
+    put(tmp_path, "out/z-image-turbo/meme-text-s1", image_json())
+    put(
+        tmp_path,
+        "out/z-image-turbo/meme-text-s2",
+        image_json(end="2026-11-18T20:01:00-0500", wall_s=12.0, energy_wh=None),
+    )
+    put(
+        tmp_path,
+        "out/z-image-turbo/cartoon-s1",
+        image_json(status="failed", error="HTTP 500", found=None),
+    )
+    samples = parse(render(tmp_path))
+    labels = {
+        "arm": "z-image-turbo",
+        "model": Z_IMAGE,
+        "node": "head",
+        "mode": "t2i",
+        "kind": "scored",
+        "width": "1024",
+        "height": "1024",
+    }
+    want = frozenset(labels.items())
+    assert samples[("videogen_images", want | {("status", "ok")})] == 2
+    assert samples[("videogen_images", want | {("status", "failed")})] == 1
+    assert samples[("videogen_image_wall_seconds", want)] == 22.0
+    assert samples[("videogen_image_steps", want)] == 18
+    assert samples[("videogen_image_step_images", want)] == 2
+    assert samples[("videogen_image_last_wall_seconds", want)] == 12.0
+    assert samples[("videogen_image_last_peak_memory_bytes", want)] == 30.0 * 2**30
+    # No block.json yet: no energy family, and no per-request energy one.
+    assert not [n for n, _ in samples if "energy" in n and "image" in n]
+    # No fps label on an image, and no image in a clip family.
+    image_keys = [ls for n, ls in samples if n.startswith("videogen_image")]
+    assert image_keys and all("fps" not in dict(ls) for ls in image_keys)
+    assert value(samples, "videogen_wall_seconds") == [2440.0]
+    assert value(samples, "videogen_clips") == [1.0]
+    assert not value(samples, "videogen_frames", arm="z-image-turbo")
+
+
+def test_an_edit_takes_its_size_from_the_request_when_it_failed(
+    tmp_path: pathlib.Path,
+) -> None:
+    put(
+        tmp_path,
+        "out/qwen-image-edit/face-swap-s1",
+        image_json(
+            arm="qwen-image-edit",
+            mode="edit",
+            expected=None,
+            found=None,
+            status="failed",
+            request={"fields": {"size": "1024x576"}},
+        ),
+    )
+    samples = parse(render(tmp_path))
+    [(_, labels)] = [k for k in samples if k[0] == "videogen_images"]
+    assert dict(labels)["width"] == "1024" and dict(labels)["height"] == "576"
+    assert dict(labels)["mode"] == "edit"
+
+
+def test_an_ok_image_without_wall_time_is_skipped_with_a_warning(
+    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    put(tmp_path, "out/z-image-turbo/meme-text-s1", image_json(wall_s=None))
+    assert "videogen_images" not in render(tmp_path)
+    assert "it says ok but has no wall_s" in caplog.text
+
+
+BLOCK = {
+    "arm": "z-image-turbo",
+    "start": "2026-11-18T20:00:00-0500",
+    "end": "2026-11-18T20:00:36-0500",
+    "duration_s": 36.0,
+    "requests": 12,
+    "images": 12,
+    "energy_wh": 1.8,
+    "wh_per_image": 0.15,
+}
+
+
+def test_image_energy_is_the_block_wh_per_image(tmp_path: pathlib.Path) -> None:
+    """#1424 review: a 3 s image has no energy of its own; the arm's block
+    (block.json) gives the energy per image."""
+    put(tmp_path, "out/z-image-turbo/meme-text-s1", image_json(energy_wh=None))
+    put(tmp_path, "out/z-image-turbo/meme-text-s2", image_json(energy_wh=None))
+    (tmp_path / "out/z-image-turbo/block.json").write_text(json.dumps(BLOCK))
+    samples = parse(render(tmp_path))
+    per = value(samples, "videogen_image_block_energy_joules_per_image")
+    assert per == [pytest.approx(0.15 * 3600)]
+    assert value(samples, "videogen_image_block_energy_joules") == [
+        pytest.approx(1.8 * 3600)
+    ]
+    assert value(samples, "videogen_image_block_images") == [12.0]
+    assert value(samples, "videogen_image_block_seconds") == [36.0]
+
+
+def test_an_incomplete_block_has_no_energy_but_its_image_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    put(tmp_path, "out/z-image-turbo/meme-text-s1", image_json(energy_wh=None))
+    block = {**BLOCK, "energy_wh": None, "wh_per_image": None}
+    (tmp_path / "out/z-image-turbo/block.json").write_text(json.dumps(block))
+    samples = parse(render(tmp_path))
+    assert not value(samples, "videogen_image_block_energy_joules_per_image")
+    assert not value(samples, "videogen_image_block_energy_joules")
+    assert value(samples, "videogen_image_block_images") == [12.0]
+
+
+def test_a_bad_block_file_is_skipped_with_a_warning(
+    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    put(tmp_path, "out/z-image-turbo/meme-text-s1", image_json())
+    (tmp_path / "out/z-image-turbo/block.json").write_text("{not json")
+    samples = parse(render(tmp_path))
+    assert value(samples, "videogen_images", status="ok") == [1.0]
+    assert not value(samples, "videogen_image_block_images")
+    assert "block.json: unreadable" in caplog.text

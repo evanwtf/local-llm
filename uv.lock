@@ -623,6 +623,7 @@ name = "local-llm"
 version = "1.2.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "pillow" },
     { name = "pyyaml" },
 ]
 
@@ -638,7 +639,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pyyaml", specifier = ">=6.0.3" }]
+requires-dist = [
+    { name = "pillow", specifier = ">=13.0.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+]
 
 [package.metadata.requires-dev]
 dev = [
