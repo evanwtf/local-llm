@@ -24,6 +24,12 @@ After each clip it makes (good or failed), the batch rebuilds the gallery
 best-effort: a failure logs a warning and never stops the batch, because a
 web page is not worth a lost 40-minute clip. `--no-gallery` turns it off.
 
+**Image arms (#1424).** An arm in `image-arms-v1.json` or
+`edit-arms-v1.json` runs the same way: its prompts, then the seeds, each to
+`out/<arm>/<prompt>-s<seed>/image.png`. A run is good when `image.png` still
+has the recorded sha256 and the rest above holds. There are no frames to
+extract.
+
 After the gallery, it writes the Prometheus metrics (`metrics.py`) into
 node_exporter's textfile directory, the same best-effort way: a missing or
 unwritable directory logs one warning, and the batch goes on. `--no-metrics`
@@ -45,7 +51,13 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from videogen import gallery, generate, metrics
-from videogen.common import DEFAULT_ROOT, InsideRepo, refuse_inside_repo, sha256
+from videogen.common import (
+    DEFAULT_ROOT,
+    IMAGE_INPUTS_ROOT,
+    InsideRepo,
+    refuse_inside_repo,
+    sha256,
+)
 
 import logs
 
@@ -56,7 +68,9 @@ FRAMES_PY = pathlib.Path(__file__).resolve().parent / "frames.py"
 #: (clip, out dir, overwrite) -> exit status of frames.py.
 FramesRunner = Callable[[pathlib.Path, pathlib.Path, bool], int]
 #: (plan, out dir) -> exit status of one generate run.
-Generator = Callable[[generate.Plan, pathlib.Path], int]
+#: The plan is a generate.Plan or an imagegen.ImagePlan (generate.AnyPlan).
+#: Typed Any so a fake that takes only one of the two still fits.
+Generator = Callable[[Any, pathlib.Path], int]
 #: (video-gen root) -> anything; rebuilds the gallery for that root.
 GalleryBuilder = Callable[[pathlib.Path], object]
 #: (video-gen root) -> anything; writes the Prometheus textfile for that root.
@@ -124,7 +138,7 @@ def read_run(out: pathlib.Path) -> dict[str, Any] | None:
 
 
 def state(
-    out: pathlib.Path, plan: generate.Plan, *, allow_draft: bool = False
+    out: pathlib.Path, plan: generate.AnyPlan, *, allow_draft: bool = False
 ) -> tuple[str, str]:
     """(GOOD, TODO or MISMATCH, and why) for the run in `out`."""
     run = read_run(out)
@@ -134,10 +148,12 @@ def state(
         return TODO, f"the last run failed: {run.get('error')}"
     if run.get("probe"):
         return TODO, "a probe, not a scored run"
-    clip = out / "clip.mp4"
+    clip = out / plan.output_name
     want = (run.get("output") or {}).get("sha256")
     if not clip.is_file() or sha256(clip) != want:
-        return TODO, "clip.mp4 is missing or does not match its recorded sha256"
+        return TODO, (
+            f"{plan.output_name} is missing or does not match its recorded sha256"
+        )
     if run.get("request") != plan.request():
         return MISMATCH, "it records a different request"
     if run.get("server_config") != plan.server_config():
@@ -174,7 +190,8 @@ def run_batch(
     allow_draft: bool = False,
     node: str | None = None,
     metrics_host: str | None = None,
-    arms_file: pathlib.Path = generate.ARMS_FILE,
+    arms_file: pathlib.Path | None = None,
+    inputs_root: pathlib.Path = IMAGE_INPUTS_ROOT,
     generator: Generator | None = None,
     frames_runner: FramesRunner = run_frames,
     gallery_builder: GalleryBuilder | None = build_gallery,
@@ -193,12 +210,19 @@ def run_batch(
         except InsideRepo as err:
             logger.error("%s", err)
             return generate.REFUSED
+    if arms_file is None:
+        try:
+            arms_file = generate.find_arms_file(arm)
+        except generate.Refused as err:
+            logger.error("%s", err)
+            return generate.REFUSED
     arms = generate.load_json(arms_file)
+    is_video = generate.media_of(arms) == "video"
 
-    def default_generator(plan: generate.Plan, out: pathlib.Path) -> int:
+    def default_generator(plan: generate.AnyPlan, out: pathlib.Path) -> int:
         # overwrite=True: state() already said this directory is not a good
         # run, so whatever is in it is a failed, partial or stale one.
-        return generate.run_one(
+        return generate.run_plan(
             plan,
             server,
             out,
@@ -217,13 +241,14 @@ def run_batch(
         for seed in arms["seeds"]:
             out = out_root / arm / f"{clip}-s{seed}"
             try:
-                plan = generate.make_plan(
+                plan = generate.plan_for(
                     arm,
                     clip,
                     int(seed),
                     frames_root=frames_root,
                     fallback=fallback,
                     arms_file=arms_file,
+                    inputs_root=inputs_root,
                 )
             except (generate.Refused, ValueError, TypeError, KeyError) as err:
                 logger.error("%s", err)
@@ -259,7 +284,8 @@ def run_batch(
         if status:
             break
 
-    for clip, seed, out in good:
+    # An image has no frames to extract.
+    for clip, seed, out in good if is_video else []:
         frames_out = frames_out_root / arm / f"{clip}-s{seed}"
         done = frames_done(out / "clip.mp4", frames_out)
         if done:
@@ -268,13 +294,17 @@ def run_batch(
         if rc != 0:
             logger.error("frames.py failed (%d) on %s; stopping", rc, out)
             return status or rc
-    logger.info("%s: %d clip(s) made or kept", arm, len(good))
+    logger.info("%s: %d run(s) made or kept", arm, len(good))
     return status
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--arm", required=True, help="an arm in arms-v1.json")
+    p.add_argument(
+        "--arm",
+        required=True,
+        help="an arm in arms-v1.json, image-arms-v1.json or edit-arms-v1.json",
+    )
     p.add_argument("--server", required=True, help="http://HOST:PORT of vLLM-Omni")
     p.add_argument("--out-root", type=pathlib.Path, default=DEFAULT_ROOT / "out")
     p.add_argument(
@@ -285,6 +315,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=pathlib.Path,
         default=DEFAULT_ROOT / "frames",
         help="where frames.py wrote each reference clip's first.png",
+    )
+    p.add_argument(
+        "--inputs-root",
+        type=pathlib.Path,
+        default=IMAGE_INPUTS_ROOT,
+        help="where an edit arm's input images are",
     )
     p.add_argument("--fallback", action="store_true", help="use the fallback size")
     p.add_argument("--node", choices=["head", "worker"], help="override the arm's node")
@@ -319,6 +355,7 @@ def main(argv: list[str] | None = None) -> int:
         out_root=args.out_root.expanduser().resolve(),
         frames_out_root=args.frames_out_root.expanduser().resolve(),
         frames_root=args.frames_root.expanduser(),
+        inputs_root=args.inputs_root.expanduser(),
         fallback=args.fallback,
         allow_draft=args.allow_draft,
         node=args.node,

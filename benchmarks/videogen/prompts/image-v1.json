@@ -1,0 +1,93 @@
+{
+  "version": "image-v1",
+  "media": "image",
+  "status": "draft",
+  "note": "Text-to-image prompts and judge checklists for #1424. Freeze before the first scored run; after that a change is a new version file. Each entry's 'name' is the run directory's prompt name. Nothing here describes a real place, person or house.",
+  "template": "subject; details; setting; style; light; framing",
+  "defects": [
+    "garbled or misspelled text (or text the prompt did not ask for)",
+    "malformed body (extra, missing or merged legs, paws, tails or ears)",
+    "malformed face or eyes",
+    "objects merged, melted or cut through in a way no real object is",
+    "visible artifacts (noise, seams, smears, tiling)",
+    "a watermark, logo or signature"
+  ],
+  "clips": [
+    {
+      "id": "meme-text-v1",
+      "name": "meme-text",
+      "prompt": "A classic internet meme photo. A golden retriever sits on a kitchen floor with tiles and white cabinets, looks up at the camera with wide eyes and tilts its head. Bold white capital letters in the Impact font with a thick black outline: the top text reads \"WHEN YOU HEAR THE TREAT BAG\" and the bottom text reads \"FROM THREE ROOMS AWAY\". Bright indoor light. Square photo, the dog centered between the two captions.",
+      "checklist": [
+        "The top caption reads exactly \"WHEN YOU HEAR THE TREAT BAG\", with every letter correct.",
+        "The bottom caption reads exactly \"FROM THREE ROOMS AWAY\", with every letter correct.",
+        "One caption is at the top of the image and the other is at the bottom.",
+        "The image holds no text other than the two captions.",
+        "Every caption letter is a capital.",
+        "The caption letters are white with a black outline.",
+        "The caption font is a bold, narrow sans-serif like Impact.",
+        "There is exactly one dog.",
+        "The dog has a long golden coat, like a golden retriever.",
+        "The dog looks up toward the camera.",
+        "The dog's head is tilted to one side.",
+        "The floor and the cabinets show a kitchen."
+      ]
+    },
+    {
+      "id": "photo-dog-v1",
+      "name": "photo-dog",
+      "prompt": "A photorealistic photo of a black-and-white border collie that lies on a red-and-white checkered picnic blanket in a sunny park. The dog wears a bright blue collar with a round silver tag, and a yellow tennis ball rests between its front paws. A wicker picnic basket stands on the blanket behind the dog. Green grass and a few trees in the soft-focus background. Late-afternoon sun from the left. Shot at the dog's eye level with a shallow depth of field.",
+      "checklist": [
+        "The image looks like a real photograph, not a drawing or a 3D render.",
+        "There is exactly one dog.",
+        "The dog's coat is black and white.",
+        "The dog lies down on a blanket.",
+        "The blanket has a red-and-white checkered pattern.",
+        "The dog wears a blue collar.",
+        "A round silver tag hangs from the collar.",
+        "A yellow tennis ball lies between the dog's front paws.",
+        "A wicker picnic basket stands on the blanket behind the dog.",
+        "Green grass and trees show in the background.",
+        "The background is out of focus and the dog is sharp.",
+        "The sunlight comes from the left side of the image."
+      ]
+    },
+    {
+      "id": "cartoon-v1",
+      "name": "cartoon",
+      "prompt": "A flat vector cartoon illustration with thick black outlines and flat colors, no shading or gradients. A smiling orange cat sits on a green armchair. To the left of the armchair is a small round brown table that holds a white mug and a green cactus in a purple pot. A yellow floor lamp stands to the right of the armchair. The wall behind is light blue with one square window that shows a crescent moon. The floor is a plain grey rug.",
+      "checklist": [
+        "The image is a flat cartoon illustration, not a photo or a 3D render.",
+        "The shapes have thick black outlines.",
+        "The colors are flat, with no gradients or soft shading.",
+        "An orange cat sits on a green armchair.",
+        "The cat smiles.",
+        "A round brown table stands to the left of the armchair.",
+        "A white mug stands on the table.",
+        "A green cactus in a purple pot stands on the table.",
+        "A yellow floor lamp stands to the right of the armchair.",
+        "The wall is light blue.",
+        "There is exactly one window; it is square and shows a crescent moon.",
+        "The floor is a grey rug."
+      ]
+    },
+    {
+      "id": "crowded-v1",
+      "name": "crowded",
+      "prompt": "A photorealistic wide view of a tidy playroom. Exactly three red balls lie on the floor to the left of a blue wooden chair. Two yellow rubber ducks sit on the seat of the chair. To the right of the chair stands a stack of exactly four wooden blocks: green at the bottom, then white, then orange, then black at the top. A brown teddy bear sits behind the chair, against a white wall. A round green rug lies under the chair. Bright, even daylight from a window.",
+      "checklist": [
+        "The image looks like a real photograph, not a drawing or a 3D render.",
+        "There are exactly three red balls.",
+        "All three red balls are to the left of the chair.",
+        "The chair is blue.",
+        "There are exactly two yellow rubber ducks.",
+        "Both ducks sit on the seat of the chair.",
+        "A stack of exactly four blocks stands to the right of the chair.",
+        "From bottom to top the blocks are green, white, orange and black.",
+        "There is exactly one teddy bear, and it is brown.",
+        "The teddy bear is behind the chair.",
+        "The wall behind the chair is white.",
+        "A round green rug lies under the chair."
+      ]
+    }
+  ]
+}

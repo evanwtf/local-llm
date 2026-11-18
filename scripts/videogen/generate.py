@@ -36,6 +36,12 @@ outlet energy comes from `outlet.py` after the request ends.
 
 `--probe` runs one request into `~/bench-logs/videogen/probe/` and logs the
 timing. A probe is not a scored clip, and it may run from a draft arms file.
+
+**Image arms (#1424).** An arm in `image-arms-v1.json` or
+`edit-arms-v1.json` makes one PNG (`image.png`) instead of a clip, through
+`imagegen.py`; `--clip` then names an image prompt (`--prompt` is the same
+flag). The checks, the GPU settle, the samplers and the outlet energy are
+the same code (`prepare`, `measured_post`, `finish`).
 """
 
 from __future__ import annotations
@@ -57,7 +63,7 @@ import urllib.parse
 import urllib.request
 import uuid
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any
+from typing import Any, Protocol
 from zoneinfo import ZoneInfo
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -70,9 +76,13 @@ import remote
 from videogen import outlet
 from videogen.common import (
     DEFAULT_ROOT,
+    EDIT_ARMS_FILE,
+    IMAGE_ARMS_FILE,
+    IMAGE_INPUTS_ROOT,
     FfmpegError,
     InsideRepo,
     file_url,
+    prompt_name,
     refuse_inside_repo,
     run,
     sha256,
@@ -86,6 +96,9 @@ NY = ZoneInfo("America/New_York")
 ARMS_FILE = REPO / "benchmarks" / "videogen" / "arms-v1.json"
 PROMPTS_FILE = REPO / "benchmarks" / "videogen" / "prompts" / "v1.json"
 REFS_FILE = REPO / "benchmarks" / "videogen" / "refs-v1.json"
+#: Every arms file. An arm name is unique across them (a test checks), so
+#: `--arm` alone picks the file.
+ARMS_FILES = (ARMS_FILE, IMAGE_ARMS_FILE, EDIT_ARMS_FILE)
 ENDPOINT = "/v1/videos/sync"
 
 #: Two hours. A 50-step H3 clip at 1280x704 can take over an hour on one
@@ -188,8 +201,47 @@ def forbidden_flags(argv: Sequence[str]) -> list[str]:
     ]
 
 
-def check_server(name: str, block: Mapping[str, Any]) -> None:
-    """Raise ValueError if a server block is incomplete or unsafe."""
+def media_of(arms: Mapping[str, Any]) -> str:
+    """`video` or `image`. The video arms file predates the key."""
+    return str(arms.get("media") or "video")
+
+
+def find_arms_file(
+    arm: str, files: Sequence[pathlib.Path] = ARMS_FILES
+) -> pathlib.Path:
+    """The arms file that defines `arm`. Raise Refused if none does."""
+    for path in files:
+        if arm in load_json(path).get("arms", {}):
+            return path
+    known = sorted(a for path in files for a in load_json(path).get("arms", {}))
+    raise Refused(f"no arm {arm!r}; the arms are {known}")
+
+
+def all_servers(
+    files: Sequence[pathlib.Path] = ARMS_FILES,
+) -> dict[str, tuple[dict[str, Any], str]]:
+    """Server name -> (its block, the file's media), over every arms file.
+
+    One server may serve arms in two files (FLUX.2-klein makes images and
+    edits). Its blocks must then be identical, or the command would depend
+    on which file was read first: that raises ValueError.
+    """
+    found: dict[str, tuple[dict[str, Any], str]] = {}
+    for path in files:
+        arms = load_json(path)
+        for name, block in arms.get("servers", {}).items():
+            if name in found and found[name][0] != block:
+                raise ValueError(f"server {name}: two arms files give different blocks")
+            found[name] = (block, media_of(arms))
+    return found
+
+
+def check_server(name: str, block: Mapping[str, Any], media: str = "video") -> None:
+    """Raise ValueError if a server block is incomplete or unsafe.
+
+    Only a video server needs VLLM_OMNI_VIDEO_SYNC_TIMEOUT: the image
+    endpoints have no server-side sync timeout.
+    """
     for key in ("node", "port", "served_model_name", "vllm_omni", "env", "scope"):
         if key not in block:
             raise ValueError(f"server {name}: no {key}")
@@ -203,7 +255,9 @@ def check_server(name: str, block: Mapping[str, Any]) -> None:
         named = None
     if named != block["served_model_name"]:
         raise ValueError(f"server {name}: argv must pass --served-model-name")
-    if block["env"].get("VLLM_OMNI_VIDEO_SYNC_TIMEOUT") != str(int(TIMEOUT_S)):
+    if media == "video" and block["env"].get("VLLM_OMNI_VIDEO_SYNC_TIMEOUT") != str(
+        int(TIMEOUT_S)
+    ):
         raise ValueError(f"server {name}: VLLM_OMNI_VIDEO_SYNC_TIMEOUT must be 7200")
     if block["node"] not in ("head", "worker"):
         raise ValueError(f"server {name}: node must be head or worker")
@@ -238,7 +292,7 @@ def check_arms(arms: Mapping[str, Any]) -> None:
 def prompt_for(prompts: Mapping[str, Any], clip: str) -> tuple[str, str]:
     """(prompt id, prompt text) for a clip name such as `dog-a`."""
     for entry in prompts["clips"]:
-        if pathlib.PurePath(entry["ref"]).stem == clip:
+        if prompt_name(entry) == clip:
             return str(entry["id"]), str(entry["prompt"])
     raise Refused(f"no prompt for clip {clip!r} in {PROMPTS_FILE.name}")
 
@@ -323,6 +377,18 @@ def load_image(
     return Image(path.name, data)
 
 
+def server_record(arm: Mapping[str, Any], server: Mapping[str, Any]) -> dict[str, Any]:
+    """An arm's server block as run.json records it; batch.py compares it."""
+    return {
+        "name": arm["server"],
+        "served_model_name": server["served_model_name"],
+        "vllm_omni": server["vllm_omni"],
+        "argv": list(server["argv"]),
+        "env": dict(server["env"]),
+        "scope": dict(server["scope"]),
+    }
+
+
 @dataclasses.dataclass(frozen=True)
 class Plan:
     """Everything one request needs, settled before it is sent."""
@@ -339,19 +405,16 @@ class Plan:
     server: Mapping[str, Any]
     arms_file: pathlib.Path = ARMS_FILE
 
+    @property
+    def output_name(self) -> str:
+        return "clip.mp4"
+
     def request(self) -> dict[str, Any]:
         return request_record(self.fields, self.image)
 
     def server_config(self) -> dict[str, Any]:
         """The server block as run.json records it; batch.py compares it."""
-        return {
-            "name": self.arm["server"],
-            "served_model_name": self.server["served_model_name"],
-            "vllm_omni": self.server["vllm_omni"],
-            "argv": list(self.server["argv"]),
-            "env": dict(self.server["env"]),
-            "scope": dict(self.server["scope"]),
-        }
+        return server_record(self.arm, self.server)
 
     def expect(self) -> dict[str, Any]:
         """What ffprobe must find in the clip."""
@@ -364,6 +427,72 @@ class Plan:
         }
 
 
+class AnyPlan(Protocol):
+    """What the shared run code needs of a video Plan or an image plan."""
+
+    @property
+    def arm_name(self) -> str: ...
+
+    @property
+    def arm(self) -> Mapping[str, Any]: ...
+
+    @property
+    def arms_status(self) -> str: ...
+
+    @property
+    def arms_file(self) -> pathlib.Path: ...
+
+    @property
+    def clip(self) -> str: ...
+
+    @property
+    def seed(self) -> int: ...
+
+    @property
+    def server(self) -> Mapping[str, Any]: ...
+
+    @property
+    def output_name(self) -> str: ...
+
+    def request(self) -> dict[str, Any]: ...
+
+    def server_config(self) -> dict[str, Any]: ...
+
+
+def plan_for(
+    arm_name: str,
+    clip: str,
+    seed: int,
+    *,
+    frames_root: pathlib.Path,
+    fallback: bool = False,
+    arms_file: pathlib.Path | None = None,
+    inputs_root: pathlib.Path = IMAGE_INPUTS_ROOT,
+) -> AnyPlan:
+    """The plan for any arm: a video `Plan`, or an `imagegen.ImagePlan`.
+
+    `arms_file` None finds the file that defines the arm. `fallback` and
+    `frames_root` apply only to a video arm; `inputs_root` only to an edit
+    arm (#1424).
+    """
+    if arms_file is None:
+        arms_file = find_arms_file(arm_name)
+    if media_of(load_json(arms_file)) == "image":
+        from videogen import imagegen  # imagegen imports this module
+
+        return imagegen.make_plan(
+            arm_name, clip, seed, arms_file=arms_file, inputs_root=inputs_root
+        )
+    return make_plan(
+        arm_name,
+        clip,
+        seed,
+        frames_root=frames_root,
+        fallback=fallback,
+        arms_file=arms_file,
+    )
+
+
 def make_plan(
     arm_name: str,
     clip: str,
@@ -373,8 +502,10 @@ def make_plan(
     fallback: bool = False,
     arms_file: pathlib.Path = ARMS_FILE,
 ) -> Plan:
-    """Read the arms, prompts and refs files and build the request."""
+    """Read the arms, prompts and refs files and build a video request."""
     arms = load_json(arms_file)
+    if media_of(arms) != "video":
+        raise Refused(f"{arms_file.name} holds image arms; use plan_for")
     check_arms(arms)
     if arm_name not in arms["arms"]:
         raise Refused(f"no arm {arm_name!r}; the arms are {sorted(arms['arms'])}")
@@ -404,10 +535,14 @@ def make_plan(
 # ------------------------------------------------------------------ http ----
 
 
-def encode_multipart(
-    fields: Mapping[str, str], image: Image | None, boundary: str
+#: One file part of a form: (field name, file name, content type, bytes).
+FilePart = tuple[str, str, str, bytes]
+
+
+def encode_parts(
+    fields: Mapping[str, str], files: Sequence[FilePart], boundary: str
 ) -> bytes:
-    """A multipart/form-data body: the fields, then the image if any."""
+    """A multipart/form-data body: the fields, then the files in order."""
     out: list[bytes] = []
     for name, value in fields.items():
         out.append(
@@ -415,15 +550,25 @@ def encode_multipart(
             f"\r\n\r\n".encode()
         )
         out.append(value.encode() + b"\r\n")
-    if image is not None:
+    for name, filename, content_type, data in files:
         out.append(
             f"--{boundary}\r\nContent-Disposition: form-data; "
-            f'name="input_reference"; filename="{image.name}"\r\n'
-            "Content-Type: image/png\r\n\r\n".encode()
+            f'name="{name}"; filename="{filename}"\r\n'
+            f"Content-Type: {content_type}\r\n\r\n".encode()
         )
-        out.append(image.data + b"\r\n")
+        out.append(data + b"\r\n")
     out.append(f"--{boundary}--\r\n".encode())
     return b"".join(out)
+
+
+def encode_multipart(
+    fields: Mapping[str, str], image: Image | None, boundary: str
+) -> bytes:
+    """A multipart/form-data body: the fields, then the image if any."""
+    files: list[FilePart] = []
+    if image is not None:
+        files.append(("input_reference", image.name, "image/png", image.data))
+    return encode_parts(fields, files, boundary)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -690,7 +835,7 @@ def default_out(
 
 
 def preflight(
-    plan: Plan, server: str, host: str, role: str, deps: Deps
+    plan: AnyPlan, server: str, host: str, role: str, deps: Deps
 ) -> dict[str, Any]:
     """Check the server and the GPU before the request. Raise Refused.
 
@@ -747,6 +892,181 @@ def wait_for_idle(host: str, role: str, deps: Deps) -> dict[str, Any]:
     return {"gpu_w_before": watts, "settle_s": elapsed, "settle_readings": readings}
 
 
+@dataclasses.dataclass(frozen=True)
+class Prepared:
+    """What the checks before a request settled: where to read, and what."""
+
+    role: str
+    host: str
+    server_seen: dict[str, Any]
+
+
+def prepare(
+    plan: AnyPlan,
+    server: str,
+    out: pathlib.Path,
+    *,
+    probe: bool,
+    node: str | None,
+    metrics_host: str | None,
+    allow_draft: bool,
+    overwrite: bool,
+    deps: Deps,
+) -> Prepared:
+    """Every check before a request, for a clip or an image. Raise Refused.
+
+    Then make `out` and clear its old output and run.json, so a failure
+    later cannot leave an old output beside a new run.json that describes a
+    different request.
+    """
+    try:
+        refuse_inside_repo(out)
+    except InsideRepo as err:
+        raise Refused(str(err)) from err
+    if plan.arms_status != "locked" and not probe and not allow_draft:
+        raise Refused(
+            f"the arms file is {plan.arms_status!r}, not 'locked': a scored run "
+            "needs fixed settings. Run --probe, lock the file, or pass --allow-draft."
+        )
+    output, run_path = out / plan.output_name, out / "run.json"
+    if (output.exists() or run_path.exists()) and not overwrite:
+        raise Refused(f"{out} already holds a run; pass --overwrite to replace it")
+    role = node or str(plan.server["node"])
+    host = metrics_host or urllib.parse.urlsplit(server).hostname or ""
+    server_seen = preflight(plan, server, host, role, deps)
+    out.mkdir(parents=True, exist_ok=True)
+    output.unlink(missing_ok=True)
+    run_path.unlink(missing_ok=True)
+    return Prepared(role=role, host=host, server_seen=server_seen)
+
+
+def base_record(
+    plan: AnyPlan,
+    prepared: Prepared,
+    *,
+    probe: bool,
+    prompts_file: pathlib.Path,
+    endpoint: str,
+    deps: Deps,
+) -> dict[str, Any]:
+    """The run.json fields that a clip and an image share, before the request."""
+    return {
+        "schema": 2,
+        "probe": probe,
+        "arm": plan.arm_name,
+        "mode": plan.arm["mode"],
+        "clip": plan.clip,
+        "arms_file": plan.arms_file.name,
+        "arms_status": plan.arms_status,
+        "arms_sha256": sha256(plan.arms_file),
+        "prompts_sha256": sha256(prompts_file),
+        "model": plan.arm["model"],
+        "revision": plan.arm["revision"],
+        "seed": plan.seed,
+        "request": plan.request(),
+        "server_config": plan.server_config(),
+        "server": prepared.server_seen,
+        "endpoint": endpoint,
+        "node": {"role": prepared.role},
+        "client_machine": deps.machine(),
+    }
+
+
+@dataclasses.dataclass(frozen=True)
+class Measured:
+    """One timed request: the reply or the error, and what was read meanwhile."""
+
+    reply: Reply | None
+    error: str | None
+    start: datetime.datetime
+    end: datetime.datetime
+    wall_s: float
+    record: dict[str, Any]
+
+
+def measured_post(
+    url: str,
+    body: bytes,
+    content_type: str,
+    timeout: float,
+    host: str,
+    deps: Deps,
+) -> Measured:
+    """POST once while two threads read the GPU power and the node memory.
+
+    The record holds start and end (America/New_York), wall seconds, the HTTP
+    status, the server headers, the GPU power, the peak memory and the
+    sample misses: the run.json fields of every request, clip or image.
+    """
+    gpu = Sampler(lambda: deps.gpu(host), deps.sample_s)
+    mem = Sampler(lambda: deps.mem(host), deps.sample_s)
+    start = deps.now()
+    t0 = time.monotonic()
+    gpu.start()
+    mem.start()
+    reply: Reply | None = None
+    error: str | None = None
+    try:
+        reply = deps.post(url, body, content_type, timeout)
+    except (OSError, ValueError, http.client.HTTPException) as err:
+        error = f"request failed: {type(err).__name__}: {err}"
+    finally:
+        wall = time.monotonic() - t0
+        end = deps.now()
+        gpu.stop()
+        mem.stop()
+    record = {
+        "start": iso(start),
+        "end": iso(end),
+        "wall_s": round(wall, 3),
+        "http_status": reply.status if reply else None,
+        "server_headers": {
+            h: reply.headers[h]
+            for h in SERVER_HEADERS
+            if reply is not None and h in reply.headers
+        },
+        "gpu_power": gpu_stats([w for _, w in gpu.samples]),
+        "memory": mem_stats([m for _, m in mem.samples]),
+        "sample_misses": {"gpu": gpu.misses, "memory": mem.misses},
+    }
+    return Measured(reply, error, start, end, wall, record)
+
+
+def finish(
+    record: dict[str, Any],
+    measured: Measured,
+    error: str | None,
+    role: str,
+    run_path: pathlib.Path,
+    deps: Deps,
+) -> bool:
+    """Add the outlet energy and the status, and write run.json.
+
+    Returns whether the outlet reading is complete. A partial reading stays
+    under `outlet`; only a complete one is the top-level `energy_wh`.
+    """
+    record["outlet"] = outlet.energy(
+        outlet.entity(role),
+        measured.start,
+        measured.end,
+        flux=deps.flux,
+        sleep=deps.sleep,
+    )
+    complete = bool(record["outlet"]["complete"])
+    record["energy_wh"] = record["outlet"]["energy_wh"] if complete else None
+    record["status"] = "failed" if error else "ok"
+    record["error"] = clip_error(error) if error else None
+    write_json(run_path, record)
+    if not error and not complete:
+        logger.warning(
+            "the outlet reading is incomplete (max gap %s s, %s); energy_wh is "
+            "None and batch.py will not count this run",
+            record["outlet"]["max_gap_s"],
+            record["outlet"]["error"] or "the readings do not cover the window",
+        )
+    return complete
+
+
 def run_one(
     plan: Plan,
     server: str,
@@ -762,99 +1082,43 @@ def run_one(
     """Make one clip. Returns 0, FAILED (run.json says why) or REFUSED."""
     deps = deps or Deps()
     try:
-        refuse_inside_repo(out)
-    except InsideRepo as err:
-        logger.error("%s", err)
-        return REFUSED
-    if plan.arms_status != "locked" and not probe and not allow_draft:
-        logger.error(
-            "the arms file is %r, not 'locked': a scored run needs fixed settings. "
-            "Run --probe, lock the file, or pass --allow-draft.",
-            plan.arms_status,
+        prepared = prepare(
+            plan,
+            server,
+            out,
+            probe=probe,
+            node=node,
+            metrics_host=metrics_host,
+            allow_draft=allow_draft,
+            overwrite=overwrite,
+            deps=deps,
         )
-        return REFUSED
-    clip_path, run_path = out / "clip.mp4", out / "run.json"
-    if (clip_path.exists() or run_path.exists()) and not overwrite:
-        logger.error("%s already holds a run; pass --overwrite to replace it", out)
-        return REFUSED
-    role = node or str(plan.server["node"])
-    host = metrics_host or urllib.parse.urlsplit(server).hostname or ""
-    try:
-        server_seen = preflight(plan, server, host, role, deps)
     except Refused as err:
         logger.error("%s", err)
         return REFUSED
-
-    out.mkdir(parents=True, exist_ok=True)
-    # Clear the old pair first, so a failure below cannot leave an old clip
-    # beside a new run.json that describes a different request.
-    clip_path.unlink(missing_ok=True)
-    run_path.unlink(missing_ok=True)
-
-    record: dict[str, Any] = {
-        "schema": 2,
-        "probe": probe,
-        "arm": plan.arm_name,
-        "mode": plan.arm["mode"],
-        "clip": plan.clip,
-        "prompt_id": plan.prompt_id,
-        "arms_file": plan.arms_file.name,
-        "arms_status": plan.arms_status,
-        "arms_sha256": sha256(plan.arms_file),
-        "prompts_sha256": sha256(PROMPTS_FILE),
-        "model": plan.arm["model"],
-        "revision": plan.arm["revision"],
-        "size": "fallback" if plan.fallback else "primary",
-        "seed": plan.seed,
-        "request": plan.request(),
-        "server_config": plan.server_config(),
-        "server": server_seen,
-        "endpoint": ENDPOINT,
-        "node": {"role": role},
-        "client_machine": deps.machine(),
-    }
-
-    gpu = Sampler(lambda: deps.gpu(host), deps.sample_s)
-    mem = Sampler(lambda: deps.mem(host), deps.sample_s)
-    boundary = "videogen-" + uuid.uuid4().hex
-    body = encode_multipart(plan.fields, plan.image, boundary)
-    start = deps.now()
-    t0 = time.monotonic()
-    gpu.start()
-    mem.start()
-    reply: Reply | None = None
-    error: str | None = None
-    try:
-        reply = deps.post(
-            server.rstrip("/") + ENDPOINT,
-            body,
-            f"multipart/form-data; boundary={boundary}",
-            TIMEOUT_S,
-        )
-    except (OSError, ValueError, http.client.HTTPException) as err:
-        error = f"request failed: {type(err).__name__}: {err}"
-    finally:
-        wall = time.monotonic() - t0
-        end = deps.now()
-        gpu.stop()
-        mem.stop()
-
-    record.update(
-        {
-            "start": iso(start),
-            "end": iso(end),
-            "wall_s": round(wall, 3),
-            "http_status": reply.status if reply else None,
-            "server_headers": {
-                h: reply.headers[h]
-                for h in SERVER_HEADERS
-                if reply is not None and h in reply.headers
-            },
-            "gpu_power": gpu_stats([w for _, w in gpu.samples]),
-            "memory": mem_stats([m for _, m in mem.samples]),
-            "sample_misses": {"gpu": gpu.misses, "memory": mem.misses},
-        }
+    clip_path, run_path = out / plan.output_name, out / "run.json"
+    record = base_record(
+        plan,
+        prepared,
+        probe=probe,
+        prompts_file=PROMPTS_FILE,
+        endpoint=ENDPOINT,
+        deps=deps,
     )
+    record["prompt_id"] = plan.prompt_id
+    record["size"] = "fallback" if plan.fallback else "primary"
+
+    boundary = "videogen-" + uuid.uuid4().hex
+    measured = measured_post(
+        server.rstrip("/") + ENDPOINT,
+        encode_multipart(plan.fields, plan.image, boundary),
+        f"multipart/form-data; boundary={boundary}",
+        TIMEOUT_S,
+        prepared.host,
+        deps,
+    )
+    record.update(measured.record)
+    reply, error = measured.reply, measured.error
     if error is None and reply is not None:
         if reply.status != 200:
             text = reply.body[:2000].decode("utf-8", "replace")
@@ -870,15 +1134,7 @@ def run_one(
             "bytes": clip_path.stat().st_size,
             "sha256": sha256(clip_path),
         }
-    record["outlet"] = outlet.energy(
-        outlet.entity(role), start, end, flux=deps.flux, sleep=deps.sleep
-    )
-    # A partial reading stays under `outlet`; only a complete one is a number.
-    complete = record["outlet"]["complete"]
-    record["energy_wh"] = record["outlet"]["energy_wh"] if complete else None
-    record["status"] = "failed" if error else "ok"
-    record["error"] = clip_error(error) if error else None
-    write_json(run_path, record)
+    finish(record, measured, error, prepared.role, run_path, deps)
 
     if error:
         clip_path.unlink(missing_ok=True)
@@ -886,13 +1142,6 @@ def run_one(
             "%s %s seed %d failed: %s", plan.arm_name, plan.clip, plan.seed, error
         )
         return FAILED
-    if not complete:
-        logger.warning(
-            "the outlet reading is incomplete (max gap %s s, %s); energy_wh is "
-            "None and batch.py will not count this run",
-            record["outlet"]["max_gap_s"],
-            record["outlet"]["error"] or "the readings do not cover the window",
-        )
     logger.info(
         "%s%s %s seed %d: %.1f s wall (server %s s), %s Wh, GPU mean %s W, "
         "peak memory %s GiB -> %s",
@@ -900,7 +1149,7 @@ def run_one(
         plan.arm_name,
         plan.clip,
         plan.seed,
-        wall,
+        measured.wall_s,
         record["server_headers"].get("x-inference-time-s", "n/a"),
         record["energy_wh"],
         record["gpu_power"]["mean_w"],
@@ -908,6 +1157,21 @@ def run_one(
         clip_path,
     )
     return 0
+
+
+def run_plan(plan: AnyPlan, server: str, out: pathlib.Path, **kw: Any) -> int:
+    """`run_one` for a video plan, `imagegen.run_one` for an image plan.
+
+    `kw` goes through unchanged: probe, node, metrics_host, allow_draft,
+    overwrite and deps.
+    """
+    from videogen import imagegen  # imagegen imports this module
+
+    if isinstance(plan, imagegen.ImagePlan):
+        return imagegen.run_one(plan, server, out, **kw)
+    if isinstance(plan, Plan):
+        return run_one(plan, server, out, **kw)
+    raise TypeError(f"not a plan: {type(plan).__name__}")
 
 
 def keep_clip(
@@ -945,8 +1209,19 @@ def keep_clip(
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--arm", required=True, help="an arm in arms-v1.json")
-    p.add_argument("--clip", required=True, choices=["dog-a", "dog-b", "dog-c"])
+    p.add_argument(
+        "--arm",
+        required=True,
+        help="an arm in arms-v1.json, image-arms-v1.json or edit-arms-v1.json",
+    )
+    p.add_argument(
+        "--clip",
+        "--prompt",
+        dest="clip",
+        required=True,
+        help="a clip (dog-a) or an image prompt name (meme-text); the arms "
+        "file's 'clips' lists them",
+    )
     p.add_argument("--seed", required=True, type=int)
     p.add_argument("--server", required=True, help="http://HOST:PORT of vLLM-Omni")
     p.add_argument(
@@ -961,6 +1236,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=pathlib.Path,
         default=DEFAULT_ROOT / "frames",
         help="where frames.py wrote <clip>/first.png",
+    )
+    p.add_argument(
+        "--inputs-root",
+        type=pathlib.Path,
+        default=IMAGE_INPUTS_ROOT,
+        help="where an edit arm's input images are",
     )
     p.add_argument("--node", choices=["head", "worker"], help="override the arm's node")
     p.add_argument(
@@ -980,12 +1261,13 @@ def main(argv: list[str] | None = None) -> int:
     logs.configure()
     args = build_parser().parse_args(argv)
     try:
-        plan = make_plan(
+        plan = plan_for(
             args.arm,
             args.clip,
             args.seed,
             frames_root=args.frames_root.expanduser(),
             fallback=args.fallback,
+            inputs_root=args.inputs_root.expanduser(),
         )
     except (Refused, ValueError, TypeError, KeyError) as err:
         logger.error("%s", err)
@@ -996,7 +1278,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.out
         else default_out(args.arm, args.clip, args.seed, args.probe, stamp)
     )
-    return run_one(
+    return run_plan(
         plan,
         args.server,
         out.resolve(),

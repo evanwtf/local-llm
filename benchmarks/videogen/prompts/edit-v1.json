@@ -1,0 +1,84 @@
+{
+  "version": "edit-v1",
+  "media": "image",
+  "status": "draft",
+  "note": "Image-edit instructions and judge checklists for #1424. Freeze before the first scored run; after that a change is a new version file. Each entry's 'inputs' names its input images, in the order they are sent, under ~/bench-logs/videogen/ref/imagegen/, with the sha256 that generate.py and judge.py check. The input images never go in this repository. No text here names or describes a person in an input image.",
+  "template": "instruction; what to keep",
+  "defects": [
+    "garbled or misspelled text",
+    "an unrequested change (a part of the input that the instruction did not ask to change)",
+    "a distorted face or body",
+    "visible artifacts (noise, seams, smears, blur patches)",
+    "the frame is cropped, shifted or stretched (compared with image 1)",
+    "a watermark, logo or signature"
+  ],
+  "clips": [
+    {
+      "id": "caption-swap-v1",
+      "name": "caption-swap",
+      "inputs": [
+        {"file": "meme-base.jpg", "sha256": "28c77475739ac7c04905e284dfaf4b066779bc171c4f2ee612871433b0ab0f6f", "width": 596, "height": 335}
+      ],
+      "prompt": "Replace the white subtitle text at the bottom of the image with this two-line subtitle, exactly as written, in the same font, size, color and position as the old subtitle. First line: \"I did not eat the couch.\" Second line: \"The couch was already like that.\" Remove every trace of the old subtitle. Change nothing else in the image.",
+      "checklist": [
+        "The first subtitle line reads exactly \"I did not eat the couch.\", with every letter and the period correct.",
+        "The second subtitle line reads exactly \"The couch was already like that.\", with every letter and the period correct.",
+        "The subtitle has exactly two lines, and the first line ends after \"couch.\".",
+        "No word of the old subtitle remains.",
+        "The edit adds no text other than the new subtitle.",
+        "The subtitle text is white, as in image 1.",
+        "The subtitle font looks the same as the font of the subtitle in image 1.",
+        "The subtitle is at the bottom of the image and centered, where the subtitle of image 1 is.",
+        "The subtitle letters are about the same size as in image 1.",
+        "The person looks the same as in image 1: the same face, hair, clothes and pose.",
+        "The framing is the same as in image 1: nothing is cropped, shifted, zoomed or stretched.",
+        "The background is the same as in image 1."
+      ]
+    },
+    {
+      "id": "restyle-v1",
+      "name": "restyle",
+      "inputs": [
+        {"file": "meme-base.jpg", "sha256": "28c77475739ac7c04905e284dfaf4b066779bc171c4f2ee612871433b0ab0f6f", "width": 596, "height": 335}
+      ],
+      "prompt": "Redraw this whole image as a flat cartoon illustration with thick black outlines and flat colors, with no photographic texture. Keep the same composition: the person in the same place and pose, the same background layout and the same framing. Keep the white two-line subtitle at the bottom exactly as it is, word for word, in the same position.",
+      "checklist": [
+        "The image is a flat cartoon illustration, not a photograph.",
+        "The shapes have dark outlines.",
+        "The colors are flat, with little or no photographic texture or gradient.",
+        "The person is in the same place in the frame as in image 1.",
+        "The person has the same pose as in image 1.",
+        "The person's hair and clothes keep the colors of image 1.",
+        "The background keeps the layout of shapes and objects of image 1.",
+        "The framing is the same as in image 1: nothing is cropped, shifted or zoomed.",
+        "The subtitle has the same words as in image 1, word for word, with every letter correct.",
+        "The subtitle line break is in the same place as in image 1.",
+        "The subtitle text is white and at the bottom, where it is in image 1.",
+        "The subtitle is easy to read."
+      ]
+    },
+    {
+      "id": "face-swap-v1",
+      "name": "face-swap",
+      "inputs": [
+        {"file": "meme-base.jpg", "sha256": "28c77475739ac7c04905e284dfaf4b066779bc171c4f2ee612871433b0ab0f6f", "width": 596, "height": 335},
+        {"file": "face-ref.jpg", "sha256": "5544a5ace87cf6331b0ac25223de9fa742fac6d36c508d94ef6279376c24878e", "width": 588, "height": 441}
+      ],
+      "prompt": "Replace the face of the person in image 1 with the face of the person in image 2. Keep the head pose, the gaze direction, the lighting, the clothing, the framing, the background and the white subtitle exactly as they are in image 1. Blend the new face into the jaw, the neck and the light of image 1.",
+      "checklist": [
+        "The face matches the person in image 2: the same face shape.",
+        "The hair color and hair length match the person in image 2.",
+        "The eye color matches the person in image 2.",
+        "The head pose (tilt and turn) is the same as in image 1.",
+        "The gaze points the same way as in image 1.",
+        "The skin tone and the light blend at the jaw and the neck, with no visible edge.",
+        "There is exactly one face, with no double or ghosted features.",
+        "The shirt is the same as in image 1.",
+        "The background is the same as in image 1.",
+        "The framing is the same as in image 1: nothing is cropped, shifted, zoomed or stretched.",
+        "The subtitle has the same words as in image 1, word for word, and is easy to read.",
+        "The face shows no artifacts: no smears, seams or melted features."
+      ]
+    }
+  ]
+}

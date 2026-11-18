@@ -16,11 +16,45 @@ import os
 import pathlib
 import shutil
 import subprocess
+from collections.abc import Mapping
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 #: Where clips and frames live by default. Outside every repository on purpose.
 DEFAULT_ROOT = pathlib.Path.home() / "bench-logs" / "videogen"
+#: The repository's video-gen settings: arms, prompts and refs files.
+BENCH_DIR = pathlib.Path(__file__).resolve().parents[2] / "benchmarks" / "videogen"
+#: The image arms (#1424): text-to-image, and image edits. Each names its
+#: prompts file under `prompts`.
+IMAGE_ARMS_FILE = BENCH_DIR / "image-arms-v1.json"
+EDIT_ARMS_FILE = BENCH_DIR / "edit-arms-v1.json"
+#: The input images of the image-edit arms (#1424). Private, like the clips.
+IMAGE_INPUTS_ROOT = DEFAULT_ROOT / "ref" / "imagegen"
+#: The first 8 bytes of every PNG file.
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def prompt_name(entry: Mapping[str, Any]) -> str:
+    """The run directories' name for a prompt entry.
+
+    An image prompt names itself (`name`, #1424). A video prompt is named by
+    its reference clip's stem (`ref: dog-a.mp4` is `dog-a`).
+    """
+    if entry.get("name"):
+        return str(entry["name"])
+    return pathlib.PurePath(str(entry["ref"])).stem
+
+
+def png_size(data: bytes) -> tuple[int, int] | None:
+    """(width, height) from a PNG's IHDR chunk, or None if `data` is no PNG.
+
+    The IHDR chunk always comes first: 8 signature bytes, a 4-byte length,
+    `IHDR`, then the width and height as 4-byte big-endian numbers.
+    """
+    if len(data) < 24 or data[:8] != PNG_SIGNATURE or data[12:16] != b"IHDR":
+        return None
+    return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
 
 
 class InsideRepo(Exception):

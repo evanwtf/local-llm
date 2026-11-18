@@ -46,6 +46,16 @@ page's inline CSS and JS; `gallery_serve.py` sends it with every response.
 
 The output must be outside every git work tree: the clips are private and
 this repository is public.
+
+**Images (#1424).** A run whose run.json says `media: image` is an image
+card: `out/<arm>/<prompt>-s<seed>/image.png`, linked as
+`media/out/<arm>/<run dir>.png`. Image prompts come from
+`prompts/image-v1.json` and `prompts/edit-v1.json`, and the page puts them
+after the video prompts, under their own headings ("Images", "Image edits").
+An image prompt gets a section only once it has a run. An edit card shows
+its input images beside the output, linked from `ref/imagegen/<file>` as
+`media/inputs/<file>`. Each image card shows the same summary as a clip:
+the seconds, the Wh, the peak memory, the steps, the seed and the score.
 """
 
 from __future__ import annotations
@@ -70,7 +80,13 @@ from typing import Any
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from videogen.common import DEFAULT_ROOT, InsideRepo, refuse_inside_repo
+from videogen.common import (
+    BENCH_DIR,
+    DEFAULT_ROOT,
+    InsideRepo,
+    prompt_name,
+    refuse_inside_repo,
+)
 
 import logs
 
@@ -79,6 +95,11 @@ logger = logging.getLogger(__name__)
 REPO = pathlib.Path(__file__).resolve().parents[2]
 PROMPTS_FILE = REPO / "benchmarks" / "videogen" / "prompts" / "v1.json"
 REFS_FILE = REPO / "benchmarks" / "videogen" / "refs-v1.json"
+#: The image prompts (#1424): text-to-image, then edits.
+IMAGE_PROMPTS_FILES = (
+    BENCH_DIR / "prompts" / "image-v1.json",
+    BENCH_DIR / "prompts" / "edit-v1.json",
+)
 
 INDEX = "index.html"
 #: The CSP for the page, beside it. A hidden name, so the server never
@@ -93,6 +114,11 @@ LONG_TEXT = 120
 
 #: One path component we are willing to put in a link: no dot, no slash.
 SAFE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+#: An edit's input image name: one plain PNG or JPEG file name.
+SAFE_FILE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*\.(png|jpg|jpeg)$")
+VIDEO, IMAGE, EDIT = "video", "image", "edit"
+#: The page's parts, in order, and their headings.
+PARTS = ((VIDEO, "Video"), (IMAGE, "Images"), (EDIT, "Image edits"))
 #: `<clip>-s<seed>` (scored) or `<clip>-s<seed>-<stamp>` (probe).
 RUN_DIR = re.compile(r"^(?P<clip>.+?)-s(?P<seed>\d+)(?:-(?P<stamp>[0-9T]+))?$")
 
@@ -129,9 +155,25 @@ class Card:
         return f"{top}/{self.arm}/{self.run_dir.name}"
 
     @property
+    def is_image(self) -> bool:
+        return self.run.get("media") == "image"
+
+    @property
     def video(self) -> pathlib.Path | None:
         clip = self.run_dir / "clip.mp4"
-        return clip if clip.is_file() else None
+        return clip if clip.is_file() and not self.is_image else None
+
+    @property
+    def image(self) -> pathlib.Path | None:
+        image = self.run_dir / "image.png"
+        return image if image.is_file() and self.is_image else None
+
+    @property
+    def part(self) -> str:
+        """VIDEO, IMAGE (text-to-image) or EDIT: where the card goes."""
+        if not self.is_image:
+            return VIDEO
+        return EDIT if self.run.get("mode") == "edit" else IMAGE
 
     def sort_key(self) -> tuple[str, int, int, str]:
         # Scored before probe for the same arm and seed; then oldest first.
@@ -149,6 +191,9 @@ class Prompt:
     prompt_id: str | None
     text: str | None
     seconds: float | None
+    part: str = VIDEO
+    #: An edit's input image file names, in the order they are sent.
+    inputs: tuple[str, ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -186,12 +231,22 @@ def load_prompts(path: pathlib.Path) -> dict[str, Prompt]:
         )
         return {}
     found: dict[str, Prompt] = {}
+    image_file = data.get("media") == "image"
     for item in data.get("clips") or []:
-        if not isinstance(item, dict) or not item.get("ref"):
+        if not isinstance(item, dict) or not (item.get("ref") or item.get("name")):
             continue
-        clip = pathlib.PurePath(str(item["ref"])).stem
+        clip = prompt_name(item)
         if not SAFE.match(clip):
             logger.warning("skipped prompt %r: not a safe clip id", clip)
+            continue
+        inputs = tuple(
+            str(spec.get("file"))
+            for spec in item.get("inputs") or []
+            if isinstance(spec, dict)
+        )
+        bad = [name for name in inputs if not SAFE_FILE.match(name)]
+        if bad:
+            logger.warning("skipped prompt %s: unsafe input names %s", clip, bad)
             continue
         seconds = item.get("seconds")
         found[clip] = Prompt(
@@ -199,6 +254,8 @@ def load_prompts(path: pathlib.Path) -> dict[str, Prompt]:
             prompt_id=item.get("id"),
             text=item.get("prompt"),
             seconds=float(seconds) if isinstance(seconds, (int, float)) else None,
+            part=(EDIT if inputs else IMAGE) if image_file else VIDEO,
+            inputs=inputs,
         )
     return found
 
@@ -362,9 +419,15 @@ def fields_of(run: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def fmt_size(run: Mapping[str, Any]) -> str:
-    """`1280×704 (primary)`, from the request that was sent."""
+    """`1280×704 (primary)`, from the request that was sent.
+
+    An image request sends one `WxH` string (`size`) instead.
+    """
     fields = fields_of(run)
     width, height = fields.get("width"), fields.get("height")
+    size = fields.get("size")
+    if not (width and height) and isinstance(size, str) and "x" in size:
+        width, _, height = size.partition("x")
     dims = f"{width}×{height}" if width and height else DASH
     label = run.get("size")
     return f"{dims} ({label})" if label else dims
@@ -428,7 +491,12 @@ def media_url(rel: pathlib.PurePosixPath, version: str | None = None) -> str:
 
 def link_path(card: Card) -> pathlib.PurePosixPath:
     top = "out" if card.kind == SCORED else "probe"
-    return pathlib.PurePosixPath(MEDIA, top, card.arm, card.run_dir.name + ".mp4")
+    suffix = ".png" if card.is_image else ".mp4"
+    return pathlib.PurePosixPath(MEDIA, top, card.arm, card.run_dir.name + suffix)
+
+
+def input_link_path(name: str) -> pathlib.PurePosixPath:
+    return pathlib.PurePosixPath(MEDIA, "inputs", name)
 
 
 def ref_link_path(clip: str) -> pathlib.PurePosixPath:
@@ -509,6 +577,11 @@ section.prompt { border-top: 1px solid var(--line); padding: 16px 0; }
   padding: 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .card.ref { border-color: var(--accent); }
 video { width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 4px; }
+img.output { width: 100%; height: auto; background: #000; border-radius: 4px; }
+.pair { display: grid; grid-template-columns: 3fr 1fr; gap: 6px; align-items: start; }
+.inputs { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; }
+.inputs img { width: 100%; height: auto; border-radius: 4px; }
+h2.part { font-size: 1.25rem; margin: 20px 0 0; }
 img.frame { width: 100%; height: auto; border-radius: 4px; }
 .novideo { aspect-ratio: 16 / 9; display: grid; place-items: center;
   border: 1px dashed var(--line); border-radius: 4px; color: var(--muted); }
@@ -764,6 +837,8 @@ def stage_rows(raw: Any) -> str:
 
 def measure_group(run: Mapping[str, Any]) -> str:
     headers = as_dict(run.get("server_headers"))
+    # An image reply carries these in its JSON body, not in headers (#1424).
+    server_metrics = as_dict(run.get("server_metrics"))
     outlet = as_dict(run.get("outlet"))
     gpu = as_dict(run.get("gpu_power"))
     seen = as_dict(run.get("server"))
@@ -774,7 +849,13 @@ def measure_group(run: Mapping[str, Any]) -> str:
     rows = [
         ("wall", esc(wall_text)),
         ("server inference", esc(fmt_num(headers.get("x-inference-time-s"), "s"))),
-        ("stages", stage_rows(headers.get("x-stage-durations"))),
+        (
+            "stages",
+            stage_rows(
+                headers.get("x-stage-durations")
+                or server_metrics.get("stage_durations")
+            ),
+        ),
         ("energy", esc(fmt_energy(run))),
         (
             "energy complete",
@@ -795,7 +876,17 @@ def measure_group(run: Mapping[str, Any]) -> str:
         ),
         ("GPU before", esc(fmt_num(seen.get("gpu_w_before"), "W"))),
         ("peak memory", esc(fmt_peak(run))),
-        ("server peak memory", esc(fmt_num(headers.get("x-peak-memory-mb"), "MB", 0))),
+        (
+            "server peak memory",
+            esc(
+                fmt_num(
+                    headers.get("x-peak-memory-mb")
+                    or server_metrics.get("peak_memory_mb"),
+                    "MB",
+                    0,
+                )
+            ),
+        ),
         ("HTTP status", val(run.get("http_status"))),
         ("start", val(run.get("start"))),
         ("end", val(run.get("end"))),
@@ -824,6 +915,133 @@ def clip_group(run: Mapping[str, Any]) -> str:
         f"{fmt_bytes(output.get('bytes')).split(' (')[0]}"
     )
     return group("Clip check", summary, dl(rows))
+
+
+def input_names(card: Card) -> list[str]:
+    """The input image names an edit's run.json records, in order; unsafe
+    names are left out, because they become link paths."""
+    request = as_dict(card.run.get("request"))
+    inputs = request.get("inputs")
+    if not isinstance(inputs, list):
+        return []
+    names = [str(as_dict(i).get("name") or "") for i in inputs]
+    return [n for n in names if SAFE_FILE.match(n)]
+
+
+def inputs_html(names: list[str], srcs: Mapping[str, str | None]) -> str:
+    """The input images of an edit, one under the other, labeled image 1, 2."""
+    items = []
+    for n, name in enumerate(names, 1):
+        src = srcs.get(name)
+        shown = (
+            f'<img loading="lazy" alt="input image {n}" src="{esc(src)}">'
+            if src
+            else f"<code>{esc(name)}</code> (not found)"
+        )
+        items.append(f"<div>image {n}: {esc(name)}{shown}</div>")
+    return f'<div class="inputs">{"".join(items)}</div>'
+
+
+def output_tag(src: str | None) -> str:
+    if src is None:
+        return '<div class="novideo">no image</div>'
+    return (
+        f'<img class="output" loading="lazy" alt="the output image" src="{esc(src)}">'
+    )
+
+
+def image_request_group(card: Card) -> str:
+    run = card.run
+    fields = fields_of(run)
+    request = as_dict(run.get("request"))
+    inputs = [as_dict(i) for i in request.get("inputs") or [] if isinstance(i, dict)]
+    rows = [
+        ("mode", esc(mode_of(run))),
+        ("prompt", val(fields.get("prompt"))),
+        ("negative prompt", fold(fields.get("negative_prompt"))),
+        ("size", esc(fmt_size(run))),
+        ("steps", val(fields.get("num_inference_steps"))),
+        ("guidance_scale", val(fields.get("guidance_scale"))),
+        ("true_cfg_scale", val(fields.get("true_cfg_scale"))),
+        ("seed", val(fields.get("seed", run.get("seed")))),
+    ]
+    for n, item in enumerate(inputs, 1):
+        rows.append((f"input {n}", val(item.get("path") or item.get("name"))))
+        rows.append((f"input {n} sha256", short_sha(item.get("sha256"))))
+    steps = fields.get("num_inference_steps")
+    summary = esc(
+        f"{mode_of(run)}, {fmt_size(run)}, {steps or DASH} steps, "
+        f"{len(inputs)} input image(s)"
+    )
+    return group("Request", summary, dl(rows))
+
+
+def image_check_group(run: Mapping[str, Any]) -> str:
+    found = as_dict(run.get("found"))
+    output = as_dict(run.get("output"))
+    width, height = found.get("width"), found.get("height")
+    size = f"{width}×{height}" if width and height else None
+    rows = [
+        ("size", val(size)),
+        ("format", val(found.get("format"))),
+        ("sha256", short_sha(output.get("sha256"))),
+        ("file size", esc(fmt_bytes(output.get("bytes")))),
+    ]
+    summary = esc(f"{size or DASH}, {fmt_bytes(output.get('bytes')).split(' (')[0]}")
+    return group("Image check", summary, dl(rows))
+
+
+def image_card(
+    card: Card, src: str | None, input_srcs: Mapping[str, str | None]
+) -> str:
+    run = card.run
+    status = str(run.get("status") or "unknown")
+    status_cls = "ok" if status == "ok" else "bad"
+    model = str(run.get("model") or DASH)
+    kind_tag = (
+        '<span class="tag probe">probe</span>'
+        if card.kind == PROBE
+        else '<span class="tag ok">scored</span>'
+    )
+    fields = fields_of(run)
+    rows = [
+        ("model", esc(model)),
+        ("size", esc(fmt_size(run))),
+        ("status", f'<span class="{status_cls}">{esc(status)}</span>'),
+        ("wall", esc(fmt_wall(run.get("wall_s")))),
+        ("energy", esc(fmt_energy(run))),
+        ("peak", esc(fmt_peak(run))),
+        ("steps", val(fields.get("num_inference_steps"))),
+        ("seed", val(fields.get("seed", run.get("seed")))),
+        (
+            "date",
+            f'<span title="{esc(run.get("start") or "")}">{esc(fmt_date(run))}</span>',
+        ),
+        ("scores", score_html(card)),
+    ]
+    if run.get("error"):
+        rows.insert(3, ("error", f'<span class="bad">{esc(run["error"])}</span>'))
+    names = input_names(card)
+    shown = output_tag(src)
+    if names:
+        shown = f'<div class="pair">{shown}{inputs_html(names, input_srcs)}</div>'
+    groups = "".join(
+        [
+            image_request_group(card),
+            server_group(run),
+            measure_group(run),
+            image_check_group(run),
+            raw_group(run),
+        ]
+    )
+    return (
+        f'<article class="card run" data-run="{esc(card.key)}" '
+        f'data-arm="{esc(card.arm)}" data-model="{esc(model)}" '
+        f'data-kind="{esc(card.kind)}" data-seed="{esc(card.seed)}">'
+        f"{shown}"
+        f'<div class="title">{esc(card.arm)} · seed {esc(card.seed)}{kind_tag}</div>'
+        f"{dl(rows)}{groups}</article>"
+    )
 
 
 def raw_group(run: Mapping[str, Any]) -> str:
@@ -917,6 +1135,8 @@ class Links:
     refs: Mapping[str, str | None]
     videos: Mapping[str, str | None]
     frames: Mapping[str, str | None]
+    #: An edit's input image name -> its URL (#1424).
+    inputs: Mapping[str, str | None] = dataclasses.field(default_factory=dict)
 
 
 def render(
@@ -926,33 +1146,65 @@ def render(
     links: Links,
     frames_root: pathlib.Path,
 ) -> str:
-    """The whole page. Deterministic: the same inputs give the same bytes."""
-    clips = sorted({c.clip for c in cards} | set(prompts))
+    """The whole page. Deterministic: the same inputs give the same bytes.
+
+    The video prompts come first, each with a section even before its first
+    run. Then the image prompts and the edit prompts, under their own
+    headings, each once it has a run (#1424).
+    """
+    by_part: dict[str, list[str]] = {
+        VIDEO: sorted(
+            {c.clip for c in cards if c.part == VIDEO}
+            | {k for k, p in prompts.items() if p.part == VIDEO}
+        ),
+        IMAGE: sorted({c.clip for c in cards if c.part == IMAGE}),
+        EDIT: sorted({c.clip for c in cards if c.part == EDIT}),
+    }
+    headed = bool(by_part[IMAGE] or by_part[EDIT])
+    clips = [clip for part, _ in PARTS for clip in by_part[part]]
     sections = []
-    for clip in clips:
-        group_cards = sorted((c for c in cards if c.clip == clip), key=Card.sort_key)
-        prompt = prompts.get(clip)
-        text = prompt.text if prompt else None
-        if not text:
-            for card in group_cards:
-                sent = fields_of(card.run).get("prompt")
-                if sent:
-                    text = str(sent)
-                    break
-        pid = f" ({prompt.prompt_id})" if prompt and prompt.prompt_id else ""
-        items = [ref_card(clip, links.refs.get(clip), prompt, refs_info.get(clip, {}))]
-        items += [
-            run_card(c, links.videos.get(c.key), links.frames.get(c.clip), frames_root)
-            for c in group_cards
-        ]
-        sections.append(
-            f'<section class="prompt" data-clip="{esc(clip)}">'
-            f'<div class="prompt-head"><h2>{esc(clip)}{esc(pid)}</h2>'
-            f'<button class="playall" type="button">play all from the start</button>'
-            f"</div>"
-            f'<p class="prompt-text">{esc(text or "no prompt text found")}</p>'
-            f'<div class="grid">{"".join(items)}</div></section>'
-        )
+    for part, heading in PARTS:
+        if headed and by_part[part]:
+            sections.append(f'<h2 class="part">{esc(heading)}</h2>')
+        for clip in by_part[part]:
+            group_cards = sorted(
+                (c for c in cards if c.clip == clip and c.part == part),
+                key=Card.sort_key,
+            )
+            prompt = prompts.get(clip)
+            text = prompt.text if prompt else None
+            if not text:
+                for card in group_cards:
+                    sent = fields_of(card.run).get("prompt")
+                    if sent:
+                        text = str(sent)
+                        break
+            pid = f" ({prompt.prompt_id})" if prompt and prompt.prompt_id else ""
+            if part == VIDEO:
+                ref = refs_info.get(clip, {})
+                items = [ref_card(clip, links.refs.get(clip), prompt, ref)]
+                frame = links.frames.get(clip)
+                items += [
+                    run_card(c, links.videos.get(c.key), frame, frames_root)
+                    for c in group_cards
+                ]
+                button = (
+                    '<button class="playall" type="button">'
+                    "play all from the start</button>"
+                )
+            else:
+                items = [
+                    image_card(c, links.videos.get(c.key), links.inputs)
+                    for c in group_cards
+                ]
+                button = ""
+            sections.append(
+                f'<section class="prompt" data-clip="{esc(clip)}">'
+                f'<div class="prompt-head"><h2>{esc(clip)}{esc(pid)}</h2>'
+                f"{button}</div>"
+                f'<p class="prompt-text">{esc(text or "no prompt text found")}</p>'
+                f'<div class="grid">{"".join(items)}</div></section>'
+            )
     models = sorted({str(c.run.get("model") or DASH) for c in cards})
     arms = sorted({c.arm for c in cards})
     seeds = sorted({c.seed for c in cards})
@@ -1021,6 +1273,8 @@ def build(
     *,
     prompts_file: pathlib.Path = PROMPTS_FILE,
     refs_file: pathlib.Path = REFS_FILE,
+    image_prompts_files: Iterable[pathlib.Path] = IMAGE_PROMPTS_FILES,
+    inputs_root: pathlib.Path | None = None,
 ) -> BuildResult:
     """Build or refresh the site. Raises InsideRepo for an output in a repo."""
     root = root.expanduser().resolve()
@@ -1033,6 +1287,11 @@ def build(
 
     cards = find_cards(root)
     prompts = load_prompts(prompts_file)
+    for path in image_prompts_files:
+        for clip, prompt in load_prompts(path).items():
+            prompts.setdefault(clip, prompt)
+    # The edits' input images (common.IMAGE_INPUTS_ROOT under the default root).
+    inputs_root = inputs_root or root / "ref" / "imagegen"
     refs_info = load_refs(refs_file)
     keep: set[pathlib.Path] = set()
     made = 0
@@ -1058,9 +1317,18 @@ def build(
             link(frame_link_path(clip), target)
             frames[clip] = media_url(frame_link_path(clip))
 
+    inputs: dict[str, str | None] = {}
+    for name in sorted({n for c in cards if c.part == EDIT for n in input_names(c)}):
+        target = inputs_root / name
+        inputs[name] = None
+        if target.is_file():
+            link(input_link_path(name), target)
+            inputs[name] = media_url(input_link_path(name))
+
     videos: dict[str, str | None] = {}
     for card in cards:
-        video = card.video
+        # A clip, or an image (#1424); the link's suffix says which.
+        video = card.image if card.is_image else card.video
         videos[card.key] = None
         if video is None:
             continue
@@ -1075,7 +1343,9 @@ def build(
     # would load with its CSS and JS blocked.
     write_atomic(out / CSP_FILE, csp() + "\n")
     index = out / INDEX
-    page = render(cards, prompts, refs_info, Links(refs, videos, frames), frames_root)
+    page = render(
+        cards, prompts, refs_info, Links(refs, videos, frames, inputs), frames_root
+    )
     changed = write_atomic(index, page)
     result = BuildResult(
         index=index,

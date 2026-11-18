@@ -715,3 +715,208 @@ def test_a_score_for_another_clip_is_refused(layout: Layout) -> None:
 def test_the_page_has_a_relative_logout_form(layout: Layout) -> None:
     _, _, page = build(layout)
     assert page.forms == [{"class": "logout", "method": "post", "action": "logout"}]
+
+
+# ----------------------------------------------------------------- images ----
+# #1424: image and edit runs get their own sections, after the video ones.
+
+IMAGE_PROMPTS = {
+    "version": "image-v1",
+    "media": "image",
+    "clips": [{"id": "meme-text-v1", "name": "meme-text", "prompt": "A meme dog."}],
+}
+EDIT_PROMPTS = {
+    "version": "edit-v1",
+    "media": "image",
+    "clips": [
+        {
+            "id": "face-swap-v1",
+            "name": "face-swap",
+            "prompt": "Swap the face.",
+            "inputs": [
+                {"file": "meme-base.jpg", "sha256": "0" * 64},
+                {"file": "face-ref.jpg", "sha256": "1" * 64},
+            ],
+        }
+    ],
+}
+
+
+def image_run(
+    arm: str, clip: str, seed: int, mode: str, **change: Any
+) -> dict[str, Any]:
+    inputs = (
+        [
+            {"name": "meme-base.jpg", "path": "/x/meme-base.jpg", "sha256": "a" * 64},
+            {"name": "face-ref.jpg", "path": "/x/face-ref.jpg", "sha256": "b" * 64},
+        ]
+        if mode == "edit"
+        else []
+    )
+    run = {
+        "schema": 2,
+        "media": "image",
+        "mode": mode,
+        "arm": arm,
+        "clip": clip,
+        "seed": seed,
+        "model": "Tongyi-MAI/Z-Image-Turbo",
+        "revision": "f332072aa7",
+        "status": "ok",
+        "start": "2026-11-18T20:00:00-0500",
+        "end": "2026-11-18T20:00:09-0500",
+        "wall_s": 9.4,
+        "energy_wh": 0.6,
+        "outlet": {"energy_wh": 0.6, "complete": True, "max_gap_s": 5.0},
+        "memory": {"peak_used_gib": 31.2},
+        "request": {
+            "fields": {
+                "prompt": "A meme dog.",
+                "size": "1024x1024",
+                "num_inference_steps": 9,
+                "guidance_scale": 0.0,
+                "seed": seed,
+            },
+            "inputs": inputs,
+        },
+        "server_headers": {},
+        "server_metrics": {"stage_durations": None, "peak_memory_mb": 41000.0},
+        "found": {"width": 1024, "height": 1024, "format": "png"},
+        "output": {"sha256": "c" * 64, "bytes": 3_000_000},
+    }
+    run.update(change)
+    return run
+
+
+def image_layout(layout: Layout, tmp_path: pathlib.Path) -> list[pathlib.Path]:
+    root = layout[0]
+    for arm, clip, mode in (
+        ("z-image-turbo", "meme-text", "t2i"),
+        ("qwen-image-edit", "face-swap", "edit"),
+    ):
+        run = image_run(arm, clip, 1, mode)
+        d = add_run(root, "out", arm, f"{clip}-s1", run, False)
+        (d / "image.png").write_bytes(b"\x89PNG " + arm.encode())
+    inputs = root / "ref" / "imagegen"
+    inputs.mkdir(parents=True)
+    (inputs / "meme-base.jpg").write_bytes(b"\xff\xd8 base")
+    # face-ref.jpg is missing on purpose: the card says so.
+    image_file = tmp_path / "image-v1.json"
+    image_file.write_text(json.dumps(IMAGE_PROMPTS))
+    edit_file = tmp_path / "edit-v1.json"
+    edit_file.write_text(json.dumps(EDIT_PROMPTS))
+    return [image_file, edit_file]
+
+
+def build_images(layout: Layout, tmp_path: pathlib.Path) -> tuple[str, Page]:
+    files = image_layout(layout, tmp_path)
+    root, prompts, refs = layout
+    result = gallery.build(
+        root,
+        root / "gallery",
+        prompts_file=prompts,
+        refs_file=refs,
+        image_prompts_files=files,
+    )
+    text = result.index.read_text()
+    page = Page()
+    page.feed(text)
+    return text, page
+
+
+def test_image_sections_follow_the_video_ones_under_headings(
+    layout: Layout, tmp_path: pathlib.Path
+) -> None:
+    text, page = build_images(layout, tmp_path)
+    assert list(page.sections) == ["dog-a", "dog-b", "meme-text", "face-swap"]
+    assert text.index(">Images</h2>") < text.index('data-clip="meme-text"')
+    assert text.index(">Image edits</h2>") < text.index('data-clip="face-swap"')
+    assert "A meme dog." in text and "Swap the face." in text
+    # No reference card and no "play all" button in an image section.
+    meme = text[text.index('data-clip="meme-text"') :]
+    meme = meme[: meme.index("</section>")]
+    assert "playall" not in meme and "data-ref" not in meme
+
+
+def test_an_image_card_links_its_png_and_shows_the_summary(
+    layout: Layout, tmp_path: pathlib.Path
+) -> None:
+    text, _ = build_images(layout, tmp_path)
+    root = layout[0]
+    link = root / "gallery" / "media" / "out" / "z-image-turbo" / "meme-text-s1.png"
+    assert link.is_symlink()
+    run_dir = root / "out" / "z-image-turbo" / "meme-text-s1"
+    assert link.resolve() == run_dir / "image.png"
+    card = card_html(text, "out/z-image-turbo/meme-text-s1")
+    assert 'class="output"' in card
+    assert 'src="media/out/z-image-turbo/meme-text-s1.png?v=cccccccccccc"' in card
+    for want in (
+        "9 s",
+        "0.6 Wh",
+        "31.2 GiB",
+        "<dt>steps</dt><dd>9</dd>",
+        "<dt>seed</dt><dd>1</dd>",
+    ):
+        assert want in card
+    assert "1024×1024" in card
+    assert "not scored" in card
+    assert "41000 MB" in card  # the server's peak memory, from the JSON body
+    assert "<video" not in card
+
+
+def test_an_edit_card_shows_its_inputs_beside_the_output(
+    layout: Layout, tmp_path: pathlib.Path
+) -> None:
+    text, page = build_images(layout, tmp_path)
+    root = layout[0]
+    card = card_html(text, "out/qwen-image-edit/face-swap-s1")
+    assert '<div class="pair">' in card
+    assert 'alt="input image 1" src="media/inputs/meme-base.jpg"' in card
+    assert "face-ref.jpg</code> (not found)" in card
+    link = root / "gallery" / "media" / "inputs" / "meme-base.jpg"
+    assert link.resolve() == root / "ref" / "imagegen" / "meme-base.jpg"
+    assert page.external == []
+
+
+def test_an_unsafe_input_name_in_run_json_makes_no_link(
+    layout: Layout, tmp_path: pathlib.Path
+) -> None:
+    root = layout[0]
+    run = image_run("qwen-image-edit", "face-swap", 2, "edit")
+    run["request"]["inputs"] = [{"name": "../../secret.jpg"}]
+    add_run(root, "out", "qwen-image-edit", "face-swap-s2", run, False)
+    _, page = build_images(layout, tmp_path)
+    # The name may show as text in the Request group, but never as a link.
+    assert not [i for i in page.images if "secret" in (i.get("src") or "")]
+    assert not list((root / "gallery" / "media").rglob("*secret*"))
+
+
+def test_an_image_score_shows_on_the_card(
+    layout: Layout, tmp_path: pathlib.Path
+) -> None:
+    root = layout[0]
+    scores = root / "scores" / "z-image-turbo"
+    scores.mkdir(parents=True)
+    (scores / "meme-text-s1.json").write_text(
+        json.dumps(
+            {
+                "schema": 1,
+                "adherence": {"passed": 10, "total": 12},
+                "defects": 1,
+                "clip_sha256": "c" * 64,
+            }
+        )
+    )
+    text, _ = build_images(layout, tmp_path)
+    card = card_html(text, "out/z-image-turbo/meme-text-s1")
+    assert "adherence 10/12 (83%), defects 1" in card
+
+
+def test_the_csp_still_names_the_page_css_and_js(
+    layout: Layout, tmp_path: pathlib.Path
+) -> None:
+    build_images(layout, tmp_path)
+    policy = (layout[0] / "gallery" / gallery.CSP_FILE).read_text()
+    assert gallery.csp_hash(gallery.CSS) in policy
+    assert gallery.csp_hash(gallery.JS) in policy
+    assert "img-src 'self'" in policy

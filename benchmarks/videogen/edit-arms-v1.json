@@ -1,0 +1,89 @@
+{
+  "version": "edit-v1",
+  "media": "image",
+  "status": "draft",
+  "issues": [1424],
+  "prompts": "prompts/edit-v1.json",
+  "note": "Fixed request settings per arm for the image-edit screen (#1424). Draft until one timing probe per model; then lock it, and a change is a new version file. 'clips' names the edit prompts. The input images live in ~/bench-logs/videogen/ref/imagegen/, never in this repository; prompts/edit-v1.json pins each one by sha256. scripts/videogen/generate.py refuses a scored run from a file that is not locked.",
+  "endpoint": "/v1/images/edits",
+  "verified_against": {
+    "vllm_omni": "0.32.0",
+    "route": "vllm_omni/entrypoints/openai/api_server.py:2318-2366 (POST /v1/images/edits, multipart form)",
+    "form_fields": "api_server.py:2331-2366: image (repeated UploadFile, or image[]), prompt, model, n, size ('auto' by default), response_format (b64_json only, :2380-2384), output_format, negative_prompt, num_inference_steps, guidance_scale, guidance_scale_2, strength, true_cfg_scale, seed. FastAPI drops an unknown form field, so generate.py refuses one before it sends.",
+    "multiple_images": "api_server.py:2396-2403: every 'image' part goes into multi_modal_data['image'] as a list, in order. The cap per model is api_server.py:2407-2421 with images/helpers.py:42-66: Flux2KleinPipeline and QwenImageEditPlusPipeline take at most 4 (diffusion/model_metadata.py:30-31, :43-50).",
+    "size": "api_server.py:2481-2489: size 'auto' uses the first input's own size (596x335 here), so the arms send an explicit size.",
+    "flux2_klein_image_input": "vllm_omni/diffusion/models/flux2_klein/pipeline_flux2_klein.py:195 (support_image_input = True) and :786-797 (one image or a list)",
+    "response": "api_server.py:2665-2681: the same JSON as /v1/images/generations (data[0].b64_json)."
+  },
+  "servers": {
+    "qwen-image-edit": {
+      "node": "head",
+      "port": 8040,
+      "served_model_name": "Qwen/Qwen-Image-Edit-2511",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn"
+      },
+      "scope": {"unit": "qwen-image-edit-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/imagegen/qwen-image-edit",
+        "--omni", "--host", "0.0.0.0", "--port", "8040", "--init-timeout", "3600",
+        "--num-gpus", "1", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--served-model-name", "Qwen/Qwen-Image-Edit-2511"
+      ],
+      "note": "The video servers' GB10 flags (--enforce-eager, CUDNN_ATTN), bf16 (no --quantization), no video-only flags."
+    },
+    "flux2-klein-4b": {
+      "node": "worker",
+      "port": 8041,
+      "served_model_name": "black-forest-labs/FLUX.2-klein-4B",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn"
+      },
+      "scope": {"unit": "flux2-klein-4b-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/imagegen/flux2-klein-4b",
+        "--omni", "--host", "0.0.0.0", "--port", "8041", "--init-timeout", "3600",
+        "--num-gpus", "1", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--served-model-name", "black-forest-labs/FLUX.2-klein-4B"
+      ],
+      "note": "The GB10 flags of the other image servers. The same block is in image-arms-v1.json and edit-arms-v1.json, and a test keeps the two identical: one server serves the t2i arm and the edit arm."
+    }
+  },
+  "clips": ["caption-swap", "restyle", "face-swap"],
+  "seeds": [1, 2, 3],
+  "arms": {
+    "qwen-image-edit": {
+      "mode": "edit",
+      "server": "qwen-image-edit",
+      "model": "Qwen/Qwen-Image-Edit-2511",
+      "revision": "6f3ccc0b56",
+      "pipeline": "QwenImageEditPlusPipeline",
+      "form": {
+        "width": 1024,
+        "height": 576,
+        "num_inference_steps": 40,
+        "true_cfg_scale": 4.0,
+        "guidance_scale": 1.0,
+        "negative_prompt": " "
+      },
+      "sources": "40 steps, true_cfg_scale 4.0, guidance_scale 1.0 and negative_prompt ' ' (one space): the model card's multi-image example (README.md at 6f3ccc0b56). The card gives no size; 1024x576 keeps the 16:9 input's aspect (596x335) at about 0.6 MP, and both edit arms use it so the outputs compare."
+    },
+    "flux2-klein-4b-edit": {
+      "mode": "edit",
+      "server": "flux2-klein-4b",
+      "model": "black-forest-labs/FLUX.2-klein-4B",
+      "revision": "e7b7dc27f9",
+      "pipeline": "Flux2KleinPipeline",
+      "form": {"width": 1024, "height": 576, "num_inference_steps": 4, "guidance_scale": 1.0},
+      "sources": "4 steps and guidance 1.0: the model card's diffusers example (README.md at e7b7dc27f9), which is text-to-image; the card has no edit example, and the same distilled settings apply to its multi-reference editing. 1024x576 as qwen-image-edit."
+    }
+  }
+}

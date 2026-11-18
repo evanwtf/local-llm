@@ -36,6 +36,17 @@ or item would put a score on the wrong run with no error anywhere.
 
 The blind directory, the key and the scores live outside every git work tree:
 the frames are private and this repository is public.
+
+**Image arms (#1424).** For an arm in `image-arms-v1.json` or
+`edit-arms-v1.json`, the image itself is the evidence: `blind` copies the
+run's `image.png` (checked against the sha256 its run.json records) to
+`DIR/<prompt>/<id>/image.png`, with no frame extraction. An edit prompt's
+input images go once to `DIR/<prompt>/input/image-1.jpg`, `image-2.jpg`,
+..., checked against the sha256 that `prompts/edit-v1.json` pins, and the
+judge prompt names them as the reference. The ids, the fixed mtime, the
+random order, the key outside DIR and `ingest` are the same as for clips.
+`--arms-file`, `--prompts` and `--clips` default to the file that defines
+the arms, its prompts file and its prompt list.
 """
 
 from __future__ import annotations
@@ -59,7 +70,15 @@ from typing import Any
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from videogen.common import DEFAULT_ROOT, InsideRepo, refuse_inside_repo, sha256
+from videogen.common import (
+    DEFAULT_ROOT,
+    EDIT_ARMS_FILE,
+    IMAGE_ARMS_FILE,
+    InsideRepo,
+    prompt_name,
+    refuse_inside_repo,
+    sha256,
+)
 from videogen.gallery import parse_score
 
 import logs
@@ -69,8 +88,11 @@ logger = logging.getLogger(__name__)
 REPO = pathlib.Path(__file__).resolve().parents[2]
 PROMPTS_FILE = REPO / "benchmarks" / "videogen" / "prompts" / "v1.json"
 ARMS_FILE = REPO / "benchmarks" / "videogen" / "arms-v1.json"
-DEFAULT_CLIPS = ("dog-a", "dog-b", "dog-c")
+ARMS_FILES = (ARMS_FILE, IMAGE_ARMS_FILE, EDIT_ARMS_FILE)
 REFUSED = 2
+IMAGE = "image.png"
+#: The folder of an edit prompt's input images, beside the candidates' ids.
+INPUT_DIR = "input"
 OLD_KEY = "key.json"  # the first blind dirs kept the key inside; see ingest
 PROMPT = "PROMPT.md"
 ID_CHARS = string.ascii_lowercase + string.digits
@@ -119,6 +141,47 @@ you can see clearly.
 Reply with one JSON object and nothing else:
 {{"<id>": {{"items": [{{"n": 1, "true": true, "why": "..."}}, ...], \
 "defects": [{{"type": "...", "frame": "...", "note": "..."}}]}}, ...}}
+"""
+
+
+IMAGE_PROMPT = """\
+You are a blind judge for an image evaluation. You score generated images. \
+You do not know where the images came from. Judge only what you see in the \
+images. Do not guess about anything you cannot see.
+{inputs}
+For each candidate, read `image.png` in its folder with the Read tool.
+
+Candidates:
+{folders}
+
+Do not open any other file{other}, and do not read any file outside those \
+folders.
+
+## Task 1: adherence
+Mark each checklist item true or false. Give a reason of 15 words or fewer that \
+points to a part of the image (for example "bottom caption: ROOMS misspelled").
+
+Checklist (the same for every candidate):
+{checklist}
+
+## Task 2: defects
+Count each defect you see from this fixed list. Put where it is in the image \
+in "frame" (for example "lower left"):
+{defects}
+
+Count only a defect you can see clearly.
+
+## Report
+Reply with one JSON object and nothing else:
+{{"<id>": {{"items": [{{"n": 1, "true": true, "why": "..."}}, ...], \
+"defects": [{{"type": "...", "frame": "...", "note": "..."}}]}}, ...}}
+"""
+
+INPUTS_TEXT = """
+Every candidate is an edit of the same input image(s), made from the same \
+instruction. Read the input images first. They are the reference, not \
+candidates; "image 1" and "image 2" in the checklist mean these files:
+{lines}
 """
 
 
@@ -174,12 +237,13 @@ def load_prompts(path: pathlib.Path) -> tuple[str, dict[str, list[str]], list[st
     """(version, run-dir clip id -> checklist, fixed defect list).
 
     The run directories name a clip by its reference stem (`dog-a`), and the
-    prompt file names it `dog-a-v1`; the `ref` field links the two.
+    prompt file names it `dog-a-v1`; the `ref` field links the two. An image
+    prompt names itself (`name`).
     """
     data = read_object(path)
     checklists: dict[str, list[str]] = {}
     for item in data.get("clips") or []:
-        clip = pathlib.PurePath(str(item["ref"])).stem
+        clip = prompt_name(item)
         checklist = [str(line) for line in item.get("checklist") or []]
         if not checklist:
             raise Refused(f"{path}: {clip} has an empty checklist")
@@ -188,6 +252,49 @@ def load_prompts(path: pathlib.Path) -> tuple[str, dict[str, list[str]], list[st
     if not checklists or not defects:
         raise Refused(f"{path} holds no checklist or no defect list")
     return str(data.get("version")), checklists, defects
+
+
+def load_inputs(path: pathlib.Path) -> dict[str, list[dict[str, Any]]]:
+    """Prompt name -> its input image specs ({file, sha256}), for edit prompts."""
+    data = read_object(path)
+    out: dict[str, list[dict[str, Any]]] = {}
+    for item in data.get("clips") or []:
+        specs = item.get("inputs") or []
+        if specs:
+            out[prompt_name(item)] = [dict(s) for s in specs]
+    return out
+
+
+def resolve(
+    arms: Sequence[str],
+    arms_file: pathlib.Path | None,
+    prompts_file: pathlib.Path | None,
+) -> tuple[pathlib.Path, pathlib.Path, str]:
+    """(arms file, prompts file, media) for `arms`.
+
+    With no `--arms-file`, the one file that defines every arm. With no
+    `--prompts`, the file that the arms file names (or v1.json for video).
+    """
+    if arms_file is None:
+        holders = [
+            path
+            for path in ARMS_FILES
+            if all(a in (read_object(path).get("arms") or {}) for a in arms)
+        ]
+        if len(holders) != 1:
+            raise Refused(
+                f"{list(arms)} are not all arms of one arms file; pass --arms-file"
+            )
+        arms_file = holders[0]
+    data = read_object(arms_file)
+    media = str(data.get("media") or "video")
+    if prompts_file is None:
+        prompts_file = (
+            arms_file.parent / str(data["prompts"])
+            if media == "image"
+            else PROMPTS_FILE
+        )
+    return arms_file, prompts_file, media
 
 
 def load_arms(path: pathlib.Path) -> tuple[dict[str, dict[str, Any]], list[int]]:
@@ -310,6 +417,91 @@ def find_run(
     )
 
 
+def find_image_run(
+    root: pathlib.Path, arm: str, clip: str, seed: int
+) -> tuple[Run | None, str]:
+    """(the run, "") if it is scored and has its image, else (None, why not).
+
+    Raise Refused when the image is not the one its run.json records: a
+    stale image would be scored under the wrong run.
+    """
+    out = root / "out" / arm / f"{clip}-s{seed}"
+    if not (out / "run.json").is_file():
+        return None, f"no {out / 'run.json'}"
+    run = read_json(out / "run.json")
+    if not isinstance(run, dict):
+        raise Refused(f"{out / 'run.json'} must hold a JSON object")
+    if run.get("status") != "ok":
+        return None, f"{out / 'run.json'} status is {run.get('status')!r}, not 'ok'"
+    image = out / IMAGE
+    if not image.is_file():
+        return None, f"no {image}"
+    got = sha256(image)
+    output = run.get("output")
+    if not isinstance(output, dict) or output.get("sha256") != got:
+        raise Refused(f"{image} is not the image its run.json records; remake it")
+    return (
+        Run(
+            arm=arm,
+            clip=clip,
+            seed=seed,
+            frames=out,
+            clip_path=image,
+            clip_sha256=got,
+            hashes={IMAGE: got},
+            files=(IMAGE,),
+        ),
+        "",
+    )
+
+
+def copy_inputs(
+    specs: Sequence[Mapping[str, Any]], inputs_root: pathlib.Path, folder: pathlib.Path
+) -> list[pathlib.Path]:
+    """Copy an edit prompt's input images to `folder` as image-1.<ext>, ...
+
+    Each source must match the sha256 the prompts file pins. Returns the
+    copies, in the order the request sent them.
+    """
+    folder.mkdir(parents=True)
+    copies = []
+    for n, spec in enumerate(specs, 1):
+        name = str(spec["file"])
+        source = inputs_root / name
+        suffix = pathlib.PurePath(name).suffix.lower()
+        plain = pathlib.PurePath(name).name == name and not name.startswith(".")
+        if not plain or suffix not in (".png", ".jpg", ".jpeg"):
+            raise Refused(f"{name!r} is not a plain PNG or JPEG file name")
+        if not source.is_file() or sha256(source) != spec["sha256"]:
+            raise Refused(f"{source} is missing or not the input the prompt pins")
+        copy = folder / f"image-{n}{suffix}"
+        shutil.copyfile(source, copy)
+        if sha256(copy) != spec["sha256"]:
+            raise Refused(f"{source}: the copy does not match the pinned sha256")
+        copies.append(copy)
+    return copies
+
+
+def render_image_prompt(
+    folders: Sequence[tuple[str, pathlib.Path]],
+    checklist: Sequence[str],
+    defects: Sequence[str],
+    inputs: Sequence[pathlib.Path],
+) -> str:
+    """The judge prompt for one image prompt; `inputs` are the edit's inputs."""
+    inputs_text = ""
+    if inputs:
+        lines = "\n".join(f"- image {n}: {path}" for n, path in enumerate(inputs, 1))
+        inputs_text = INPUTS_TEXT.format(lines=lines)
+    return IMAGE_PROMPT.format(
+        inputs=inputs_text,
+        folders="\n".join(f"- candidate {i}: {path}/" for i, path in folders),
+        other=" than the candidates and the input images" if inputs else "",
+        checklist="\n".join(f"{n}. {line}" for n, line in enumerate(checklist, 1)),
+        defects="\n".join(f"{n}. {d}" for n, d in enumerate(defects, 1)),
+    )
+
+
 def new_id(taken: set[str]) -> str:
     while True:
         run_id = "".join(secrets.choice(ID_CHARS) for _ in range(ID_LEN))
@@ -362,30 +554,44 @@ def default_key(root: pathlib.Path, blind_dir: pathlib.Path) -> pathlib.Path:
 def blind(
     arms: Sequence[str],
     *,
-    clips: Sequence[str],
+    clips: Sequence[str] | None = None,
     out: pathlib.Path,
     root: pathlib.Path = DEFAULT_ROOT,
     key_path: pathlib.Path | None = None,
-    prompts_file: pathlib.Path = PROMPTS_FILE,
-    arms_file: pathlib.Path = ARMS_FILE,
+    prompts_file: pathlib.Path | None = None,
+    arms_file: pathlib.Path | None = None,
+    inputs_root: pathlib.Path | None = None,
     allow_missing: bool = False,
 ) -> dict[str, list[str]]:
-    """Write the blind directory and its key. Return clip -> ids, in prompt order."""
-    for name in (*arms, *clips):
+    """Write the blind directory and its key. Return clip -> ids, in prompt order.
+
+    `clips` None means every prompt the arms file lists. `inputs_root` None
+    means `<root>/ref/imagegen` (an edit prompt's input images).
+    """
+    for name in arms:
+        if not SAFE.match(name):
+            raise Refused(f"{name!r} is not a safe arm or clip name")
+    arms_file, prompts_file, media = resolve(arms, arms_file, prompts_file)
+    if clips is None:
+        clips = [str(c) for c in read_object(arms_file).get("clips") or []]
+    for name in clips:
         if not SAFE.match(name):
             raise Refused(f"{name!r} is not a safe arm or clip name")
     root = root.expanduser().resolve()
     out = out.expanduser().resolve()
     key_path = (key_path or default_key(root, out)).expanduser().resolve()
+    inputs_root = (inputs_root or root / "ref" / "imagegen").expanduser()
     arm_cfg, seeds = load_arms(arms_file)
     unknown = [a for a in arms if a not in arm_cfg]
     if unknown:
         raise Refused(f"{unknown} are not arms in {arms_file}")
     refuse_out(out, key_path, model_names(arm_cfg))
     version, checklists, defects = load_prompts(prompts_file)
+    input_specs = load_inputs(prompts_file) if media == "image" else {}
     for clip in clips:
         if clip not in checklists:
             raise Refused(f"{clip} has no checklist in {prompts_file}")
+    finder = find_image_run if media == "image" else find_run
 
     runs: list[Run] = []
     missing: list[str] = []
@@ -393,16 +599,17 @@ def blind(
         found = 0
         for clip in clips:
             for seed in seeds:
-                run, why = find_run(root, arm, clip, seed)
+                run, why = finder(root, arm, clip, seed)
                 if run is None:
                     logger.warning("missing run %s %s-s%d: %s", arm, clip, seed, why)
                     missing.append(f"{arm} {clip}-s{seed}: {why}")
                 else:
                     runs.append(run)
                     found += 1
-        logger.info("%s: %d scored runs with frames", arm, found)
+        evidence = "images" if media == "image" else "frames"
+        logger.info("%s: %d scored runs with %s", arm, found, evidence)
         if found == 0:
-            raise Refused(f"{arm} has no scored run with frames under {root}")
+            raise Refused(f"{arm} has no scored run with {evidence} under {root}")
     if missing and not allow_missing:
         raise Refused(
             f"{len(missing)} expected runs are missing (pass --allow-missing "
@@ -419,6 +626,7 @@ def blind(
         "root": str(root),
         "blind_dir": str(out),
         "prompts": version,
+        "media": media,
         "arms": list(arms),
         "missing": missing,
         "checklists": {clip: checklists[clip] for clip in clips},
@@ -453,16 +661,29 @@ def blind(
                 "clip_sha256": run.clip_sha256,
             }
         order: dict[str, list[str]] = {}
+        inputs: dict[str, list[str]] = {}
         for clip, ids in ids_by_clip.items():
             if not ids:
                 logger.warning("%s: no runs, so no prompt", clip)
                 continue
             rng.shuffle(ids)
             order[clip] = ids
-            text = render_prompt(
-                [(i, out / clip / i) for i in ids], checklists[clip], defects
-            )
+            folders = [(i, out / clip / i) for i in ids]
+            if media == "image":
+                folder = stage / clip / INPUT_DIR
+                copies = (
+                    copy_inputs(input_specs[clip], inputs_root, folder)
+                    if clip in input_specs
+                    else []
+                )
+                # The judge reads the final paths, not the stage's.
+                shown = [out / clip / INPUT_DIR / c.name for c in copies]
+                inputs[clip] = [str(p) for p in shown]
+                text = render_image_prompt(folders, checklists[clip], defects, shown)
+            else:
+                text = render_prompt(folders, checklists[clip], defects)
             (stage / clip / PROMPT).write_text(text)
+        key["inputs"] = inputs
         key["order"] = order
         fix_times(stage)
         key_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -737,7 +958,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("blind", help="copy the frames into blinded folders")
     b.add_argument("--arms", nargs="+", required=True)
-    b.add_argument("--clips", nargs="+", default=list(DEFAULT_CLIPS))
+    b.add_argument(
+        "--clips",
+        nargs="+",
+        help="clips or image prompts (default: every one the arms file lists)",
+    )
     b.add_argument("--out", type=pathlib.Path, required=True)
     b.add_argument(
         "--root",
@@ -750,8 +975,21 @@ def build_parser() -> argparse.ArgumentParser:
         type=pathlib.Path,
         help="where to write the key (default: ROOT/judge/keys/<OUT name>.json)",
     )
-    b.add_argument("--prompts", type=pathlib.Path, default=PROMPTS_FILE)
-    b.add_argument("--arms-file", type=pathlib.Path, default=ARMS_FILE)
+    b.add_argument(
+        "--prompts",
+        type=pathlib.Path,
+        help="default: the prompts file of the arms file (v1.json for video)",
+    )
+    b.add_argument(
+        "--arms-file",
+        type=pathlib.Path,
+        help="default: the one arms file that defines every --arms",
+    )
+    b.add_argument(
+        "--inputs-root",
+        type=pathlib.Path,
+        help="an edit prompt's input images (default: ROOT/ref/imagegen)",
+    )
     b.add_argument(
         "--allow-missing",
         action="store_true",
@@ -795,6 +1033,7 @@ def main(argv: list[str] | None = None) -> int:
                 key_path=args.key,
                 prompts_file=args.prompts,
                 arms_file=args.arms_file,
+                inputs_root=args.inputs_root,
                 allow_missing=args.allow_missing,
             )
         else:

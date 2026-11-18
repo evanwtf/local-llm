@@ -39,6 +39,15 @@ Nothing in a run stops the export.
 Two batches (one per node) write the same file, so the scan and the write
 hold an exclusive `flock` on `<root>/.metrics.lock`.
 
+**Images (#1424)** get their own families, `videogen_images{status}` and
+`videogen_image_*`, with the labels `arm`, `model`, `node`, `mode` (t2i or
+edit), `kind`, `width` and `height`; no `fps`. Their own families, not a
+label on the clip families: an image has no frames, no fps and no video
+seconds, and a label would put image wall seconds into
+`videogen_wall_seconds`, so every existing query over it (frames per wall
+second, the real-time factor) would mix the two. There is no image server
+time: the image endpoints send no `x-inference-time-s`.
+
 The file is a pure function of the run.json files, except
 `videogen_metrics_build_timestamp_seconds`. The script writes it through a
 temp file in the same directory and a rename, so a scrape never reads half
@@ -79,6 +88,8 @@ SCORED, PROBE = "scored", "probe"
 UNKNOWN = "unknown"
 #: The label names of every series, in this order.
 LABELS = ("arm", "model", "node", "mode", "kind", "width", "height", "fps")
+#: The label names of the image series (#1424): an image has no fps.
+IMAGE_LABELS = ("arm", "model", "node", "mode", "kind", "width", "height")
 #: Held around the scan and the write, so two batches cannot interleave.
 LOCK_FILE = ".metrics.lock"
 #: How long a writer waits for the lock. A scan takes milliseconds; a holder
@@ -109,11 +120,25 @@ class Ok:
 
 
 @dataclasses.dataclass(frozen=True)
+class ImageOk:
+    """The measurements of one ok image run (#1424)."""
+
+    wall_s: float
+    end: float
+    energy_wh: float | None
+    steps: int | None
+    peak_gib: float | None
+
+
+@dataclasses.dataclass(frozen=True)
 class Run:
     path: pathlib.Path
     labels: LabelSet
     status: str
     ok: Ok | None
+    #: "video" (labels in LABELS, `ok`) or "image" (IMAGE_LABELS, `image`).
+    media: str = "video"
+    image: ImageOk | None = None
 
 
 # ---------------------------------------------------------------- reading ----
@@ -237,6 +262,44 @@ def ok_of(run: Mapping[str, Any]) -> Ok | str:
     )
 
 
+def image_size(run: Mapping[str, Any]) -> tuple[Any, Any]:
+    """(width, height) an image run asked for: `expected`, the request's
+    `WxH` size, then the PNG it found."""
+    expected = as_dict(run.get("expected"))
+    size = as_dict(as_dict(run.get("request")).get("fields")).get("size")
+    asked = str(size).partition("x") if isinstance(size, str) else ("", "", "")
+    found = as_dict(run.get("found"))
+    return (
+        label_number(expected.get("width"), asked[0], found.get("width")),
+        label_number(expected.get("height"), asked[2], found.get("height")),
+    )
+
+
+def image_labels_of(run: Mapping[str, Any], arm: str, kind: str) -> LabelSet:
+    """The label values of an image run, in IMAGE_LABELS order."""
+    width, height = image_size(run)
+    return labels_of(run, arm, kind)[:5] + (width, height)
+
+
+def image_ok_of(run: Mapping[str, Any]) -> ImageOk | str:
+    """The measurements of an ok image run, or why they are incomplete."""
+    wall = positive(run.get("wall_s"))
+    end = timestamp(run.get("end"))
+    if wall is None or end is None:
+        missing = [n for n, v in (("wall_s", wall), ("end", end)) if v is None]
+        return "it says ok but has no " + ", ".join(missing)
+    steps = positive(
+        as_dict(as_dict(run.get("request")).get("fields")).get("num_inference_steps")
+    )
+    return ImageOk(
+        wall_s=wall,
+        end=end,
+        energy_wh=number(run.get("energy_wh")),
+        steps=int(steps) if steps is not None else None,
+        peak_gib=positive(as_dict(run.get("memory")).get("peak_used_gib")),
+    )
+
+
 def read_run(path: pathlib.Path, kind: str) -> Run | None:
     """One run.json as a Run, or None (with a log line) if it is bad."""
     try:
@@ -251,6 +314,23 @@ def read_run(path: pathlib.Path, kind: str) -> Run | None:
     if status is None:
         logger.warning("skipped %s: no status", path)
         return None
+    arm = path.parent.parent.name
+    if data.get("media") == "image":
+        image: ImageOk | None = None
+        if status == "ok":
+            got = image_ok_of(data)
+            if isinstance(got, str):
+                logger.warning("skipped %s: %s", path, got)
+                return None
+            image = got
+        return Run(
+            path=path,
+            labels=image_labels_of(data, arm, kind),
+            status=status,
+            ok=None,
+            media="image",
+            image=image,
+        )
     ok: Ok | None = None
     if status == "ok":
         found = ok_of(data)
@@ -266,7 +346,7 @@ def read_run(path: pathlib.Path, kind: str) -> Run | None:
             )
             return None
         ok = found
-    labels = labels_of(data, path.parent.parent.name, kind)
+    labels = labels_of(data, arm, kind)
     return Run(path=path, labels=labels, status=status, ok=ok)
 
 
@@ -336,7 +416,8 @@ class Family:
 
 def render(runs: Iterable[Run], *, now: float) -> str:
     """The Prometheus text exposition of `runs`; `now` is the build time."""
-    runs = list(runs)
+    every = list(runs)
+    runs = [r for r in every if r.media == "video"]
     by_status: dict[tuple[LabelSet, str], int] = {}
     oks: dict[LabelSet, list[Ok]] = {}
     latest: dict[LabelSet, tuple[float, str, Ok]] = {}
@@ -450,6 +531,10 @@ def render(runs: Iterable[Run], *, now: float) -> str:
             last_energy.add(labels, last.energy_wh * JOULES_PER_WH)
         last_ts.add(labels, last.end)
 
+    # Only with an image run: a video-only file stays as it was before #1424.
+    image_runs = [r for r in every if r.media == "image"]
+    image_families = render_images(image_runs) if image_runs else []
+
     build = gauge(
         "videogen_metrics_build_timestamp_seconds",
         "When metrics.py last wrote this file, Unix seconds.",
@@ -473,9 +558,103 @@ def render(runs: Iterable[Run], *, now: float) -> str:
         last_peak,
         last_energy,
         last_ts,
+        *image_families,
         build,
     ]
     return "\n".join(line for family in families for line in family.lines()) + "\n"
+
+
+def render_images(runs: Sequence[Run]) -> list[Family]:
+    """The image families (#1424): one sample per IMAGE_LABELS set."""
+    by_status: dict[tuple[LabelSet, str], int] = {}
+    oks: dict[LabelSet, list[ImageOk]] = {}
+    latest: dict[LabelSet, tuple[float, str, ImageOk]] = {}
+    for run in runs:
+        key = (run.labels, run.status)
+        by_status[key] = by_status.get(key, 0) + 1
+        if run.image is None:
+            continue
+        oks.setdefault(run.labels, []).append(run.image)
+        mark = (run.image.end, str(run.path), run.image)
+        if run.labels not in latest or mark[:2] > latest[run.labels][:2]:
+            latest[run.labels] = mark
+
+    def gauge(name: str, text: str) -> Family:
+        return Family(name, "gauge", text)
+
+    images = gauge(
+        "videogen_images",
+        "Image-gen runs with a run.json now, by status (ok, failed). A gauge: "
+        "a remade run is absent while it runs.",
+    )
+    for labels, status in sorted(by_status):
+        images.add(
+            (*labels, status), by_status[(labels, status)], (*IMAGE_LABELS, "status")
+        )
+    wall = gauge(
+        "videogen_image_wall_seconds", "Client wall seconds summed over the ok images."
+    )
+    energy = gauge(
+        "videogen_image_energy_joules",
+        "Outlet energy in joules summed over the ok images with a complete "
+        "reading. Divide by videogen_image_energy_images.",
+    )
+    energy_n = gauge(
+        "videogen_image_energy_images",
+        "The ok images with a complete outlet energy reading.",
+    )
+    steps = gauge(
+        "videogen_image_steps",
+        "Denoising steps requested, summed over the ok images that record it; "
+        "divide by videogen_image_step_images.",
+    )
+    steps_n = gauge(
+        "videogen_image_step_images", "The ok images that record num_inference_steps."
+    )
+    last_wall = gauge(
+        "videogen_image_last_wall_seconds", "The latest ok image: wall seconds."
+    )
+    last_peak = gauge(
+        "videogen_image_last_peak_memory_bytes",
+        "The latest ok image: peak used memory of the whole node, bytes.",
+    )
+    last_energy = gauge(
+        "videogen_image_last_energy_joules",
+        "The latest ok image: outlet energy in joules, when its reading is complete.",
+    )
+    last_ts = gauge(
+        "videogen_image_last_timestamp_seconds",
+        "The latest ok image: its end time, Unix seconds.",
+    )
+    for labels in sorted(oks):
+        group = oks[labels]
+        wall.add(labels, sum(o.wall_s for o in group), IMAGE_LABELS)
+        with_energy = [o.energy_wh for o in group if o.energy_wh is not None]
+        energy.add(labels, sum(with_energy) * JOULES_PER_WH, IMAGE_LABELS)
+        energy_n.add(labels, len(with_energy), IMAGE_LABELS)
+        with_steps = [o.steps for o in group if o.steps is not None]
+        if with_steps:
+            steps.add(labels, sum(with_steps), IMAGE_LABELS)
+        steps_n.add(labels, len(with_steps), IMAGE_LABELS)
+        last = latest[labels][2]
+        last_wall.add(labels, last.wall_s, IMAGE_LABELS)
+        if last.peak_gib is not None:
+            last_peak.add(labels, last.peak_gib * BYTES_PER_GIB, IMAGE_LABELS)
+        if last.energy_wh is not None:
+            last_energy.add(labels, last.energy_wh * JOULES_PER_WH, IMAGE_LABELS)
+        last_ts.add(labels, last.end, IMAGE_LABELS)
+    return [
+        images,
+        wall,
+        energy,
+        energy_n,
+        steps,
+        steps_n,
+        last_wall,
+        last_peak,
+        last_energy,
+        last_ts,
+    ]
 
 
 # ---------------------------------------------------------------- writing ----
@@ -549,7 +728,7 @@ def write(
     logger.info(
         "videogen metrics: %d runs (%d ok) -> %s",
         len(runs),
-        sum(1 for r in runs if r.ok is not None),
+        sum(1 for r in runs if r.ok is not None or r.image is not None),
         path,
     )
     return path

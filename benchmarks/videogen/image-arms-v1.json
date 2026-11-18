@@ -1,0 +1,140 @@
+{
+  "version": "image-v1",
+  "media": "image",
+  "status": "draft",
+  "issues": [1424],
+  "prompts": "prompts/image-v1.json",
+  "note": "Fixed request settings per arm for the text-to-image screen (#1424). Draft until one timing probe per model; then lock it, and a change is a new version file. 'clips' names the prompts (the video file's key, so batch.py and judge.py read both files the same way). Each arm's 'sources' names where its steps and guidance come from. scripts/videogen/generate.py refuses a scored run from a file that is not locked.",
+  "endpoint": "/v1/images/generations",
+  "verified_against": {
+    "vllm_omni": "0.32.0",
+    "route": "vllm_omni/entrypoints/openai/api_server.py:2090 (POST /v1/images/generations, a JSON body, validate_json_request)",
+    "request_fields": "vllm_omni/entrypoints/openai/protocol/images.py:54-204 ImageGenerationRequest: prompt, model, n, size ('WIDTHxHEIGHT'), response_format (b64_json or file), negative_prompt, num_inference_steps (1-200), guidance_scale (0-20), true_cfg_scale (0-20), flow_shift, seed, output_format (png by default). extra='allow' (:62): an unknown key is accepted and then ignored, so generate.py refuses one before it sends.",
+    "model_check": "vllm_omni/entrypoints/openai/api_server.py:2123-2127 (a request whose model is not the served name gets 400)",
+    "response": "vllm_omni/entrypoints/openai/api_server.py:2049-2087 and protocol/images.py:207-234: JSON {created, data: [{b64_json}], output_format, size, metrics: {stage_durations, peak_memory_mb}}. No x-inference-time-s header: only /v1/videos/sync sets it (api_server.py:2855-2859).",
+    "pipeline_detection": "HiDream-O1 is found by its weights, not a model_index.json: vllm_omni/diffusion/utils/hf_utils.py:111-127 and diffusion/data.py:757-760",
+    "hidream_o1_scheduler": "vllm_omni/diffusion/models/hidream_o1_image/pipeline_hidream_o1_image.py:686-692: the default UniPC scheduler with shift 3.0, for every request. The upstream Dev recipe (flash scheduler, shift 1.0) is not available in 0.32.0, and flow_shift is not read."
+  },
+  "servers": {
+    "qwen-image": {
+      "node": "head",
+      "port": 8040,
+      "served_model_name": "Qwen/Qwen-Image-2.1",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn"
+      },
+      "scope": {"unit": "qwen-image-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/imagegen/qwen-image",
+        "--omni", "--host", "0.0.0.0", "--port", "8040", "--init-timeout", "3600",
+        "--num-gpus", "1", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--served-model-name", "Qwen/Qwen-Image-2.1"
+      ],
+      "note": "The video servers' GB10 flags (--enforce-eager, CUDNN_ATTN), bf16 (no --quantization), no video-only flags."
+    },
+    "hidream-o1": {
+      "node": "worker",
+      "port": 8041,
+      "served_model_name": "HiDream-ai/HiDream-O1-Image-Dev",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn"
+      },
+      "scope": {"unit": "hidream-o1-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/imagegen/hidream-o1",
+        "--omni", "--host", "0.0.0.0", "--port", "8041", "--init-timeout", "3600",
+        "--num-gpus", "1", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--served-model-name", "HiDream-ai/HiDream-O1-Image-Dev"
+      ],
+      "note": "As qwen-image. Runs beside qwen-image (head and worker at once)."
+    },
+    "z-image-turbo": {
+      "node": "head",
+      "port": 8040,
+      "served_model_name": "Tongyi-MAI/Z-Image-Turbo",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn"
+      },
+      "scope": {"unit": "z-image-turbo-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/imagegen/z-image-turbo",
+        "--omni", "--host", "0.0.0.0", "--port", "8040", "--init-timeout", "3600",
+        "--num-gpus", "1", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--served-model-name", "Tongyi-MAI/Z-Image-Turbo"
+      ],
+      "note": "As qwen-image."
+    },
+    "flux2-klein-4b": {
+      "node": "worker",
+      "port": 8041,
+      "served_model_name": "black-forest-labs/FLUX.2-klein-4B",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn"
+      },
+      "scope": {"unit": "flux2-klein-4b-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/imagegen/flux2-klein-4b",
+        "--omni", "--host", "0.0.0.0", "--port", "8041", "--init-timeout", "3600",
+        "--num-gpus", "1", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--served-model-name", "black-forest-labs/FLUX.2-klein-4B"
+      ],
+      "note": "The GB10 flags of the other image servers. The same block is in image-arms-v1.json and edit-arms-v1.json, and a test keeps the two identical: one server serves the t2i arm and the edit arm."
+    }
+  },
+  "clips": ["meme-text", "photo-dog", "cartoon", "crowded"],
+  "seeds": [1, 2, 3],
+  "arms": {
+    "qwen-image": {
+      "mode": "t2i",
+      "server": "qwen-image",
+      "model": "Qwen/Qwen-Image-2.1",
+      "revision": "d26bb61231",
+      "pipeline": "QwenImage21Pipeline",
+      "form": {"width": 1024, "height": 1024, "num_inference_steps": 40, "true_cfg_scale": 1.0},
+      "sources": "40 steps: the model card's text-to-image example (README.md at d26bb61231). The card sets no guidance. true_cfg_scale 1.0 (no CFG) is the default of diffusers' QwenImage21Pipeline (src/diffusers/pipelines/qwenimage21/pipeline_qwenimage21.py:516 at 8edb6d8c94) and of vLLM-Omni (pipeline_qwen_image_21.py:193-194); it is sent so the request names it. The card's example is 2048x2048; this screen uses 1024x1024 for every model."
+    },
+    "hidream-o1": {
+      "mode": "t2i",
+      "server": "hidream-o1",
+      "model": "HiDream-ai/HiDream-O1-Image-Dev",
+      "revision": "c0bada0e15",
+      "pipeline": "HiDreamO1ImagePipeline",
+      "form": {"width": 1024, "height": 1024, "num_inference_steps": 28, "guidance_scale": 0.0},
+      "sources": "28 steps and guidance 0.0: the model card's 'dev' recipe (README.md at c0bada0e15, Command Line Arguments). The card's dev recipe also sets shift 1.0 and the flash scheduler; vLLM-Omni 0.32.0 always runs UniPC with shift 3.0 (see verified_against.hidream_o1_scheduler), so this arm is not the upstream recipe. The card's default size is 2048x2048."
+    },
+    "z-image-turbo": {
+      "mode": "t2i",
+      "server": "z-image-turbo",
+      "model": "Tongyi-MAI/Z-Image-Turbo",
+      "revision": "f332072aa7",
+      "pipeline": "ZImagePipeline",
+      "form": {"width": 1024, "height": 1024, "num_inference_steps": 9, "guidance_scale": 0.0},
+      "sources": "9 steps (8 DiT forwards) and guidance 0.0 ('Guidance should be 0 for the Turbo models'), at 1024x1024: the model card's diffusers example (README.md at f332072aa7)."
+    },
+    "flux2-klein-4b": {
+      "mode": "t2i",
+      "server": "flux2-klein-4b",
+      "model": "black-forest-labs/FLUX.2-klein-4B",
+      "revision": "e7b7dc27f9",
+      "pipeline": "Flux2KleinPipeline",
+      "form": {"width": 1024, "height": 1024, "num_inference_steps": 4, "guidance_scale": 1.0},
+      "sources": "4 steps and guidance 1.0, at 1024x1024: the model card's diffusers example (README.md at e7b7dc27f9)."
+    }
+  }
+}
