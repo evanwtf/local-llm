@@ -48,6 +48,12 @@ seconds, and a label would put image wall seconds into
 second, the real-time factor) would mix the two. There is no image server
 time: the image endpoints send no `x-inference-time-s`.
 
+An image's energy is not its own: one image takes a few seconds, and the
+outlet reports about every 5 s. batch.py measures an arm's images as one
+block and writes `out/<arm>/block.json`; the `videogen_image_block_*`
+families report that block (Wh per image is the block's Wh over its
+images), never a per-request reading.
+
 The file is a pure function of the run.json files, except
 `videogen_metrics_build_timestamp_seconds`. The script writes it through a
 temp file in the same directory and a rename, so a scrape never reads half
@@ -131,6 +137,17 @@ class ImageOk:
 
 
 @dataclasses.dataclass(frozen=True)
+class Block:
+    """An image arm's latest block energy, from `out/<arm>/block.json`."""
+
+    joules: float | None
+    images: int
+    seconds: float | None
+    joules_per_image: float | None
+    end: float | None
+
+
+@dataclasses.dataclass(frozen=True)
 class Run:
     path: pathlib.Path
     labels: LabelSet
@@ -139,6 +156,8 @@ class Run:
     #: "video" (labels in LABELS, `ok`) or "image" (IMAGE_LABELS, `image`).
     media: str = "video"
     image: ImageOk | None = None
+    #: An image run's arm block (block.json), if batch.py wrote one.
+    block: Block | None = None
 
 
 # ---------------------------------------------------------------- reading ----
@@ -300,7 +319,36 @@ def image_ok_of(run: Mapping[str, Any]) -> ImageOk | str:
     )
 
 
-def read_run(path: pathlib.Path, kind: str) -> Run | None:
+def read_block(arm_dir: pathlib.Path) -> Block | None:
+    """`<arm_dir>/block.json` as a Block, or None if absent or bad."""
+    path = arm_dir / "block.json"
+    try:
+        data = json.loads(path.read_text())
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as err:
+        logger.warning("skipped %s: unreadable (%s)", path, err)
+        return None
+    if not isinstance(data, dict):
+        logger.warning("skipped %s: not a JSON object", path)
+        return None
+    wh = number(data.get("energy_wh"))
+    per = number(data.get("wh_per_image"))
+    images = positive(data.get("images"))
+    return Block(
+        joules=None if wh is None else wh * JOULES_PER_WH,
+        images=int(images) if images is not None else 0,
+        seconds=positive(data.get("duration_s")),
+        joules_per_image=None if per is None else per * JOULES_PER_WH,
+        end=timestamp(data.get("end")),
+    )
+
+
+def read_run(
+    path: pathlib.Path,
+    kind: str,
+    blocks: dict[pathlib.Path, Block | None] | None = None,
+) -> Run | None:
     """One run.json as a Run, or None (with a log line) if it is bad."""
     try:
         data = json.loads(path.read_text())
@@ -323,6 +371,10 @@ def read_run(path: pathlib.Path, kind: str) -> Run | None:
                 logger.warning("skipped %s: %s", path, got)
                 return None
             image = got
+        arm_dir = path.parent.parent
+        cache = {} if blocks is None else blocks
+        if arm_dir not in cache:
+            cache[arm_dir] = read_block(arm_dir)
         return Run(
             path=path,
             labels=image_labels_of(data, arm, kind),
@@ -330,6 +382,7 @@ def read_run(path: pathlib.Path, kind: str) -> Run | None:
             ok=None,
             media="image",
             image=image,
+            block=cache[arm_dir],
         )
     ok: Ok | None = None
     if status == "ok":
@@ -354,9 +407,10 @@ def find_runs(root: pathlib.Path, *, include_probes: bool = False) -> list[Run]:
     """Every readable run under out/, and under probe/ if asked, in path order."""
     tops = [(SCORED, "out")] + ([(PROBE, "probe")] if include_probes else [])
     runs: list[Run] = []
+    blocks: dict[pathlib.Path, Block | None] = {}
     for kind, top in tops:
         for path in sorted((root / top).glob("*/*/run.json")):
-            run = read_run(path, kind)
+            run = read_run(path, kind, blocks)
             if run is not None:
                 runs.append(run)
     return runs
@@ -569,9 +623,12 @@ def render_images(runs: Sequence[Run]) -> list[Family]:
     by_status: dict[tuple[LabelSet, str], int] = {}
     oks: dict[LabelSet, list[ImageOk]] = {}
     latest: dict[LabelSet, tuple[float, str, ImageOk]] = {}
+    blocks: dict[LabelSet, Block] = {}
     for run in runs:
         key = (run.labels, run.status)
         by_status[key] = by_status.get(key, 0) + 1
+        if run.block is not None:
+            blocks[run.labels] = run.block
         if run.image is None:
             continue
         oks.setdefault(run.labels, []).append(run.image)
@@ -594,14 +651,25 @@ def render_images(runs: Sequence[Run]) -> list[Family]:
     wall = gauge(
         "videogen_image_wall_seconds", "Client wall seconds summed over the ok images."
     )
-    energy = gauge(
-        "videogen_image_energy_joules",
-        "Outlet energy in joules summed over the ok images with a complete "
-        "reading. Divide by videogen_image_energy_images.",
+    block_per_image = gauge(
+        "videogen_image_block_energy_joules_per_image",
+        "Block energy per image: the outlet joules of the arm's latest block "
+        "(block.json: its images back to back on one server start) over its "
+        "images. Not a per-request reading; absent when the block reading "
+        "is incomplete or a request in it failed.",
     )
-    energy_n = gauge(
-        "videogen_image_energy_images",
-        "The ok images with a complete outlet energy reading.",
+    block_energy = gauge(
+        "videogen_image_block_energy_joules",
+        "The outlet joules of the arm's latest block (block.json), when its "
+        "reading is complete.",
+    )
+    block_images = gauge(
+        "videogen_image_block_images", "The images in the arm's latest block."
+    )
+    block_seconds = gauge(
+        "videogen_image_block_seconds",
+        "The arm's latest block: seconds from its first request's start to "
+        "its last request's end.",
     )
     steps = gauge(
         "videogen_image_steps",
@@ -618,10 +686,6 @@ def render_images(runs: Sequence[Run]) -> list[Family]:
         "videogen_image_last_peak_memory_bytes",
         "The latest ok image: peak used memory of the whole node, bytes.",
     )
-    last_energy = gauge(
-        "videogen_image_last_energy_joules",
-        "The latest ok image: outlet energy in joules, when its reading is complete.",
-    )
     last_ts = gauge(
         "videogen_image_last_timestamp_seconds",
         "The latest ok image: its end time, Unix seconds.",
@@ -629,9 +693,6 @@ def render_images(runs: Sequence[Run]) -> list[Family]:
     for labels in sorted(oks):
         group = oks[labels]
         wall.add(labels, sum(o.wall_s for o in group), IMAGE_LABELS)
-        with_energy = [o.energy_wh for o in group if o.energy_wh is not None]
-        energy.add(labels, sum(with_energy) * JOULES_PER_WH, IMAGE_LABELS)
-        energy_n.add(labels, len(with_energy), IMAGE_LABELS)
         with_steps = [o.steps for o in group if o.steps is not None]
         if with_steps:
             steps.add(labels, sum(with_steps), IMAGE_LABELS)
@@ -640,20 +701,28 @@ def render_images(runs: Sequence[Run]) -> list[Family]:
         last_wall.add(labels, last.wall_s, IMAGE_LABELS)
         if last.peak_gib is not None:
             last_peak.add(labels, last.peak_gib * BYTES_PER_GIB, IMAGE_LABELS)
-        if last.energy_wh is not None:
-            last_energy.add(labels, last.energy_wh * JOULES_PER_WH, IMAGE_LABELS)
         last_ts.add(labels, last.end, IMAGE_LABELS)
+    for labels in sorted(blocks):
+        block = blocks[labels]
+        if block.joules_per_image is not None:
+            block_per_image.add(labels, block.joules_per_image, IMAGE_LABELS)
+        if block.joules is not None:
+            block_energy.add(labels, block.joules, IMAGE_LABELS)
+        block_images.add(labels, block.images, IMAGE_LABELS)
+        if block.seconds is not None:
+            block_seconds.add(labels, block.seconds, IMAGE_LABELS)
     return [
         images,
         wall,
-        energy,
-        energy_n,
         steps,
         steps_n,
         last_wall,
         last_peak,
-        last_energy,
         last_ts,
+        block_per_image,
+        block_energy,
+        block_images,
+        block_seconds,
     ]
 
 

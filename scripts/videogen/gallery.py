@@ -147,6 +147,8 @@ class Card:
     run: Mapping[str, Any]
     score: Score | None
     score_error: str | None
+    #: An image arm's block.json (batch.py), when there is one (#1424).
+    block: Mapping[str, Any] | None = None
 
     @property
     def key(self) -> str:
@@ -335,6 +337,7 @@ def find_cards(root: pathlib.Path) -> list[Card]:
     the link and score paths; a name that is not SAFE is skipped.
     """
     cards: list[Card] = []
+    blocks: dict[pathlib.Path, Mapping[str, Any] | None] = {}
     for kind, top in ((SCORED, "out"), (PROBE, "probe")):
         for run_json in sorted((root / top).glob("*/*/run.json")):
             run_dir = run_json.parent
@@ -355,6 +358,11 @@ def find_cards(root: pathlib.Path) -> list[Card]:
                 root / "scores" / arm / f"{run_dir.name}.json",
                 as_dict(run.get("output")).get("sha256"),
             )
+            block = None
+            if run.get("media") == "image" and kind == SCORED:
+                if run_dir.parent not in blocks:
+                    blocks[run_dir.parent] = read_json(run_dir.parent / "block.json")
+                block = blocks[run_dir.parent]
             cards.append(
                 Card(
                     kind=kind,
@@ -365,6 +373,7 @@ def find_cards(root: pathlib.Path) -> list[Card]:
                     run=run,
                     score=score,
                     score_error=score_error,
+                    block=block,
                 )
             )
     return cards
@@ -408,6 +417,18 @@ def fmt_energy(run: Mapping[str, Any]) -> str:
     if is_num(partial):
         return f"{partial:.1f} Wh (incomplete)"
     return DASH
+
+
+def fmt_block_energy(block: Mapping[str, Any] | None) -> str:
+    """An image arm's energy: its block's Wh per image (block.json). One
+    image is too short for the outlet, so a run has no energy of its own."""
+    if block is None:
+        return f"{DASH} (no block yet)"
+    per = block.get("wh_per_image")
+    images = block.get("images")
+    if is_num(per):
+        return f"{per:.2f} Wh per image (block of {images})"
+    return f"{DASH} (block of {images}: incomplete)"
 
 
 def fmt_peak(run: Mapping[str, Any]) -> str:
@@ -624,7 +645,12 @@ JS = """
     document.querySelectorAll('section.prompt').forEach(function (sec) {
       sec.hidden = active && !sec.querySelector('article.run:not([hidden])');
     });
-    count.textContent = shown + ' of ' + total + ' clips shown';
+    // A part heading (videos, images, edits) goes with its last section.
+    document.querySelectorAll('h2.part').forEach(function (h) {
+      var sel = 'section.prompt[data-part="' + h.dataset.part + '"]:not([hidden])';
+      h.hidden = active && !document.querySelector(sel);
+    });
+    count.textContent = shown + ' of ' + total + ' items shown';
   }
   selects.forEach(function (s) { s.addEventListener('change', apply); });
   document.querySelectorAll('button.playall').forEach(function (btn) {
@@ -848,7 +874,11 @@ def measure_group(run: Mapping[str, Any]) -> str:
     gap = outlet.get("max_gap_s")
     rows = [
         ("wall", esc(wall_text)),
-        ("server inference", esc(fmt_num(headers.get("x-inference-time-s"), "s"))),
+        (
+            "server inference",
+            # An image run's server_s is the sum of its stage durations.
+            esc(fmt_num(headers.get("x-inference-time-s") or run.get("server_s"), "s")),
+        ),
         (
             "stages",
             stage_rows(
@@ -1009,7 +1039,7 @@ def image_card(
         ("size", esc(fmt_size(run))),
         ("status", f'<span class="{status_cls}">{esc(status)}</span>'),
         ("wall", esc(fmt_wall(run.get("wall_s")))),
-        ("energy", esc(fmt_energy(run))),
+        ("block energy", esc(fmt_block_energy(card.block))),
         ("peak", esc(fmt_peak(run))),
         ("steps", val(fields.get("num_inference_steps"))),
         ("seed", val(fields.get("seed", run.get("seed")))),
@@ -1165,7 +1195,9 @@ def render(
     sections = []
     for part, heading in PARTS:
         if headed and by_part[part]:
-            sections.append(f'<h2 class="part">{esc(heading)}</h2>')
+            sections.append(
+                f'<h2 class="part" data-part="{esc(part)}">{esc(heading)}</h2>'
+            )
         for clip in by_part[part]:
             group_cards = sorted(
                 (c for c in cards if c.clip == clip and c.part == part),
@@ -1199,7 +1231,8 @@ def render(
                 ]
                 button = ""
             sections.append(
-                f'<section class="prompt" data-clip="{esc(clip)}">'
+                f'<section class="prompt" data-part="{esc(part)}" '
+                f'data-clip="{esc(clip)}">'
                 f'<div class="prompt-head"><h2>{esc(clip)}{esc(pid)}</h2>'
                 f"{button}</div>"
                 f'<p class="prompt-text">{esc(text or "no prompt text found")}</p>'

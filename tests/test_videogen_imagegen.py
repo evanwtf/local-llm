@@ -15,6 +15,7 @@ import json
 import pathlib
 import re
 import struct
+import subprocess
 import sys
 import time
 import zlib
@@ -100,9 +101,11 @@ def test_the_model_card_defaults() -> None:
             "num_inference_steps": 40,
             "true_cfg_scale": 1.0,
         },
+        # 2048x2048: vLLM-Omni 0.32.0 snaps HiDream-O1 to its fixed sizes,
+        # the smallest 2048x2048 (pipeline_hidream_o1_image.py:42-75).
         "hidream-o1": {
-            "width": 1024,
-            "height": 1024,
+            "width": 2048,
+            "height": 2048,
             "num_inference_steps": 28,
             "guidance_scale": 0.0,
         },
@@ -516,8 +519,10 @@ class FakeServer:
         return None
 
 
-def deps_for(server: FakeServer, gpu: Gpu | None = None) -> generate.Deps:
-    end = T0 + datetime.timedelta(seconds=30)
+def deps_for(
+    server: FakeServer, gpu: Gpu | None = None, seconds: int = 30
+) -> generate.Deps:
+    end = T0 + datetime.timedelta(seconds=seconds)
     times = clock(T0, end)
     points = [(T0 + datetime.timedelta(seconds=s), 180.0) for s in range(-5, 36, 5)]
     table = flux_table(points)
@@ -544,7 +549,8 @@ def go(
 ) -> tuple[int, FakeServer]:
     server = FakeServer(answer, serves=(str(plan.server["served_model_name"]),))
     gpu = kw.pop("gpu", None)
-    rc = imagegen.run_one(plan, "http://h:8041", out, deps=deps_for(server, gpu), **kw)
+    deps = deps_for(server, gpu, kw.pop("seconds", 30))
+    rc = imagegen.run_one(plan, "http://h:8041", out, deps=deps, **kw)
     return rc, server
 
 
@@ -582,11 +588,17 @@ def test_a_t2i_run_records_what_the_issue_asks_for(
     assert run["expected"] == {"width": 1024, "height": 1024}
     assert run["found"] == {"width": 1024, "height": 1024, "format": "png"}
     assert run["wall_s"] > 0
-    assert run["server_s"] is None  # the image endpoints send no server time
+    # No x-inference-time-s, and this reply has no stage durations either.
+    assert run["server_s"] is None and run["server_s_from"] == []
     assert run["server_metrics"] == {"stage_durations": None, "peak_memory_mb": 41000.5}
     assert run["energy_wh"] == pytest.approx(1.5)  # 180 W for 30 s
     assert run["outlet"]["entity"] == outlet.entity("worker")
-    assert run["gpu_power"]["mean_w"] == 60.0
+    # Under MIN_GPU_MEAN_S: the samples stay, the mean does not.
+    power = run["gpu_power"]
+    assert power["mean_w"] is None and "lag the load" in power["no_mean"]
+    assert power["readings"] and len(power["readings"]) == power["samples"]
+    assert all(w == 60.0 for _, w in power["readings"])
+    assert power["peak_w"] == 60.0
     assert run["memory"]["peak_used_gib"] == pytest.approx(39.5)
     assert run["server"]["settle_s"] == 1.0
     assert run["server"]["settle_readings"] == [[0.0, 30.0], [1.0, 12.0]]
@@ -614,12 +626,17 @@ def test_an_edit_run_records_each_input_path_and_sha(
     assert ctype.startswith("multipart/form-data")
     run = read_run(out)
     assert run["mode"] == "edit" and run["endpoint"] == "/v1/images/edits"
-    inputs = run["request"]["inputs"]
+    inputs = run["inputs"]
     assert [i["name"] for i in inputs] == ["meme-base.jpg", "face-ref.jpg"]
     for item in inputs:
         path = pathlib.Path(item["path"])
         assert path.parent == files["inputs"]
         assert item["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        assert item["bytes"] == len(path.read_bytes())
+    # The request names each input by name and sha256 only: no path.
+    assert run["request"]["inputs"] == [
+        {"name": i["name"], "sha256": i["sha256"]} for i in inputs
+    ]
     assert run["request"]["fields"]["true_cfg_scale"] == "4.0"
 
 
@@ -818,3 +835,437 @@ def test_serve_logs_an_image_server_from_its_file(
 def test_serve_still_finds_the_video_servers() -> None:
     assert serve.serve("h3", start=False) == 0
     assert serve.serve("no-such-server", start=False) == 2
+
+
+# ------------------------------------------------- #1424 review: server_s ----
+
+
+def test_server_seconds_sums_the_stage_ms_keys_only() -> None:
+    # The FLUX.2-klein-4B probe reply of 2026-11-18.
+    metrics = {"stage_durations": {"stage_0_gen_ms": 2977.2, "queue_wait_ms": 0.56}}
+    assert imagegen.server_seconds(metrics) == (2.977, ["stage_0_gen_ms"])
+    two = {"stage_durations": {"stage_1_gen_ms": 500.0, "stage_0_gen_ms": 1500.0}}
+    assert imagegen.server_seconds(two) == (2.0, ["stage_0_gen_ms", "stage_1_gen_ms"])
+
+
+@pytest.mark.parametrize(
+    "metrics",
+    [
+        None,
+        {},
+        {"stage_durations": None},
+        {"stage_durations": {"queue_wait_ms": 3.0}},
+        {"stage_durations": {"stage_0_gen_ms": "fast"}},
+        {"stage_durations": {"stage_0_gen_ms": True}},
+        {"stage_durations": [1, 2]},
+    ],
+)
+def test_server_seconds_is_none_without_a_stage_time(metrics: Any) -> None:
+    assert imagegen.server_seconds(metrics) == (None, [])
+
+
+def test_a_run_records_server_s_from_the_stage_durations(
+    files: dict[str, pathlib.Path], tmp_path: pathlib.Path
+) -> None:
+    plan = plan_of(files, "z-image-turbo", "cartoon")
+    body = ok_body(png(1024, 1024))
+    body["metrics"]["stage_durations"] = {"stage_0_gen_ms": 2977.2, "queue_wait_ms": 1}
+    rc, _ = go(plan, tmp_path / "out", reply(body))
+    assert rc == 0
+    run = read_run(tmp_path / "out")
+    assert run["server_s"] == 2.977
+    assert run["server_s_from"] == ["stage_0_gen_ms"]
+
+
+# -------------------------------------------------- #1424 review: energy ----
+
+
+def reading(complete: bool = True, readings: int = 3, wh: Any = 1.5) -> dict[str, Any]:
+    return {"complete": complete, "readings": readings, "energy_wh": wh}
+
+
+@pytest.mark.parametrize(
+    ("got", "seconds", "want"),
+    [
+        (reading(), 30.0, 1.5),
+        (reading(readings=7), 120.0, 1.5),
+        (reading(readings=2), 30.0, None),  # too few readings
+        (reading(), 29.9, None),  # too short
+        (reading(complete=False), 60.0, None),
+        (reading(wh=None), 60.0, None),
+    ],
+)
+def test_request_energy_needs_a_complete_long_reading(
+    got: dict[str, Any], seconds: float, want: float | None
+) -> None:
+    assert generate.request_energy(got, seconds) == want
+
+
+def test_a_short_run_keeps_its_outlet_reading_but_has_no_energy(
+    files: dict[str, pathlib.Path], tmp_path: pathlib.Path
+) -> None:
+    plan = plan_of(files, "z-image-turbo", "cartoon")
+    rc, _ = go(plan, tmp_path / "out", reply(ok_body(png(1024, 1024))), seconds=4)
+    assert rc == 0
+    run = read_run(tmp_path / "out")
+    assert run["energy_wh"] is None
+    assert run["outlet"]["complete"] is True
+    assert run["outlet"]["readings"] == 1  # one plug reading in 4 s
+    assert run["outlet"]["energy_wh"] == pytest.approx(0.2)
+
+
+def test_the_gpu_mean_stays_for_a_run_of_min_gpu_mean_s(
+    files: dict[str, pathlib.Path],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(imagegen, "MIN_GPU_MEAN_S", 0.0)
+    plan = plan_of(files, "z-image-turbo", "cartoon")
+    rc, _ = go(plan, tmp_path / "out", reply(ok_body(png(1024, 1024))))
+    assert rc == 0
+    power = read_run(tmp_path / "out")["gpu_power"]
+    assert power["mean_w"] == 60.0 and "no_mean" not in power
+
+
+def test_inside_a_block_a_run_neither_settles_nor_reads_the_outlet(
+    files: dict[str, pathlib.Path], tmp_path: pathlib.Path
+) -> None:
+    plan = plan_of(files, "z-image-turbo", "cartoon")
+    server = FakeServer(
+        reply(ok_body(png(1024, 1024))),
+        serves=(str(plan.server["served_model_name"]),),
+    )
+    gpu = Gpu(before=[])
+    deps = deps_for(server, gpu)
+    flux_calls: list[str] = []
+    deps = generate.Deps(**{**vars(deps), "flux": flux_calls.append})
+    out = tmp_path / "out"
+    rc = imagegen.run_one(
+        plan, "http://h:8041", out, deps=deps, settle=False, read_outlet=False
+    )
+    assert rc == 0
+    run = read_run(out)
+    assert run["outlet"] == {"deferred": "batch.py reads it after the block"}
+    assert run["energy_wh"] is None
+    assert not flux_calls
+    assert run["server"]["settle_s"] is None
+    assert "settled once" in run["server"]["settle_skipped"]
+
+
+# --------------------------------------------------- #1424 review: inputs ----
+
+
+def test_the_request_is_the_same_under_another_inputs_root(
+    files: dict[str, pathlib.Path], tmp_path: pathlib.Path
+) -> None:
+    other = tmp_path / "elsewhere"
+    other.mkdir()
+    for path in files["inputs"].iterdir():
+        (other / path.name).write_bytes(path.read_bytes())
+    a = plan_of(files, "qwen-image-edit", "face-swap")
+    b = imagegen.make_plan(
+        "qwen-image-edit", "face-swap", 1, arms_file=files["edit"], inputs_root=other
+    )
+    assert a.request() == b.request()
+    assert all(set(i) == {"name", "sha256"} for i in a.request()["inputs"])
+
+
+# --------------------------------------------- #1424 review: warm-up, block ----
+
+
+def test_the_warm_up_sends_seed_0_and_never_raises(
+    files: dict[str, pathlib.Path],
+) -> None:
+    plan = plan_of(files, "qwen-image-edit", "face-swap", 2)
+    server = FakeServer(reply(ok_body(png(1024, 576))))
+    got = imagegen.warm_up(plan, "http://h:8041", deps_for(server))
+    assert got["error"] is None and got["http_status"] == 200 and got["wall_s"] > 0
+    [(url, body, ctype)] = server.posts
+    assert url.endswith("/v1/images/edits")
+    assert parse_form(body, ctype)["seed"] == (None, b"0")
+    failing = FakeServer(OSError("refused"))
+    got = imagegen.warm_up(plan, "http://h:8041", deps_for(failing))
+    assert got["error"] and "refused" in got["error"]
+
+
+def block_run(
+    arm_dir: pathlib.Path, n: int, seconds: int = 3, status: str = "ok"
+) -> pathlib.Path:
+    run_dir = arm_dir / f"p-s{n}"
+    run_dir.mkdir(parents=True)
+    start = T0 + datetime.timedelta(seconds=seconds * n)
+    record = {
+        "status": status,
+        "media": "image",
+        "start": generate.iso(start),
+        "end": generate.iso(start + datetime.timedelta(seconds=seconds)),
+        "outlet": {"deferred": "batch.py reads it after the block"},
+        "energy_wh": None,
+    }
+    (run_dir / "run.json").write_text(json.dumps(record))
+    return run_dir
+
+
+def block_deps(watts: float = 180.0, step: int = 5, upto: int = 60) -> generate.Deps:
+    points = [
+        (T0 + datetime.timedelta(seconds=s), watts) for s in range(-5, upto, step)
+    ]
+    table = flux_table(points)
+    return generate.Deps(flux=lambda query: table, sleep=lambda s: None)
+
+
+def test_a_block_of_twelve_images_gives_wh_per_image(tmp_path: pathlib.Path) -> None:
+    arm_dir = tmp_path / "out" / "z-image-turbo"
+    block = imagegen.Block("http://h:8040", deps=block_deps(), role="head")
+    for n in range(12):
+        block.add(block_run(arm_dir, n))
+    got = block.close(arm_dir, "z-image-turbo")
+    assert got is not None
+    saved = json.loads((arm_dir / "block.json").read_text())
+    assert saved == got
+    assert saved["requests"] == saved["images"] == 12
+    assert saved["duration_s"] == 36.0
+    assert saved["energy_wh"] == pytest.approx(1.8)  # 180 W for 36 s
+    assert saved["wh_per_image"] == pytest.approx(0.15)
+    assert saved["outlet"]["readings"] == 8 and saved["outlet"]["complete"]
+    # Each run now has its own reading, but no energy: 3 s is too short.
+    for n in range(12):
+        run = json.loads((arm_dir / f"p-s{n}" / "run.json").read_text())
+        assert "deferred" not in run["outlet"]
+        assert run["outlet"]["entity"] == outlet.entity("head")
+        assert run["energy_wh"] is None
+
+
+def test_a_block_with_a_failed_request_has_no_wh_per_image(
+    tmp_path: pathlib.Path,
+) -> None:
+    arm_dir = tmp_path / "out" / "z-image-turbo"
+    block = imagegen.Block("http://h:8040", deps=block_deps(), role="head")
+    for n in range(11):
+        block.add(block_run(arm_dir, n))
+    block.add(block_run(arm_dir, 11, status="failed"))
+    got = block.close(arm_dir, "z-image-turbo")
+    assert got is not None
+    assert got["images"] == 11 and got["requests"] == 12
+    assert got["energy_wh"] == pytest.approx(1.8)
+    assert got["wh_per_image"] is None
+
+
+def test_a_short_or_gappy_block_has_no_energy(tmp_path: pathlib.Path) -> None:
+    arm_dir = tmp_path / "out" / "z-image-turbo"
+    short = imagegen.Block("http://h:8040", deps=block_deps(), role="head")
+    for n in range(3):  # 9 s
+        short.add(block_run(arm_dir, n))
+    got = short.close(arm_dir, "z-image-turbo")
+    assert got is not None and got["energy_wh"] is None and got["wh_per_image"] is None
+    gappy = imagegen.Block("http://h:8040", deps=block_deps(step=40), role="head")
+    for n in range(3, 15):
+        gappy.add(block_run(arm_dir, n))
+    got = gappy.close(arm_dir, "z-image-turbo")
+    assert got is not None and got["outlet"]["complete"] is False
+    assert got["energy_wh"] is None and got["wh_per_image"] is None
+
+
+def test_a_new_block_keeps_the_earlier_block_file(tmp_path: pathlib.Path) -> None:
+    arm_dir = tmp_path / "out" / "z-image-turbo"
+    first = imagegen.Block("http://h:8040", deps=block_deps(), role="head")
+    for n in range(12):
+        first.add(block_run(arm_dir, n))
+    old = first.close(arm_dir, "z-image-turbo")
+    assert old is not None
+    second = imagegen.Block("http://h:8040", deps=block_deps(), role="head")
+    second.add(block_run(arm_dir, 12))
+    second.close(arm_dir, "z-image-turbo")
+    [kept] = list(arm_dir.glob("block-*.json"))
+    assert json.loads(kept.read_text()) == old
+    assert json.loads((arm_dir / "block.json").read_text())["requests"] == 1
+
+
+def test_block_start_warms_up_and_settles_once(
+    files: dict[str, pathlib.Path],
+) -> None:
+    plan = plan_of(files, "z-image-turbo", "cartoon")
+    server = FakeServer(reply(ok_body(png(1024, 1024))))
+    block = imagegen.Block("http://h:8040", deps=deps_for(server))
+    block.start(plan)
+    block.start(plan)
+    assert len(server.posts) == 1
+    assert json.loads(server.posts[0][1])["seed"] == imagegen.WARM_UP_SEED
+    assert block.role == "head"
+    assert block.warm is not None and block.warm["error"] is None
+    assert block.settled is not None and block.settled["gpu_w_before"] == 12.0
+
+
+class RecordingBlock(imagegen.Block):
+    """A block that sends nothing: it records what batch.py asks of it."""
+
+    def __init__(self, server: str, node: str | None, host: str | None) -> None:
+        super().__init__(server, node, host)
+        self.events: list[str] = []
+
+    def start(self, plan: imagegen.ImagePlan) -> None:
+        self.events.append(f"start {plan.clip}-s{plan.seed}")
+
+    def add(self, run_dir: pathlib.Path) -> None:
+        super().add(run_dir)
+        self.events.append(f"add {run_dir.name}")
+
+    def close(self, arm_dir: pathlib.Path, arm: str) -> dict[str, Any] | None:
+        self.events.append(f"close {arm}")
+        (arm_dir / imagegen.BLOCK_FILE).write_text("{}")
+        return {}
+
+
+def image_batch(
+    files: dict[str, pathlib.Path],
+    tmp_path: pathlib.Path,
+    blocks: list[RecordingBlock],
+    **kw: Any,
+) -> int:
+    def maker(server: str, node: str | None, host: str | None) -> RecordingBlock:
+        blocks.append(RecordingBlock(server, node, host))
+        return blocks[-1]
+
+    return batch.run_batch(
+        "z-image-turbo",
+        server="http://h:8040",
+        out_root=tmp_path / "out",
+        frames_out_root=tmp_path / "frames-out",
+        frames_root=tmp_path / "frames",
+        arms_file=files["image"],
+        inputs_root=files["inputs"],
+        block_maker=maker,
+        **kw,
+    )
+
+
+def write_image_run(plan: imagegen.ImagePlan, out: pathlib.Path) -> int:
+    out.mkdir(parents=True, exist_ok=True)
+    image = png(8, 8)
+    (out / "image.png").write_bytes(image)
+    record = {
+        "status": "ok",
+        "media": "image",
+        "probe": False,
+        "arms_status": "locked",
+        "request": plan.request(),
+        "server_config": plan.server_config(),
+        "energy_wh": None,
+        "outlet": {"deferred": "batch.py reads it after the block"},
+        "output": {"sha256": hashlib.sha256(image).hexdigest()},
+    }
+    (out / "run.json").write_text(json.dumps(record))
+    return 0
+
+
+def test_batch_runs_an_image_arm_as_one_block(
+    files: dict[str, pathlib.Path], tmp_path: pathlib.Path
+) -> None:
+    blocks: list[RecordingBlock] = []
+    rebuilt: list[pathlib.Path] = []
+    rc = image_batch(
+        files,
+        tmp_path,
+        blocks,
+        generator=write_image_run,
+        gallery_builder=rebuilt.append,
+    )
+    assert rc == 0
+    [block] = blocks
+    order = [
+        f"{c}-s{s}"
+        for c in ("meme-text", "photo-dog", "cartoon", "crowded")
+        for s in (1, 2, 3)
+    ]
+    # start before each request (the block warms up only on the first);
+    # no gallery rebuild inside the block, one after it.
+    assert block.events == [
+        e for name in order for e in (f"start {name}", f"add {name}")
+    ] + ["close z-image-turbo"]
+    assert rebuilt == [tmp_path]
+
+
+def test_batch_passes_no_settle_and_no_outlet_read_inside_a_block(
+    files: dict[str, pathlib.Path],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[dict[str, Any]] = []
+
+    def fake_run_plan(plan: Any, server: str, out: pathlib.Path, **kw: Any) -> int:
+        seen.append(kw)
+        return write_image_run(plan, out)
+
+    monkeypatch.setattr(generate, "run_plan", fake_run_plan)
+    assert image_batch(files, tmp_path, [], gallery_builder=None) == 0
+    assert len(seen) == 12
+    assert all(kw["settle"] is False and kw["read_outlet"] is False for kw in seen)
+
+
+def test_an_image_run_with_a_deferred_outlet_is_made_again(
+    files: dict[str, pathlib.Path], tmp_path: pathlib.Path
+) -> None:
+    plan = plan_of(files, "z-image-turbo", "cartoon")
+    out = tmp_path / "run"
+    write_image_run(plan, out)
+    assert batch.state(out, plan)[0] == batch.TODO
+    record = json.loads((out / "run.json").read_text())
+    record["outlet"] = {"complete": True, "readings": 1, "energy_wh": 0.1}
+    (out / "run.json").write_text(json.dumps(record))
+    # Good with no energy of its own: the block has the energy.
+    assert batch.state(out, plan) == (batch.GOOD, "done")
+
+
+# -------------------------------------------------- #1424 review: Refused ----
+
+
+def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "videogen" / "generate.py"), *args],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+
+def test_the_cli_exits_refused_for_an_edit_input_that_is_missing(
+    tmp_path: pathlib.Path,
+) -> None:
+    """imagegen raises the one Refused in common.py, so generate.py run as a
+    script catches it (exit 2), not a traceback (exit 1)."""
+    got = run_cli(
+        "--arm",
+        "qwen-image-edit",
+        "--prompt",
+        "face-swap",
+        "--seed",
+        "1",
+        "--server",
+        "http://127.0.0.1:9",
+        "--inputs-root",
+        str(tmp_path),
+        "--out",
+        str(tmp_path / "out"),
+    )
+    assert got.returncode == generate.REFUSED, got.stdout + got.stderr
+    assert "Traceback" not in got.stderr
+    assert "does not exist" in got.stdout + got.stderr
+
+
+def test_the_cli_exits_refused_for_a_draft_image_arm(tmp_path: pathlib.Path) -> None:
+    got = run_cli(
+        "--arm",
+        "z-image-turbo",
+        "--prompt",
+        "cartoon",
+        "--seed",
+        "1",
+        "--server",
+        "http://127.0.0.1:9",
+        "--out",
+        str(tmp_path / "out"),
+    )
+    assert got.returncode == generate.REFUSED, got.stdout + got.stderr
+    assert "not 'locked'" in got.stdout + got.stderr
+    assert not (tmp_path / "out").exists()

@@ -13,7 +13,8 @@
     "model_check": "vllm_omni/entrypoints/openai/api_server.py:2123-2127 (a request whose model is not the served name gets 400)",
     "response": "vllm_omni/entrypoints/openai/api_server.py:2049-2087 and protocol/images.py:207-234: JSON {created, data: [{b64_json}], output_format, size, metrics: {stage_durations, peak_memory_mb}}. No x-inference-time-s header: only /v1/videos/sync sets it (api_server.py:2855-2859).",
     "pipeline_detection": "HiDream-O1 is found by its weights, not a model_index.json: vllm_omni/diffusion/utils/hf_utils.py:111-127 and diffusion/data.py:757-760",
-    "hidream_o1_scheduler": "vllm_omni/diffusion/models/hidream_o1_image/pipeline_hidream_o1_image.py:686-692: the default UniPC scheduler with shift 3.0, for every request. The upstream Dev recipe (flash scheduler, shift 1.0) is not available in 0.32.0, and flow_shift is not read."
+    "hidream_o1_scheduler": "vllm_omni/diffusion/models/hidream_o1_image/pipeline_hidream_o1_image.py:686-692: the default UniPC scheduler with shift 3.0, for every request. The upstream Dev recipe (flash scheduler, shift 1.0) is not available in 0.32.0, and flow_shift is not read.",
+    "hidream_o1_size": "vllm_omni/diffusion/models/hidream_o1_image/pipeline_hidream_o1_image.py:42-55 PREDEFINED_RESOLUTIONS (2048x2048 the smallest) and :65-75 find_closest_resolution (nearest aspect ratio, size ignored); :540-552 snaps every request's width and height to it."
   },
   "servers": {
     "qwen-image": {
@@ -107,7 +108,7 @@
       "revision": "d26bb61231",
       "pipeline": "QwenImage21Pipeline",
       "form": {"width": 1024, "height": 1024, "num_inference_steps": 40, "true_cfg_scale": 1.0},
-      "sources": "40 steps: the model card's text-to-image example (README.md at d26bb61231). The card sets no guidance. true_cfg_scale 1.0 (no CFG) is the default of diffusers' QwenImage21Pipeline (src/diffusers/pipelines/qwenimage21/pipeline_qwenimage21.py:516 at 8edb6d8c94) and of vLLM-Omni (pipeline_qwen_image_21.py:193-194); it is sent so the request names it. The card's example is 2048x2048; this screen uses 1024x1024 for every model."
+      "sources": "40 steps: the model card's text-to-image example (README.md at d26bb61231). The card sets no guidance. true_cfg_scale 1.0 (no CFG) is the default of diffusers' QwenImage21Pipeline (src/diffusers/pipelines/qwenimage21/pipeline_qwenimage21.py:516 at 8edb6d8c94) and of vLLM-Omni (pipeline_qwen_image_21.py:193-194); it is sent so the request names it. The card's example is 2048x2048, and the sizes the card lists are all about 4 MP; 1024x1024 (1 MP) is this screen's choice, the size a chat bot posts, not the card's."
     },
     "hidream-o1": {
       "mode": "t2i",
@@ -115,8 +116,8 @@
       "model": "HiDream-ai/HiDream-O1-Image-Dev",
       "revision": "c0bada0e15",
       "pipeline": "HiDreamO1ImagePipeline",
-      "form": {"width": 1024, "height": 1024, "num_inference_steps": 28, "guidance_scale": 0.0},
-      "sources": "28 steps and guidance 0.0: the model card's 'dev' recipe (README.md at c0bada0e15, Command Line Arguments). The card's dev recipe also sets shift 1.0 and the flash scheduler; vLLM-Omni 0.32.0 always runs UniPC with shift 3.0 (see verified_against.hidream_o1_scheduler), so this arm is not the upstream recipe. The card's default size is 2048x2048."
+      "form": {"width": 2048, "height": 2048, "num_inference_steps": 28, "guidance_scale": 0.0},
+      "sources": "28 steps and guidance 0.0: the model card's 'dev' recipe (README.md at c0bada0e15, Command Line Arguments). The card's dev recipe also sets shift 1.0 and the flash scheduler; vLLM-Omni 0.32.0 always runs UniPC with shift 3.0 (see verified_against.hidream_o1_scheduler), so this arm is not the upstream recipe. 2048x2048, not the 1024x1024 of the other arms: vLLM-Omni 0.32.0 snaps every request to the nearest aspect ratio in PREDEFINED_RESOLUTIONS, and the smallest is 2048x2048 (see verified_against.hidream_o1_size). A 1024x1024 request comes back 2048x2048 and fails the size check. So this arm draws 4x the pixels of the others: its seconds and Wh are not like-for-like with theirs. 2048x2048 is also the card's default size."
     },
     "z-image-turbo": {
       "mode": "t2i",

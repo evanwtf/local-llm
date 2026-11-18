@@ -21,15 +21,26 @@ The API, read from the installed vLLM-Omni 0.32.0 (`vllm_omni/...`):
 - Both answer JSON: `data[0].b64_json` is the image, base64 PNG, and
   `metrics` holds `stage_durations` and `peak_memory_mb`
   (api_server.py:2049-2087). Neither sends `x-inference-time-s` (only
-  /v1/videos/sync does, api_server.py:2855-2859), so an image run has no
-  server time: `server_s` is null, and `server_metrics` keeps what the
-  server sent.
+  /v1/videos/sync does, api_server.py:2855-2859). So `server_s` is the sum
+  of the `stage_<id>_<what>_ms` keys of `stage_durations`, divided by 1000;
+  `server_s_from` lists the keys summed, and `server_metrics` keeps what
+  the server sent.
+
+Energy: one image takes a few seconds, and the outlet reports about every
+5 s. So a run's own `energy_wh` is null unless its window holds at least
+`generate.MIN_READINGS` readings and lasts `generate.MIN_WINDOW_S`; the
+`outlet` reading stays in run.json either way. The energy of an image arm
+is the block energy that batch.py writes to `<arm>/block.json`: the outlet
+over the arm's scored requests, back to back on one server start, divided
+by the image count. A run under `MIN_GPU_MEAN_S` keeps its GPU samples but
+no GPU mean.
 
 An image run writes `image.png` and `run.json`. `run.json` holds what a clip's
 run.json holds (the arm, model, revision, server block, request, seed, start
 and end, wall seconds, energy, GPU power, peak memory, node role, output
-sha256), plus `media: image`, the PNG's size, and each input image's path and
-sha256. The PNG must have the size the arm asked for, or the run fails.
+sha256), plus `media: image`, the PNG's size, and `inputs`: each input
+image's name, path, size and sha256. `request.inputs` holds the name and
+sha256 only, so the same input under another root is the same request. The PNG must have the size the arm asked for, or the run fails.
 
 A failure (an HTTP error, a reply that is not JSON, no image, an image that
 is not a PNG, a wrong size) writes `run.json` with the error, leaves no
@@ -43,12 +54,17 @@ from __future__ import annotations
 import base64
 import binascii
 import dataclasses
+import datetime
 import hashlib
+import http.client
 import json
 import logging
 import os
 import pathlib
+import re
 import sys
+import time
+import urllib.parse
 import uuid
 from collections.abc import Mapping
 from typing import Any
@@ -56,7 +72,7 @@ from typing import Any
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from videogen import generate
+from videogen import generate, outlet
 from videogen.common import (
     IMAGE_INPUTS_ROOT,
     png_size,
@@ -148,12 +164,17 @@ class InputImage:
     content_type: str
 
     def record(self) -> dict[str, Any]:
+        """What `request` keeps: the name and the sha256 only. batch.py
+        compares `request` between runs, and an absolute path would make
+        the same input on another checkout or root look like a change."""
         return {
             "name": self.path.name,
-            "path": str(self.path),
-            "bytes": len(self.data),
             "sha256": hashlib.sha256(self.data).hexdigest(),
         }
+
+    def detail(self) -> dict[str, Any]:
+        """What run.json keeps beside `request`: where the input was read."""
+        return {**self.record(), "path": str(self.path), "bytes": len(self.data)}
 
 
 def load_inputs(
@@ -393,6 +414,52 @@ def keep_image(
 # ------------------------------------------------------------------- run ----
 
 
+#: A key of `metrics.stage_durations` that is one stage's own time in ms.
+#: vLLM-Omni 0.32.0 names them `stage_<id>_gen_ms`
+#: (entrypoints/omni_base.py:648-655); `queue_wait_ms` is not one.
+STAGE_MS = re.compile(r"stage_\d+_\w+_ms")
+
+#: Below this wall time, a run.json keeps its GPU samples but no GPU mean.
+#: The sampler reads the GPU about once a second, and the power it reads
+#: lags the load: a 3 s image gave four samples, all at the idle 7.06 W
+#: (FLUX.2-klein-4B probe, 2026-11-18). A mean of those is not the image.
+MIN_GPU_MEAN_S = 10.0
+
+
+def server_seconds(metrics: Mapping[str, Any] | None) -> tuple[float | None, list[str]]:
+    """The server's own seconds for the image, and the keys summed.
+
+    The sum of every `stage_<id>_<what>_ms` in `metrics.stage_durations`,
+    divided by 1000. (None, []) when the reply has no such key.
+    """
+    stages = (metrics or {}).get("stage_durations")
+    if not isinstance(stages, Mapping):
+        return None, []
+    keys = sorted(
+        k
+        for k, v in stages.items()
+        if STAGE_MS.fullmatch(str(k))
+        and isinstance(v, (int, float))
+        and not isinstance(v, bool)
+    )
+    if not keys:
+        return None, []
+    return round(sum(float(stages[k]) for k in keys) / 1000, 3), keys
+
+
+def keep_gpu_samples(record: dict[str, Any], measured: generate.Measured) -> None:
+    """Keep each GPU sample; drop the mean of a run shorter than
+    MIN_GPU_MEAN_S (see there), and say why."""
+    power = record["gpu_power"]
+    power["readings"] = [[t, w] for t, w in measured.gpu_readings]
+    if measured.wall_s < MIN_GPU_MEAN_S:
+        power["mean_w"] = None
+        power["no_mean"] = (
+            f"run under {MIN_GPU_MEAN_S:g} s: the samples lag the load; "
+            "see block.json for the arm's energy"
+        )
+
+
 def run_one(
     plan: ImagePlan,
     server: str,
@@ -404,8 +471,14 @@ def run_one(
     allow_draft: bool = False,
     overwrite: bool = False,
     deps: generate.Deps | None = None,
+    settle: bool = True,
+    read_outlet: bool = True,
 ) -> int:
-    """Make one image. Returns 0, FAILED (run.json says why) or REFUSED."""
+    """Make one image. Returns 0, FAILED (run.json says why) or REFUSED.
+
+    batch.py passes `settle` and `read_outlet` False inside an arm's block,
+    so the requests run back to back; it reads the outlet after the block.
+    """
     deps = deps or generate.Deps()
     try:
         prepared = generate.prepare(
@@ -418,6 +491,7 @@ def run_one(
             allow_draft=allow_draft,
             overwrite=overwrite,
             deps=deps,
+            settle=settle,
         )
     except generate.Refused as err:
         logger.error("%s", err)
@@ -433,6 +507,7 @@ def run_one(
     )
     record["media"] = "image"
     record["prompt_id"] = plan.prompt_id
+    record["inputs"] = [image.detail() for image in plan.inputs]
     body, content_type = encode(plan)
     measured = generate.measured_post(
         server.rstrip("/") + plan.endpoint,
@@ -443,8 +518,11 @@ def run_one(
         deps,
     )
     record.update(measured.record)
-    # The image endpoints send no inference time (see the module docstring).
+    keep_gpu_samples(record, measured)
+    # The image endpoints send no X-Inference-Time-S header (see the module
+    # docstring); server_s comes from the reply's stage durations instead.
     record["server_s"] = None
+    record["server_s_from"] = []
     record["server_metrics"] = None
     error = measured.error
     reply = measured.reply
@@ -454,6 +532,9 @@ def run_one(
             error = decoded
         else:
             record["server_metrics"] = decoded.metrics
+            record["server_s"], record["server_s_from"] = server_seconds(
+                decoded.metrics
+            )
             record["server_size"] = decoded.size
             error = keep_image(plan, image_path, decoded.png, record)
     if error is None:
@@ -462,7 +543,15 @@ def run_one(
             "bytes": image_path.stat().st_size,
             "sha256": sha256(image_path),
         }
-    generate.finish(record, measured, error, prepared.role, run_path, deps)
+    generate.finish(
+        record,
+        measured,
+        error,
+        prepared.role,
+        run_path,
+        deps,
+        read_outlet=read_outlet,
+    )
     if error:
         image_path.unlink(missing_ok=True)
         logger.error(
@@ -482,3 +571,154 @@ def run_one(
         image_path,
     )
     return 0
+
+
+# ------------------------------------------------------------- the block ----
+
+#: Where batch.py writes an arm's block energy: `out/<arm>/block.json`.
+BLOCK_FILE = "block.json"
+#: The seed of the discarded warm-up request. The scored seeds start at 1.
+WARM_UP_SEED = 0
+
+
+def warm_up(plan: ImagePlan, server: str, deps: generate.Deps) -> dict[str, Any]:
+    """Send one discarded request, and return what block.json keeps of it.
+
+    The first request after a server start compiles and fills caches, so
+    its time is not the model's. The warm-up uses seed WARM_UP_SEED, so no
+    scored request repeats it; its image is not kept.
+    """
+    seed: Any = str(WARM_UP_SEED) if plan.mode == "edit" else WARM_UP_SEED
+    body, content_type = encode(
+        dataclasses.replace(plan, body={**plan.body, "seed": seed})
+    )
+    t0 = time.monotonic()
+    error: str | None = None
+    status: int | None = None
+    try:
+        reply = deps.post(
+            server.rstrip("/") + plan.endpoint, body, content_type, TIMEOUT_S
+        )
+        status = reply.status
+        decoded = decode_reply(reply)
+        if isinstance(decoded, str):
+            error = decoded
+    except (OSError, ValueError, http.client.HTTPException) as err:
+        error = f"request failed: {type(err).__name__}: {err}"
+    wall = round(time.monotonic() - t0, 3)
+    if error:
+        logger.warning("%s warm-up failed after %.1f s: %s", plan.arm_name, wall, error)
+    else:
+        logger.info("%s warm-up: %.1f s wall (not scored)", plan.arm_name, wall)
+    return {"seed": WARM_UP_SEED, "wall_s": wall, "http_status": status, "error": error}
+
+
+def run_window(
+    record: Mapping[str, Any],
+) -> tuple[datetime.datetime, datetime.datetime]:
+    """A run's start and end as run.json records them (whole seconds)."""
+    return (
+        datetime.datetime.fromisoformat(str(record["start"])),
+        datetime.datetime.fromisoformat(str(record["end"])),
+    )
+
+
+@dataclasses.dataclass
+class Block:
+    """One arm's scored image requests on one server start (batch.py).
+
+    The energy of one image is too short to measure: the outlet reports
+    about every 5 s. So batch.py runs an arm's requests back to back, with
+    one warm-up and one GPU settle before the first and none between them,
+    and reads the outlet once over the whole block. `block.json` then holds
+    the block's Wh and Wh per image.
+    """
+
+    server: str
+    node: str | None = None
+    metrics_host: str | None = None
+    deps: generate.Deps = dataclasses.field(default_factory=generate.Deps)
+    role: str | None = None
+    warm: dict[str, Any] | None = None
+    settled: dict[str, Any] | None = None
+    runs: list[pathlib.Path] = dataclasses.field(default_factory=list)
+
+    def start(self, plan: ImagePlan) -> None:
+        """Before the first scored request only: the warm-up, then the settle."""
+        if self.role is not None:
+            return
+        self.role = self.node or str(plan.server["node"])
+        host = self.metrics_host or urllib.parse.urlsplit(self.server).hostname or ""
+        self.warm = warm_up(plan, self.server, self.deps)
+        self.settled = generate.wait_for_idle(host, self.role, self.deps)
+
+    def add(self, run_dir: pathlib.Path) -> None:
+        self.runs.append(run_dir)
+
+    def close(self, arm_dir: pathlib.Path, arm: str) -> dict[str, Any] | None:
+        """Read the outlet once over the block; fill each run's `outlet` and
+        `energy_wh`; write `<arm_dir>/block.json`. None if no run.json."""
+        records: list[tuple[pathlib.Path, dict[str, Any]]] = []
+        for run_dir in self.runs:
+            try:
+                data = json.loads((run_dir / "run.json").read_text())
+            except (OSError, ValueError):
+                continue
+            if isinstance(data, dict) and data.get("start") and data.get("end"):
+                records.append((run_dir, data))
+        if not records or self.role is None:
+            return None
+        windows = [run_window(r) for _, r in records]
+        start = min(s for s, _ in windows)
+        end = max(e for _, e in windows)
+        plug = outlet.entity(self.role)
+        points, error = outlet.fetch(
+            plug, start, end, flux=self.deps.flux, sleep=self.deps.sleep
+        )
+        for (run_dir, record), (s, e) in zip(records, windows, strict=True):
+            reading = outlet.summarize(plug, points, s, e, error)
+            generate.apply_outlet(record, reading, s, e)
+            generate.write_json(run_dir / "run.json", record)
+        reading = outlet.summarize(plug, points, start, end, error)
+        seconds = (end - start).total_seconds()
+        wh = generate.request_energy(reading, seconds)
+        images = sum(1 for _, r in records if r.get("status") == "ok")
+        whole = images == len(records) and images > 0
+        block = {
+            "arm": arm,
+            "role": self.role,
+            "start": generate.iso(start),
+            "end": generate.iso(end),
+            "duration_s": round(seconds, 1),
+            "requests": len(records),
+            "images": images,
+            "runs": [run_dir.name for run_dir, _ in records],
+            "energy_wh": wh,
+            # Only when every request in the block made its image: a failed
+            # request used power but made nothing to divide it by.
+            "wh_per_image": round(wh / images, 4) if wh is not None and whole else None,
+            "outlet": reading,
+            "warm_up": self.warm,
+            "settle": self.settled,
+        }
+        path = arm_dir / BLOCK_FILE
+        if path.exists():
+            # Keep the earlier block: a batch that remakes a few runs makes a
+            # smaller block, and the earlier one is still a measurement.
+            try:
+                old = json.loads(path.read_text()).get("start", "")
+            except (OSError, ValueError, AttributeError):
+                old = ""
+            stamp = "".join(c for c in str(old) if c.isdigit())[:14] or "old"
+            path.rename(path.with_name(f"block-{stamp}.json"))
+        generate.write_json(path, block)
+        logger.info(
+            "%s block: %d request(s) over %.0f s, %s Wh, %s Wh per image -> %s",
+            arm,
+            len(records),
+            seconds,
+            wh,
+            block["wh_per_image"],
+            path,
+        )
+        return block

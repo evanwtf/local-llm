@@ -172,7 +172,7 @@ def integrate(
     return clock_cap_evidence.energy_wh(pts, start, end)
 
 
-def energy(
+def fetch(
     plug: str,
     start: datetime.datetime,
     end: datetime.datetime,
@@ -181,12 +181,11 @@ def energy(
     sleep: Callable[[float], None] = time.sleep,
     settle_s: float = SETTLE_S,
     tries: int = TRIES,
-) -> dict[str, Any]:
-    """Read and integrate the plug over [start, end]; never raises.
+) -> tuple[list[Point], str | None]:
+    """The plug's readings around [start, end], and the gcx error or None.
 
     Waits for a reading at or after `end`, so InfluxDB lag does not cut off
-    the last seconds. `complete` is False, with the reason in `error` when
-    gcx failed, if the readings do not cover the window.
+    the last seconds. Never raises.
     """
     points: list[Point] = []
     error: str | None = None
@@ -202,6 +201,18 @@ def energy(
         if any(t >= end for t, _ in points):
             break
         logger.info("outlet: no reading after the end yet (try %d)", attempt + 1)
+    return points, error
+
+
+def summarize(
+    plug: str,
+    points: Sequence[Point],
+    start: datetime.datetime,
+    end: datetime.datetime,
+    error: str | None = None,
+) -> dict[str, Any]:
+    """The reading of [start, end] from points `fetch` read. One fetch over
+    a block of requests serves each request inside it (batch.py, #1424)."""
     complete, max_gap = coverage(points, start, end)
     inside = [v for t, v in points if start <= t <= end]
     wh = integrate(points, start, end)
@@ -215,3 +226,24 @@ def energy(
         "peak_w": round(max(inside), 1) if inside else None,
         "error": error,
     }
+
+
+def energy(
+    plug: str,
+    start: datetime.datetime,
+    end: datetime.datetime,
+    *,
+    flux: Flux,
+    sleep: Callable[[float], None] = time.sleep,
+    settle_s: float = SETTLE_S,
+    tries: int = TRIES,
+) -> dict[str, Any]:
+    """Read and integrate the plug over [start, end]; never raises.
+
+    `complete` is False, with the reason in `error` when gcx failed, if the
+    readings do not cover the window.
+    """
+    points, error = fetch(
+        plug, start, end, flux=flux, sleep=sleep, settle_s=settle_s, tries=tries
+    )
+    return summarize(plug, points, start, end, error)

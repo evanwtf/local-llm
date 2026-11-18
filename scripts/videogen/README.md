@@ -192,12 +192,23 @@ from (the model card at the pinned revision). Each file's
 `verified_against` cites the vLLM-Omni 0.32.0 source for every field it
 sends. Two facts from that source matter:
 
-- The image endpoints send no `x-inference-time-s`. `run.json` then has
-  `server_s: null`, and `server_metrics` keeps the `metrics` object of the
-  reply (`peak_memory_mb`, `stage_durations`).
+- The image endpoints send no `x-inference-time-s`. `server_metrics`
+  keeps the `metrics` object of the reply (`peak_memory_mb`,
+  `stage_durations`). `server_s` is the sum of the `stage_<id>_<what>_ms`
+  keys of `stage_durations`, in seconds, and `server_s_from` lists the
+  keys it summed.
 - vLLM-Omni 0.32.0 runs HiDream-O1 with its UniPC scheduler at shift 3.0
   for every request. The Dev model card's recipe (flash scheduler, shift
   1.0) is not available, so `hidream-o1` is not the upstream recipe.
+- vLLM-Omni 0.32.0 snaps every HiDream-O1 size to the nearest aspect ratio
+  in a fixed list, and the smallest is 2048x2048
+  (`pipeline_hidream_o1_image.py:42-75`, `:540-552`). So `hidream-o1`
+  asks for 2048x2048, and the other arms ask for 1024x1024. **HiDream-O1
+  draws 4x the pixels: its seconds and Wh are not like-for-like** with the
+  other arms. The judge sees every candidate at 1024x1024 (see the judge
+  section).
+- Qwen-Image-2.1's card lists sizes of about 4 MP. `qwen-image` asks for
+  1024x1024 (1 MP), the size a chat bot posts.
 
 **Weights** go to `~/models/imagegen/<server name>` on the node that the
 server block names. `serve.py` reads every arms file; a server that serves
@@ -213,11 +224,33 @@ face. No file here names or describes a person in an input image.
 
 **What makes an image count.** The reply must be JSON with exactly one
 base64 PNG. The PNG must have the size the arm asked for (1024x1024 for
-text-to-image, 1024x576 for an edit). Anything else fails the run, and
-the run leaves no `image.png`. `run.json` records the same measurements
-as a clip (wall seconds, outlet energy, GPU power, peak memory, the idle
-settle), plus `media: image`, the PNG size, and the path and sha256 of
-each input image.
+text-to-image, 2048x2048 for `hidream-o1`, 1024x576 for an edit).
+Anything else fails the run, and the run leaves no `image.png`. `run.json`
+records the same measurements as a clip (wall seconds, outlet reading, GPU
+power samples, peak memory), plus `media: image`, the PNG size, and
+`inputs`: the name, path, size and sha256 of each input image.
+`request.inputs` holds the name and sha256 only, so a move of the input
+root is not a new request.
+
+**Energy is per block, not per image.** One image takes a few seconds,
+and the outlet reports about every 5 s. So:
+
+- A run's own `energy_wh` is null unless its outlet window is complete,
+  holds at least 3 readings and lasts at least 30 s. `outlet` (with its
+  `readings` count) stays in `run.json` either way.
+- `batch.py` runs an arm as one block on one server start: one discarded
+  warm-up request (its wall time is logged, never scored), one GPU settle,
+  then every request back to back with no settle between them. After the
+  block, one outlet read writes `out/<arm>/block.json`: the block's Wh,
+  image count, Wh per image, readings and duration. Wh per image is null
+  when the reading is incomplete or a request in the block failed.
+- The gallery and the metrics report the block's Wh per image for an image
+  arm, and say so.
+- A run under 10 s keeps its GPU power samples (`gpu_power.readings`) but
+  has no GPU mean: the sampler reads about once a second and lags the load,
+  so a 3 s image read only the idle 7 W.
+
+Run one `batch.py` per server start: the warm-up is once per batch.
 
 ```sh
 export VG=~/bench-logs/videogen
@@ -268,7 +301,10 @@ the same summary as a clip plus the steps and the seed, and the groups
 Request, Server, Measurements, Image check and Raw run.json. An edit card
 shows its input images beside the output, as image 1 and image 2. The
 page links them from `ref/imagegen/` as `media/inputs/<file>`. An image
-prompt gets a section only once it has a run.
+prompt gets a section only once it has a run. The energy row of an image
+card is "block energy": the Wh per image from its arm's `block.json`. The
+filters count "items shown", and hide a part heading when they hide every
+section under it.
 
 A field that `run.json` does not hold shows "—". The first probes wrote
 schema 1, which has fewer fields; they still render. The reference card shows
@@ -499,19 +535,21 @@ An image has no frames, no fps and no video seconds. A `kind` label on the
 clip families would add image wall seconds to `videogen_wall_seconds`, and
 every query above that divides by it would mix clips and images. The image
 families appear only when there is an image run. There is no image server
-time, because the image endpoints do not send it.
+time, because the image endpoints do not send it. The energy families
+report the arm's latest block (`out/<arm>/block.json`), not one request.
 
 | metric | what it is |
 |---|---|
 | `videogen_images` | Image runs with a `run.json`, with a `status` label. |
 | `videogen_image_wall_seconds` | Client wall seconds, summed over the ok images. |
-| `videogen_image_energy_joules` | Outlet energy (J), summed over the ok images with a complete reading. |
-| `videogen_image_energy_images` | The ok images with a complete energy reading. |
+| `videogen_image_block_energy_joules_per_image` | Block energy per image (J): the latest block's outlet joules over its images. Absent when the reading is incomplete or a request in the block failed. |
+| `videogen_image_block_energy_joules` | The latest block's outlet energy (J), when the reading is complete. |
+| `videogen_image_block_images` | The images in the latest block. |
+| `videogen_image_block_seconds` | The latest block, first start to last end, in seconds. |
 | `videogen_image_steps` | Denoising steps requested, summed over the ok images that record them. |
 | `videogen_image_step_images` | The ok images that record the steps. |
 | `videogen_image_last_wall_seconds` | The latest ok image: wall seconds. |
 | `videogen_image_last_peak_memory_bytes` | The latest ok image: peak used memory of the node, bytes. |
-| `videogen_image_last_energy_joules` | The latest ok image: outlet energy (J), only when the reading is complete. |
 | `videogen_image_last_timestamp_seconds` | The latest ok image: its end time. |
 
 "Latest" is by the run's end time, per label set. **Frames per second
@@ -642,9 +680,15 @@ uv run python scripts/videogen/gallery.py
 arms from one arms file; `--arms-file`, `--prompts` and `--clips` then
 default to that file, its prompts file and its prompt list.
 
-- The image is the evidence: `blind` copies `image.png` to
+- The image is the evidence: `blind` writes `image.png` to
   `OUT/<prompt>/<id>/image.png`, with no frame extraction. The image must
   match the sha256 that its `run.json` records.
+- `blind` does not copy the server's PNG. It re-encodes it: RGB, alpha
+  flattened on white, LANCZOS to 1024x1024 (text-to-image) or 1024x576
+  (edits), one compress level, and no ancillary chunk. The encoder, the
+  chunks and the 2048x2048 size of `hidream-o1` would each name a model.
+  The key records the source sha256 and the blind copy's own sha256, and
+  `ingest` refuses a reply when the blind copy changed.
 - An edit prompt's input images go once to
   `OUT/<prompt>/input/image-1.jpg`, `image-2.jpg`, and so on, in the order
   the request sent them. Each must match the sha256 that `edit-v1.json`

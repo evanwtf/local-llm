@@ -57,6 +57,16 @@ def png_size(data: bytes) -> tuple[int, int] | None:
     return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
 
 
+class Refused(Exception):
+    """A check before the work failed, so the command writes nothing (exit 2).
+
+    One class for every video-gen script. `generate.py` run as a script is
+    the module `__main__`, and `imagegen.py` imports `videogen.generate`, a
+    second copy: a class defined in generate.py would then exist twice, and
+    `main` would not catch the copy that imagegen raised (#1424 review).
+    """
+
+
 class InsideRepo(Exception):
     """An output path points inside a git work tree."""
 

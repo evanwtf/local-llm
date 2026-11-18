@@ -81,6 +81,7 @@ from videogen.common import (
     IMAGE_INPUTS_ROOT,
     FfmpegError,
     InsideRepo,
+    Refused,
     file_url,
     prompt_name,
     refuse_inside_repo,
@@ -175,10 +176,6 @@ SERVER_HEADERS = (
 
 #: Exit codes: refused before any request, and a request that failed.
 REFUSED, FAILED = 2, 1
-
-
-class Refused(Exception):
-    """A check before the request failed. Nothing is written."""
 
 
 # ---------------------------------------------------------------- config ----
@@ -835,11 +832,19 @@ def default_out(
 
 
 def preflight(
-    plan: AnyPlan, server: str, host: str, role: str, deps: Deps
+    plan: AnyPlan,
+    server: str,
+    host: str,
+    role: str,
+    deps: Deps,
+    *,
+    settle: bool = True,
 ) -> dict[str, Any]:
     """Check the server and the GPU before the request. Raise Refused.
 
-    Returns what run.json records of them.
+    Returns what run.json records of them. `settle` False skips the wait
+    for the idle floor: inside an image block (batch.py) the requests run
+    back to back, and the batch settled once before the block.
     """
     want = str(plan.server["served_model_name"])
     ids = served_models(server, deps.get)
@@ -850,7 +855,16 @@ def preflight(
             f"{server} serves {ids}, not {want}. Start it with "
             f"scripts/videogen/serve.py --model {plan.arm['server']}."
         )
-    settled = wait_for_idle(host, role, deps)
+    settled = (
+        wait_for_idle(host, role, deps)
+        if settle
+        else {
+            "gpu_w_before": None,
+            "settle_s": None,
+            "settle_readings": [],
+            "settle_skipped": "inside a block: batch.py settled once before it",
+        }
+    )
     return {
         "served_model": want,
         "vllm_version": vllm_version(server, deps.get),
@@ -912,6 +926,7 @@ def prepare(
     allow_draft: bool,
     overwrite: bool,
     deps: Deps,
+    settle: bool = True,
 ) -> Prepared:
     """Every check before a request, for a clip or an image. Raise Refused.
 
@@ -933,7 +948,7 @@ def prepare(
         raise Refused(f"{out} already holds a run; pass --overwrite to replace it")
     role = node or str(plan.server["node"])
     host = metrics_host or urllib.parse.urlsplit(server).hostname or ""
-    server_seen = preflight(plan, server, host, role, deps)
+    server_seen = preflight(plan, server, host, role, deps, settle=settle)
     out.mkdir(parents=True, exist_ok=True)
     output.unlink(missing_ok=True)
     run_path.unlink(missing_ok=True)
@@ -982,6 +997,8 @@ class Measured:
     end: datetime.datetime
     wall_s: float
     record: dict[str, Any]
+    #: Each GPU power reading as (seconds since the request started, watts).
+    gpu_readings: tuple[tuple[float, float], ...] = ()
 
 
 def measured_post(
@@ -1029,7 +1046,40 @@ def measured_post(
         "memory": mem_stats([m for _, m in mem.samples]),
         "sample_misses": {"gpu": gpu.misses, "memory": mem.misses},
     }
-    return Measured(reply, error, start, end, wall, record)
+    readings = tuple((round(t - t0, 3), float(w)) for t, w in gpu.samples)
+    return Measured(reply, error, start, end, wall, record, readings)
+
+
+#: A per-request energy needs at least this many outlet readings inside the
+#: window, and a window at least this long. The plug reports about every
+#: 5 s, so a 3 s image has one reading or none: its "complete" Wh is one
+#: held value times the window, not a measurement (#1424 review). Image arms
+#: get a block energy instead (batch.py, `out/<arm>/block.json`).
+MIN_READINGS = 3
+MIN_WINDOW_S = 30.0
+
+
+def request_energy(reading: Mapping[str, Any], seconds: float) -> float | None:
+    """The Wh of one window, or None unless it is complete, holds at least
+    MIN_READINGS readings and lasts at least MIN_WINDOW_S."""
+    if not reading.get("complete") or seconds < MIN_WINDOW_S:
+        return None
+    if int(reading.get("readings") or 0) < MIN_READINGS:
+        return None
+    value = reading.get("energy_wh")
+    return float(value) if isinstance(value, (int, float)) else None
+
+
+def apply_outlet(
+    record: dict[str, Any],
+    reading: dict[str, Any],
+    start: datetime.datetime,
+    end: datetime.datetime,
+) -> None:
+    """Put an outlet reading in a run record: `outlet` always (with its
+    `readings` count), `energy_wh` only when `request_energy` allows it."""
+    record["outlet"] = reading
+    record["energy_wh"] = request_energy(reading, (end - start).total_seconds())
 
 
 def finish(
@@ -1039,32 +1089,42 @@ def finish(
     role: str,
     run_path: pathlib.Path,
     deps: Deps,
+    *,
+    read_outlet: bool = True,
 ) -> bool:
     """Add the outlet energy and the status, and write run.json.
 
-    Returns whether the outlet reading is complete. A partial reading stays
-    under `outlet`; only a complete one is the top-level `energy_wh`.
+    Returns whether `energy_wh` is set. A partial or too short reading stays
+    under `outlet`; only a full one is the top-level `energy_wh`.
+    `read_outlet` False defers the reading: inside an image block, a read
+    here would wait about 15 s for InfluxDB, and the next request must start
+    at once. batch.py reads it after the block (`backfill_outlet`).
     """
-    record["outlet"] = outlet.energy(
-        outlet.entity(role),
-        measured.start,
-        measured.end,
-        flux=deps.flux,
-        sleep=deps.sleep,
-    )
-    complete = bool(record["outlet"]["complete"])
-    record["energy_wh"] = record["outlet"]["energy_wh"] if complete else None
+    if read_outlet:
+        reading = outlet.energy(
+            outlet.entity(role),
+            measured.start,
+            measured.end,
+            flux=deps.flux,
+            sleep=deps.sleep,
+        )
+        apply_outlet(record, reading, measured.start, measured.end)
+    else:
+        record["outlet"] = {"deferred": "batch.py reads it after the block"}
+        record["energy_wh"] = None
     record["status"] = "failed" if error else "ok"
     record["error"] = clip_error(error) if error else None
     write_json(run_path, record)
-    if not error and not complete:
+    has_energy = record["energy_wh"] is not None
+    if read_outlet and not error and not has_energy:
         logger.warning(
-            "the outlet reading is incomplete (max gap %s s, %s); energy_wh is "
-            "None and batch.py will not count this run",
+            "the outlet reading is incomplete or too short (%s readings, max gap "
+            "%s s, %s); energy_wh is None",
+            record["outlet"]["readings"],
             record["outlet"]["max_gap_s"],
-            record["outlet"]["error"] or "the readings do not cover the window",
+            record["outlet"]["error"] or "see outlet in run.json",
         )
-    return complete
+    return has_energy
 
 
 def run_one(
@@ -1163,7 +1223,8 @@ def run_plan(plan: AnyPlan, server: str, out: pathlib.Path, **kw: Any) -> int:
     """`run_one` for a video plan, `imagegen.run_one` for an image plan.
 
     `kw` goes through unchanged: probe, node, metrics_host, allow_draft,
-    overwrite and deps.
+    overwrite and deps; for an image plan also settle and read_outlet
+    (batch.py's block).
     """
     from videogen import imagegen  # imagegen imports this module
 

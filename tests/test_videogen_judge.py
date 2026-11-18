@@ -8,6 +8,7 @@ defect type would write a score that silently belongs to the wrong run.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import logging
 import os
@@ -15,9 +16,12 @@ import pathlib
 import stat
 import subprocess
 import sys
+import tempfile
+from collections.abc import MutableSequence
 from typing import Any
 
 import pytest
+from PIL import Image, PngImagePlugin
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -879,15 +883,55 @@ IMAGE_ARMS_CFG = {
     "seeds": [1, 2],
     "clips": ["swap", "plain"],
     "arms": {
-        "qwen-image-edit": {"model": "Qwen/Qwen-Image-Edit-2511"},
-        "flux2-klein-4b-edit": {"model": "black-forest-labs/FLUX.2-klein-4B"},
+        "qwen-image-edit": {"model": "Qwen/Qwen-Image-Edit-2511", "mode": "edit"},
+        "flux2-klein-4b-edit": {
+            "model": "black-forest-labs/FLUX.2-klein-4B",
+            "mode": "edit",
+        },
     },
 }
 IMAGE_ARMS = ("qwen-image-edit", "flux2-klein-4b-edit")
 
 
+def png_bytes(
+    size: tuple[int, int],
+    color: tuple[int, ...],
+    *,
+    mode: str = "RGB",
+    text: str | None = None,
+) -> bytes:
+    """A real PNG; `text` adds a tEXt chunk, as an encoder might."""
+    info = PngImagePlugin.PngInfo()
+    if text is not None:
+        info.add_text("Software", text)
+    buf = io.BytesIO()
+    Image.new(mode, size, color).save(buf, format="PNG", pnginfo=info)
+    return buf.getvalue()
+
+
+def png_chunks(data: bytes) -> list[bytes]:
+    """The chunk types of a PNG, in order."""
+    pos, out = 8, []
+    while pos < len(data):
+        length = int.from_bytes(data[pos : pos + 4], "big")
+        out.append(data[pos + 4 : pos + 8])
+        pos += 12 + length
+    return out
+
+
+def arm_png(arm: str, clip: str, seed: int) -> bytes:
+    """Each arm's PNG differs the way two models' would: one is RGBA with
+    an encoder chunk at the edit size, the other RGB at another size."""
+    shade = 40 * seed + (0 if clip == "swap" else 7)
+    if arm == "qwen-image-edit":
+        return png_bytes(
+            (1024, 576), (shade, 10, 20, 128), mode="RGBA", text="qwen encoder"
+        )
+    return png_bytes((640, 360), (shade, 90, 30))
+
+
 def make_image_run(root: pathlib.Path, arm: str, clip: str, seed: int) -> bytes:
-    image = f"png {arm} {clip} {seed}".encode()
+    image = arm_png(arm, clip, seed)
     out = root / "out" / arm / f"{clip}-s{seed}"
     out.mkdir(parents=True)
     (out / "image.png").write_bytes(image)
@@ -934,8 +978,9 @@ def test_image_blind_copies_only_the_image_and_the_inputs_once(
         assert [p.name for p in folder.iterdir()] == ["image.png"]
         source = pathlib.Path(run["clip_path"])
         assert source.name == "image.png"
-        assert (folder / "image.png").read_bytes() == source.read_bytes()
         assert run["clip_sha256"] == sha(source.read_bytes())
+        assert run["source_sha256"] == run["clip_sha256"]
+        assert run["blind_sha256"] == sha((folder / "image.png").read_bytes())
     inputs = sorted(p.name for p in (out / "swap" / "input").iterdir())
     assert inputs == ["image-1.jpg", "image-2.jpg"]
     assert (out / "swap" / "input" / "image-2.jpg").read_bytes() == INPUT_BYTES[
@@ -982,7 +1027,7 @@ def test_image_blind_refuses_an_image_unlike_its_run_json(
     tmp_path: pathlib.Path, image_env: Env
 ) -> None:
     image = image_env[0] / "out" / "qwen-image-edit" / "plain-s2" / "image.png"
-    image.write_bytes(b"remade")
+    image.write_bytes(png_bytes((8, 8), (1, 2, 3)))
     with pytest.raises(judge.Refused, match="not the image its run.json records"):
         image_blind(image_env, tmp_path / "blind")
     assert not (tmp_path / "blind").exists()
@@ -1064,3 +1109,121 @@ def test_image_ingest_refuses_an_image_remade_after_blind(
     }
     with pytest.raises(judge.Refused, match="changed since the blind run"):
         do_ingest(out, write_answers(tmp_path, answers))
+
+
+def test_image_blind_copies_are_normalized_so_the_file_names_no_model(
+    tmp_path: pathlib.Path, image_env: Env
+) -> None:
+    """#1424 review: the server's PNG (size, alpha, encoder chunk) told the
+    arms apart. Every blind copy is RGB, the mode's size, and has no
+    ancillary chunk."""
+    out = tmp_path / "blind"
+    key = image_blind(image_env, out)
+    sources = {
+        pathlib.Path(r["clip_path"]).read_bytes()[:40] for r in key["runs"].values()
+    }
+    assert len(sources) > 1  # the sources differ in their headers
+    for run_id, run in key["runs"].items():
+        data = (out / run["clip"] / run_id / "image.png").read_bytes()
+        assert png_chunks(data)[0] == b"IHDR"
+        assert set(png_chunks(data)) == {b"IHDR", b"IDAT", b"IEND"}
+        with Image.open(io.BytesIO(data)) as im:
+            assert im.mode == "RGB" and im.size == (1024, 576)
+            assert not im.info
+        assert run["blind_size"] == [1024, 576]
+
+
+def test_a_normalized_copy_flattens_alpha_on_white() -> None:
+    src = png_bytes((4, 4), (0, 0, 0, 0), mode="RGBA", text="x")
+    with tempfile.TemporaryDirectory() as tmp:
+        a, b = pathlib.Path(tmp, "a.png"), pathlib.Path(tmp, "b.png")
+        a.write_bytes(src)
+        digest = judge.normalize_png(a, b, (1024, 1024))
+        assert digest == sha(b.read_bytes())
+        with Image.open(b) as im:
+            assert im.size == (1024, 1024)
+            assert im.getpixel((0, 0)) == (255, 255, 255)
+
+
+def test_a_normalized_copy_of_one_image_is_the_same_bytes_twice(
+    tmp_path: pathlib.Path,
+) -> None:
+    src = tmp_path / "src.png"
+    src.write_bytes(png_bytes((2048, 2048), (9, 8, 7)))
+    first = judge.normalize_png(src, tmp_path / "a.png", (1024, 1024))
+    second = judge.normalize_png(src, tmp_path / "b.png", (1024, 1024))
+    assert first == second
+
+
+def test_image_blind_refuses_an_image_pillow_cannot_read(
+    tmp_path: pathlib.Path, image_env: Env
+) -> None:
+    out_dir = image_env[0] / "out" / "qwen-image-edit" / "plain-s1"
+    junk = b"not a png"
+    (out_dir / "image.png").write_bytes(junk)
+    run = json.loads((out_dir / "run.json").read_text())
+    run["output"]["sha256"] = sha(junk)
+    (out_dir / "run.json").write_text(json.dumps(run))
+    with pytest.raises(judge.Refused, match="not an image Pillow can read"):
+        image_blind(image_env, tmp_path / "blind")
+    assert not (tmp_path / "blind").exists()
+
+
+def test_image_blind_refuses_an_arm_with_no_mode(
+    tmp_path: pathlib.Path, image_env: Env
+) -> None:
+    cfg = json.loads(image_env[2].read_text())
+    del cfg["arms"]["flux2-klein-4b-edit"]["mode"]
+    image_env[2].write_text(json.dumps(cfg))
+    with pytest.raises(judge.Refused, match="is not t2i or edit"):
+        image_blind(image_env, tmp_path / "blind")
+
+
+def test_image_ingest_refuses_a_blind_copy_changed_after_blind(
+    tmp_path: pathlib.Path, image_env: Env
+) -> None:
+    out = tmp_path / "blind"
+    key = image_blind(image_env, out)
+    ids = key["order"]["plain"]
+    (out / "plain" / ids[0] / "image.png").write_bytes(b"swapped")
+    answers = {
+        i: {
+            "items": [{"n": n, "true": True, "why": "x"} for n in (1, 2)],
+            "defects": [],
+        }
+        for i in ids
+    }
+    with pytest.raises(judge.Refused, match=r"image.png changed since the blind run"):
+        do_ingest(out, write_answers(tmp_path, answers))
+    assert not (image_env[0] / "scores").exists()
+
+
+class Reverse:
+    """A fake rng: shuffle reverses, so the copy order is known."""
+
+    def shuffle(self, x: MutableSequence[Any], /) -> None:
+        x.reverse()
+
+
+def test_blind_shuffles_the_candidates_before_the_copy_loop(
+    tmp_path: pathlib.Path, image_env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The runs are found arm by arm; the copy order must not be that order."""
+    copied: list[str] = []
+    real = judge.normalize_png
+
+    def spy(source: pathlib.Path, dest: pathlib.Path, size: tuple[int, int]) -> str:
+        copied.append(source.parent.parent.name)
+        return real(source, dest, size)
+
+    monkeypatch.setattr(judge, "normalize_png", spy)
+    root, _, arms_file = image_env
+    judge.blind(
+        list(IMAGE_ARMS),
+        out=tmp_path / "blind",
+        root=root,
+        arms_file=arms_file,
+        rng=Reverse(),
+    )
+    # Found order: every qwen run, then every flux run. Copied: reversed.
+    assert copied == ["flux2-klein-4b-edit"] * 4 + ["qwen-image-edit"] * 4

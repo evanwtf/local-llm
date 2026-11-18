@@ -40,7 +40,14 @@ the frames are private and this repository is public.
 **Image arms (#1424).** For an arm in `image-arms-v1.json` or
 `edit-arms-v1.json`, the image itself is the evidence: `blind` copies the
 run's `image.png` (checked against the sha256 its run.json records) to
-`DIR/<prompt>/<id>/image.png`, with no frame extraction. An edit prompt's
+`DIR/<prompt>/<id>/image.png`, with no frame extraction. The copy is not
+the file the server sent: `blind` re-encodes it to a normalized PNG (RGB,
+alpha flattened on white, LANCZOS to BLIND_SIZE for its mode, a fixed
+compress level, no ancillary chunks). The server's PNG carries its encoder,
+its chunks and, for HiDream-O1, a 2048x2048 size; any of these would name
+the model to a judge who reads the file. The key records the source sha256
+and the blind copy's own sha256, and `ingest` checks the blind copy against
+it. An edit prompt's
 input images go once to `DIR/<prompt>/input/image-1.jpg`, `image-2.jpg`,
 ..., checked against the sha256 that `prompts/edit-v1.json` pins, and the
 judge prompt names them as the reference. The ids, the fixed mtime, the
@@ -64,8 +71,10 @@ import shutil
 import string
 import sys
 import tempfile
-from collections.abc import Mapping, Sequence
-from typing import Any
+from collections.abc import Mapping, MutableSequence, Sequence
+from typing import Any, Protocol
+
+from PIL import Image
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
@@ -75,6 +84,7 @@ from videogen.common import (
     EDIT_ARMS_FILE,
     IMAGE_ARMS_FILE,
     InsideRepo,
+    Refused,
     prompt_name,
     refuse_inside_repo,
     sha256,
@@ -101,6 +111,13 @@ ID_LEN = 6
 SAFE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 STILL = re.compile(r"^s\d+\.jpg$")
 STRIP = "strip.jpg"
+#: The size of a blind image copy, by arm mode: every candidate of a prompt
+#: looks the same size to the judge, whatever size the model drew.
+BLIND_SIZE = {"t2i": (1024, 1024), "edit": (1024, 576)}
+#: zlib level of a blind image copy: one level for every candidate.
+BLIND_COMPRESS = 6
+#: The background an image with alpha is flattened on.
+BLIND_BACKGROUND = (255, 255, 255)
 #: Every blinded file and folder gets this mtime (2000-01-01T00:00:00Z), so
 #: the times do not show the copy order. ctime cannot be set; the random
 #: copy order covers it.
@@ -185,12 +202,12 @@ candidates; "image 1" and "image 2" in the checklist mean these files:
 """
 
 
-class Refused(Exception):
-    """The input is wrong, so the command writes nothing."""
-
-
 class DuplicateKey(ValueError):
     """A JSON object holds the same key twice."""
+
+
+class Shuffler(Protocol):
+    def shuffle(self, x: MutableSequence[Any], /) -> None: ...
 
 
 @dataclasses.dataclass(frozen=True)
@@ -455,6 +472,33 @@ def find_image_run(
     )
 
 
+def normalize_png(
+    source: pathlib.Path, dest: pathlib.Path, size: tuple[int, int]
+) -> str:
+    """Write `source` to `dest` as a normalized PNG and return its sha256.
+
+    RGB; alpha flattened on BLIND_BACKGROUND; resized with LANCZOS to `size`
+    if it is not that size; BLIND_COMPRESS; no ancillary chunk (the pixels
+    go into a new image, so no text, ICC, gamma or pHYs chunk follows).
+    """
+    try:
+        with Image.open(source) as im:
+            im.load()
+            if "A" in im.getbands() or "transparency" in im.info:
+                rgba = im.convert("RGBA")
+                rgb = Image.new("RGB", rgba.size, BLIND_BACKGROUND)
+                rgb.paste(rgba, mask=rgba.getchannel("A"))
+            else:
+                rgb = im.convert("RGB")
+    except (OSError, ValueError) as err:  # UnidentifiedImageError is an OSError
+        raise Refused(f"{source} is not an image Pillow can read: {err}") from err
+    if rgb.size != size:
+        rgb = rgb.resize(size, Image.Resampling.LANCZOS)
+    clean = Image.frombytes("RGB", rgb.size, rgb.tobytes())
+    clean.save(dest, format="PNG", compress_level=BLIND_COMPRESS)
+    return sha256(dest)
+
+
 def copy_inputs(
     specs: Sequence[Mapping[str, Any]], inputs_root: pathlib.Path, folder: pathlib.Path
 ) -> list[pathlib.Path]:
@@ -562,11 +606,13 @@ def blind(
     arms_file: pathlib.Path | None = None,
     inputs_root: pathlib.Path | None = None,
     allow_missing: bool = False,
+    rng: Shuffler | None = None,
 ) -> dict[str, list[str]]:
     """Write the blind directory and its key. Return clip -> ids, in prompt order.
 
     `clips` None means every prompt the arms file lists. `inputs_root` None
-    means `<root>/ref/imagegen` (an edit prompt's input images).
+    means `<root>/ref/imagegen` (an edit prompt's input images). `rng` is
+    for tests; the default is `secrets.SystemRandom`, which nothing seeds.
     """
     for name in arms:
         if not SAFE.match(name):
@@ -616,8 +662,11 @@ def blind(
             "to blind the rest):\n  " + "\n  ".join(missing)
         )
 
-    rng = secrets.SystemRandom()
-    # Copy in a random order: the inode order then shows nothing about arms.
+    rng = rng or secrets.SystemRandom()
+    # Copy in a random order, so neither the inode order nor the ctimes
+    # (which FIXED_MTIME cannot reset) show which runs are one arm's. `runs`
+    # is in arm order until here; this shuffle is the last step before the
+    # copy loop, for clips and images alike.
     rng.shuffle(runs)
     taken: set[str] = set()
     key: dict[str, Any] = {
@@ -645,14 +694,7 @@ def blind(
             ids_by_clip[run.clip].append(run_id)
             folder = stage / run.clip / run_id
             folder.mkdir(parents=True)
-            for name in run.files:
-                # copyfile, not copy2: no mode or mtime from the source.
-                shutil.copyfile(run.frames / name, folder / name)
-                if sha256(folder / name) != run.hashes[name]:
-                    raise Refused(
-                        f"{run.frames / name}: the copy does not match meta.json"
-                    )
-            key["runs"][run_id] = {
+            entry: dict[str, Any] = {
                 "arm": run.arm,
                 "clip": run.clip,
                 "seed": run.seed,
@@ -660,6 +702,25 @@ def blind(
                 "clip_path": str(run.clip_path),
                 "clip_sha256": run.clip_sha256,
             }
+            if media == "image":
+                mode = arm_cfg[run.arm].get("mode")
+                if mode not in BLIND_SIZE:
+                    raise Refused(f"{run.arm}: mode {mode!r} is not t2i or edit")
+                size = BLIND_SIZE[str(mode)]
+                entry["source_sha256"] = run.clip_sha256
+                entry["blind_sha256"] = normalize_png(
+                    run.clip_path, folder / IMAGE, size
+                )
+                entry["blind_size"] = list(size)
+            else:
+                for name in run.files:
+                    # copyfile, not copy2: no mode or mtime from the source.
+                    shutil.copyfile(run.frames / name, folder / name)
+                    if sha256(folder / name) != run.hashes[name]:
+                        raise Refused(
+                            f"{run.frames / name}: the copy does not match meta.json"
+                        )
+            key["runs"][run_id] = entry
         order: dict[str, list[str]] = {}
         inputs: dict[str, list[str]] = {}
         for clip, ids in ids_by_clip.items():
@@ -885,6 +946,13 @@ def ingest(
             errors.append(f"{run_id}: the clip {clip_file} is gone")
         elif sha256(clip_file) != run["clip_sha256"]:
             errors.append(f"{run_id}: {clip_file} changed since the blind run")
+        if run.get("blind_sha256"):
+            # An image: the judge saw the normalized copy, so check it too.
+            shown = blind_dir / clip / run_id / IMAGE
+            if not shown.is_file():
+                errors.append(f"{run_id}: the blind copy {shown} is gone")
+            elif sha256(shown) != run["blind_sha256"]:
+                errors.append(f"{run_id}: {shown} changed since the blind run")
         path = scores_root / arm / f"{clip}-s{seed}.json"
         if path.exists() and not overwrite:
             errors.append(f"{path} exists; pass --overwrite to replace it")

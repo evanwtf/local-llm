@@ -920,3 +920,56 @@ def test_the_csp_still_names_the_page_css_and_js(
     assert gallery.csp_hash(gallery.CSS) in policy
     assert gallery.csp_hash(gallery.JS) in policy
     assert "img-src 'self'" in policy
+
+
+def test_an_image_card_shows_its_arm_block_energy_per_image(
+    layout: Layout, tmp_path: pathlib.Path
+) -> None:
+    """#1424 review: one image is too short for the outlet; the card shows
+    the block's Wh per image, labeled as such."""
+    root = layout[0]
+    block = {"images": 12, "energy_wh": 1.8, "wh_per_image": 0.15}
+    (root / "out" / "z-image-turbo").mkdir(parents=True)
+    (root / "out" / "z-image-turbo" / "block.json").write_text(json.dumps(block))
+    text, _ = build_images(layout, tmp_path)
+    card = card_html(text, "out/z-image-turbo/meme-text-s1")
+    assert "<dt>block energy</dt><dd>0.15 Wh per image (block of 12)</dd>" in card
+    edit = card_html(text, "out/qwen-image-edit/face-swap-s1")
+    assert "<dt>block energy</dt><dd>— (no block yet)</dd>" in edit
+
+
+def test_an_incomplete_block_says_so_on_the_card(
+    layout: Layout, tmp_path: pathlib.Path
+) -> None:
+    root = layout[0]
+    block = {"images": 12, "energy_wh": None, "wh_per_image": None}
+    (root / "out" / "z-image-turbo").mkdir(parents=True)
+    (root / "out" / "z-image-turbo" / "block.json").write_text(json.dumps(block))
+    text, _ = build_images(layout, tmp_path)
+    card = card_html(text, "out/z-image-turbo/meme-text-s1")
+    assert "<dd>— (block of 12: incomplete)</dd>" in card
+
+
+def test_an_image_card_shows_server_s_from_the_stage_durations(
+    layout: Layout, tmp_path: pathlib.Path
+) -> None:
+    root = layout[0]
+    run = image_run("z-image-turbo", "meme-text", 2, "t2i")
+    run["server_s"] = 2.977
+    d = add_run(root, "out", "z-image-turbo", "meme-text-s2", run, False)
+    (d / "image.png").write_bytes(b"\x89PNG two")
+    text, _ = build_images(layout, tmp_path)
+    card = card_html(text, "out/z-image-turbo/meme-text-s2")
+    assert "<dt>server inference</dt><dd>3.0 s</dd>" in card
+
+
+def test_the_filters_count_items_and_hide_an_empty_part_heading(
+    layout: Layout, tmp_path: pathlib.Path
+) -> None:
+    text, page = build_images(layout, tmp_path)
+    assert "items shown" in page.scripts[0] and "clips shown" not in page.scripts[0]
+    assert "h2.part" in page.scripts[0]
+    for part, heading in (("image", "Images"), ("edit", "Image edits")):
+        assert f'<h2 class="part" data-part="{part}">{heading}</h2>' in text
+    assert '<section class="prompt" data-part="image" data-clip="meme-text">' in text
+    assert '<section class="prompt" data-part="video" data-clip="dog-a">' in text

@@ -645,13 +645,12 @@ def test_images_have_their_own_families_and_leave_the_clips_alone(
     assert samples[("videogen_images", want | {("status", "ok")})] == 2
     assert samples[("videogen_images", want | {("status", "failed")})] == 1
     assert samples[("videogen_image_wall_seconds", want)] == 22.0
-    assert samples[("videogen_image_energy_joules", want)] == 0.5 * 3600
-    assert samples[("videogen_image_energy_images", want)] == 1
     assert samples[("videogen_image_steps", want)] == 18
     assert samples[("videogen_image_step_images", want)] == 2
     assert samples[("videogen_image_last_wall_seconds", want)] == 12.0
     assert samples[("videogen_image_last_peak_memory_bytes", want)] == 30.0 * 2**30
-    assert ("videogen_image_last_energy_joules", want) not in samples
+    # No block.json yet: no energy family, and no per-request energy one.
+    assert not [n for n, _ in samples if "energy" in n and "image" in n]
     # No fps label on an image, and no image in a clip family.
     image_keys = [ls for n, ls in samples if n.startswith("videogen_image")]
     assert image_keys and all("fps" not in dict(ls) for ls in image_keys)
@@ -687,3 +686,54 @@ def test_an_ok_image_without_wall_time_is_skipped_with_a_warning(
     put(tmp_path, "out/z-image-turbo/meme-text-s1", image_json(wall_s=None))
     assert "videogen_images" not in render(tmp_path)
     assert "it says ok but has no wall_s" in caplog.text
+
+
+BLOCK = {
+    "arm": "z-image-turbo",
+    "start": "2026-11-18T20:00:00-0500",
+    "end": "2026-11-18T20:00:36-0500",
+    "duration_s": 36.0,
+    "requests": 12,
+    "images": 12,
+    "energy_wh": 1.8,
+    "wh_per_image": 0.15,
+}
+
+
+def test_image_energy_is_the_block_wh_per_image(tmp_path: pathlib.Path) -> None:
+    """#1424 review: a 3 s image has no energy of its own; the arm's block
+    (block.json) gives the energy per image."""
+    put(tmp_path, "out/z-image-turbo/meme-text-s1", image_json(energy_wh=None))
+    put(tmp_path, "out/z-image-turbo/meme-text-s2", image_json(energy_wh=None))
+    (tmp_path / "out/z-image-turbo/block.json").write_text(json.dumps(BLOCK))
+    samples = parse(render(tmp_path))
+    per = value(samples, "videogen_image_block_energy_joules_per_image")
+    assert per == [pytest.approx(0.15 * 3600)]
+    assert value(samples, "videogen_image_block_energy_joules") == [
+        pytest.approx(1.8 * 3600)
+    ]
+    assert value(samples, "videogen_image_block_images") == [12.0]
+    assert value(samples, "videogen_image_block_seconds") == [36.0]
+
+
+def test_an_incomplete_block_has_no_energy_but_its_image_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    put(tmp_path, "out/z-image-turbo/meme-text-s1", image_json(energy_wh=None))
+    block = {**BLOCK, "energy_wh": None, "wh_per_image": None}
+    (tmp_path / "out/z-image-turbo/block.json").write_text(json.dumps(block))
+    samples = parse(render(tmp_path))
+    assert not value(samples, "videogen_image_block_energy_joules_per_image")
+    assert not value(samples, "videogen_image_block_energy_joules")
+    assert value(samples, "videogen_image_block_images") == [12.0]
+
+
+def test_a_bad_block_file_is_skipped_with_a_warning(
+    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    put(tmp_path, "out/z-image-turbo/meme-text-s1", image_json())
+    (tmp_path / "out/z-image-turbo/block.json").write_text("{not json")
+    samples = parse(render(tmp_path))
+    assert value(samples, "videogen_images", status="ok") == [1.0]
+    assert not value(samples, "videogen_image_block_images")
+    assert "block.json: unreadable" in caplog.text
