@@ -1,7 +1,56 @@
 {
   "version": "image-v1",
   "media": "image",
-  "status": "draft",
+  "status": "locked",
+  "locked": {
+    "date": "2026-11-18T18:20:00-0500",
+    "method": "One timing probe per arm before any scored run (scripts/videogen/generate.py --probe), vLLM-Omni 0.32.0, one model per Spark, each GPU idle at the start, two seeds per arm (seed 2 matched seed 1 within 4% everywhere, so no warm-up cost shows; batch.py still sends one discarded warm-up per block). Every arm keeps its primary size. The probe run.json and image files are under ~/bench-logs/videogen/probe/ (outside the repo).",
+    "note": "The head probes ran from the #1426 branch at 0431e66d (z-image-turbo before, qwen-image after, the HiDream size change in a60ec7ce, which did not touch their settings); the worker probes ran from main at #1426. Energy per image comes from the block (block.json), not from a probe.",
+    "probes": [
+      {
+        "arm": "flux2-klein-4b",
+        "size": "1024x1024",
+        "steps": 4,
+        "wall_s": 3.08,
+        "server_s": 3.0,
+        "peak_memory_gib": 23.8,
+        "run": "probe/flux2-klein-4b/photo-dog-s1-20261118/run.json",
+        "node": "worker"
+      },
+      {
+        "arm": "z-image-turbo",
+        "size": "1024x1024",
+        "steps": 9,
+        "wall_s": 8.9,
+        "server_s": 8.8,
+        "peak_memory_gib": 32.3,
+        "run": "probe/z-image-turbo/meme-text-s1-20261118/run.json",
+        "node": "head"
+      },
+      {
+        "arm": "hidream-o1",
+        "size": "2048x2048",
+        "steps": 28,
+        "wall_s": 33.1,
+        "server_s": 32.9,
+        "peak_memory_gib": 23.0,
+        "run": "probe/hidream-o1/meme-text-s1-20261118/run.json",
+        "node": "worker",
+        "note": "4x the pixels of the other arms: vLLM-Omni 0.32.0 snaps HiDream-O1 to 2048x2048 at the smallest"
+      },
+      {
+        "arm": "qwen-image",
+        "size": "1024x1024",
+        "steps": 40,
+        "wall_s": 52.2,
+        "server_s": 52.1,
+        "peak_memory_gib": 45.7,
+        "run": "probe/qwen-image/meme-text-s1-20261118/run.json",
+        "node": "head",
+        "note": "returns RGBA PNGs; judge.blind re-encodes to RGB"
+      }
+    ]
+  },
   "issues": [1424],
   "prompts": "prompts/image-v1.json",
   "note": "Fixed request settings per arm for the text-to-image screen (#1424). Draft until one timing probe per model; then lock it, and a change is a new version file. 'clips' names the prompts (the video file's key, so batch.py and judge.py read both files the same way). Each arm's 'sources' names where its steps and guidance come from. scripts/videogen/generate.py refuses a scored run from a file that is not locked.",

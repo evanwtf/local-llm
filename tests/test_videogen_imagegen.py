@@ -14,6 +14,7 @@ import hashlib
 import json
 import pathlib
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -69,7 +70,9 @@ def test_both_image_arms_files_pass_their_checks() -> None:
         imagegen.check_arms(data)
         assert data["media"] == "image"
         assert data["seeds"] == [1, 2, 3]
-        assert data["status"] == "draft"  # until one timing probe per model
+        # Locked after one timing probe per arm (2026-11-18); each arm has its probe.
+        assert data["status"] == "locked"
+        assert {p["arm"] for p in data["locked"]["probes"]} == set(data["arms"])
 
 
 def test_the_four_t2i_arms_are_pinned_to_the_issue_revisions() -> None:
@@ -670,7 +673,15 @@ def test_a_failed_image_leaves_no_png_and_a_run_json_with_the_error(
 
 
 def test_a_scored_run_from_the_draft_file_is_refused(tmp_path: pathlib.Path) -> None:
-    plan = imagegen.make_plan("z-image-turbo", "cartoon", 1, arms_file=IMAGE_ARMS)
+    # The real file is locked now, so test the gate on a draft copy of it.
+    draft = tmp_path / "image-arms-draft.json"
+    data = load(IMAGE_ARMS)
+    data["status"] = "draft"
+    data.pop("locked", None)
+    draft.write_text(json.dumps(data))
+    # The arms file names its prompts relative to its own folder.
+    shutil.copytree(IMAGE_ARMS.parent / "prompts", tmp_path / "prompts")
+    plan = imagegen.make_plan("z-image-turbo", "cartoon", 1, arms_file=draft)
     out = tmp_path / "out"
     rc, server = go(plan, out, reply(ok_body(png(1024, 1024))))
     assert rc == generate.REFUSED
@@ -1253,7 +1264,11 @@ def test_the_cli_exits_refused_for_an_edit_input_that_is_missing(
     assert "does not exist" in got.stdout + got.stderr
 
 
-def test_the_cli_exits_refused_for_a_draft_image_arm(tmp_path: pathlib.Path) -> None:
+def test_the_cli_passes_the_draft_gate_for_a_locked_image_arm(
+    tmp_path: pathlib.Path,
+) -> None:
+    # The draft refusal itself is tested on a draft copy above; through the CLI the
+    # real, locked file must get past the gate and fail only on the absent server.
     got = run_cli(
         "--arm",
         "z-image-turbo",
@@ -1266,6 +1281,7 @@ def test_the_cli_exits_refused_for_a_draft_image_arm(tmp_path: pathlib.Path) -> 
         "--out",
         str(tmp_path / "out"),
     )
-    assert got.returncode == generate.REFUSED, got.stdout + got.stderr
-    assert "not 'locked'" in got.stdout + got.stderr
-    assert not (tmp_path / "out").exists()
+    assert "Traceback" not in got.stderr
+    assert "not 'locked'" not in got.stdout + got.stderr
+    assert "is the server up?" in got.stdout + got.stderr
+    assert not (tmp_path / "out" / "image.png").exists()

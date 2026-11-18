@@ -1,7 +1,36 @@
 {
   "version": "edit-v1",
   "media": "image",
-  "status": "draft",
+  "status": "locked",
+  "locked": {
+    "date": "2026-11-18T18:20:00-0500",
+    "method": "One timing probe per arm before any scored run (scripts/videogen/generate.py --probe), vLLM-Omni 0.32.0, one model per Spark, each GPU idle at the start, two seeds per arm (seed 2 matched seed 1 within 4% everywhere, so no warm-up cost shows; batch.py still sends one discarded warm-up per block). Every arm keeps its primary size. The probe run.json and image files are under ~/bench-logs/videogen/probe/ (outside the repo).",
+    "note": "The qwen-image-edit probe and the face-swap flux2-klein-4b-edit probe ran from the #1426 branch at 0431e66d; the caption-swap probe ran from main at #1426.",
+    "probes": [
+      {
+        "arm": "flux2-klein-4b-edit",
+        "size": "1024x576",
+        "steps": 4,
+        "wall_s": 2.33,
+        "server_s": 2.3,
+        "peak_memory_gib": 27.3,
+        "run": "probe/flux2-klein-4b-edit/caption-swap-s1-20261118/run.json",
+        "node": "worker",
+        "also": "probe/flux2-klein-4b-edit/face-swap-s1-20261118/run.json (head, 3.0 s, two inputs)"
+      },
+      {
+        "arm": "qwen-image-edit",
+        "size": "1024x576",
+        "steps": 40,
+        "wall_s": 315.2,
+        "server_s": 315.2,
+        "peak_memory_gib": 67.7,
+        "run": "probe/qwen-image-edit/face-swap-s1-20261118/run.json",
+        "node": "head",
+        "note": "9 edits per arm take about 47 min, inside the budget"
+      }
+    ]
+  },
   "issues": [1424],
   "prompts": "prompts/edit-v1.json",
   "note": "Fixed request settings per arm for the image-edit screen (#1424). Draft until one timing probe per model; then lock it, and a change is a new version file. 'clips' names the edit prompts. The input images live in ~/bench-logs/videogen/ref/imagegen/, never in this repository; prompts/edit-v1.json pins each one by sha256. scripts/videogen/generate.py refuses a scored run from a file that is not locked.",
