@@ -29,7 +29,9 @@ Inputs, all under `--root`:
        "judge": "who scored it", "notes": "free text"}
 
   `adherence` and `defects` are required; `judge` and `notes` are optional.
-  A run with no file shows "not scored".
+  A run with no file shows "not scored". A file whose optional `clip_sha256`
+  differs from run.json's output sha256 shows "score is for another clip":
+  the run was remade after the judge saw it.
 
 The arm, clip and seed of a card come from its directory names, never from
 `run.json`, and a name with any character outside `[A-Za-z0-9_-]` is
@@ -241,8 +243,16 @@ def parse_score(data: Mapping[str, Any]) -> Score:
     )
 
 
-def load_score(path: pathlib.Path) -> tuple[Score | None, str | None]:
-    """(score, None), (None, None) when there is no file, or (None, why)."""
+def load_score(
+    path: pathlib.Path, clip_sha256: object = None
+) -> tuple[Score | None, str | None]:
+    """(score, None), (None, None) when there is no file, or (None, why).
+
+    `clip_sha256` is the run's clip hash from run.json. A score that records
+    another clip's hash was judged on an earlier clip of the same run, which
+    has since been remade, so it is refused (#1406). A score with no hash
+    (written by hand) is shown as is.
+    """
     if not path.exists():
         return None, None
     data = read_json(path)
@@ -250,10 +260,15 @@ def load_score(path: pathlib.Path) -> tuple[Score | None, str | None]:
         logger.warning("cannot read the score file %s", path)
         return None, "score file unreadable"
     try:
-        return parse_score(data), None
+        score = parse_score(data)
     except (ValueError, TypeError) as err:
         logger.warning("bad score file %s: %s", path, err)
         return None, f"bad score file: {err}"
+    scored = data.get("clip_sha256")
+    if scored is not None and clip_sha256 is not None and scored != clip_sha256:
+        logger.warning("score %s is for another clip than run.json", path)
+        return None, "score is for another clip"
+    return score, None
 
 
 def find_cards(root: pathlib.Path) -> list[Card]:
@@ -280,7 +295,8 @@ def find_cards(root: pathlib.Path) -> list[Card]:
                 logger.warning("skipped %s: run.json is not a JSON object", run_dir)
                 continue
             score, score_error = load_score(
-                root / "scores" / arm / f"{run_dir.name}.json"
+                root / "scores" / arm / f"{run_dir.name}.json",
+                as_dict(run.get("output")).get("sha256"),
             )
             cards.append(
                 Card(

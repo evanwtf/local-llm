@@ -40,6 +40,7 @@ every frame `frames.py` makes from it.
 | `serve.py` | Logs, or with `--start` launches, the exact vLLM-Omni server command for one model, from the `servers` block of `arms-v1.json`. It refuses a `--boundary-ratio` flag. |
 | `outlet.py` | Reads a node's smart plug from InfluxDB over a window, in chunks under Grafana's point cap, and integrates it to Wh. It says whether the readings cover the window. |
 | `gallery.py` | Builds a static web gallery of every clip in `~/bench-logs/videogen/gallery/` (#1413). It groups the clips by prompt: the reference clip first, then each arm and seed. It links the videos with symlinks and does not copy them. `batch.py` runs it after each clip. |
+| `judge.py` | `blind` copies each scored run's frames into folders with random ids, writes one judge prompt per clip, and writes the key outside the folders. `ingest` checks a judge reply and writes the score files the gallery reads (#1406). |
 | `gallery_serve.py` | Serves the gallery on the LAN at `:8043`, read-only, with HTTP Range so a browser can seek in a video. It checks the `Host` header and sends the page's CSP. |
 | `common.py` | Shared code: the default output root, the guard on output paths, and the ffmpeg runner. |
 
@@ -280,3 +281,72 @@ systemctl --user edit local-llm-videogen-gallery.service
 #   Environment="GALLERY_HOST_ARGS=--host-name NAME --host-name NAME.lan"
 systemctl --user restart local-llm-videogen-gallery.service
 ```
+
+## The blind judge (#1402, #1406)
+
+A Claude subagent scores each clip from its frames. It must not know which
+model made a clip. `judge.py blind` hides it:
+
+- Each run gets a random 6-character id from Python's `secrets`. Nothing
+  seeds it, so the public code cannot rebuild the map. The key is the only
+  record.
+- It copies only `s*.jpg` and `strip.jpg` to `OUT/<clip>/<id>/`, in a random
+  order. Then it sets every file and folder to one fixed mtime. It does not
+  copy `first.png` or `meta.json`.
+- No path or file that the judge reads names the arm, the model or the seed.
+  It refuses an `--out` path that names an arm or a model (from
+  `arms-v1.json`), an `--out` that is not empty, and an `--out` inside a git
+  work tree.
+- It expects every seed in `arms-v1.json` for each arm and clip. It logs
+  each missing run, or a run whose `run.json` status is not `ok`. It refuses
+  to go on unless you add `--allow-missing`.
+- The stills on disk must be exactly the stills in `meta.json`. Each copy
+  must match its sha256 in `meta.json`, and the run's `clip.mp4` must match
+  `clip_sha256`. Stale frames stop the command.
+- `OUT/<clip>/PROMPT.md` is the prompt for one judge: the clip's folders in
+  a random order, its checklist, and the numbered fixed defect list from
+  `prompts/v1.json`.
+- The key maps each id to its arm, clip, seed, clip path and clip sha256. It
+  goes to `$VG/judge/keys/<OUT name>.json`, mode 0600, outside the blind
+  tree. Do not give it to the judge.
+
+Give one subagent one `PROMPT.md`. Save its reply as JSON in a sibling
+folder, `<OUT>-answers/<clip>.json`, never inside the blind tree.
+
+`judge.py ingest` checks the whole reply before it writes anything:
+
+- Each id must be in the key, once. A key repeated at any level of the JSON
+  is an error.
+- The reply must answer every id of each clip that it touches.
+- Each checklist number must occur exactly once.
+- Each defect type must be on the fixed list. The full label, the text
+  before " (" (`body morph`), and the list number (`2` or `"2"`) all count.
+  The score file stores the full label.
+- Each clip must still have the sha256 it had at `blind`. A run remade since
+  then is an error.
+
+One error refuses the whole file. It then writes
+`$VG/scores/<arm>/<clip>-s<seed>.json` for each run, in the gallery's schema,
+with the items, the defects (`defect_list`) and the `clip_sha256` added. The
+gallery shows "score is for another clip" when that hash differs from the
+run's `run.json`. `ingest` refuses to replace a score file unless you add
+`--overwrite`, and refuses a `--scores-root` outside the key's root unless
+you add `--force-scores-root`. It logs the mean adherence and the total
+defects for each arm.
+
+```sh
+export VG=~/bench-logs/videogen
+export BLIND=$VG/judge/t2v-v1
+
+uv run python scripts/videogen/judge.py blind --arms h3-t2v wan-t2v --out "$BLIND"
+# Give $BLIND/dog-a/PROMPT.md to a subagent; save its reply.
+mkdir -p "$BLIND-answers"
+uv run python scripts/videogen/judge.py ingest --blind "$BLIND" \
+    --answers "$BLIND-answers/dog-a.json" --judge "blind judge v1"
+uv run python scripts/videogen/gallery.py
+```
+
+The first blind directories kept the key inside the tree, as `key.json`,
+with no root and no clip paths. `ingest` still reads that format: pass
+`--key "$BLIND/key.json"`. It then takes the root from `--root` (default
+`$VG`) and finds each clip at `out/<arm>/<clip>-s<seed>/clip.mp4`.
