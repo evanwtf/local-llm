@@ -5094,6 +5094,8 @@ topology = "remote"
 # TensorFold serves no /v1/messages; OpenCode-only (#798).
 smoke_protocol = "openai"
 recipe_dir = "~/deepseek-v41-tensorfold-spark"
+recipe_pin = "176024b"
+recipe_pin_reason = "#1329 split (operator 2026-11-18): the 176024b engine on the current OpenCode separates the engine change in 13db91e from the client change (2.2.7 to 2.3.2); later commits are the 13db91e backend"
 
 # #1329 rerun: the same pack and envelope at recipe 13db91e, whose engine
 # (patches 0071-0072) returns a call to an undeclared tool name as a tool call.
