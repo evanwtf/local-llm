@@ -23,6 +23,11 @@ After each clip it makes (good or failed), the batch rebuilds the gallery
 (`gallery.py`, #1413) in `<out-root>/../gallery/`. The rebuild is
 best-effort: a failure logs a warning and never stops the batch, because a
 web page is not worth a lost 40-minute clip. `--no-gallery` turns it off.
+
+After the gallery, it writes the Prometheus metrics (`metrics.py`) into
+node_exporter's textfile directory, the same best-effort way: a missing or
+unwritable directory logs one warning, and the batch goes on. `--no-metrics`
+turns it off.
 """
 
 from __future__ import annotations
@@ -39,7 +44,7 @@ from typing import Any
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from videogen import gallery, generate
+from videogen import gallery, generate, metrics
 from videogen.common import DEFAULT_ROOT, InsideRepo, refuse_inside_repo, sha256
 
 import logs
@@ -54,6 +59,8 @@ FramesRunner = Callable[[pathlib.Path, pathlib.Path, bool], int]
 Generator = Callable[[generate.Plan, pathlib.Path], int]
 #: (video-gen root) -> anything; rebuilds the gallery for that root.
 GalleryBuilder = Callable[[pathlib.Path], object]
+#: (video-gen root) -> anything; writes the Prometheus textfile for that root.
+MetricsWriter = Callable[[pathlib.Path], object]
 
 GOOD, TODO, MISMATCH = "good", "todo", "mismatch"
 
@@ -79,6 +86,33 @@ def refresh_gallery(builder: GalleryBuilder | None, root: pathlib.Path) -> None:
         builder(root)
     except Exception as err:  # noqa: BLE001 -- any failure; a page must not cost a clip
         logger.warning("gallery rebuild failed (the batch goes on): %r", err)
+
+
+def write_metrics(root: pathlib.Path) -> object:
+    """`videogen.prom` for `root`, in node_exporter's textfile directory."""
+    return metrics.write(root, metrics.DEFAULT_TEXTFILE_DIR)
+
+
+def refresh_metrics(
+    writer: MetricsWriter | None, root: pathlib.Path, *, quiet: bool = False
+) -> bool:
+    """Run `writer` and log, never raise: metrics must not stop a batch.
+
+    Returns False on a failure. `quiet` logs a repeat failure at DEBUG, so a
+    missing directory gives one warning per batch, not one per clip.
+    """
+    if writer is None:
+        return True
+    try:
+        writer(root)
+    except Exception as err:  # noqa: BLE001 -- any failure; a metric must not cost a clip
+        logger.log(
+            logging.DEBUG if quiet else logging.WARNING,
+            "metrics export failed (the batch goes on): %r",
+            err,
+        )
+        return False
+    return True
 
 
 def read_run(out: pathlib.Path) -> dict[str, Any] | None:
@@ -144,9 +178,15 @@ def run_batch(
     generator: Generator | None = None,
     frames_runner: FramesRunner = run_frames,
     gallery_builder: GalleryBuilder | None = build_gallery,
+    metrics_writer: MetricsWriter | None = None,
 ) -> int:
     """Make the arm's clips in order, then their frames. Returns 0 or the
-    first nonzero status."""
+    first nonzero status.
+
+    `metrics_writer` is None by default, unlike the gallery, so a caller such
+    as a test never writes the system textfile directory; `main` passes
+    `write_metrics` unless `--no-metrics`.
+    """
     for root in (out_root, frames_out_root):
         try:
             refuse_inside_repo(root)
@@ -170,6 +210,8 @@ def run_batch(
 
     make = generator or default_generator
     status = 0
+    # After the first failed export, repeats log at DEBUG (one warning a batch).
+    metrics_failed = False
     good: list[tuple[str, int, pathlib.Path]] = []
     for clip in arms["clips"]:
         for seed in arms["seeds"]:
@@ -205,6 +247,10 @@ def run_batch(
             rc = make(plan, out)
             # out_root is <root>/out, so its parent holds probe/, ref/, scores/.
             refresh_gallery(gallery_builder, out_root.parent)
+            if not refresh_metrics(
+                metrics_writer, out_root.parent, quiet=metrics_failed
+            ):
+                metrics_failed = True
             if rc != 0:
                 logger.error("%s %s seed %d failed (%d); stopping", arm, clip, seed, rc)
                 status = rc
@@ -256,6 +302,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="do not rebuild the gallery after each clip",
     )
+    p.add_argument(
+        "--no-metrics",
+        action="store_true",
+        help="do not write the Prometheus textfile after each clip",
+    )
     return p
 
 
@@ -273,6 +324,7 @@ def main(argv: list[str] | None = None) -> int:
         node=args.node,
         metrics_host=args.metrics_host,
         gallery_builder=None if args.no_gallery else build_gallery,
+        metrics_writer=None if args.no_metrics else write_metrics,
     )
 
 
