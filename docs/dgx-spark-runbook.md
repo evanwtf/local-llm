@@ -110,6 +110,7 @@ into the fork first, then build the fork.
 | 8000 | ds4. It is also vLLM's default port, so a single-node vLLM moves to 8030 |
 | 8020 | llama.cpp (`--metrics` is **off by default**; pass it) and ds4 under `dgx_server.py` |
 | 8030 | single-node vLLM; metrics on the API port |
+| 8043 | the video-gen gallery on the head: read-only, LAN only (`scripts/videogen/gallery_serve.py`, #1413) |
 | 8888 | the two-Spark recipes |
 
 **Bind `0.0.0.0`.** Loopback binding silently broke monitoring for weeks:

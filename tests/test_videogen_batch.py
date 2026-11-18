@@ -258,3 +258,70 @@ def test_node_and_metrics_host_reach_generate(
             "overwrite": True,
         }
     ]
+
+
+# ------------------------------------------------- gallery rebuild (#1413) ----
+
+
+def run_with_gallery(
+    tmp_path: pathlib.Path, fakes: Fakes, builder: batch.GalleryBuilder | None
+) -> int:
+    return batch.run_batch(
+        "h3-t2v",
+        server="http://h:8040",
+        out_root=tmp_path / "out",
+        frames_out_root=tmp_path / "frames-out",
+        frames_root=tmp_path / "frames",
+        generator=fakes.generator,
+        frames_runner=fakes.frames,
+        gallery_builder=builder,
+    )
+
+
+def test_the_gallery_rebuilds_after_each_clip_made(tmp_path: pathlib.Path) -> None:
+    write_good(plan("dog-a", 1, tmp_path), tmp_path / "out" / "h3-t2v" / "dog-a-s1")
+    fakes = Fakes(fail_at=("dog-b", 2))
+    calls: list[tuple[pathlib.Path, int]] = []
+
+    def builder(root: pathlib.Path) -> None:
+        calls.append((root, len(fakes.made)))
+
+    assert run_with_gallery(tmp_path, fakes, builder) == generate.FAILED
+    # dog-a s1 was skipped; s2, s3, dog-b s1 and the failed dog-b s2 each rebuild,
+    # each time right after that clip finished.
+    assert [n for _, n in calls] == [1, 2, 3, 4]
+    assert {root for root, _ in calls} == {tmp_path}
+
+
+def test_a_gallery_failure_never_fails_the_batch(
+    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    def builder(root: pathlib.Path) -> None:
+        raise OSError("disk full")
+
+    fakes = Fakes()
+    with caplog.at_level(logging.WARNING):
+        assert run_with_gallery(tmp_path, fakes, builder) == 0
+    assert fakes.made == ORDER
+    warnings = [r for r in caplog.records if "gallery rebuild failed" in r.getMessage()]
+    assert len(warnings) == len(ORDER)
+
+
+def test_the_default_builder_writes_the_gallery_beside_out(
+    tmp_path: pathlib.Path,
+) -> None:
+    fakes = Fakes()
+    assert run(tmp_path, fakes) == 0
+    index = tmp_path / "gallery" / "index.html"
+    assert index.is_file()
+    assert "out/h3-t2v/dog-c-s3" in index.read_text()
+    link = tmp_path / "gallery" / "media" / "out" / "h3-t2v" / "dog-a-s1.mp4"
+    assert link.is_symlink()
+
+
+def test_no_gallery_turns_the_rebuild_off() -> None:
+    assert (
+        batch.build_parser()
+        .parse_args(["--arm", "h3-t2v", "--server", "http://h:8040", "--no-gallery"])
+        .no_gallery
+    )
