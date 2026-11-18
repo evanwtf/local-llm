@@ -679,3 +679,19 @@ def test_the_real_prompts_and_refs_files_load() -> None:
     refs = gallery.load_refs(gallery.REFS_FILE)
     assert {"dog-a", "dog-b", "dog-c"} <= set(refs)
     assert all(len(r["sha256"]) == 64 for r in refs.values())
+
+
+def test_a_score_for_another_clip_is_refused(layout: Layout) -> None:
+    """A run remade after the judge saw it must not show the old score (#1406)."""
+    root = layout[0]
+    run_sha = run_v1("h3-t2v", "dog-a", 2)["output"]["sha256"]
+    path = root / "scores" / "h3-t2v" / "dog-a-s2.json"
+    score = {"schema": 1, "adherence": {"passed": 3, "total": 4}, "defects": 1}
+    path.write_text(json.dumps({**score, "clip_sha256": "ab" * 32}))
+    _, text, _ = build(layout)
+    assert "score is for another clip" in text
+    assert "adherence 3/4" not in text
+    path.write_text(json.dumps({**score, "clip_sha256": run_sha}))
+    _, text, _ = build(layout)
+    assert "score is for another clip" not in text
+    assert "adherence 3/4 (75%), defects 1" in text

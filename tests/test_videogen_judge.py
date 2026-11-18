@@ -10,7 +10,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import pathlib
+import stat
 import subprocess
 import sys
 from typing import Any
@@ -23,7 +25,12 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from videogen import gallery, judge
 from videogen.common import InsideRepo
 
-DEFECTS = ["extra legs", "body morph", "objects appear"]
+DEFECTS = [
+    "extra legs",
+    "body morph (a body changes shape)",
+    "dog identity changes between frames (coat, size)",
+    "objects appear",
+]
 
 PROMPTS = {
     "version": "v1",
@@ -44,6 +51,15 @@ PROMPTS = {
     ],
 }
 
+ARMS_CFG = {
+    "seeds": [1, 2],
+    "arms": {
+        "h3-t2v": {"model": "MiniMaxAI/MiniMax-H3"},
+        "wan-t2v": {"model": "Wan-AI/Wan2.2-T2V-A14B-Diffusers"},
+        "h3-i2v": {"model": "MiniMaxAI/MiniMax-H3"},
+    },
+}
+
 ARMS = ("h3-t2v", "wan-t2v")
 
 
@@ -57,6 +73,8 @@ def make_run(root: pathlib.Path, arm: str, clip: str, seed: int) -> None:
     out = root / "out" / arm / f"{clip}-s{seed}"
     out.mkdir(parents=True)
     (out / "clip.mp4").write_bytes(clip_bytes)
+    run = {"status": "ok", "output": {"sha256": sha(clip_bytes)}}
+    (out / "run.json").write_text(json.dumps(run))
     frames = root / "frames-out" / arm / f"{clip}-s{seed}"
     frames.mkdir(parents=True)
     hashes: dict[str, str] = {}
@@ -64,11 +82,7 @@ def make_run(root: pathlib.Path, arm: str, clip: str, seed: int) -> None:
         data = f"{name} {arm} {clip} {seed}".encode()
         (frames / name).write_bytes(data)
         hashes[name] = sha(data)
-    meta = {
-        "clip": "clip.mp4",
-        "clip_sha256": sha(clip_bytes),
-        "outputs_sha256": hashes,
-    }
+    meta = {"clip_sha256": sha(clip_bytes), "outputs_sha256": hashes}
     (frames / "meta.json").write_text(json.dumps(meta))
 
 
@@ -76,6 +90,13 @@ def make_run(root: pathlib.Path, arm: str, clip: str, seed: int) -> None:
 def prompts_file(tmp_path: pathlib.Path) -> pathlib.Path:
     path = tmp_path / "prompts.json"
     path.write_text(json.dumps(PROMPTS))
+    return path
+
+
+@pytest.fixture
+def arms_file(tmp_path: pathlib.Path) -> pathlib.Path:
+    path = tmp_path / "arms.json"
+    path.write_text(json.dumps(ARMS_CFG))
     return path
 
 
@@ -89,37 +110,57 @@ def vg_root(tmp_path: pathlib.Path) -> pathlib.Path:
     return root
 
 
+Env = tuple[pathlib.Path, pathlib.Path, pathlib.Path]
+
+
+@pytest.fixture
+def env(
+    vg_root: pathlib.Path, prompts_file: pathlib.Path, arms_file: pathlib.Path
+) -> Env:
+    return vg_root, prompts_file, arms_file
+
+
+def key_of(env: Env, out: pathlib.Path) -> pathlib.Path:
+    return env[0].resolve() / "judge" / "keys" / f"{out.name}.json"
+
+
 def do_blind(
-    vg_root: pathlib.Path,
-    prompts_file: pathlib.Path,
+    env: Env,
     out: pathlib.Path,
-    seed: int = 7,
+    *,
+    arms: tuple[str, ...] = ARMS,
     clips: tuple[str, ...] = ("dog-a", "dog-b"),
+    **kw: Any,
 ) -> dict[str, Any]:
+    root, prompts, arms_file = env
     judge.blind(
-        list(ARMS),
+        list(arms),
         clips=list(clips),
         out=out,
-        seed=seed,
-        root=vg_root,
-        prompts_file=prompts_file,
+        root=root,
+        prompts_file=prompts,
+        arms_file=arms_file,
+        **kw,
     )
-    key: dict[str, Any] = json.loads((out / "key.json").read_text())
+    key: dict[str, Any] = json.loads(key_of(env, out).read_text())
     return key
 
 
 @pytest.fixture
-def blind_dir(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
-) -> pathlib.Path:
+def blind_dir(tmp_path: pathlib.Path, env: Env) -> pathlib.Path:
     out = tmp_path / "blind"
-    do_blind(vg_root, prompts_file, out)
+    do_blind(env, out)
     return out
 
 
-def ids_for(blind_dir: pathlib.Path, clip: str) -> list[str]:
-    key = json.loads((blind_dir / "key.json").read_text())
-    return sorted(i for i, run in key["runs"].items() if run["clip"] == clip)
+def load_key(env: Env, blind_dir: pathlib.Path) -> dict[str, Any]:
+    key: dict[str, Any] = json.loads(key_of(env, blind_dir).read_text())
+    return key
+
+
+def ids_for(env: Env, blind_dir: pathlib.Path, clip: str) -> list[str]:
+    runs = load_key(env, blind_dir)["runs"]
+    return sorted(i for i, run in runs.items() if run["clip"] == clip)
 
 
 def good_entry(n_items: int, n_true: int, defects: int = 0) -> dict[str, Any]:
@@ -133,9 +174,11 @@ def good_entry(n_items: int, n_true: int, defects: int = 0) -> dict[str, Any]:
     }
 
 
-def good_answers(blind_dir: pathlib.Path, clip: str = "dog-a") -> dict[str, Any]:
+def good_answers(
+    env: Env, blind_dir: pathlib.Path, clip: str = "dog-a"
+) -> dict[str, Any]:
     n = 3 if clip == "dog-a" else 2
-    return {i: good_entry(n, 2, defects=1) for i in ids_for(blind_dir, clip)}
+    return {i: good_entry(n, 2, defects=1) for i in ids_for(env, blind_dir, clip)}
 
 
 def write_answers(tmp_path: pathlib.Path, answers: object) -> pathlib.Path:
@@ -145,30 +188,29 @@ def write_answers(tmp_path: pathlib.Path, answers: object) -> pathlib.Path:
 
 
 def do_ingest(
-    blind_dir: pathlib.Path,
-    answers: pathlib.Path,
-    scores: pathlib.Path,
-    *,
-    overwrite: bool = False,
+    blind_dir: pathlib.Path, answers: pathlib.Path, **kw: Any
 ) -> list[pathlib.Path]:
-    return judge.ingest(
-        blind_dir,
-        answers,
-        judge_label="test judge",
-        scores_root=scores,
-        overwrite=overwrite,
-    )
+    # The fixtures put the root beside the blind dir. Pass it always, so no
+    # test can fall back to the real ~/bench-logs root.
+    kw.setdefault("root", blind_dir.parent / "vg")
+    return judge.ingest(blind_dir, answers, judge_label="test judge", **kw)
 
 
 def all_files(path: pathlib.Path) -> list[pathlib.Path]:
+    if not path.exists():
+        return []
     return sorted(p for p in path.rglob("*") if p.is_file())
+
+
+def scores_of(env: Env) -> pathlib.Path:
+    return env[0] / "scores"
 
 
 # ------------------------------------------------------------------ blind ----
 
 
-def test_blind_copies_only_stills_and_strip(blind_dir: pathlib.Path) -> None:
-    key = json.loads((blind_dir / "key.json").read_text())
+def test_blind_copies_only_stills_and_strip(env: Env, blind_dir: pathlib.Path) -> None:
+    key = load_key(env, blind_dir)
     assert len(key["runs"]) == 8
     for run_id, run in key["runs"].items():
         assert len(run_id) == 6 and run_id.isalnum()
@@ -181,12 +223,46 @@ def test_blind_copies_only_stills_and_strip(blind_dir: pathlib.Path) -> None:
         src = pathlib.Path(run["run_dir"])
         assert (folder / "s01.jpg").read_bytes() == (src / "s01.jpg").read_bytes()
         assert run["arm"] in ARMS
-        assert (
-            run["clip_sha256"]
-            == json.loads((src / "meta.json").read_text())["clip_sha256"]
-        )
+        clip = pathlib.Path(run["clip_path"])
+        assert clip == env[0].resolve() / "out" / run["arm"] / src.name / "clip.mp4"
+        assert run["clip_sha256"] == sha(clip.read_bytes())
+    assert key["root"] == str(env[0].resolve())
     assert not list(blind_dir.rglob("first.png"))
     assert not list(blind_dir.rglob("meta.json"))
+    assert not list(blind_dir.rglob("*.json"))
+
+
+def test_blind_key_is_outside_the_tree_and_private(
+    env: Env, blind_dir: pathlib.Path
+) -> None:
+    path = key_of(env, blind_dir)
+    assert not path.is_relative_to(blind_dir)
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+def test_blind_refuses_a_key_under_out(tmp_path: pathlib.Path, env: Env) -> None:
+    out = tmp_path / "o"
+    with pytest.raises(judge.Refused, match="where the judge reads"):
+        judge.blind(
+            list(ARMS),
+            clips=["dog-a"],
+            out=out,
+            root=env[0],
+            key_path=out / "k.json",
+            prompts_file=env[1],
+            arms_file=env[2],
+        )
+    assert not out.exists()
+
+
+def test_blind_refuses_an_existing_key(tmp_path: pathlib.Path, env: Env) -> None:
+    out = tmp_path / "o"
+    key = key_of(env, out)
+    key.parent.mkdir(parents=True)
+    key.write_text("{}")
+    with pytest.raises(judge.Refused, match="exists"):
+        do_blind(env, out)
+    assert key.read_text() == "{}"
 
 
 def test_blind_judge_files_do_not_name_the_arm_or_seed(
@@ -198,150 +274,200 @@ def test_blind_judge_files_do_not_name_the_arm_or_seed(
             for word in ("h3", "wan", "-s1", "-s2", "seed"):
                 assert word not in rel
             if path.name == "PROMPT.md":
-                text = path.read_text()
-                for word in ("h3", "wan", "t2v", "seed", "-s1", "-s2"):
-                    assert word not in text.lower()
+                text = path.read_text().lower()
+                for word in ("h3", "wan", "minimax", "t2v", "seed", "-s1", "-s2"):
+                    assert word not in text
 
 
-def test_blind_prompt_lists_folders_checklist_and_defects(
-    blind_dir: pathlib.Path,
+def test_blind_prompt_lists_folders_checklist_and_numbered_defects(
+    env: Env, blind_dir: pathlib.Path
 ) -> None:
     text = (blind_dir / "dog-a" / "PROMPT.md").read_text()
-    for run_id in ids_for(blind_dir, "dog-a"):
+    for run_id in ids_for(env, blind_dir, "dog-a"):
         assert f"- clip {run_id}: {blind_dir.resolve() / 'dog-a' / run_id}/" in text
-    for run_id in ids_for(blind_dir, "dog-b"):
+    for run_id in ids_for(env, blind_dir, "dog-b"):
         assert run_id not in text
     assert "1. Two dogs.\n2. Green lawn.\n3. A hose." in text
     assert "One dog." not in text
-    for defect in DEFECTS:
-        assert f"- {defect}" in text
+    for n, defect in enumerate(DEFECTS, 1):
+        assert f"{n}. {defect}" in text
     assert "You are a blind judge for a video evaluation." in text
     assert "<one line per clip" not in text and "<numbered checklist>" not in text
 
 
-def test_blind_is_reproducible_by_seed(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
-) -> None:
-    a = do_blind(vg_root, prompts_file, tmp_path / "a", seed=5)
-    b = do_blind(vg_root, prompts_file, tmp_path / "b", seed=5)
-    c = do_blind(vg_root, prompts_file, tmp_path / "c", seed=6)
-    assert a["runs"] == b["runs"]
-    order_a = (tmp_path / "a" / "dog-a" / "PROMPT.md").read_text()
-    order_b = (tmp_path / "b" / "dog-a" / "PROMPT.md").read_text()
-    assert order_a.replace(str(tmp_path / "a"), "") == order_b.replace(
-        str(tmp_path / "b"), ""
-    )
-    assert set(a["runs"]) != set(c["runs"])
+def test_blind_ids_are_not_reproducible(tmp_path: pathlib.Path, env: Env) -> None:
+    a = do_blind(env, tmp_path / "a")
+    b = do_blind(env, tmp_path / "b")
+    assert set(a["runs"]).isdisjoint(b["runs"])
 
 
-def test_blind_one_clip_only(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
+def test_blind_sets_one_mtime_on_every_file_and_folder(
+    blind_dir: pathlib.Path,
 ) -> None:
-    key = do_blind(vg_root, prompts_file, tmp_path / "o", clips=("dog-b",))
+    paths = [blind_dir, *blind_dir.rglob("*")]
+    assert len(paths) > 30
+    assert {int(p.stat().st_mtime) for p in paths} == {judge.FIXED_MTIME}
+
+
+def test_blind_one_clip_only(tmp_path: pathlib.Path, env: Env) -> None:
+    key = do_blind(env, tmp_path / "o", clips=("dog-b",))
     assert {r["clip"] for r in key["runs"].values()} == {"dog-b"}
     assert not (tmp_path / "o" / "dog-a").exists()
 
 
-def test_blind_refuses_non_empty_out(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
-) -> None:
+def test_blind_refuses_non_empty_out(tmp_path: pathlib.Path, env: Env) -> None:
     out = tmp_path / "busy"
     out.mkdir()
     (out / "x").write_text("x")
     with pytest.raises(judge.Refused, match="not empty"):
-        do_blind(vg_root, prompts_file, out)
+        do_blind(env, out)
     assert sorted(p.name for p in out.iterdir()) == ["x"]
 
 
-def test_blind_accepts_an_empty_out(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
-) -> None:
-    out = tmp_path / "empty"
+def test_blind_accepts_an_empty_out(tmp_path: pathlib.Path, env: Env) -> None:
+    out = tmp_path / "t2v-v1"
     out.mkdir()
-    do_blind(vg_root, prompts_file, out)
-    assert (out / "key.json").is_file()
+    do_blind(env, out)
+    assert (out / "dog-a" / "PROMPT.md").is_file()
 
 
 def test_blind_refuses_out_inside_a_git_work_tree(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
+    tmp_path: pathlib.Path, env: Env
 ) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     with pytest.raises(InsideRepo):
-        do_blind(vg_root, prompts_file, repo / "blind")
+        do_blind(env, repo / "blind")
     assert not (repo / "blind").exists()
 
 
-def test_blind_refuses_out_path_that_names_an_arm(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
+@pytest.mark.parametrize(
+    "name",
+    ["h3-vs-x", "the-wan-set", "MiniMax-review", "wan2.2-check", "minimax-h3"],
+)
+def test_blind_refuses_out_path_that_names_a_model(
+    tmp_path: pathlib.Path, env: Env, name: str
 ) -> None:
     with pytest.raises(judge.Refused, match="names"):
-        do_blind(vg_root, prompts_file, tmp_path / "h3-vs-wan")
+        do_blind(env, tmp_path / name)
+    assert not (tmp_path / name).exists()
 
 
-def test_blind_refuses_frames_of_another_clip(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
-) -> None:
-    (vg_root / "out" / "wan-t2v" / "dog-a-s2" / "clip.mp4").write_bytes(b"new")
+def test_blind_refuses_frames_of_another_clip(tmp_path: pathlib.Path, env: Env) -> None:
+    (env[0] / "out" / "wan-t2v" / "dog-a-s2" / "clip.mp4").write_bytes(b"new")
     with pytest.raises(judge.Refused, match="clip_sha256"):
-        do_blind(vg_root, prompts_file, tmp_path / "o")
+        do_blind(env, tmp_path / "o")
     assert not (tmp_path / "o").exists()
 
 
 def test_blind_refuses_a_frame_that_differs_from_meta(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
+    tmp_path: pathlib.Path, env: Env
 ) -> None:
-    (vg_root / "frames-out" / "h3-t2v" / "dog-b-s1" / "s02.jpg").write_bytes(b"x")
+    (env[0] / "frames-out" / "h3-t2v" / "dog-b-s1" / "s02.jpg").write_bytes(b"x")
     with pytest.raises(judge.Refused, match="s02.jpg"):
-        do_blind(vg_root, prompts_file, tmp_path / "o")
+        do_blind(env, tmp_path / "o")
+    assert not (tmp_path / "o").exists()
+    assert not key_of(env, tmp_path / "o").exists()
+    assert not [p for p in tmp_path.iterdir() if p.name.startswith(".o.")]
+
+
+@pytest.mark.parametrize("change", ["remove", "extra"])
+def test_blind_refuses_stills_unlike_meta(
+    tmp_path: pathlib.Path, env: Env, change: str
+) -> None:
+    frames = env[0] / "frames-out" / "h3-t2v" / "dog-a-s1"
+    if change == "remove":
+        (frames / "s02.jpg").unlink()
+    else:
+        (frames / "s03.jpg").write_bytes(b"extra")
+    with pytest.raises(judge.Refused, match="stills on disk"):
+        do_blind(env, tmp_path / "o")
+
+
+def test_blind_refuses_meta_that_is_not_an_object(
+    tmp_path: pathlib.Path, env: Env
+) -> None:
+    (env[0] / "frames-out" / "h3-t2v" / "dog-a-s1" / "meta.json").write_text("[]")
+    with pytest.raises(judge.Refused, match="must hold a JSON object"):
+        do_blind(env, tmp_path / "o")
+
+
+def test_blind_refuses_a_missing_run(
+    tmp_path: pathlib.Path, env: Env, caplog: pytest.LogCaptureFixture
+) -> None:
+    (env[0] / "out" / "wan-t2v" / "dog-b-s2" / "run.json").unlink()
+    with caplog.at_level(logging.WARNING), pytest.raises(judge.Refused, match="1 exp"):
+        do_blind(env, tmp_path / "o")
+    assert "missing run wan-t2v dog-b-s2" in caplog.text
     assert not (tmp_path / "o").exists()
 
 
-def test_blind_refuses_an_arm_with_no_runs(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
+def test_blind_allow_missing_blinds_the_rest(
+    tmp_path: pathlib.Path, env: Env, caplog: pytest.LogCaptureFixture
 ) -> None:
+    (env[0] / "out" / "wan-t2v" / "dog-b-s2" / "run.json").unlink()
+    with caplog.at_level(logging.WARNING):
+        key = do_blind(env, tmp_path / "o", allow_missing=True)
+    assert len(key["runs"]) == 7
+    assert len(key["missing"]) == 1
+    assert "missing run wan-t2v dog-b-s2" in caplog.text
+
+
+def test_blind_counts_a_failed_run_as_missing(
+    tmp_path: pathlib.Path, env: Env, caplog: pytest.LogCaptureFixture
+) -> None:
+    run_json = env[0] / "out" / "h3-t2v" / "dog-a-s1" / "run.json"
+    run_json.write_text(json.dumps({"status": "failed"}))
+    with caplog.at_level(logging.WARNING):
+        key = do_blind(env, tmp_path / "o", allow_missing=True)
+    assert len(key["runs"]) == 7
+    assert "'failed'" in caplog.text
+
+
+def test_blind_refuses_an_arm_with_no_runs(tmp_path: pathlib.Path, env: Env) -> None:
     with pytest.raises(judge.Refused, match="no scored run"):
-        judge.blind(
-            ["h3-t2v", "h3-i2v"],
-            clips=["dog-a"],
-            out=tmp_path / "o",
-            seed=1,
-            root=vg_root,
-            prompts_file=prompts_file,
-        )
+        do_blind(env, tmp_path / "o", arms=("h3-t2v", "h3-i2v"), allow_missing=True)
 
 
-def test_blind_skips_a_run_without_frames(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
+def test_blind_refuses_an_arm_not_in_the_arms_file(
+    tmp_path: pathlib.Path, env: Env
 ) -> None:
-    (vg_root / "out" / "h3-t2v" / "dog-a-s3").mkdir()
-    key = do_blind(vg_root, prompts_file, tmp_path / "o")
-    assert len(key["runs"]) == 8
+    with pytest.raises(judge.Refused, match="not arms"):
+        do_blind(env, tmp_path / "o", arms=("h3-t2v", "ltx-t2v"))
 
 
-def test_blind_refuses_an_unknown_clip(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
-) -> None:
+def test_blind_refuses_an_unknown_clip(tmp_path: pathlib.Path, env: Env) -> None:
     with pytest.raises(judge.Refused, match="dog-z"):
-        do_blind(vg_root, prompts_file, tmp_path / "o", clips=("dog-z",))
+        do_blind(env, tmp_path / "o", clips=("dog-z",))
+
+
+def test_load_prompts_refuses_an_empty_checklist(tmp_path: pathlib.Path) -> None:
+    bad = json.loads(json.dumps(PROMPTS))
+    bad["clips"][1]["checklist"] = []
+    path = tmp_path / "p.json"
+    path.write_text(json.dumps(bad))
+    with pytest.raises(judge.Refused, match="empty checklist"):
+        judge.load_prompts(path)
 
 
 # ----------------------------------------------------------------- ingest ----
 
 
 def test_ingest_writes_gallery_scores(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path, caplog: pytest.LogCaptureFixture
+    tmp_path: pathlib.Path,
+    env: Env,
+    blind_dir: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    scores = tmp_path / "scores"
-    answers = good_answers(blind_dir)
+    answers = good_answers(env, blind_dir)
     with caplog.at_level(logging.INFO):
-        written = do_ingest(blind_dir, write_answers(tmp_path, answers), scores)
+        written = do_ingest(blind_dir, write_answers(tmp_path, answers))
     assert len(written) == 4
-    key = json.loads((blind_dir / "key.json").read_text())
+    key = load_key(env, blind_dir)
     for run_id in answers:
         run = key["runs"][run_id]
-        path = scores / run["arm"] / f"dog-a-s{run['seed']}.json"
+        path = scores_of(env) / run["arm"] / f"dog-a-s{run['seed']}.json"
         data = json.loads(path.read_text())
         score = gallery.parse_score(data)
         assert (score.passed, score.total, score.defects) == (2, 3, 1)
@@ -350,40 +476,104 @@ def test_ingest_writes_gallery_scores(
         assert data["items"] == answers[run_id]["items"]
         assert data["defect_list"] == answers[run_id]["defects"]
         assert data["blind_id"] == run_id
+        assert data["clip_sha256"] == run["clip_sha256"]
     assert "h3-t2v: 2 runs, adherence 66.7%, 2 defects" in caplog.text
     assert "wan-t2v: 2 runs, adherence 66.7%, 2 defects" in caplog.text
 
 
-def test_ingest_unknown_id_refused(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+@pytest.mark.parametrize(
+    "written",
+    [DEFECTS[1], "body morph", 2, "2"],
+)
+def test_ingest_accepts_full_short_and_numbered_defects(
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path, written: object
 ) -> None:
-    answers = good_answers(blind_dir)
+    answers = good_answers(env, blind_dir)
+    first = min(answers)
+    answers[first]["defects"][0]["type"] = written
+    do_ingest(blind_dir, write_answers(tmp_path, answers))
+    run = load_key(env, blind_dir)["runs"][first]
+    path = scores_of(env) / run["arm"] / f"dog-a-s{run['seed']}.json"
+    defect = json.loads(path.read_text())["defect_list"][0]
+    assert defect["type"] == DEFECTS[1]
+    if written == DEFECTS[1]:
+        assert "type_as_written" not in defect
+    else:
+        assert defect["type_as_written"] == written
+
+
+@pytest.mark.parametrize("written", ["extra leg", "body", 0, 5, "9", True, None])
+def test_ingest_bad_defect_type_refused(
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path, written: object
+) -> None:
+    answers = good_answers(env, blind_dir)
+    answers[min(answers)]["defects"][0]["type"] = written
+    with pytest.raises(judge.Refused, match="not in the fixed list"):
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == []
+
+
+def test_defect_labels_drop_a_shared_short_form() -> None:
+    labels = judge.defect_labels(["legs (extra)", "legs (missing)", "flicker"])
+    assert "legs" not in labels
+    assert labels["legs (missing)"] == "legs (missing)"
+    assert labels[3] == labels["3"] == labels["flicker"] == "flicker"
+
+
+def test_ingest_unknown_id_refused(
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
+) -> None:
+    answers = good_answers(env, blind_dir)
     answers["zzzzzz"] = good_entry(3, 3)
     with pytest.raises(judge.Refused, match="zzzzzz"):
-        do_ingest(blind_dir, write_answers(tmp_path, answers), tmp_path / "scores")
-    assert not (tmp_path / "scores").exists()
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == []
+
+
+def test_ingest_duplicate_id_refused(
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
+) -> None:
+    answers = good_answers(env, blind_dir)
+    first = min(answers)
+    text = json.dumps(answers)
+    entry = json.dumps(good_entry(3, 0))
+    path = tmp_path / "answers.json"
+    path.write_text(text[:-1] + f', "{first}": {entry}}}')
+    with pytest.raises(judge.Refused, match=f"duplicate key '{first}'"):
+        do_ingest(blind_dir, path)
+    assert all_files(scores_of(env)) == []
+
+
+def test_ingest_duplicate_nested_key_refused(
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
+) -> None:
+    answers = good_answers(env, blind_dir)
+    text = json.dumps(answers).replace('"true": true', '"true": true, "true": false', 1)
+    path = tmp_path / "answers.json"
+    path.write_text(text)
+    with pytest.raises(judge.Refused, match="duplicate key 'true'"):
+        do_ingest(blind_dir, path)
+    assert all_files(scores_of(env)) == []
 
 
 def test_ingest_missing_item_refused(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
 ) -> None:
-    answers = good_answers(blind_dir)
-    first = min(answers)
-    answers[first]["items"].pop()
+    answers = good_answers(env, blind_dir)
+    answers[min(answers)]["items"].pop()
     with pytest.raises(judge.Refused, match="missing item 3"):
-        do_ingest(blind_dir, write_answers(tmp_path, answers), tmp_path / "scores")
-    assert not (tmp_path / "scores").exists()
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == []
 
 
 def test_ingest_duplicate_item_refused(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
 ) -> None:
-    answers = good_answers(blind_dir)
-    first = min(answers)
-    answers[first]["items"][2]["n"] = 1
+    answers = good_answers(env, blind_dir)
+    answers[min(answers)]["items"][2]["n"] = 1
     with pytest.raises(judge.Refused, match="item 1 more than once"):
-        do_ingest(blind_dir, write_answers(tmp_path, answers), tmp_path / "scores")
-    assert not (tmp_path / "scores").exists()
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == []
 
 
 @pytest.mark.parametrize(
@@ -400,51 +590,34 @@ def test_ingest_duplicate_item_refused(
 )
 def test_ingest_bad_item_refused(
     tmp_path: pathlib.Path,
+    env: Env,
     blind_dir: pathlib.Path,
     change: dict[str, Any],
     match: str,
 ) -> None:
-    answers = good_answers(blind_dir)
-    first = min(answers)
-    answers[first]["items"][0].update(change)
+    answers = good_answers(env, blind_dir)
+    answers[min(answers)]["items"][0].update(change)
     with pytest.raises(judge.Refused, match=match):
-        do_ingest(blind_dir, write_answers(tmp_path, answers), tmp_path / "scores")
-    assert not (tmp_path / "scores").exists()
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == []
 
 
-def test_ingest_bad_defect_type_refused(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
-) -> None:
-    answers = good_answers(blind_dir)
-    first = min(answers)
-    answers[first]["defects"][0]["type"] = "extra leg"
-    with pytest.raises(judge.Refused, match="not in the fixed list"):
-        do_ingest(blind_dir, write_answers(tmp_path, answers), tmp_path / "scores")
-    assert not (tmp_path / "scores").exists()
-
-
-@pytest.mark.parametrize(
-    "answers",
-    [
-        [],
-        {"x": 1},
-    ],
-)
+@pytest.mark.parametrize("answers", [[], {}, {"x": 1}])
 def test_ingest_bad_shape_refused(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path, answers: object
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path, answers: object
 ) -> None:
     with pytest.raises(judge.Refused):
-        do_ingest(blind_dir, write_answers(tmp_path, answers), tmp_path / "scores")
-    assert not (tmp_path / "scores").exists()
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == []
 
 
 def test_ingest_entry_with_unknown_field_refused(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
 ) -> None:
-    answers = good_answers(blind_dir)
+    answers = good_answers(env, blind_dir)
     answers[min(answers)]["score"] = 10
     with pytest.raises(judge.Refused, match="score"):
-        do_ingest(blind_dir, write_answers(tmp_path, answers), tmp_path / "scores")
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
 
 
 def test_ingest_not_json_refused(
@@ -453,85 +626,167 @@ def test_ingest_not_json_refused(
     path = tmp_path / "answers.json"
     path.write_text("Here is the JSON: {")
     with pytest.raises(judge.Refused, match="JSON"):
-        do_ingest(blind_dir, path, tmp_path / "scores")
+        do_ingest(blind_dir, path)
 
 
 def test_ingest_incomplete_clip_refused(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
 ) -> None:
-    answers = good_answers(blind_dir)
+    answers = good_answers(env, blind_dir)
     dropped = min(answers)
     del answers[dropped]
     with pytest.raises(judge.Refused, match=f"no answer for {dropped}"):
-        do_ingest(blind_dir, write_answers(tmp_path, answers), tmp_path / "scores")
-    assert not (tmp_path / "scores").exists()
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == []
 
 
 def test_ingest_one_bad_id_writes_nothing(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
 ) -> None:
-    answers = {**good_answers(blind_dir, "dog-a"), **good_answers(blind_dir, "dog-b")}
-    last = ids_for(blind_dir, "dog-b")[-1]
+    answers = {
+        **good_answers(env, blind_dir, "dog-a"),
+        **good_answers(env, blind_dir, "dog-b"),
+    }
+    last = ids_for(env, blind_dir, "dog-b")[-1]
     answers[last]["defects"].append({"type": "nope", "frame": "s01", "note": ""})
     with pytest.raises(judge.Refused):
-        do_ingest(blind_dir, write_answers(tmp_path, answers), tmp_path / "scores")
-    assert not (tmp_path / "scores").exists()
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == []
+
+
+def test_ingest_refuses_a_clip_remade_after_blind(
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
+) -> None:
+    answers = good_answers(env, blind_dir)
+    run = load_key(env, blind_dir)["runs"][max(answers)]
+    pathlib.Path(run["clip_path"]).write_bytes(b"remade")
+    with pytest.raises(judge.Refused, match="changed since the blind run"):
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == []
+
+
+def test_ingest_refuses_a_clip_that_is_gone(
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
+) -> None:
+    answers = good_answers(env, blind_dir)
+    run = load_key(env, blind_dir)["runs"][max(answers)]
+    pathlib.Path(run["clip_path"]).unlink()
+    with pytest.raises(judge.Refused, match="is gone"):
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == []
+
+
+def old_layout(env: Env, blind_dir: pathlib.Path) -> pathlib.Path:
+    """The first key format: inside the blind dir, no root, no clip path."""
+    key = load_key(env, blind_dir)
+    del key["root"]
+    for run in key["runs"].values():
+        del run["clip_path"]
+    path = blind_dir / "key.json"
+    path.write_text(json.dumps(key))
+    key_of(env, blind_dir).unlink()
+    return path
+
+
+def test_ingest_accepts_the_first_key_format(
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
+) -> None:
+    answers = write_answers(tmp_path, good_answers(env, blind_dir))
+    key = old_layout(env, blind_dir)
+    with pytest.raises(judge.Refused, match="pass --key"):
+        do_ingest(blind_dir, answers, root=env[0])
+    written = do_ingest(blind_dir, answers, key_path=key, root=env[0])
+    assert len(written) == 4
+    assert all(p.is_relative_to(env[0] / "scores") for p in written)
+
+
+def test_ingest_first_key_format_still_rehashes(
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
+) -> None:
+    answers = good_answers(env, blind_dir)
+    key = old_layout(env, blind_dir)
+    run = json.loads(key.read_text())["runs"][min(answers)]
+    clip = env[0] / "out" / run["arm"] / f"dog-a-s{run['seed']}" / "clip.mp4"
+    clip.write_bytes(b"remade")
+    with pytest.raises(judge.Refused, match="changed since the blind run"):
+        do_ingest(
+            blind_dir, write_answers(tmp_path, answers), key_path=key, root=env[0]
+        )
+    assert all_files(scores_of(env)) == []
+
+
+def test_ingest_refuses_scores_outside_the_root(
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
+) -> None:
+    answers = write_answers(tmp_path, good_answers(env, blind_dir))
+    elsewhere = tmp_path / "elsewhere"
+    with pytest.raises(judge.Refused, match="--force-scores-root"):
+        do_ingest(blind_dir, answers, scores_root=elsewhere)
+    assert not elsewhere.exists()
+    written = do_ingest(
+        blind_dir, answers, scores_root=elsewhere, force_scores_root=True
+    )
+    assert all(p.is_relative_to(elsewhere) for p in written)
 
 
 def test_ingest_overwrite_refused_and_writes_nothing(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
 ) -> None:
-    scores = tmp_path / "scores"
-    key = json.loads((blind_dir / "key.json").read_text())
-    answers = good_answers(blind_dir)
-    existing_id = min(answers)
-    run = key["runs"][existing_id]
-    existing = scores / run["arm"] / f"dog-a-s{run['seed']}.json"
+    key = load_key(env, blind_dir)
+    answers = good_answers(env, blind_dir)
+    run = key["runs"][min(answers)]
+    existing = scores_of(env) / run["arm"] / f"dog-a-s{run['seed']}.json"
     existing.parent.mkdir(parents=True)
     existing.write_text("old")
     with pytest.raises(judge.Refused, match="--overwrite"):
-        do_ingest(blind_dir, write_answers(tmp_path, answers), scores)
-    assert all_files(scores) == [existing]
+        do_ingest(blind_dir, write_answers(tmp_path, answers))
+    assert all_files(scores_of(env)) == [existing]
     assert existing.read_text() == "old"
 
 
 def test_ingest_overwrite_flag_replaces(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
 ) -> None:
-    scores = tmp_path / "scores"
-    path = write_answers(tmp_path, good_answers(blind_dir))
-    do_ingest(blind_dir, path, scores)
-    answers = {i: good_entry(3, 3) for i in ids_for(blind_dir, "dog-a")}
-    do_ingest(blind_dir, write_answers(tmp_path, answers), scores, overwrite=True)
-    for f in all_files(scores):
+    do_ingest(blind_dir, write_answers(tmp_path, good_answers(env, blind_dir)))
+    answers = {i: good_entry(3, 3) for i in ids_for(env, blind_dir, "dog-a")}
+    do_ingest(blind_dir, write_answers(tmp_path, answers), overwrite=True)
+    files = all_files(scores_of(env))
+    assert len(files) == 4
+    for f in files:
         assert json.loads(f.read_text())["adherence"]["passed"] == 3
-    assert not [p for p in scores.rglob("*") if p.name.startswith(".")]
+        assert stat.S_IMODE(f.stat().st_mode) == 0o644
+    assert not [p for p in scores_of(env).rglob("*") if p.name.startswith(".")]
 
 
 def test_ingest_two_clips_in_one_file(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
 ) -> None:
-    answers = {**good_answers(blind_dir, "dog-a"), **good_answers(blind_dir, "dog-b")}
-    written = do_ingest(blind_dir, write_answers(tmp_path, answers), tmp_path / "s")
+    answers = {
+        **good_answers(env, blind_dir, "dog-a"),
+        **good_answers(env, blind_dir, "dog-b"),
+    }
+    written = do_ingest(blind_dir, write_answers(tmp_path, answers))
     assert len(written) == 8
 
 
 def test_ingest_refuses_scores_root_in_git(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
 ) -> None:
-    repo = tmp_path / "repo"
+    repo = env[0] / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     with pytest.raises(InsideRepo):
         do_ingest(
-            blind_dir, write_answers(tmp_path, good_answers(blind_dir)), repo / "s"
+            blind_dir,
+            write_answers(tmp_path, good_answers(env, blind_dir)),
+            scores_root=repo / "s",
         )
 
 
 def test_main_returns_2_on_refusal(
-    tmp_path: pathlib.Path, blind_dir: pathlib.Path
+    tmp_path: pathlib.Path, env: Env, blind_dir: pathlib.Path
 ) -> None:
-    answers = good_answers(blind_dir)
+    answers = good_answers(env, blind_dir)
     answers["zzzzzz"] = good_entry(3, 3)
     rc = judge.main(
         [
@@ -542,17 +797,15 @@ def test_main_returns_2_on_refusal(
             str(write_answers(tmp_path, answers)),
             "--judge",
             "x",
-            "--scores-root",
-            str(tmp_path / "scores"),
+            "--root",
+            str(env[0]),
         ]
     )
     assert rc == judge.REFUSED
-    assert not (tmp_path / "scores").exists()
+    assert all_files(scores_of(env)) == []
 
 
-def test_main_blind_then_ingest(
-    tmp_path: pathlib.Path, vg_root: pathlib.Path, prompts_file: pathlib.Path
-) -> None:
+def test_main_blind_then_ingest(tmp_path: pathlib.Path, env: Env) -> None:
     out = tmp_path / "b"
     rc = judge.main(
         [
@@ -563,16 +816,16 @@ def test_main_blind_then_ingest(
             "dog-b",
             "--out",
             str(out),
-            "--seed",
-            "3",
             "--root",
-            str(vg_root),
+            str(env[0]),
             "--prompts",
-            str(prompts_file),
+            str(env[1]),
+            "--arms-file",
+            str(env[2]),
         ]
     )
     assert rc == 0
-    answers = good_answers(out, "dog-b")
+    answers = good_answers(env, out, "dog-b")
     rc = judge.main(
         [
             "ingest",
@@ -582,9 +835,10 @@ def test_main_blind_then_ingest(
             str(write_answers(tmp_path, answers)),
             "--judge",
             "x",
-            "--scores-root",
-            str(tmp_path / "scores"),
+            "--root",
+            str(env[0]),
         ]
     )
     assert rc == 0
-    assert len(all_files(tmp_path / "scores")) == 4
+    assert len(all_files(scores_of(env))) == 4
+    assert os.access(key_of(env, out), os.R_OK)
