@@ -40,6 +40,7 @@ every frame `frames.py` makes from it.
 | `serve.py` | Logs, or with `--start` launches, the exact vLLM-Omni server command for one model, from the `servers` block of `arms-v1.json`. It refuses a `--boundary-ratio` flag. |
 | `outlet.py` | Reads a node's smart plug from InfluxDB over a window, in chunks under Grafana's point cap, and integrates it to Wh. It says whether the readings cover the window. |
 | `gallery.py` | Builds a static web gallery of every clip in `~/bench-logs/videogen/gallery/` (#1413). It groups the clips by prompt: the reference clip first, then each arm and seed. It links the videos with symlinks and does not copy them. `batch.py` runs it after each clip. |
+| `judge.py` | `blind` copies each scored run's frames into folders with random ids and writes one judge prompt per clip. `ingest` checks a judge reply and writes the score files the gallery reads (#1406). |
 | `gallery_serve.py` | Serves the gallery on the LAN at `:8043`, read-only, with HTTP Range so a browser can seek in a video. It checks the `Host` header and sends the page's CSP. |
 | `common.py` | Shared code: the default output root, the guard on output paths, and the ffmpeg runner. |
 
@@ -279,4 +280,46 @@ systemctl --user edit local-llm-videogen-gallery.service
 #   [Service]
 #   Environment="GALLERY_HOST_ARGS=--host-name NAME --host-name NAME.lan"
 systemctl --user restart local-llm-videogen-gallery.service
+```
+
+## The blind judge (#1402, #1406)
+
+A Claude subagent scores each clip from its frames. It must not know which
+model made a clip. `judge.py blind` hides it:
+
+- Each run gets a random 6-character id. `--seed` seeds the random numbers,
+  so the same seed gives the same ids.
+- It copies only `s*.jpg` and `strip.jpg` to `OUT/<clip>/<id>/`. It does not
+  copy `first.png` or `meta.json`. No path or file that the judge reads names
+  the arm, the model or the seed. It refuses an `--out` path that names an
+  arm or a model, an `--out` that is not empty, and an `--out` inside a git
+  work tree.
+- It checks each file against the sha256 in `meta.json`, and the run's
+  `clip.mp4` against `clip_sha256`. Stale frames stop the command.
+- `OUT/<clip>/PROMPT.md` is the prompt for one judge: the clip's folders in
+  a shuffled order, its checklist, and the fixed defect list from
+  `prompts/v1.json`.
+- `OUT/key.json` maps each id to its arm, clip, seed and clip sha256. Do not
+  give it to the judge.
+
+Give one subagent one `PROMPT.md`, and save its reply as JSON. `judge.py
+ingest` checks the whole reply before it writes anything. Each id must be in
+`key.json`, and the reply must answer every id of each clip it touches. Each
+checklist number must occur exactly once, and each defect type must be on the
+fixed list. One error refuses the whole file. It then writes
+`$VG/scores/<arm>/<clip>-s<seed>.json` for each run, in the gallery's schema,
+with the items and the defects (`defect_list`) added. It refuses to replace a
+score file unless you add `--overwrite`. It logs the mean adherence and the
+total defects for each arm.
+
+```sh
+export VG=~/bench-logs/videogen
+export BLIND=$VG/judge/t2v-v1
+
+uv run python scripts/videogen/judge.py blind --arms h3-t2v wan-t2v \
+    --out "$BLIND" --seed 1406
+# Give $BLIND/dog-a/PROMPT.md to a subagent; save its reply.
+uv run python scripts/videogen/judge.py ingest --blind "$BLIND" \
+    --answers "$BLIND/dog-a.reply.json" --judge "blind judge v1"
+uv run python scripts/videogen/gallery.py
 ```
