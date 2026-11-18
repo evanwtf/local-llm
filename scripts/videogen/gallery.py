@@ -490,6 +490,9 @@ body { margin: 0; background: var(--bg); color: var(--fg);
   font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
 header, main { padding: 12px 16px; max-width: 1800px; margin: 0 auto; }
 h1 { font-size: 1.3rem; margin: 0 0 8px; }
+.top { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;
+  justify-content: space-between; }
+form.logout { margin: 0; }
 h2 { font-size: 1.1rem; margin: 0 0 4px; }
 .filters { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
 .filters label { display: flex; gap: 6px; align-items: center; color: var(--muted); }
@@ -577,14 +580,15 @@ def csp() -> str:
 
     Only the page's own inline CSS and JS run, named by hash; media and the
     first frames load from this server; nothing loads from anywhere else,
-    and no injected <base>, form or frame can work.
+    and no injected <base> or frame can work. A form may post only to this
+    server: the page's logout button is a form (gallery_serve.py, #1413).
     """
     return (
         "default-src 'none'; "
         f"style-src {csp_hash(CSS)}; "
         f"script-src {csp_hash(JS)}; "
         "media-src 'self'; img-src 'self'; "
-        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+        "base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
     )
 
 
@@ -967,7 +971,10 @@ def render(
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>Video-gen gallery</title>"
         f"<style>{CSS}</style></head><body>"
-        "<header><h1>Video-gen gallery</h1>"
+        '<header><div class="top"><h1>Video-gen gallery</h1>'
+        # A relative action: it works under /videogen/ and at the root.
+        '<form class="logout" method="post" action="logout">'
+        '<button type="submit">log out</button></form></div>'
         f'<p class="muted">{len(cards)} runs across {len(clips)} prompts. '
         f"Newest run: {esc(newest)}. Times are America/New_York.</p>"
         f'<div class="filters">{filters}<span id="count" class="muted"></span></div>'
