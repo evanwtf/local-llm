@@ -44,7 +44,7 @@ repos:
         name: no video files or video-gen frames in the repo (#1404)
         entry: "video files and frames stay in ~/bench-logs/videogen/, never in this public repo (#1404):"
         language: fail
-        files: '(?i)(\.(mp4|mov|m4v|mkv)$|^benchmarks/videogen/.*\.(jpe?g|png)$)'
+        files: '(?i)(\.(mp4|mov|m4v|mkv|webm|avi|heic|heif|avif|3gp|mts|m2ts|hevc|y4m)$|^benchmarks/videogen/.*\.(jpe?g|png|webp|gif|bmp|tiff?)$)'
         stages: [pre-commit]
       # The push gate. `pytest -m fast` is the ~180 repo-CONTRACT guards --
       # registry, generated docs, script index, ledger shape, tasks.toml -- out

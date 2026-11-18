@@ -16,21 +16,49 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
+#: Every video extension the guards cover, in lower case.
+VIDEO_EXTENSIONS = [
+    "mp4",
+    "mov",
+    "m4v",
+    "mkv",
+    "webm",
+    "avi",
+    "heic",
+    "heif",
+    "avif",
+    "3gp",
+    "mts",
+    "m2ts",
+    "hevc",
+    "y4m",
+]
+#: Image extensions refused under benchmarks/videogen/.
+FRAME_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff"]
+
 #: Paths the hook must refuse, and paths it must let through.
 REFUSED = [
     "dog-a.mp4",
     "IMG_0001.MOV",
-    "clips/dog-b.mov",
+    "IMG_0002.HEIC",
+    "clips/dog-b.Mov",
     "x.m4v",
     "x.MKV",
-    "benchmarks/videogen/frames/s01.jpg",
-    "benchmarks/videogen/first.png",
+    "x.webm",
+    "x.y4m",
+    "x.M2TS",
+    *(f"clip.{ext}" for ext in VIDEO_EXTENSIONS),
+    *(f"clip.{ext.upper()}" for ext in VIDEO_EXTENSIONS),
+    *(f"benchmarks/videogen/frames/s01.{ext}" for ext in FRAME_EXTENSIONS),
+    "benchmarks/videogen/first.PNG",
 ]
 ALLOWED = [
     "scripts/videogen/cut.py",
     "benchmarks/videogen/prompts/v1.json",
-    "docs/figure.png",
+    "benchmarks/videogen/refs-v1.json",
+    "docs/clock-cap-1319/charts/curve.png",
     "notes-about-mp4.md",
+    "mp4.py",
 ]
 
 
@@ -57,8 +85,7 @@ def test_the_hook_pattern_refuses_videos_and_frames() -> None:
     assert [p for p in ALLOWED if pattern.search(p)] == []
 
 
-def test_gitignore_hides_each_video_extension() -> None:
-    names = ["a.mp4", "a.mov", "a.MOV", "a.m4v", "a.mkv"]
+def check_ignore(names: list[str]) -> list[str]:
     result = subprocess.run(
         ["git", "check-ignore", "--no-index", *names],
         cwd=ROOT,
@@ -66,4 +93,22 @@ def test_gitignore_hides_each_video_extension() -> None:
         text=True,
         check=False,
     )
-    assert sorted(result.stdout.split()) == sorted(names)
+    return sorted(result.stdout.split())
+
+
+def test_gitignore_hides_each_video_extension_in_any_case() -> None:
+    names = [
+        *(f"a.{ext}" for ext in VIDEO_EXTENSIONS),
+        *(f"a.{ext.upper()}" for ext in VIDEO_EXTENSIONS),
+        *(f"sub/a.{ext.title()}" for ext in VIDEO_EXTENSIONS),
+    ]
+    assert check_ignore(names) == sorted(names)
+
+
+def test_gitignore_hides_frames_under_benchmarks_videogen() -> None:
+    names = [
+        *(f"benchmarks/videogen/frames/s01.{ext}" for ext in FRAME_EXTENSIONS),
+        "benchmarks/videogen/first.PNG",
+    ]
+    assert check_ignore(names) == sorted(names)
+    assert check_ignore(["benchmarks/videogen/refs-v1.json", "mp4.py"]) == []
