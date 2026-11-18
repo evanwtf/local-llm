@@ -19,6 +19,7 @@ from collections.abc import Iterator
 from typing import Any, NamedTuple
 
 import pytest
+from logging_isolation import isolated_root_logger
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -30,6 +31,13 @@ CSP = "default-src 'none'; style-src 'sha256-abc='; base-uri 'none'"
 USER, PASSWORD = "wat", "correct horse battery staple"
 #: The only trusted proxy in these tests. Loopback, so a test can be it.
 PROXY = "127.0.0.1"
+
+
+@pytest.fixture(autouse=True)
+def _isolated_root_logger() -> Iterator[None]:
+    """Another test's leaked root handler must not write into this one (#1417)."""
+    with isolated_root_logger():
+        yield
 
 
 class Site(NamedTuple):
@@ -756,7 +764,10 @@ def test_a_malformed_request_line_does_not_crash_the_handler(
         sock.close()
     assert b"200" not in data
     assert request(site, "/")[0] == 200
-    assert "Traceback" not in capsys.readouterr().err
+    # socketserver prints this, then the traceback, when a handler raises.
+    assert "Exception occurred during processing of request" not in (
+        capsys.readouterr().err
+    )
 
 
 # ------------------------------------------------- review fixes (#1413) ----

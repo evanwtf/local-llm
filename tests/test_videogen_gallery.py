@@ -11,9 +11,11 @@ import os
 import pathlib
 import re
 import sys
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
+from logging_isolation import isolated_root_logger
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -46,6 +48,13 @@ REFS = {
 }
 
 NEGATIVE = "low quality, blurry, " * 20
+
+
+@pytest.fixture(autouse=True)
+def _isolated_root_logger() -> Iterator[None]:
+    """Another test's leaked root handler must not write into this one (#1417)."""
+    with isolated_root_logger():
+        yield
 
 
 def run_v1(arm: str, clip: str, seed: int, **change: Any) -> dict[str, Any]:

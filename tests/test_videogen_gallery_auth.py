@@ -9,9 +9,11 @@ import os
 import pathlib
 import stat
 import sys
+from collections.abc import Iterator
 
 import pytest
 import yaml
+from logging_isolation import isolated_root_logger
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -21,6 +23,13 @@ from videogen import gallery_auth as ga
 PASSWORD = "correct horse battery staple"
 #: The cheapest cost the loader accepts, so the tests stay fast.
 FAST = {"n": ga.MIN_N, "r": 8, "p": 1}
+
+
+@pytest.fixture(autouse=True)
+def _isolated_root_logger() -> Iterator[None]:
+    """Another test's leaked root handler must not write into this one (#1417)."""
+    with isolated_root_logger():
+        yield
 
 
 @pytest.fixture
