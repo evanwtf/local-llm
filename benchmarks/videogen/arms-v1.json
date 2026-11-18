@@ -46,6 +46,7 @@
       },
       "extra_params": {"task": "fl2va", "duration": 5.0, "audio_flow_shift": 3.0},
       "input_reference": "first.png",
+      "input_note": "No aspect_ratio: for fl2va the server takes the ratio from the image. Because width and height are sent, the server resizes the 1920x1080 first frame to 1280x704 before H3 sees it, which stretches it about 2% wide (16:9 is 1.778; 1280x704 is 1.818).",
       "expected_frames": 124,
       "fallback": {"width": 960, "height": 576}
     },
@@ -81,8 +82,11 @@
         "fps": 16,
         "num_inference_steps": 40,
         "guidance_scale": 3.5,
+        "guidance_scale_2": 3.5,
+        "boundary_ratio": 0.9,
         "flow_shift": 5.0
       },
+      "boundary_note": "0.9 is the boundary_ratio in the I2V-Diffusers model_index.json at 596658fd (the T2V repo's is 0.875). Without it the server uses 0.875. A --boundary-ratio set when the server starts overrides this request value, so the Wan server must not set one.",
       "extra_params": {},
       "input_reference": "first.png",
       "expected_frames": 81,

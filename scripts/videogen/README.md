@@ -85,8 +85,11 @@ this; a scored clip from a draft file does not count.
 
 H3 runs on the head and Wan 2.2 on the worker (#1405). Start each server with
 `VLLM_OMNI_VIDEO_SYNC_TIMEOUT=7200`: the default is 600 s, which is shorter
-than one 50-step H3 clip. The I2V arms need the first frames, so run
-`frames.py` on the three reference clips first.
+than one 50-step H3 clip. Start the Wan server without `--boundary-ratio`:
+a value set at startup overrides the `boundary_ratio` in each request, so
+`wan-t2v` (0.875) and `wan-i2v` (0.9) would both get the startup value. The
+I2V arms need the first frames, so run `frames.py` on the three reference
+clips first.
 
 ```sh
 export VG=~/bench-logs/videogen

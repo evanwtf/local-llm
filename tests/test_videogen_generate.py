@@ -95,6 +95,8 @@ EXPECTED: dict[str, dict[str, str]] = {
         "fps": "16",
         "num_inference_steps": "40",
         "guidance_scale": "3.5",
+        "guidance_scale_2": "3.5",
+        "boundary_ratio": "0.9",
         "flow_shift": "5.0",
     },
 }
