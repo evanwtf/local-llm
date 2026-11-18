@@ -1,0 +1,72 @@
+{
+  "version": "v1",
+  "frozen": "2026-11-17",
+  "template": "subjects; action; setting; light; camera",
+  "defects": [
+    "extra, missing or merged legs",
+    "body morph (a body changes shape in a way no dog can)",
+    "dog identity changes between frames (coat, size, collar)",
+    "fur or texture flicker",
+    "feet slide or float",
+    "objects that appear or vanish"
+  ],
+  "clips": [
+    {
+      "id": "dog-a-v1",
+      "ref": "dog-a.mp4",
+      "seconds": 8.0,
+      "prompt": "Two dogs play-wrestle. A lean black-and-tan dog with tan legs, tan face markings and a light silver collar stands over a larger dark brindle dog that lies on its back with its paws in the air. The black-and-tan dog mouths at the other dog's face, and the brindle dog paws back with its mouth open, then rolls onto its side and stretches its legs out. A short green lawn, with a light green garden hose across the lower-left corner. Soft overcast daylight with no hard shadows. Handheld camera at standing height, looking down at the dogs; it eases back a little so both dogs fill the frame.",
+      "checklist": [
+        "There are exactly two dogs.",
+        "One dog is black with tan legs and tan markings on the face.",
+        "The other dog is dark brindle or dark grey, with no tan legs.",
+        "The black-and-tan dog stays on its feet for the whole clip.",
+        "The brindle dog lies on its back or its side for the whole clip.",
+        "The brindle dog's legs point up or stretch out at some point.",
+        "The two dogs' heads touch or mouth at each other.",
+        "An open mouth, with teeth or tongue, shows on at least one dog.",
+        "The black-and-tan dog wears a light-colored collar.",
+        "The ground is a green grass lawn in every frame.",
+        "The light is soft daylight with no hard shadows.",
+        "A light green garden hose lies across the lower-left corner."
+      ]
+    },
+    {
+      "id": "dog-b-v1",
+      "ref": "dog-b.mp4",
+      "seconds": 6.0,
+      "prompt": "A large black dog with a pink and blue collar and a metal chain walks across a sunny lawn toward the camera with its tongue out. Close to the camera it turns to its right, so it stands side-on with its head to the left of the frame and its tail curled up. A smaller black-and-tan dog watches from the back of the yard and then trots toward the big dog. A backyard lawn framed by leafy shrubs on the left and right edges, with tall striped ornamental grass behind. Bright late-summer sun with hard shadows on the grass. Handheld camera at knee height, almost still, with a slight pan to follow the big dog.",
+      "checklist": [
+        "A large black dog walks toward the camera and grows larger in the frame.",
+        "The large dog's tongue hangs out.",
+        "The large dog wears a colored collar with a metal chain.",
+        "The large dog turns and stands side-on to the camera.",
+        "The large dog's head points to the left of the frame when it stands side-on.",
+        "The large dog's tail curls up.",
+        "A second, smaller black-and-tan dog is in the background.",
+        "The smaller dog moves toward the large dog by the end of the clip.",
+        "Bright sunlight casts hard shadows on the grass.",
+        "Leafy shrubs frame the left and right edges of the frame.",
+        "Tall striped ornamental grass fills the background."
+      ]
+    },
+    {
+      "id": "dog-c-v1",
+      "ref": "dog-c.mp4",
+      "seconds": 4.5,
+      "prompt": "Close-up of one large dark blue-grey dog with a faint brindle coat and a light collar. It sniffs the grass with its head down and takes slow small steps forward. Thin bare twigs with spring buds hang in the foreground in front of its head. An orange ball and a short cut branch lie on the grass in the lower left, next to grey stone edging at the left edge. Early spring daylight, low sun, soft warm light. Handheld camera close to the dog at waist height, with a slight drift.",
+      "checklist": [
+        "There is exactly one dog.",
+        "The dog is dark blue-grey, with no tan markings.",
+        "The dog keeps its head down with its nose near the grass for most of the clip.",
+        "The dog wears a light-colored collar.",
+        "Thin bare twigs with buds are in the foreground, in front of the dog's head.",
+        "An orange ball lies on the grass in the lower left.",
+        "A short cut branch lies on the grass.",
+        "Grey stone edging shows at the left edge.",
+        "The dog moves slowly and takes small steps only.",
+        "The dog fills more than half the frame height."
+      ]
+    }
+  ]
+}
