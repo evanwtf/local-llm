@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
 import os
 import pathlib
 import re
 import sys
+import threading
+import time
 from typing import Any
 
 import pytest
@@ -106,9 +109,9 @@ def parse(text: str) -> dict[tuple[str, frozenset[tuple[str, str]]], float]:
         if line.startswith("# TYPE "):
             _, _, name, kind = line.split(" ")
             assert name in helped and name not in typed
-            assert kind in ("counter", "gauge")
-            if kind == "counter":
-                assert name.endswith("_total")
+            # The file is a snapshot whose sums can fall, so all are gauges.
+            assert kind == "gauge"
+            assert not name.endswith("_total")
             typed[name] = kind
             continue
         match = SAMPLE.match(line)
@@ -153,32 +156,39 @@ def test_two_runs_give_this_exact_file(tmp_path: pathlib.Path) -> None:
     lab = H3_LABELS
     # s2 ended last: 124 frames / 2480 s = 0.05 frames/s, and 2480 s for
     # 124 / 24 = 5.1667 s of video is a real-time factor of 480.
-    # 2026-11-18T00:17:55-0500 is 1794979075.
+    # 2026-11-18T00:17:55-0500 is 1794979075. Energy: 184 Wh x 3600 =
+    # 662400 J; s2's 91.5 Wh = 329400 J. Memory: 87 GiB x 2^30 = 93415538688 B.
     expected = f"""\
-# HELP videogen_clips_total Video-gen runs with a run.json, by status (ok, failed). It can fall when a failed run is made again.
-# TYPE videogen_clips_total counter
-videogen_clips_total{{{lab},status="ok"}} 2
-# HELP videogen_frames_total Output video frames (ffprobe) of the ok runs. These are frames in the MP4, not the denoised latent frames.
-# TYPE videogen_frames_total counter
-videogen_frames_total{{{lab}}} 248
-# HELP videogen_video_seconds_total Seconds of output video of the ok runs: frames / output fps.
-# TYPE videogen_video_seconds_total counter
-videogen_video_seconds_total{{{lab}}} 10.3333333333
-# HELP videogen_wall_seconds_total Client wall seconds of the ok runs' requests.
-# TYPE videogen_wall_seconds_total counter
-videogen_wall_seconds_total{{{lab}}} 4920
-# HELP videogen_server_seconds_total Server inference seconds (x-inference-time-s) of the ok runs that report it.
-# TYPE videogen_server_seconds_total counter
-videogen_server_seconds_total{{{lab}}} 4919
-# HELP videogen_energy_wh_total Outlet energy in Wh of the ok runs with a complete reading; a partial reading is left out.
-# TYPE videogen_energy_wh_total counter
-videogen_energy_wh_total{{{lab}}} 184
-# HELP videogen_energy_clips_total The ok runs with a complete outlet energy reading.
-# TYPE videogen_energy_clips_total counter
-videogen_energy_clips_total{{{lab}}} 2
-# HELP videogen_steps_total Denoising steps requested (num_inference_steps) of the ok runs.
-# TYPE videogen_steps_total counter
-videogen_steps_total{{{lab}}} 100
+# HELP videogen_clips Video-gen runs with a run.json now, by status (ok, failed). A gauge: a remade run is absent while it runs.
+# TYPE videogen_clips gauge
+videogen_clips{{{lab},status="ok"}} 2
+# HELP videogen_frames Output video frames (ffprobe) summed over the ok runs. These are frames in the MP4, not the denoised latent frames.
+# TYPE videogen_frames gauge
+videogen_frames{{{lab}}} 248
+# HELP videogen_video_seconds Seconds of output video summed over the ok runs: frames / output fps.
+# TYPE videogen_video_seconds gauge
+videogen_video_seconds{{{lab}}} 10.3333333333
+# HELP videogen_wall_seconds Client wall seconds summed over the ok runs.
+# TYPE videogen_wall_seconds gauge
+videogen_wall_seconds{{{lab}}} 4920
+# HELP videogen_server_seconds Server inference seconds (x-inference-time-s) summed over the ok runs that report it; divide by videogen_server_clips.
+# TYPE videogen_server_seconds gauge
+videogen_server_seconds{{{lab}}} 4919
+# HELP videogen_server_clips The ok runs that report the server inference time.
+# TYPE videogen_server_clips gauge
+videogen_server_clips{{{lab}}} 2
+# HELP videogen_energy_joules Outlet energy in joules summed over the ok runs with a complete reading; a partial reading is left out. Divide by videogen_energy_clips.
+# TYPE videogen_energy_joules gauge
+videogen_energy_joules{{{lab}}} 662400
+# HELP videogen_energy_clips The ok runs with a complete outlet energy reading.
+# TYPE videogen_energy_clips gauge
+videogen_energy_clips{{{lab}}} 2
+# HELP videogen_steps Denoising steps requested (num_inference_steps) summed over the ok runs that record it; divide by videogen_step_clips.
+# TYPE videogen_steps gauge
+videogen_steps{{{lab}}} 100
+# HELP videogen_step_clips The ok runs that record num_inference_steps.
+# TYPE videogen_step_clips gauge
+videogen_step_clips{{{lab}}} 2
 # HELP videogen_last_frames_per_second The latest ok run: output frames / wall seconds. Output frames, not the denoised latent frames.
 # TYPE videogen_last_frames_per_second gauge
 videogen_last_frames_per_second{{{lab}}} 0.05
@@ -188,12 +198,12 @@ videogen_last_wall_seconds{{{lab}}} 2480
 # HELP videogen_last_realtime_factor The latest ok run: wall seconds / seconds of output video.
 # TYPE videogen_last_realtime_factor gauge
 videogen_last_realtime_factor{{{lab}}} 480
-# HELP videogen_last_peak_memory_gib The latest ok run: peak used memory of the whole node, GiB.
-# TYPE videogen_last_peak_memory_gib gauge
-videogen_last_peak_memory_gib{{{lab}}} 87
-# HELP videogen_last_energy_wh The latest ok run: outlet energy in Wh, when its reading is complete.
-# TYPE videogen_last_energy_wh gauge
-videogen_last_energy_wh{{{lab}}} 91.5
+# HELP videogen_last_peak_memory_bytes The latest ok run: peak used memory of the whole node, bytes.
+# TYPE videogen_last_peak_memory_bytes gauge
+videogen_last_peak_memory_bytes{{{lab}}} 93415538688
+# HELP videogen_last_energy_joules The latest ok run: outlet energy in joules, when its reading is complete.
+# TYPE videogen_last_energy_joules gauge
+videogen_last_energy_joules{{{lab}}} 329400
 # HELP videogen_last_timestamp_seconds The latest ok run: its end time, Unix seconds.
 # TYPE videogen_last_timestamp_seconds gauge
 videogen_last_timestamp_seconds{{{lab}}} 1794979075
@@ -231,13 +241,15 @@ def test_each_arm_and_size_is_its_own_series(tmp_path: pathlib.Path) -> None:
             server_config={"served_model_name": "Wan-AI/Wan2.2-T2V-A14B-Diffusers"},
             node={"role": "worker"},
             ffprobe={"frames": 81, "width": 832, "height": 480, "fps": 16.0},
+            expected={"frames": 81, "width": 832, "height": 480, "fps": 16.0},
+            request={"fields": {"num_inference_steps": "40"}},
             wall_s=2350.0,
         ),
     )
     samples = parse(render(tmp_path))
     wan = value(
         samples,
-        "videogen_video_seconds_total",
+        "videogen_video_seconds",
         arm="wan-t2v",
         node="worker",
         width="832",
@@ -245,8 +257,8 @@ def test_each_arm_and_size_is_its_own_series(tmp_path: pathlib.Path) -> None:
         fps="16",
     )
     assert wan == [81 / 16]
-    assert value(samples, "videogen_frames_total", arm="h3-t2v") == [124.0]
-    assert len(value(samples, "videogen_frames_total")) == 2
+    assert value(samples, "videogen_frames", arm="h3-t2v") == [124.0]
+    assert len(value(samples, "videogen_frames")) == 2
 
 
 def test_an_incomplete_energy_run_counts_as_a_clip_but_not_as_energy(
@@ -263,12 +275,12 @@ def test_an_incomplete_energy_run_counts_as_a_clip_but_not_as_energy(
         ),
     )
     samples = parse(render(tmp_path))
-    assert value(samples, "videogen_clips_total", status="ok") == [2.0]
-    assert value(samples, "videogen_frames_total") == [248.0]
-    assert value(samples, "videogen_energy_wh_total") == [92.5]
-    assert value(samples, "videogen_energy_clips_total") == [1.0]
+    assert value(samples, "videogen_clips", status="ok") == [2.0]
+    assert value(samples, "videogen_frames") == [248.0]
+    assert value(samples, "videogen_energy_joules") == [92.5 * 3600]
+    assert value(samples, "videogen_energy_clips") == [1.0]
     # The latest run has no complete reading, so it has no energy gauge.
-    assert value(samples, "videogen_last_energy_wh") == []
+    assert value(samples, "videogen_last_energy_joules") == []
 
 
 def test_a_failed_run_is_counted_by_status_only(tmp_path: pathlib.Path) -> None:
@@ -279,11 +291,43 @@ def test_a_failed_run_is_counted_by_status_only(tmp_path: pathlib.Path) -> None:
     put(tmp_path, "out/h3-t2v/dog-a-s2", failed)
     samples = parse(render(tmp_path))
     # The failed run has no ffprobe; its size comes from `expected`.
-    assert value(samples, "videogen_clips_total", status="failed", width="1280") == [
-        1.0
+    assert value(samples, "videogen_clips", status="failed", width="1280") == [1.0]
+    assert value(samples, "videogen_clips", status="ok") == [1.0]
+    assert value(samples, "videogen_wall_seconds") == [2440.0]
+
+
+def test_a_failed_run_with_an_empty_ffprobe_keeps_its_requested_size(
+    tmp_path: pathlib.Path,
+) -> None:
+    put(tmp_path, "out/h3-t2v/dog-a-s1", run_json())
+    failed = run_json(
+        status="failed",
+        error="the clip has 0 frames",
+        ffprobe={"frames": 0, "width": 0, "height": 0, "fps": 0.0},
+    )
+    put(tmp_path, "out/h3-t2v/dog-a-s2", failed)
+    samples = parse(render(tmp_path))
+    # Both runs share one label set: no width="0" series appears.
+    assert value(samples, "videogen_clips", width="0") == []
+    assert value(samples, "videogen_clips", width="1280", height="704", fps="24") == [
+        1.0,
+        1.0,
     ]
-    assert value(samples, "videogen_clips_total", status="ok") == [1.0]
-    assert value(samples, "videogen_wall_seconds_total") == [2440.0]
+
+
+def test_size_labels_never_take_a_zero(tmp_path: pathlib.Path) -> None:
+    put(
+        tmp_path,
+        "out/h3-t2v/dog-a-s1",
+        {
+            "status": "failed",
+            "expected": {"width": 0},
+            "request": {"fields": {"width": "0"}},
+            "ffprobe": {"width": 640},
+        },
+    )
+    samples = parse(render(tmp_path))
+    assert value(samples, "videogen_clips", width="640") == [1.0]
 
 
 def test_a_failed_run_with_only_a_request_takes_its_size_from_it(
@@ -297,7 +341,7 @@ def test_a_failed_run_with_only_a_request_takes_its_size_from_it(
     samples = parse(render(tmp_path))
     assert value(
         samples,
-        "videogen_clips_total",
+        "videogen_clips",
         status="failed",
         width="832",
         height="unknown",
@@ -307,7 +351,7 @@ def test_a_failed_run_with_only_a_request_takes_its_size_from_it(
         mode="unknown",
     ) == [1.0]
     # No ok run: no throughput series at all.
-    assert value(samples, "videogen_frames_total") == []
+    assert value(samples, "videogen_frames") == []
 
 
 def test_label_values_are_escaped(tmp_path: pathlib.Path) -> None:
@@ -316,7 +360,7 @@ def test_label_values_are_escaped(tmp_path: pathlib.Path) -> None:
     text = render(tmp_path)
     assert 'model="odd \\"model\\"\\\\ with\\na newline"' in text
     samples = parse(text)
-    assert value(samples, "videogen_frames_total", model=model) == [124.0]
+    assert value(samples, "videogen_frames", model=model) == [124.0]
 
 
 def test_a_bad_or_incomplete_file_is_skipped_with_a_warning(
@@ -330,11 +374,17 @@ def test_a_bad_or_incomplete_file_is_skipped_with_a_warning(
         put(tmp_path, "out/h3-t2v/dog-b-s2", run_json(ffprobe=None)),
         put(tmp_path, "out/h3-t2v/dog-b-s3", run_json(wall_s="fast")),
         put(tmp_path, "out/h3-t2v/dog-c-s1", run_json(end="yesterday")),
+        # Half a frame rounds to none: not a clip.
+        put(
+            tmp_path,
+            "out/h3-t2v/dog-c-s2",
+            run_json(ffprobe={"frames": 0.5, "width": 1280, "height": 704, "fps": 24}),
+        ),
     ]
     with caplog.at_level(logging.WARNING):
         samples = parse(render(tmp_path))
-    assert value(samples, "videogen_clips_total") == [1.0]
-    assert value(samples, "videogen_frames_total") == [124.0]
+    assert value(samples, "videogen_clips") == [1.0]
+    assert value(samples, "videogen_frames") == [124.0]
     warned = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     for path in bad:
         assert any(str(path) in m for m in warned), path
@@ -344,10 +394,10 @@ def test_probes_are_left_out_unless_asked(tmp_path: pathlib.Path) -> None:
     put(tmp_path, "out/h3-t2v/dog-a-s1", run_json())
     put(tmp_path, "probe/h3-t2v/dog-a-s1-20261117T215528", run_json(probe=True))
     scored_only = parse(render(tmp_path))
-    assert value(scored_only, "videogen_frames_total", kind="probe") == []
+    assert value(scored_only, "videogen_frames", kind="probe") == []
     both = parse(render(tmp_path, include_probes=True))
-    assert value(both, "videogen_frames_total", kind="probe") == [124.0]
-    assert value(both, "videogen_frames_total", kind="scored") == [124.0]
+    assert value(both, "videogen_frames", kind="probe") == [124.0]
+    assert value(both, "videogen_frames", kind="scored") == [124.0]
 
 
 def test_a_rerun_writes_the_same_file(tmp_path: pathlib.Path) -> None:
@@ -448,3 +498,76 @@ def test_the_batch_hook_swallows_a_failure_and_warns_once(
 
 def test_the_batch_hook_is_a_no_op_when_off(tmp_path: pathlib.Path) -> None:
     assert batch.refresh_metrics(None, tmp_path) is True
+
+
+# ------------------------------------------------- review follow-ups ----
+
+
+def test_an_old_probe_without_ffprobe_logs_at_info_not_warning(
+    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    old = run_json(probe=True, schema=1)
+    del old["ffprobe"]
+    path = put(tmp_path, "probe/h3-t2v/dog-a-s1-20261117T215528", old)
+    with caplog.at_level(logging.INFO):
+        render(tmp_path, include_probes=True)
+    mine = [r for r in caplog.records if str(path) in r.getMessage()]
+    assert [r.levelno for r in mine] == [logging.INFO]
+
+
+def test_the_optional_values_count_their_own_clips(tmp_path: pathlib.Path) -> None:
+    put(tmp_path, "out/h3-t2v/dog-a-s1", run_json())
+    put(
+        tmp_path,
+        "out/h3-t2v/dog-a-s2",
+        run_json(server_headers={}, request={"fields": {"width": "1280"}}),
+    )
+    samples = parse(render(tmp_path))
+    assert value(samples, "videogen_server_seconds") == [2439.5]
+    assert value(samples, "videogen_server_clips") == [1.0]
+    assert value(samples, "videogen_steps") == [50.0]
+    assert value(samples, "videogen_step_clips") == [1.0]
+    assert value(samples, "videogen_clips", status="ok") == [2.0]
+
+
+def hold_lock(root: pathlib.Path) -> Any:
+    """Another writer's lock: a separate open file, so flock conflicts."""
+    fh = (root / metrics.LOCK_FILE).open("a")
+    fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+    return fh
+
+
+def test_a_second_writer_times_out_while_the_lock_is_held(
+    tmp_path: pathlib.Path,
+) -> None:
+    root, prom = tmp_path / "vg", tmp_path / "textfile"
+    prom.mkdir()
+    put(root, "out/h3-t2v/dog-a-s1", run_json())
+    held = hold_lock(root)
+    try:
+        t0 = time.monotonic()
+        with pytest.raises(TimeoutError):
+            metrics.write(root, prom, now=NOW, lock_timeout_s=0.2)
+        assert time.monotonic() - t0 >= 0.2
+        assert not (prom / "videogen.prom").exists()
+    finally:
+        held.close()
+
+
+def test_a_second_writer_waits_for_the_lock_then_writes(
+    tmp_path: pathlib.Path,
+) -> None:
+    root, prom = tmp_path / "vg", tmp_path / "textfile"
+    prom.mkdir()
+    put(root, "out/h3-t2v/dog-a-s1", run_json())
+    held = hold_lock(root)
+    release = threading.Timer(0.3, held.close)
+    release.start()
+    try:
+        t0 = time.monotonic()
+        metrics.write(root, prom, now=NOW, lock_timeout_s=5.0)
+        waited = time.monotonic() - t0
+    finally:
+        release.join()
+    assert waited >= 0.25
+    assert (prom / "videogen.prom").is_file()

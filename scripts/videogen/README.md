@@ -370,60 +370,87 @@ Prometheus already scrapes node_exporter.
   node_exporter does not read the temp file, because its name does not end
   in `.prom`.
 - It skips a `run.json` that is not a JSON object, that has no status, or
-  that says ok but lacks the ffprobe frames, the fps, `wall_s` or `end`. It
-  logs a warning for each, and goes on.
+  that says ok but lacks the ffprobe frames (at least 1), the fps, `wall_s`
+  or `end`. It logs a warning for each, and goes on. The first schema-1
+  probe has no ffprobe block; it logs that one at INFO.
 - `batch.py` runs it after each clip, after the gallery and outside the timed
   request. A missing or unwritable directory logs one warning per batch, and
   the batch goes on. `--no-metrics` turns it off.
+- Two batches (head and worker) write the same file, so the scan and the
+  write hold an exclusive lock on `$VG/.metrics.lock`. A writer waits up to
+  60 s for it, then gives up with an error.
 
 Each series has these labels: `arm`, `model` (the served model id), `node`
 (`head` or `worker`), `mode` (`t2v` or `i2v`), `kind` (`scored` or `probe`),
-`width`, `height` and `fps` (the output fps). A throughput compares only at
-one size, so the size is a label. There is no clip or seed label, so the
-number of series stays small.
+`width`, `height` and `fps` (the output fps). The size is what the run asked
+for (`expected`, then the request, then ffprobe), and never 0. A throughput
+compares only at one size, so the size is a label. There is no clip or seed
+label, so the number of series stays small.
 
-| metric | type | what it is |
-|---|---|---|
-| `videogen_clips_total` | counter | Runs with a `run.json`, with a `status` label (`ok`, `failed`). |
-| `videogen_frames_total` | counter | Output frames (ffprobe) of the ok runs. |
-| `videogen_video_seconds_total` | counter | Seconds of output video of the ok runs: frames ÷ fps. |
-| `videogen_wall_seconds_total` | counter | Client wall seconds of the ok runs. |
-| `videogen_server_seconds_total` | counter | Server inference seconds (`x-inference-time-s`) of the ok runs that report it. |
-| `videogen_energy_wh_total` | counter | Outlet energy (Wh) of the ok runs with a complete reading. |
-| `videogen_energy_clips_total` | counter | The ok runs with a complete energy reading. |
-| `videogen_steps_total` | counter | Denoising steps requested (`num_inference_steps`) of the ok runs. |
-| `videogen_last_frames_per_second` | gauge | The latest ok run: output frames ÷ wall seconds. |
-| `videogen_last_wall_seconds` | gauge | The latest ok run: wall seconds. |
-| `videogen_last_realtime_factor` | gauge | The latest ok run: wall seconds ÷ video seconds. |
-| `videogen_last_peak_memory_gib` | gauge | The latest ok run: peak used memory of the node, GiB. |
-| `videogen_last_energy_wh` | gauge | The latest ok run: outlet energy (Wh), only when the reading is complete. |
-| `videogen_last_timestamp_seconds` | gauge | The latest ok run: its end time. |
-| `videogen_metrics_build_timestamp_seconds` | gauge | When `metrics.py` last wrote the file. |
+**Every series is a gauge.** The file is a snapshot of the `run.json` files
+on disk now, not a running count, and its sums can fall. A remake deletes the
+old `run.json` at the start of its request and writes the new one about 40
+minutes later. The other node's batch writes the file in that gap, so the
+sums dip by one clip and then come back. A counter that falls looks like a
+reset to Prometheus, and `rate()` would then count the whole sum again. With
+a gauge, use `delta()`: over a window that holds the dip and its recovery,
+the two cancel, and the net change is zero, which is the truth.
+
+The units are Prometheus base units: seconds, joules and bytes.
+
+| metric | what it is |
+|---|---|
+| `videogen_clips` | Runs with a `run.json`, with a `status` label (`ok`, `failed`). |
+| `videogen_frames` | Output frames (ffprobe), summed over the ok runs. |
+| `videogen_video_seconds` | Seconds of output video (frames ÷ fps), summed over the ok runs. |
+| `videogen_wall_seconds` | Client wall seconds, summed over the ok runs. |
+| `videogen_server_seconds` | Server inference seconds (`x-inference-time-s`), summed over the ok runs that report it. |
+| `videogen_server_clips` | The ok runs that report the server time. |
+| `videogen_energy_joules` | Outlet energy (J), summed over the ok runs with a complete reading. |
+| `videogen_energy_clips` | The ok runs with a complete energy reading. |
+| `videogen_steps` | Denoising steps requested (`num_inference_steps`), summed over the ok runs that record it. |
+| `videogen_step_clips` | The ok runs that record the steps. |
+| `videogen_last_frames_per_second` | The latest ok run: output frames ÷ wall seconds. |
+| `videogen_last_wall_seconds` | The latest ok run: wall seconds. |
+| `videogen_last_realtime_factor` | The latest ok run: wall seconds ÷ video seconds. |
+| `videogen_last_peak_memory_bytes` | The latest ok run: peak used memory of the node, bytes. |
+| `videogen_last_energy_joules` | The latest ok run: outlet energy (J), only when the reading is complete. |
+| `videogen_last_timestamp_seconds` | The latest ok run: its end time. |
+| `videogen_metrics_build_timestamp_seconds` | When `metrics.py` last wrote the file. |
 
 "Latest" is by the run's end time, per label set. **Frames per second
 counts output frames**, the frames in the MP4, not the latent frames that
 the model denoises.
 
-A counter here is a sum over files, so it can fall: a failed run that is
-made again leaves the `failed` count. Prometheus reads a fall as a counter
-reset, so a `rate()` over that moment is a little off.
+**Divide like with like.** `videogen_server_seconds`, `videogen_energy_joules`
+and `videogen_steps` sum only the runs that have the value. Divide each by its
+own count (`videogen_server_clips`, `videogen_energy_clips`,
+`videogen_step_clips`), not by `videogen_clips` and not by
+`videogen_wall_seconds`.
 
 **Queries.** One clip takes about 40 minutes, and the file changes only when
 a clip ends. Use a window of several clips.
 
 ```promql
 # Output frames per wall second over a window.
-rate(videogen_frames_total[1h]) / rate(videogen_wall_seconds_total[1h])
+delta(videogen_frames[6h]) / delta(videogen_wall_seconds[6h])
 
 # Real-time factor over a window: wall seconds per second of video.
-rate(videogen_wall_seconds_total[6h]) / rate(videogen_video_seconds_total[6h])
+delta(videogen_wall_seconds[6h]) / delta(videogen_video_seconds[6h])
 
-# The same over every run so far.
-videogen_frames_total / videogen_wall_seconds_total
-videogen_wall_seconds_total / videogen_video_seconds_total
+# The same over every run on disk.
+videogen_frames / videogen_wall_seconds
+videogen_wall_seconds / videogen_video_seconds
 
-# Energy per clip, from complete readings only.
-videogen_energy_wh_total / videogen_energy_clips_total
+# Energy per clip in Wh, from complete readings only.
+videogen_energy_joules / videogen_energy_clips / 3600
+
+# Server seconds per clip, from the runs that report it.
+videogen_server_seconds / videogen_server_clips
+
+# The latest run's energy in Wh and peak memory in GiB.
+videogen_last_energy_joules / 3600
+videogen_last_peak_memory_bytes / 2^30
 ```
 
 **One-time setup** (on the head). The textfile directory belongs to root.
