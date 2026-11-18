@@ -80,11 +80,14 @@ uv run python scripts/videogen/frames.py "$VG/ref/$NAME.mp4"
 
 `arms-v1.json` holds the fixed settings of the four arms (`h3-t2v`, `h3-i2v`,
 `wan-t2v`, `wan-i2v`), the seeds (1, 2, 3), a fallback size per model, and
-one `servers` block per model. Each value names its source in the file. Its
-`status` is `draft` until one timing probe per model sets the size. Then set
-`status` to `locked` and do not change the file again. `generate.py` and
-`batch.py` refuse a scored run from a draft file. `--allow-draft` overrides
-this; a scored clip from a draft file does not count.
+one `servers` block per model. Each value names its source in the file. The
+file is `locked` (2026-11-17), after one timing probe per model. Its `locked`
+block records the probes and the verdict: H3 keeps 1280x704, and both Wan
+arms use 832x480, because 1280x720 took about 2.3 h per clip. The two models
+are compared at different resolutions, so the report names each model's size
+beside every score. A change is a new version file, not an edit.
+`generate.py` and `batch.py` refuse a scored run from a file that is not
+locked; `--allow-draft` overrides this, and such a clip does not count.
 
 **Start each server with `serve.py`.** H3 runs on the head (:8040) and Wan 2.2
 on the worker (:8041) (#1405). The `servers` block holds the exact command:

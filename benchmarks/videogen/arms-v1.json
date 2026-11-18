@@ -1,9 +1,52 @@
 {
   "version": "v1",
-  "status": "draft",
+  "status": "locked",
+  "locked": {
+    "date": "2026-11-17T22:46:10-0500",
+    "method": "One timing probe per model before any scored run: dog-a, seed 1, scripts/videogen/generate.py --probe, vLLM-Omni 0.32.0, one model per Spark (H3 on the head, Wan 2.2 T2V on the worker), each GPU idle at the start. A model keeps its primary size unless that size is too slow for 9 clips per arm; then it takes its fallback. The probe run.json files are under ~/bench-logs/videogen/probe/ (outside the repo).",
+    "probes": [
+      {
+        "arm": "h3-t2v",
+        "size": "1280x704",
+        "steps": 50,
+        "s_per_step": 46.9,
+        "wall_s": 2438.7,
+        "energy_wh": 92.0,
+        "peak_memory_gib": 86.1,
+        "clip": "passed: 124 frames, 24 fps, an audio stream",
+        "run": "probe/h3-t2v/dog-a-s1-20261117T215528/run.json",
+        "note": "Run with the runner before #1410 (run.json schema 1), from arms-v1.json sha256 c95ecc9d; the server had no --served-model-name yet."
+      },
+      {
+        "arm": "wan-t2v",
+        "size": "1280x720",
+        "steps": 40,
+        "s_per_step": 205.3,
+        "steps_done": 2,
+        "stopped_after_s": 410,
+        "projected_wall_s": 8212,
+        "run": "probe/wan-t2v/dog-a-s1-20261117T214519/run.json",
+        "note": "Stopped by hand after 2 steps (6 min 50 s of denoise). The client's request ran 603.3 s and ended with 'Remote end closed connection without response' when the server stopped. 205.3 s/step x 40 steps is about 2.3 h per clip, about 20.5 h for 9 clips."
+      },
+      {
+        "arm": "wan-t2v",
+        "size": "832x480",
+        "steps": 40,
+        "s_per_step": 58.3,
+        "wall_s": 2359.0,
+        "energy_wh": 84.9,
+        "peak_memory_gib": 53.4,
+        "clip": "passed: 81 frames, 16 fps, 832x480",
+        "run": "probe/wan-t2v/dog-a-s1-20261117T220441/run.json",
+        "note": "From arms-v1.json sha256 45379067, the draft just before this lock."
+      }
+    ],
+    "verdict": "H3 keeps 1280x704. Both Wan arms use 832x480, the fallback: 1280x720 is too slow for 9 clips per arm. wan-i2v was not probed; it uses the T2V size, because it is the same A14B design at the same step count.",
+    "comparison_note": "H3 (1280x704) and Wan (832x480) are compared at different resolutions. The report names each model's size beside every score."
+  },
   "issues": [1402, 1406, 1407],
   "prompts": "prompts/v1.json",
-  "note": "Fixed request settings per arm for the video-gen eval. 'draft' until one timing probe per model sets them; then 'status' becomes 'locked' and nothing here changes. A probe may move a model to its 'fallback' size: copy the fallback into 'form' before you lock. scripts/videogen/generate.py refuses a scored run from a draft file.",
+  "note": "Fixed request settings per arm for the video-gen eval. Locked after one timing probe per model (see 'locked'); nothing here changes, and a change is a new version file. scripts/videogen/generate.py refuses a scored run from a file that is not locked.",
   "endpoint": "/v1/videos/sync",
   "verified_against": {
     "vllm_omni": "0.32.0",
@@ -140,8 +183,8 @@
       "model": "Wan-AI/Wan2.2-T2V-A14B-Diffusers",
       "revision": "5be7df96",
       "form": {
-        "width": 1280,
-        "height": 720,
+        "width": 832,
+        "height": 480,
         "num_frames": 81,
         "fps": 16,
         "num_inference_steps": 40,
@@ -162,8 +205,8 @@
       "model": "Wan-AI/Wan2.2-I2V-A14B-Diffusers",
       "revision": "596658fd",
       "form": {
-        "width": 1280,
-        "height": 720,
+        "width": 832,
+        "height": 480,
         "num_frames": 81,
         "fps": 16,
         "num_inference_steps": 40,
@@ -175,6 +218,7 @@
       },
       "extra_params": {},
       "input_reference": "first.png",
+      "input_note": "The server resizes the 1920x1080 first frame to 832x480, which squeezes it about 2.5% narrow (16:9 is 1.778; 832x480 is 1.733).",
       "expect": {"frames": 81, "audio": false},
       "fallback": {"width": 832, "height": 480},
       "sources": "Upstream wan_i2v_A14B.py: sample_shift 5.0, sample_steps 40, boundary 0.900, sample_guide_scale (3.5, 3.5). The I2V-Diffusers model_index.json at 596658fd also has boundary_ratio 0.9 (the T2V repo's is 0.875); without it the server uses 0.875. shared_config.py: sample_fps 16, frame_num 81, sample_neg_prompt (copied exactly)."
