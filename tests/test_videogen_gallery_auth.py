@@ -297,3 +297,61 @@ def test_read_password_refuses_a_short_one(text: str) -> None:
 def test_a_bad_username_is_refused(tmp_path: pathlib.Path, name: str) -> None:
     with pytest.raises(ga.AuthError):
         ga.write_auth(tmp_path / "a.yaml", name, PASSWORD, **FAST)
+
+
+def test_the_minimum_password_is_8_characters() -> None:
+    """The operator's choice (#1413): 8 characters, and no other rule."""
+    assert ga.MIN_PASSWORD == 8
+    assert ga.read_password(io.StringIO("abcdefgh\n")) == "abcdefgh"
+    with pytest.raises(ga.AuthError):
+        ga.read_password(io.StringIO("abcdefg\n"))
+
+
+@pytest.mark.parametrize(
+    ("client", "key"),
+    [
+        ("203.0.113.7", "203.0.113.7"),
+        ("2001:db8:1:2:aaaa::1", "2001:db8:1:2::/64"),
+        ("2001:db8:1:2:ffff:ffff:ffff:ffff", "2001:db8:1:2::/64"),
+        ("2001:db8:1:3::1", "2001:db8:1:3::/64"),
+        ("::ffff:203.0.113.7", "203.0.113.7"),
+        ("not-an-ip", "not-an-ip"),
+    ],
+)
+def test_client_key_counts_ipv6_by_64(client: str, key: str) -> None:
+    assert ga.client_key(client) == key
+
+
+def test_a_full_table_evicts_unlocked_clients_before_locked_ones() -> None:
+    clock = Clock()
+    lock = ga.Lockout(clock=clock, max_clients=3)
+    for _ in range(5):
+        lock.fail("attacker")
+    assert lock.locked("attacker") > 0
+    for i in range(50):
+        lock.fail(f"flood{i}")
+    assert len(lock) <= 3
+    assert lock.locked("attacker") > 0  # the flood did not free it
+    clock.t += 601  # once expired, it is the first to go
+    lock.fail("late")
+    lock.fail("later")
+    assert lock.locked("attacker") == 0
+
+
+def test_revoked_cookies_are_kept_until_expiry_and_bounded() -> None:
+    revoked = ga.Revoked(max_entries=3)
+    revoked.add("a", 100.0, now=0.0)
+    assert "a" in revoked and "b" not in revoked
+    revoked.add("b", 200.0, now=150.0)  # "a" expired at 100: dropped
+    assert "a" not in revoked and "b" in revoked
+    for i in range(10):
+        revoked.add(f"c{i}", 1000.0 + i, now=150.0)
+    assert len(revoked) == 3
+    assert "b" not in revoked  # the one that expires first went first
+
+
+def test_cookie_expiry(auth_file: pathlib.Path) -> None:
+    auth = ga.load_auth(auth_file)
+    cookie = ga.make_cookie(auth, "wat", now=1000.0)
+    assert ga.cookie_expiry(cookie) == 1000 + ga.SESSION_S
+    assert ga.cookie_expiry("garbage") is None

@@ -104,6 +104,14 @@ FALLBACK_CSP = (
 )
 #: The largest login form body read.
 MAX_FORM = 4096
+#: Seconds allowed to read a whole login form; a slow sender gets 408.
+FORM_DEADLINE_S = 10.0
+#: scrypt checks run at once, server-wide. More get 429 and run no scrypt:
+#: each check costs 32 MiB and about 0.1 s of CPU on the head, which also
+#: runs the scored clips.
+MAX_VERIFIES = 2
+#: Sec-Fetch-Site values a login or logout may carry.
+SAME_SITE_FETCH = frozenset({"same-origin", "none"})
 #: Pages that get a 303 to the login form instead of a 401.
 PAGES = frozenset({"/", "/index.html", "/logout"})
 
@@ -208,6 +216,19 @@ def resolve_request(
     return real
 
 
+def host_name(header: str | None) -> str | None:
+    """The host part of a Host header, lower case, with no port or final dot."""
+    if not header:
+        return None
+    host = header.strip()
+    if host.startswith("["):
+        end = host.find("]")
+        return host[1:end].lower() if end > 0 else None
+    if host.count(":") == 1:
+        host = host.partition(":")[0]
+    return host.rstrip(".").lower() or None
+
+
 def host_allowed(header: str | None, names: frozenset[str]) -> bool:
     """True for an IP literal, `localhost`, or one of `names` (any port)."""
     if not header:
@@ -301,7 +322,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
     trusted: frozenset[str] = frozenset()
     store: auth.AuthStore
     lockout: auth.Lockout
+    revoked: auth.Revoked
+    verify_slots: threading.BoundedSemaphore
+    form_deadline_s: float = FORM_DEADLINE_S
     now: Callable[[], float] = time.time
+    #: Set when the request's body has been read in full.
+    body_read: bool = False
 
     def log_message(self, format: str, *args: Any) -> None:
         logger.info("%s %s", self.client(), format % args)
@@ -330,6 +356,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
     do_TRACE = do_CONNECT = do_PROPFIND = do_MKCOL = do_COPY = do_MOVE = do_POST
 
     def route(self) -> None:
+        self.body_read = False
+        try:
+            self.dispatch()
+        finally:
+            # An unread body would be parsed as the next request on this
+            # connection, so a request whose body we skipped ends it.
+            has_body = (
+                self.headers.get("Content-Length") not in (None, "0")
+                or self.headers.get("Transfer-Encoding") is not None
+            )
+            if has_body and not self.body_read:
+                self.close_connection = True
+
+    def dispatch(self) -> None:
         if not self.host_ok():
             return
         path = urllib.parse.urlsplit(self.path).path
@@ -341,7 +381,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 else:
                     self.send_login(200)
             elif method == "POST":
-                self.login()
+                if self.same_origin():
+                    self.login()
             else:
                 self.refuse_method("GET, HEAD, POST")
             return
@@ -355,13 +396,39 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if path == "/logout":
             if method == "POST":
-                self.logout()
+                if self.same_origin():
+                    self.logout()
             else:
                 self.refuse_method("POST")
         elif method in ("GET", "HEAD"):
             self.serve(body=method == "GET")
         else:
             self.refuse_method("GET, HEAD")
+
+    def same_origin(self) -> bool:
+        """Refuse a cross-site login or logout POST with 403.
+
+        A browser sends Sec-Fetch-Site and Origin on a form POST. A page on
+        another site must not log the visitor in or out.
+        """
+        fetch_site = self.headers.get("Sec-Fetch-Site")
+        if fetch_site is not None and fetch_site.strip().lower() not in SAME_SITE_FETCH:
+            why = f"Sec-Fetch-Site {fetch_site!r}"
+        else:
+            origin = self.headers.get("Origin")
+            if origin is None:
+                return True
+            origin_host = urllib.parse.urlsplit(origin.strip()).hostname
+            if origin_host is not None and origin_host == host_name(
+                self.headers.get("Host")
+            ):
+                return True
+            why = f"Origin {origin!r}"
+        logger.warning(
+            "refused %s %s from %s: %s", self.command, self.path, self.client(), why
+        )
+        self.send_plain(403, "cross-site request refused")
+        return False
 
     def refuse_method(self, allowed: str) -> None:
         self.close_connection = True
@@ -401,6 +468,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if creds is None:
             return None
         for value in cookie_values(self.headers.get_all("Cookie") or []):
+            if value in self.revoked:
+                continue
             user = auth.check_cookie(creds, value, now=self.now())
             if user is not None:
                 return user
@@ -430,19 +499,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
         ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         length_text = self.headers.get("Content-Length")
         if ctype != "application/x-www-form-urlencoded":
-            self.close_connection = True
             self.send_plain(415, "send a form")
             return None
-        if length_text is None or not length_text.isdigit():
-            self.close_connection = True
+        # ASCII digits only: str.isdigit() also takes digits such as "٣".
+        if length_text is None or not re.fullmatch(r"[0-9]{1,6}", length_text):
             self.send_plain(411, "length required")
             return None
         length = int(length_text)
         if length > MAX_FORM:
-            self.close_connection = True
             self.send_plain(413, "form too large")
             return None
-        raw = self.rfile.read(length)
+        raw = self.read_body(length)
+        if raw is None:
+            self.close_connection = True
+            self.send_plain(408, "the form took too long")
+            return None
+        self.body_read = True
         try:
             pairs = urllib.parse.parse_qsl(
                 raw.decode("utf-8"), keep_blank_values=True, max_num_fields=8
@@ -452,12 +524,39 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return None
         return dict(pairs)
 
+    def read_body(self, length: int) -> bytes | None:
+        """`length` bytes within `form_deadline_s` in total, or None.
+
+        The idle timeout alone resets on every byte, so a client sending one
+        byte a second could hold a thread for an hour.
+        """
+        deadline = time.monotonic() + self.form_deadline_s
+        chunks: list[bytes] = []
+        left = length
+        try:
+            while left > 0:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return None
+                self.connection.settimeout(remaining)
+                chunk = self.rfile.read1(left)
+                if not chunk:
+                    return None
+                chunks.append(chunk)
+                left -= len(chunk)
+        except OSError:  # TimeoutError included
+            return None
+        finally:
+            self.connection.settimeout(self.timeout)
+        return b"".join(chunks)
+
     def login(self) -> None:
         client = self.client()
+        key = auth.client_key(client)
         form = self.read_form()
         if form is None:
             return
-        left = self.lockout.locked(client)
+        left = self.lockout.locked(key)
         if left > 0:
             logger.warning("login refused from %s: locked for %.0f s", client, left)
             self.send_login_locked(left)
@@ -467,9 +566,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
             logger.error("login refused from %s: the credentials file is bad", client)
             self.send_plain(503, "login is not available")
             return
-        user = auth.verify(creds, form.get("username", ""), form.get("password", ""))
+        if not self.verify_slots.acquire(blocking=False):
+            logger.warning(
+                "login refused from %s: %d checks already running", client, MAX_VERIFIES
+            )
+            self.send_login_busy()
+            return
+        try:
+            user = auth.verify(
+                creds, form.get("username", ""), form.get("password", "")
+            )
+        finally:
+            self.verify_slots.release()
         if user is None:
-            locked = self.lockout.fail(client)
+            locked = self.lockout.fail(key)
             logger.warning(
                 "login failed from %s%s", client, "; now locked out" if locked else ""
             )
@@ -477,7 +587,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # applies from the next one.
             self.send_login(401, "Wrong username or password.")
             return
-        self.lockout.success(client)
+        self.lockout.success(key)
         logger.info("login ok for %s from %s", user, client)
         value = auth.make_cookie(creds, user, now=self.now())
         self.redirect("./", self.cookie(value, auth.SESSION_S))
@@ -494,7 +604,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def send_login_busy(self) -> None:
+        data = login_page("The server is busy. Try again in a few seconds.")
+        self.send_response(429)
+        self.send_header("Retry-After", "2")
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Security-Policy", LOGIN_CSP)
+        self.end_headers()
+        self.wfile.write(data)
+
     def logout(self) -> None:
+        """Clear the cookie, and refuse it here until it would have expired."""
+        creds = self.store.get()
+        now = self.now()
+        for value in cookie_values(self.headers.get_all("Cookie") or []):
+            if creds is not None and auth.check_cookie(creds, value, now=now):
+                until = auth.cookie_expiry(value)
+                if until is not None:
+                    self.revoked.add(value, until, now=now)
         logger.info("logout from %s", self.client())
         self.redirect("login", self.cookie("", 0))
 
@@ -634,6 +763,7 @@ def make_server(
     timeout: float = IDLE_TIMEOUT_S,
     max_connections: int = MAX_CONNECTIONS,
     lockout: auth.Lockout | None = None,
+    form_deadline_s: float = FORM_DEADLINE_S,
 ) -> GalleryServer:
     """A bound (not yet serving) server.
 
@@ -660,9 +790,20 @@ def make_server(
             "trusted": trusted,
             "store": store,
             "lockout": lockout or auth.Lockout(),
+            "revoked": auth.Revoked(),
+            "verify_slots": threading.BoundedSemaphore(MAX_VERIFIES),
+            "form_deadline_s": form_deadline_s,
             "timeout": timeout,
         },
     )
+    if names and not trusted:
+        # A name usually means a reverse proxy. Without --trusted-proxy the
+        # lockout counts every client behind it as one, and no cookie gets
+        # Secure.
+        logger.warning(
+            "--host-name is set but no --trusted-proxy: X-Forwarded-For and "
+            "X-Forwarded-Proto are ignored"
+        )
     logger.info(
         "credentials from %s (%d user); trusted proxies: %s",
         auth_file,

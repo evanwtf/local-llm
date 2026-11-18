@@ -38,6 +38,7 @@ class Site(NamedTuple):
     dir: pathlib.Path
     cookie: str
     auth_file: pathlib.Path
+    server: gallery_serve.GalleryServer
 
 
 def make_auth(where: pathlib.Path) -> pathlib.Path:
@@ -66,7 +67,7 @@ def serving(
         gallery_auth.load_auth(auth_file), USER, now=time.time()
     )
     try:
-        yield Site(str(host), int(port), gallery_dir, cookie, auth_file)
+        yield Site(str(host), int(port), gallery_dir, cookie, auth_file, server)
     finally:
         server.shutdown()
         server.server_close()
@@ -559,7 +560,11 @@ def test_logout_clears_the_cookie(site: Site) -> None:
     cookie = headers["set-cookie"]
     assert cookie.startswith(f"{gallery_auth.COOKIE}=;")
     assert "Max-Age=0" in cookie and "Path=" not in cookie
-    assert request(site, "/logout")[0] == 405  # GET cannot log out
+    # GET cannot log out (a new session, since the old one has ended).
+    fresh = gallery_auth.make_cookie(
+        gallery_auth.load_auth(site.auth_file), USER, now=time.time() + 1
+    )
+    assert request(site, "/logout", cookie=fresh)[0] == 405
 
 
 @pytest.mark.parametrize(
@@ -752,3 +757,183 @@ def test_a_malformed_request_line_does_not_crash_the_handler(
     assert b"200" not in data
     assert request(site, "/")[0] == 200
     assert "Traceback" not in capsys.readouterr().err
+
+
+# ------------------------------------------------- review fixes (#1413) ----
+
+
+def raw_exchange(site: Site, data: bytes, wait_s: float = 3.0) -> tuple[bytes, float]:
+    """Send raw bytes; read until the server closes. (reply, seconds taken)."""
+    sock = socket.create_connection((site.host, site.port), timeout=wait_s)
+    t0 = time.monotonic()
+    got = b""
+    try:
+        sock.sendall(data)
+        try:
+            while chunk := sock.recv(4096):
+                got += chunk
+        except TimeoutError:
+            pass
+    finally:
+        sock.close()
+    return got, time.monotonic() - t0
+
+
+def test_a_full_verify_pool_gives_429_and_runs_no_scrypt(
+    site: Site, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+
+    def fake_verify(*args: object) -> str | None:
+        calls.append("verify")
+        return None
+
+    monkeypatch.setattr(gallery_auth, "verify", fake_verify)
+    slots = site.server.RequestHandlerClass.verify_slots  # type: ignore[attr-defined]
+    for _ in range(gallery_serve.MAX_VERIFIES):
+        assert slots.acquire(blocking=False)
+    try:
+        status, headers, body = login(site)
+    finally:
+        for _ in range(gallery_serve.MAX_VERIFIES):
+            slots.release()
+    assert status == 429 and headers["retry-after"].isdigit()
+    assert b"busy" in body and calls == []
+    assert login(site, password="wrong password!")[0] == 401
+    assert calls == ["verify"]
+
+
+def test_ipv6_clients_are_counted_by_64(tmp_path: pathlib.Path) -> None:
+    site_dir, allow = make_tree(tmp_path)
+    with serving(site_dir, allow, trusted_proxies=(PROXY,)) as s:
+        for i in range(5):
+            fake = {"X-Forwarded-For": f"2001:db8:1:2::{i + 1:x}"}
+            assert login(s, password="wrong password!", headers=fake)[0] == 401
+        # Another address in the same /64 is the same client.
+        assert login(s, headers={"X-Forwarded-For": "2001:db8:1:2::99"})[0] == 429
+        # The next /64 is not.
+        assert login(s, headers={"X-Forwarded-For": "2001:db8:1:3::1"})[0] == 303
+
+
+def test_logout_ends_the_session_on_the_server(site: Site) -> None:
+    assert request(site, CLIP)[0] == 200
+    status, _, _ = request(site, "/logout", "POST")
+    assert status == 303
+    # The browser was told to forget it; a copy of it is refused too.
+    assert request(site, CLIP)[0] == 401
+    assert request(site, "/")[0] == 303
+
+
+@pytest.mark.parametrize(
+    ("headers", "status"),
+    [
+        ({"Sec-Fetch-Site": "cross-site"}, 403),
+        ({"Sec-Fetch-Site": "same-site"}, 403),
+        ({"Sec-Fetch-Site": "same-origin"}, 303),
+        ({"Sec-Fetch-Site": "none"}, 303),
+        ({"Origin": "http://evil.example"}, 403),
+        ({"Origin": "null"}, 403),
+        ({"Origin": "http://127.0.0.1"}, 303),  # same host, port not compared
+        ({"Origin": "https://127.0.0.1:8443"}, 303),
+        ({"Sec-Fetch-Site": "same-origin", "Origin": "http://evil.example"}, 403),
+    ],
+)
+def test_a_cross_site_login_is_refused(
+    site: Site, headers: dict[str, str], status: int
+) -> None:
+    got, out, _ = login(site, headers=headers)
+    assert got == status
+    if status == 403:
+        assert "set-cookie" not in out
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [{"Sec-Fetch-Site": "cross-site"}, {"Origin": "http://evil.example"}],
+)
+def test_a_cross_site_logout_is_refused(site: Site, headers: dict[str, str]) -> None:
+    status, out, _ = request(site, "/logout", "POST", headers=headers)
+    assert status == 403 and "set-cookie" not in out
+    assert request(site, CLIP)[0] == 200  # still logged in
+
+
+def test_a_slow_form_gets_408(tmp_path: pathlib.Path) -> None:
+    site_dir, allow = make_tree(tmp_path)
+    with serving(site_dir, allow, form_deadline_s=0.5, timeout=10) as s:
+        head = (
+            b"POST /login HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+            b"Content-Type: application/x-www-form-urlencoded\r\n"
+            b"Content-Length: 40\r\n\r\nusername=wat"
+        )
+        got, took = raw_exchange(s, head, wait_s=5)
+    assert got.startswith(b"HTTP/1.1 408")
+    assert took < 4  # the deadline, not the 10 s idle timeout
+
+
+def test_an_unread_body_ends_the_connection(site: Site) -> None:
+    # A body that is itself a request: if the server kept the connection, it
+    # would parse it and answer twice.
+    inner = f"GET {CLIP} HTTP/1.1\r\nHost: 127.0.0.1\r\nCookie: {gallery_auth.COOKIE}={site.cookie}\r\n\r\n".encode()
+    outer = (
+        f"POST /index.html HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+        f"Cookie: {gallery_auth.COOKIE}={site.cookie}\r\n"
+        f"Content-Length: {len(inner)}\r\n\r\n"
+    ).encode()
+    got, took = raw_exchange(site, outer + inner, wait_s=5)
+    assert got.startswith(b"HTTP/1.1 405")
+    assert got.count(b"HTTP/1.1 ") == 1
+    assert took < 4
+
+
+def test_a_chunked_body_ends_the_connection(site: Site) -> None:
+    data = (
+        b"POST /login HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+        b"Content-Type: application/x-www-form-urlencoded\r\n"
+        b"Transfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n"
+    )
+    got, took = raw_exchange(site, data, wait_s=5)
+    assert got.startswith(b"HTTP/1.1 411") and got.count(b"HTTP/1.1 ") == 1
+    assert took < 4
+
+
+@pytest.mark.parametrize("length", ["\u00b2", "1e3", "-1", "1234567"])
+def test_a_non_ascii_or_odd_content_length_is_refused(site: Site, length: str) -> None:
+    data = (
+        b"POST /login HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+        b"Content-Type: application/x-www-form-urlencoded\r\n"
+        b"Content-Length: " + length.encode("latin-1") + b"\r\n\r\n"
+    )
+    got, _ = raw_exchange(site, data, wait_s=5)
+    assert got.startswith((b"HTTP/1.1 411", b"HTTP/1.1 400"))
+    assert b"Traceback" not in got
+
+
+def test_a_host_name_without_a_trusted_proxy_warns(
+    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    site_dir, allow = make_tree(tmp_path)
+    auth_file = make_auth(tmp_path)
+    with caplog.at_level("WARNING"):
+        server = gallery_serve.make_server(
+            site_dir,
+            allow,
+            "127.0.0.1",
+            0,
+            auth_file=auth_file,
+            host_names=("gallery.test",),
+        )
+        server.server_close()
+    assert "no --trusted-proxy" in caplog.text
+    caplog.clear()
+    with caplog.at_level("WARNING"):
+        server = gallery_serve.make_server(
+            site_dir,
+            allow,
+            "127.0.0.1",
+            0,
+            auth_file=auth_file,
+            host_names=("gallery.test",),
+            trusted_proxies=(PROXY,),
+        )
+        server.server_close()
+    assert "no --trusted-proxy" not in caplog.text

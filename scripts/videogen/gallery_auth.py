@@ -63,7 +63,7 @@ N, R, P = 2**15, 8, 1
 #: file that would make each login take gigabytes above.
 MIN_N, MAX_N, MAX_R, MAX_P = 2**14, 2**17, 16, 4
 SALT_BYTES, HASH_BYTES, SECRET_BYTES = 16, 32, 32
-MIN_PASSWORD = 12
+MIN_PASSWORD = 8
 
 USERNAME = re.compile(r"^[A-Za-z0-9_.@-]{1,64}$")
 HASH = re.compile(
@@ -369,6 +369,51 @@ def check_cookie(auth: Auth, value: str, *, now: float) -> str | None:
     return name
 
 
+def cookie_expiry(value: str) -> int | None:
+    """The expiry (epoch seconds) inside a cookie; None if it has none.
+
+    It does not check the signature: call check_cookie first.
+    """
+    raw = _unb64url(value.partition(".")[0])
+    if raw is None:
+        return None
+    exp = raw.decode("utf-8", "replace").rpartition(":")[2]
+    return int(exp) if exp.isdigit() else None
+
+
+class Revoked:
+    """Cookie values that logged out, kept until they expire (#1413).
+
+    A signed cookie stays valid until its expiry, so logout alone would only
+    ask the browser to forget it. This set makes the server refuse it too.
+    It lives in memory: a restart forgets it, and the set holds at most
+    `max_entries`; when full it drops the entry that expires first.
+    """
+
+    def __init__(self, max_entries: int = MAX_CLIENTS) -> None:
+        self.max_entries = max_entries
+        self._until: dict[str, float] = {}
+        self._lock = threading.Lock()
+
+    def __len__(self) -> int:
+        return len(self._until)
+
+    def add(self, value: str, until: float, *, now: float) -> None:
+        with self._lock:
+            self._prune(now)
+            self._until[value] = until
+            while len(self._until) > self.max_entries:
+                del self._until[min(self._until, key=self._until.__getitem__)]
+
+    def __contains__(self, value: object) -> bool:
+        with self._lock:
+            return value in self._until
+
+    def _prune(self, now: float) -> None:
+        for key in [k for k, v in self._until.items() if v <= now]:
+            del self._until[key]
+
+
 # ------------------------------------------------------------- client ----
 
 
@@ -408,6 +453,23 @@ def client_address(
         if ip not in trusted:
             return ip
     return peer_ip
+
+
+def client_key(client: str) -> str:
+    """What the lockout counts: an IPv4 address, or an IPv6 /64.
+
+    One IPv6 host usually holds a whole /64, so counting single addresses
+    would let it pick a new one for every try.
+    """
+    try:
+        ip = ipaddress.ip_address(client)
+    except ValueError:
+        return client
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped is not None:
+            return str(ip.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{ip}/64", strict=False))
+    return str(ip)
 
 
 def forwarded_https(peer: str, proto: str | None, trusted: frozenset[str]) -> bool:
@@ -475,8 +537,18 @@ class Lockout:
             entry.failures.clear()
         self._table[client] = entry
         while len(self._table) > self.max_clients:
-            self._table.popitem(last=False)
+            self._evict(now)
         return locked
+
+    def _evict(self, now: float) -> None:
+        """Drop the oldest entry that is not locked; a locked one only when
+        every entry is locked. A flood of new clients then cannot push a
+        locked client out of the table."""
+        for key, entry in self._table.items():
+            if entry.locked_until <= now:
+                del self._table[key]
+                return
+        self._table.popitem(last=False)
 
     def success(self, client: str) -> None:
         with self._lock:

@@ -240,13 +240,20 @@ reverse proxy, so every request needs a login. Only the login form itself
 - A session is a signed cookie that lasts 30 days (`HttpOnly`,
   `SameSite=Lax`, and `Secure` when a trusted proxy says the client used
   HTTPS). The cookie has no `Path`, so the browser scopes it to the
-  directory of the login URL. The **log out** button on the page ends it.
+  directory of the login URL. The **log out** button on the page ends it:
+  the server refuses that cookie from then on, until it would have expired.
+  It keeps that list in memory, so a restart forgets it.
+- A login over plain HTTP on the LAN (`http://<head IP>:8043/`) sends the
+  password and the cookie in cleartext. Prefer the HTTPS URL.
+- A login or logout POST from another site is refused (403), by its
+  `Sec-Fetch-Site` and `Origin` headers.
 - `set-password` makes a new session secret, so a new password ends every
   session. The server reads the file again when it changes; no restart is
   needed.
 - After 5 failed logins from one client in 10 minutes, the server refuses
-  logins from that client for 10 minutes (429). The client is the peer
-  address. Only when the peer is a `--trusted-proxy` does the server read the
+  logins from that client for 10 minutes (429). An IPv6 client counts by
+  its /64. At most 2 password checks run at once; more get 429. The client
+  is the peer address. Only when the peer is a `--trusted-proxy` does the server read the
   client from `X-Forwarded-For` (the entry that the proxy added) and the
   scheme from `X-Forwarded-Proto`.
 - The server logs each login, good or bad, with the client address. It never
