@@ -71,3 +71,34 @@ benchmarks/ds4/decode-ab/
 
 # GitHub Pages build output (scripts/clock_cap_site.py and the pages workflow)
 _site/
+
+# #1404: video files never belong in this public repo. The video-gen reference
+# clips are the operator's own videos and can carry a GPS tag; they and their
+# frames live in ~/bench-logs/videogen/. scripts/videogen/ refuses an output
+# path inside any git work tree, the refuse-video-files pre-commit hook refuses
+# a forced `git add -f`, and tests/test_no_media_files.py reads the bytes of
+# every tracked file. These rules keep them out of `git status` and `git add .`.
+# Bracketed so that IMG_0001.MOV, .Mp4 and every other case match too.
+*.[mM][pP]4
+*.[mM][oO][vV]
+*.[mM]4[vV]
+*.[mM][kK][vV]
+*.[wW][eE][bB][mM]
+*.[aA][vV][iI]
+*.[hH][eE][iI][cC]
+*.[hH][eE][iI][fF]
+*.[aA][vV][iI][fF]
+*.3[gG][pP]
+*.[mM][tT][sS]
+*.[mM]2[tT][sS]
+*.[hH][eE][vV][cC]
+*.[yY]4[mM]
+# Frames never sit beside the prompts: only JSON belongs in benchmarks/videogen/.
+benchmarks/videogen/**/*.[jJ][pP][gG]
+benchmarks/videogen/**/*.[jJ][pP][eE][gG]
+benchmarks/videogen/**/*.[pP][nN][gG]
+benchmarks/videogen/**/*.[wW][eE][bB][pP]
+benchmarks/videogen/**/*.[gG][iI][fF]
+benchmarks/videogen/**/*.[bB][mM][pP]
+benchmarks/videogen/**/*.[tT][iI][fF]
+benchmarks/videogen/**/*.[tT][iI][fF][fF]

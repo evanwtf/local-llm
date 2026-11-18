@@ -43,6 +43,26 @@ jobs:
       - name: Install pre-commit hook
         run: uv run --frozen pre-commit install
 
+      # #1404: the scripts/videogen tests drive real ffmpeg and ffprobe. They
+      # skip where ffmpeg is absent so a laptop run stays clean, which means a
+      # runner without ffmpeg would quietly stop testing the metadata strip
+      # that keeps GPS tags out of the reference clips. The skip reason stays
+      # OUT of conftest.EXPECTED_SKIPS on purpose: CI must have ffmpeg. This
+      # step fails first, with the fix in the message, rather than as an
+      # "unexpected skip" at the end. It installs nothing; the operator
+      # decides how ffmpeg gets onto the shared runner.
+      - name: ffmpeg and ffprobe are installed (#1404)
+        run: |
+          missing=""
+          for tool in ffmpeg ffprobe; do
+            command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::not on PATH:$missing. The scripts/videogen tests need them (#1404); install ffmpeg on this runner."
+            exit 1
+          fi
+          ffmpeg -version | head -1
+
       # -rs names every skip and its reason (#223). This runner skips about 37
       # tests that run on the M5 Max, and a bare -q printed only the count, so
       # a guard that went quiet looked the same as one with nothing to check.

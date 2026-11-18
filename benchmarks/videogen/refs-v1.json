@@ -1,0 +1,113 @@
+{
+  "version": "v1",
+  "made": "2026-11-17",
+  "issue": "https://github.com/evanwtf/local-llm/issues/1404",
+  "prompts": "benchmarks/videogen/prompts/v1.json",
+  "note": "The three v1 reference clips were cut by hand, before scripts/videogen/cut.py existed. Each was cut from a metadata-stripped copy of its source with the recipe below, at ffmpeg 6.1.1 on aarch64, with libx264's default thread count. cut.py adds -threads 8, -map_metadata:s:v -1 and -map_chapters -1, so a recut with cut.py is not expected to match these sha256 values byte for byte. The clips, sources and frames stay in ~/bench-logs/videogen/; only their names, windows and hashes are here.",
+  "cut": {
+    "recipe": "ffmpeg -v error -y -i SRC -ss START -t DUR -vf \"[crop=W:H:X:Y,]scale=1920:1080\" -c:v libx264 -crf 14 -preset slow -pix_fmt yuv420p -r 30 -an -map_metadata -1 -fflags +bitexact OUT",
+    "source_prep": "metadata-stripped copy of the source (cut.py --strip-only does the same)",
+    "threads": "libx264 default",
+    "ffmpeg": "6.1.1",
+    "arch": "aarch64"
+  },
+  "frames": {
+    "tool": "scripts/videogen/frames.py",
+    "output": "~/bench-logs/videogen/frames/<id>/",
+    "params": {
+      "stills_fps": 1,
+      "stills_width": 1280,
+      "jpeg_q": 3,
+      "ydif_width": 480,
+      "window_s": 2.0,
+      "strip_fps": 4,
+      "strip_width": 640,
+      "strip_tile": "4x2",
+      "font_size": 16,
+      "font_color": "yellow",
+      "box_color": "black@0.6"
+    },
+    "font": "DejaVuSans.ttf",
+    "font_sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+    "ffmpeg_version": "6.1.1-3ubuntu5+esm15",
+    "arch": "aarch64"
+  },
+  "clips": [
+    {
+      "id": "dog-a",
+      "ref": "dog-a.mp4",
+      "source": "IMG_8656.MOV",
+      "start": "12.0",
+      "duration": "8.0",
+      "crop": null,
+      "sha256": "9143f98fd802f761484f5d6aada3a78a980fed70d79ebb8115ad5b4096cbc034",
+      "duration_s": 8.0,
+      "fps": 30.0,
+      "video_frames": 240,
+      "busiest_window_index": 12,
+      "busiest_start_frame": 11,
+      "busiest_start_s": 0.366667,
+      "frames_sha256": {
+        "s01.jpg": "ea98eaa5f45e2889601738e25a0e26910daffea668b85b15a1cb021e09ae86a8",
+        "s02.jpg": "d51a82fded6d704b3162af26c0b79afa0ead59241fc07f924effeb98267a5a4b",
+        "s03.jpg": "56cf95c5bf2634995eaa59158148ef685c3011e8e90e71a232629087ee852dd6",
+        "s04.jpg": "6526071ce4f6cff332d72a4a9203db3d9999a110656e6bc6d3e1caf41ff37920",
+        "s05.jpg": "c2a4f59cba0a102f0c7714da86b4401a7dfb546c7c9e68adae224323c8e842fc",
+        "s06.jpg": "172b7ed26307803bcf1619838b53a6f1dda668207ecc7b0129105f24d51f50db",
+        "s07.jpg": "5056874a81303b51a199073629a6e98a78f9f4e4e67034d43094db51b952ff8a",
+        "s08.jpg": "4fe3771507fdaee237ebbca0275eb3e79a9541191b01c49261747a12d54c5840",
+        "first.png": "f00a093a0b2bad6b58f150778be23329cbcb7a4cd180d420a90860d0857349dd",
+        "strip.jpg": "9034952511323505e42949f391d3a4d181813f081a2ac42c0c11badbaa1dceb4"
+      }
+    },
+    {
+      "id": "dog-b",
+      "ref": "dog-b.mp4",
+      "source": "IMG_9607.MOV",
+      "start": "25.0",
+      "duration": "6.0",
+      "crop": null,
+      "sha256": "b2b0859d510bac64cc0ae0360917d96f7f5fa0403a275744f598c0180c82df8d",
+      "duration_s": 6.0,
+      "fps": 30.0,
+      "video_frames": 180,
+      "busiest_window_index": 120,
+      "busiest_start_frame": 119,
+      "busiest_start_s": 3.96667,
+      "frames_sha256": {
+        "s01.jpg": "82e5a68aefbdde23f67eecbd341e3a9156941ecdab64d3ab207ed27dea06759b",
+        "s02.jpg": "a978238a870e84f514d05fc55abb24bf9b77da83de522734f4f85f947fb4a5bb",
+        "s03.jpg": "65f2e5f029a14c01e45e544fe3dad84dccc6af20eb1064417fe2b07ba425e5d5",
+        "s04.jpg": "48cefca01772d08418ea3799f2b41fb40d1096c0bcc543a04862c66a06a28972",
+        "s05.jpg": "74ac40b94621809913364ec8483396d5d41336c773e57f947a2a7ef94a273b91",
+        "s06.jpg": "a873307ebfb73240f08196d89d3d430da2e5e0a24b95c9778c6cff494701c4bb",
+        "first.png": "e5f2c090b200c1e9ffeb6a6d97b2046540723c836da30dde15e69c87f27c056d",
+        "strip.jpg": "099a154f676562ae5b19bec0e7caf3ac38ecf605454fb0b408849bf25f38b85c"
+      }
+    },
+    {
+      "id": "dog-c",
+      "ref": "dog-c.mp4",
+      "source": "IMG_5915.MOV",
+      "start": "1.8",
+      "duration": "4.5",
+      "crop": "1080:608:0:700",
+      "sha256": "cda94d59e08eb2670c9d1c8607a04bc878bb62bde1af80ca54aaf2d33f1be8f3",
+      "duration_s": 4.5,
+      "fps": 30.0,
+      "video_frames": 135,
+      "busiest_window_index": 1,
+      "busiest_start_frame": 0,
+      "busiest_start_s": 0.0,
+      "frames_sha256": {
+        "s01.jpg": "6cf19788e931dfd25324d5f006aca10311ddd15f9ce41d643fb3b08ad4728181",
+        "s02.jpg": "30f44ab89f3be76192a82e7cd346a0808db439db752febc49126245276538a38",
+        "s03.jpg": "9d11400c3d280bd8aefbabfe6c518d20565f1573a9f78c2eab4a7aab63176696",
+        "s04.jpg": "e2a776dc66da67597ac68ce59c5a80802b03f18bfff0c873f6765df615924415",
+        "s05.jpg": "fec6ded8eb05462c0b9e7ea9f8b92fd12b45fdc53cc9d1ce62bd1e18bade710a",
+        "first.png": "1f964b3adfbe7214107e8e3544153b860aea26c2e0e846a5eba7e75c8616c8df",
+        "strip.jpg": "c244f9203d6af492a6731c5d99913d78fbce6cdd0d00b801062e4149ee5a4aaa"
+      }
+    }
+  ]
+}
