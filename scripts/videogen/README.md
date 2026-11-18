@@ -35,7 +35,7 @@ every frame `frames.py` makes from it.
 |---|---|
 | `cut.py` | Cuts a window from a source video, crops it if you ask, and re-encodes it to 1920x1080 at 30 fps (libx264, CRF 14, 8 threads). It removes audio, every tag and every chapter. `--strip-only` does the same with no re-encode. It writes to a `.partial` file first and reads the tags back with ffprobe. Only a clean file gets the output name. It also writes `<out>.json`: the source name, the window, the crop, the ffmpeg version, the argv, the CPU architecture and the output sha256. |
 | `frames.py` | From a clip, writes one frame per second (`s01.jpg`, ...; 1280 px wide), `first.png` (the first frame, the image-to-video input), `strip.jpg` (the busiest 2 s at 4 fps, 640 px wide, tiled 4x2, with the clip time on each tile) and `meta.json` (the parameters, the versions and the sha256 of every output). The busiest 2 s is the window with the largest sum of per-frame luma change (ffmpeg `signalstats` YDIF). |
-| `generate.py` | Makes one clip: one `POST /v1/videos/sync` to a vLLM-Omni server, with the prompt from `prompts/v1.json` and every other field from [`benchmarks/videogen/arms-v1.json`](../../benchmarks/videogen/arms-v1.json). An I2V arm attaches `frames/<clip>/first.png`, and the script refuses a frame whose sha256 differs from `refs-v1.json`. It refuses a server that serves another model and a GPU that is not idle. It writes `clip.mp4` and `run.json`: the request, the server block, the seed, start and end, wall seconds, outlet energy (Wh), mean and peak GPU power, peak memory, what ffprobe found, the node role and the output sha256. A failure, a clip unlike the arm included, writes `run.json` with the error, leaves no `clip.mp4`, and exits 1. |
+| `generate.py` | Makes one clip: one `POST /v1/videos/sync` to a vLLM-Omni server, with the prompt from `prompts/v1.json` and every other field from [`benchmarks/videogen/arms-v1.json`](../../benchmarks/videogen/arms-v1.json). An I2V arm attaches `frames/<clip>/first.png`, and the script refuses a frame whose sha256 differs from `refs-v1.json`. It refuses a server that serves another model, and a GPU that does not fall to idle within 120 s. It writes `clip.mp4` and `run.json`: the request, the server block, the seed, start and end, wall seconds, outlet energy (Wh), mean and peak GPU power, peak memory, what ffprobe found, the node role and the output sha256. A failure, a clip unlike the arm included, writes `run.json` with the error, leaves no `clip.mp4`, and exits 1. |
 | `batch.py` | Runs `generate.py` for every clip and seed of one arm, in a fixed order. It skips a run whose `run.json` is good, stops at the first failure, and then runs `frames.py` on each clip. |
 | `serve.py` | Logs, or with `--start` launches, the exact vLLM-Omni server command for one model, from the `servers` block of `arms-v1.json`. It refuses a `--boundary-ratio` flag. |
 | `outlet.py` | Reads a node's smart plug from InfluxDB over a window, in chunks under Grafana's point cap, and integrates it to Wh. It says whether the readings cover the window. |
@@ -108,9 +108,13 @@ check refuse it. Run `serve.py` on the node that the block names. If that
 node has no checkout, run it without `--start` on the head, and run the
 logged line on the node over ssh.
 
-`generate.py` also refuses to start when the node's GPU draws more than the
-idle floor (20 W, from `scripts/heartbeat.py`): the clip's time and energy
-would include the other job. The I2V arms need the first frames, so run
+Before each request, `generate.py` waits for the node's GPU to fall to the
+idle floor (20 W, from `scripts/heartbeat.py`). It reads the power once a
+second for up to 120 s, because the GPU still draws its working power for a
+few seconds after the last clip ends. If the GPU is still above the floor
+after 120 s, another job is running, so the script refuses: the clip's time
+and energy would include that job. If the power cannot be read, it warns and
+goes on. `run.json` records the passing reading, the wait and every reading. The I2V arms need the first frames, so run
 `frames.py` on the three reference clips first.
 
 ```sh
