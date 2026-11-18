@@ -1,0 +1,92 @@
+{
+  "version": "v1",
+  "status": "draft",
+  "issues": [1402, 1406, 1407],
+  "prompts": "prompts/v1.json",
+  "note": "Fixed request settings per arm for the video-gen eval. 'draft' until one timing probe per model sets them; then 'status' becomes 'locked' and nothing here changes. A probe may move a model to its 'fallback' size: copy the fallback into 'form' before you lock. scripts/videogen/generate.py refuses a scored run from a draft file.",
+  "endpoint": "/v1/videos/sync",
+  "verified_against": {
+    "vllm_omni": "0.28.0",
+    "form_fields": "vllm_omni/entrypoints/openai/api_server.py _parse_video_form",
+    "h3_extra_params": "vllm_omni/diffusion/models/minimax_h3/pipeline_minimax_h3.py _resolve_shape; vllm_omni/model_executor/stage_input_processors/minimax_h3.py _resolve_task"
+  },
+  "clips": ["dog-a", "dog-b", "dog-c"],
+  "seeds": [1, 2, 3],
+  "arms": {
+    "h3-t2v": {
+      "mode": "t2v",
+      "model": "MiniMaxAI/MiniMax-H3",
+      "revision": "0919fb68",
+      "weights": "FL2VA partition; the NAS copy (rev 42ed227) is file-identical to HF main 0919fb68",
+      "node": "head",
+      "form": {
+        "width": 1280,
+        "height": 704,
+        "aspect_ratio": "16:9",
+        "fps": 24,
+        "num_inference_steps": 50,
+        "flow_shift": 12
+      },
+      "extra_params": {"task": "t2va", "duration": 5.0, "audio_flow_shift": 3.0},
+      "expected_frames": 124,
+      "fallback": {"width": 960, "height": 576}
+    },
+    "h3-i2v": {
+      "mode": "i2v",
+      "model": "MiniMaxAI/MiniMax-H3",
+      "revision": "0919fb68",
+      "weights": "FL2VA partition; the NAS copy (rev 42ed227) is file-identical to HF main 0919fb68",
+      "node": "head",
+      "form": {
+        "width": 1280,
+        "height": 704,
+        "fps": 24,
+        "num_inference_steps": 50,
+        "flow_shift": 12
+      },
+      "extra_params": {"task": "fl2va", "duration": 5.0, "audio_flow_shift": 3.0},
+      "input_reference": "first.png",
+      "expected_frames": 124,
+      "fallback": {"width": 960, "height": 576}
+    },
+    "wan-t2v": {
+      "mode": "t2v",
+      "model": "Wan-AI/Wan2.2-T2V-A14B-Diffusers",
+      "revision": "5be7df96",
+      "node": "worker",
+      "form": {
+        "width": 1280,
+        "height": 720,
+        "num_frames": 81,
+        "fps": 16,
+        "num_inference_steps": 40,
+        "guidance_scale": 4.0,
+        "guidance_scale_2": 3.0,
+        "boundary_ratio": 0.875,
+        "flow_shift": 5.0
+      },
+      "extra_params": {},
+      "expected_frames": 81,
+      "fallback": {"width": 832, "height": 480}
+    },
+    "wan-i2v": {
+      "mode": "i2v",
+      "model": "Wan-AI/Wan2.2-I2V-A14B-Diffusers",
+      "revision": "596658fd",
+      "node": "worker",
+      "form": {
+        "width": 1280,
+        "height": 720,
+        "num_frames": 81,
+        "fps": 16,
+        "num_inference_steps": 40,
+        "guidance_scale": 3.5,
+        "flow_shift": 5.0
+      },
+      "extra_params": {},
+      "input_reference": "first.png",
+      "expected_frames": 81,
+      "fallback": {"width": 832, "height": 480}
+    }
+  }
+}
