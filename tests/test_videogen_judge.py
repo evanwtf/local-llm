@@ -1227,3 +1227,32 @@ def test_blind_shuffles_the_candidates_before_the_copy_loop(
     )
     # Found order: every qwen run, then every flux run. Copied: reversed.
     assert copied == ["flux2-klein-4b-edit"] * 4 + ["qwen-image-edit"] * 4
+
+
+IMAGE_V1_DEFECTS = [
+    "garbled or misspelled text (or text the prompt did not ask for)",
+    "malformed body (extra, missing or merged legs, paws, tails or ears)",
+    "malformed face or eyes",
+    "objects merged, melted or cut through in a way no real object is",
+    "visible artifacts (noise, seams, smears, tiling)",
+    "a watermark, logo or signature",
+]
+
+
+def test_defect_labels_accept_a_unique_word_prefix() -> None:
+    # Two live image judges wrote these on 2026-11-18 (#1428).
+    labels = judge.defect_labels(IMAGE_V1_DEFECTS)
+    for written in ("objects merged", "objects merged, melted or cut through"):
+        assert labels[written] == IMAGE_V1_DEFECTS[3]
+    assert labels["garbled or misspelled text"] == IMAGE_V1_DEFECTS[0]
+    assert labels["visible artifacts"] == IMAGE_V1_DEFECTS[4]
+
+
+def test_defect_labels_refuse_a_shared_or_one_word_prefix() -> None:
+    labels = judge.defect_labels(IMAGE_V1_DEFECTS)
+    assert "malformed" not in labels  # one word, and two labels start with it
+    assert "objects" not in labels  # one word
+    assert "objects merg" not in labels  # does not end at a word
+    shared = judge.defect_labels(["blurry face", "blurry face and hands"])
+    assert shared["blurry face"] == "blurry face"  # the full label wins
+    assert "blurry face and" in shared
