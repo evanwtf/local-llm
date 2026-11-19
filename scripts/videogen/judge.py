@@ -773,9 +773,11 @@ def defect_labels(defects: Sequence[str]) -> dict[object, str]:
     """What a judge may write as a defect type -> the full label.
 
     Judges shorten the labels: all three live judges wrote "body morph" for
-    "body morph (a body changes shape in a way no dog can)". So the full
-    label, the text before " (", and the list number (as int or text) all
-    count. A short form two labels share is left out.
+    "body morph (a body changes shape in a way no dog can)", and image judges
+    wrote "objects merged" for "objects merged, melted or cut through in a way
+    no real object is" (#1428). So the full label, the text before " (", any
+    prefix of two words or more that ends at a word, and the list number (as
+    int or text) all count. A short form two labels share is left out.
     """
     lookup: dict[object, str] = {}
     shorts: dict[str, list[str]] = {}
@@ -783,7 +785,11 @@ def defect_labels(defects: Sequence[str]) -> dict[object, str]:
         lookup[label] = label
         lookup[n] = label
         lookup[str(n)] = label
-        shorts.setdefault(label.split(" (")[0], []).append(label)
+        forms = {label.split(" (")[0]}
+        words = label.split()
+        forms.update(" ".join(words[:k]).rstrip(",") for k in range(2, len(words)))
+        for form in forms:
+            shorts.setdefault(form, []).append(label)
     for short, labels in shorts.items():
         if len(labels) == 1:
             lookup.setdefault(short, labels[0])
