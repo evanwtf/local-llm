@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import pathlib
+import subprocess
 import sys
 
 import pytest
@@ -123,3 +124,86 @@ def test_a_boundary_ratio_in_the_argv_is_refused(tmp_path: pathlib.Path) -> None
 
 def test_an_unknown_model_is_refused() -> None:
     assert serve.serve("wan", start=False, launcher=never) == 2
+
+
+def test_the_remote_argv_detaches_ssh_and_quotes_the_command() -> None:
+    # ssh -f: a plain ssh waits on the scope and never returns (#1430).
+    argv, env = serve.command(
+        serve.generate.all_servers(serve.generate.ARMS_FILES)["wan-t2v"][0], HOME
+    )
+    log = pathlib.Path("/h/bench-logs/videogen/logs/wan-t2v-omni.log")
+    got = serve.remote_argv("worker-host", argv, env, log)
+    assert got[:4] == ["ssh", "-f", "-n", "worker-host"]
+    assert len(got) == 5
+    remote = got[4]
+    assert remote.startswith("cd ~ && nohup env ")
+    assert remote.endswith(f" > {log} 2>&1 < /dev/null &")
+    assert serve.shell_line(argv, env) in remote
+
+
+def test_start_with_a_host_launches_remotely_and_checks_its_port(
+    tmp_path: pathlib.Path,
+) -> None:
+    seen: list[tuple[str, list[str]]] = []
+    asked: list[tuple[int, str]] = []
+
+    def remote(
+        host: str, argv: list[str], env: dict[str, str], log: pathlib.Path
+    ) -> int:
+        seen.append((host, argv))
+        return 0
+
+    def is_open(port: int, host: str = "127.0.0.1") -> bool:
+        asked.append((port, host))
+        return False
+
+    rc = serve.serve(
+        "wan-t2v",
+        start=True,
+        home=HOME,
+        log=tmp_path / "x.log",
+        is_open=is_open,
+        launcher=never,
+        host="worker-host",
+        remote_launcher=remote,
+    )
+    assert rc == 0
+    assert [h for h, _ in seen] == ["worker-host"]
+    assert seen[0][1][0] == "systemd-run"
+    assert asked and all(h == "worker-host" for _, h in asked)
+
+
+def test_a_failed_remote_start_is_an_error(tmp_path: pathlib.Path) -> None:
+    rc = serve.serve(
+        "wan-t2v",
+        start=True,
+        home=HOME,
+        log=tmp_path / "x.log",
+        is_open=lambda port, host="": False,
+        launcher=never,
+        host="worker-host",
+        remote_launcher=lambda host, argv, env, log: 255,
+    )
+    assert rc == 2
+
+
+def test_host_without_start_is_refused() -> None:
+    with pytest.raises(SystemExit):
+        serve.main(["--model", "wan-t2v", "--host", "worker-host"])
+
+
+def test_the_remote_launch_inherits_no_stream(tmp_path: pathlib.Path) -> None:
+    # An inherited stdout kept a caller's pipe open for as long as the remote
+    # server ran: `serve.py --host ... | tail` never ended (#1430).
+    calls: list[dict[str, object]] = []
+
+    def run(argv: list[str], **kw: object) -> subprocess.CompletedProcess[bytes]:
+        calls.append(kw)
+        return subprocess.CompletedProcess(argv, 0)
+
+    rc = serve.launch_remote("worker-host", ["true"], {}, tmp_path / "x.log", run=run)
+    assert rc == 0
+    kw = calls[0]
+    assert kw["stdin"] == subprocess.DEVNULL
+    assert kw["stdout"] == subprocess.DEVNULL
+    assert kw["stderr"] not in (None, subprocess.PIPE)

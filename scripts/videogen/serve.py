@@ -13,8 +13,14 @@ block, so the command lives in the file and nowhere else.
 
 It refuses an argv that sets `--boundary-ratio`: a value set at startup
 overrides the `boundary_ratio` of every request, so the two Wan arms would
-run at one value. Run it on the node the block names (`node`). `--start`
-refuses when the port already answers on this machine.
+run at one value. Run it on the node the block names (`node`), or pass
+`--host` to start it there over ssh (#1430). `--start` refuses when the port
+already answers on the target machine.
+
+`--host` runs `ssh -f -n HOST "cd ~ && nohup env ... > LOG 2>&1 < /dev/null &"`.
+The `-f` matters: a plain ssh waits on the systemd scope and never returns
+(it hung twice on 2026-11-18, #1424). Paths are this machine's: both nodes
+must have the same home and checkout layout.
 """
 
 from __future__ import annotations
@@ -27,6 +33,7 @@ import shlex
 import socket
 import subprocess
 import sys
+import tempfile
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -73,9 +80,9 @@ def shell_line(argv: list[str], env: Mapping[str, str]) -> str:
     return " ".join([*prefix, *(shlex.quote(a) for a in argv)])
 
 
-def port_open(port: int) -> bool:
+def port_open(port: int, host: str = "127.0.0.1") -> bool:
     try:
-        with socket.create_connection(("127.0.0.1", port), timeout=2):
+        with socket.create_connection((host, port), timeout=2):
             return True
     except OSError:
         return False
@@ -96,6 +103,51 @@ def launch(argv: list[str], env: dict[str, str], log: pathlib.Path) -> int:
     return proc.pid
 
 
+def remote_argv(
+    host: str, argv: list[str], env: Mapping[str, str], log: pathlib.Path
+) -> list[str]:
+    """The ssh argv that starts `argv` on `host`, detached, output to `log`."""
+    inner = " ".join(["env", shell_line(argv, env)])
+    remote = f"cd ~ && nohup {inner} > {shlex.quote(str(log))} 2>&1 < /dev/null &"
+    return ["ssh", "-f", "-n", host, remote]
+
+
+def launch_remote(
+    host: str,
+    argv: list[str],
+    env: dict[str, str],
+    log: pathlib.Path,
+    run: Callable[..., subprocess.CompletedProcess[bytes]] = subprocess.run,
+) -> int:
+    """Start the command on `host` and return once ssh has gone to the background.
+
+    Returns the exit status of the foreground ssh (0 when the remote shell
+    took the command), not a pid: the server's pid lives on the other node.
+
+    No ssh stream is inherited. The backgrounded ssh lives as long as the
+    remote scope, so an inherited stdout keeps a caller's pipe open and
+    `serve.py ... | tail` never ends (seen on 2026-11-18, #1430). stderr goes
+    to a temporary file and is logged on failure.
+    """
+    with tempfile.TemporaryFile() as err:
+        done = run(
+            remote_argv(host, argv, env, log),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=err,
+            check=False,
+            timeout=60,
+        )
+        if done.returncode != 0:
+            err.seek(0)
+            text = err.read().decode(errors="replace").strip()
+            logger.error("ssh to %s: %s", host, text or "(no message)")
+    return done.returncode
+
+
+RemoteLaunch = Callable[[str, list[str], dict[str, str], pathlib.Path], int]
+
+
 def serve(
     name: str,
     *,
@@ -103,8 +155,10 @@ def serve(
     log: pathlib.Path | None = None,
     arms_file: pathlib.Path | None = None,
     home: pathlib.Path | None = None,
-    is_open: Callable[[int], bool] = port_open,
+    is_open: Callable[..., bool] = port_open,
     launcher: Launch = launch,
+    host: str | None = None,
+    remote_launcher: RemoteLaunch = launch_remote,
 ) -> int:
     try:
         # One file if asked; else every arms file, which also refuses two
@@ -128,12 +182,31 @@ def serve(
     logger.info("%s", shell_line(argv, env))
     if not start:
         return 0
-    if is_open(int(block["port"])):
+    port = int(block["port"])
+    if is_open(port) if host is None else is_open(port, host):
         logger.error(
-            "port %s already answers here; stop that server first", block["port"]
+            "port %s already answers on %s; stop that server first",
+            port,
+            host or "this machine",
         )
         return 2
     path = log or DEFAULT_ROOT / "logs" / f"{name}-omni.log"
+    if host is not None:
+        rc = remote_launcher(host, argv, env, path)
+        if rc != 0:
+            logger.error("ssh to %s exited %d; the server did not start", host, rc)
+            return 2
+        logger.info(
+            "started %s on %s (log %s there); it is ready when GET %s:%s/v1/models "
+            "lists %s",
+            name,
+            host,
+            path,
+            host,
+            port,
+            block["served_model_name"],
+        )
+        return 0
     pid = launcher(argv, env, path)
     logger.info(
         "started %s (pid %d, log %s); it is ready when GET :%s/v1/models lists %s",
@@ -157,8 +230,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--start", action="store_true", help="launch it, not only log it")
     p.add_argument("--log", type=pathlib.Path, help="server log (with --start)")
+    p.add_argument(
+        "--host",
+        help="start it on this host over ssh -f (with --start); default: here",
+    )
     args = p.parse_args(argv)
-    return serve(args.model, start=args.start, log=args.log)
+    if args.host and not args.start:
+        p.error("--host needs --start")
+    return serve(args.model, start=args.start, log=args.log, host=args.host)
 
 
 if __name__ == "__main__":
