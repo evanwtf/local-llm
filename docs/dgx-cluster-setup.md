@@ -543,7 +543,7 @@ Measured 2026-09-24: one stream with the default cipher, 310–330 MB/s; four
 streams with `aes128-gcm`, 1,739 MiB/s on one fabric path. The cipher and the
 stream count changed together, so this does not separate them. Run long
 copies as a `systemd-run --user` unit, so the session reaper cannot kill them
-(#691).
+([runbook, #691](dgx-spark-runbook.md#what-kills-a-process-the-agent-starts-691)).
 
 ### 25. A recipe's worker sync can copy only symlinks: HF's shared blob store — **HIT**
 

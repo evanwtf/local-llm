@@ -2,16 +2,17 @@
 #
 # A session's own 30-minute cron silently skipped ticks while still registered
 # (2026-09-22, four missed), so the heartbeat that exists to expose a stuck
-# window depended on the thing that got stuck. This posts from PID 1's timer
-# instead; the operating session only updates the state file
-# (`scripts/cluster_heartbeat.py --set '{...}'`).
+# window depended on the thing that got stuck. A user timer now runs it and
+# records fresh readings in the state file and the journal. It posts nowhere
+# (operator, 2026-10-19): the session sends the chat heartbeat, and only
+# updates the state file (`scripts/cluster_heartbeat.py --set '{...}'`).
 #
 # Install (as the operator's user, on the head; linger must be on):
 #   cp systemd/local-llm-cluster-heartbeat.* ~/.config/systemd/user/
 #   systemctl --user daemon-reload
 #   systemctl --user enable --now local-llm-cluster-heartbeat.timer
 [Unit]
-Description=local-llm two-Spark cluster heartbeat (posts to the working issue)
+Description=local-llm two-Spark cluster heartbeat (records readings; posts nowhere)
 Documentation=https://github.com/evanwtf/local-llm/issues/691
 
 [Service]
