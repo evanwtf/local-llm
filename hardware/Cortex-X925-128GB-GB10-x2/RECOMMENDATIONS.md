@@ -167,6 +167,8 @@ also very valuable." So we rank on correctness first, then time.
 | DeepSeek-1017, EXL3 2.8 bpw (jayleaton), on TensorFold Zig | 2026-10-18 to 10-19 | 34/35, with 7 trials not counted; the server crashed (`PoolExhausted`) after 5 h 7 min | [#1142][i1142] |
 | GLM-5.3-Flash FP4-Local on vLLM | 2026-10-21 | 41/42, 6,704.7 s (153.8% of GLM); hidden 72.6% | [#1128][i1128] |
 | GLM on TensorFold's own engine 1.1.3, no recipe | 2026-10-24 | standard set 30/30, 425.4 s (162.1% of the recipe) | [#1095][i1095] |
+| GLM on MiaAI's 1104 recipe, TensorFold native | 2026-11-05 and 11-21 | 30/30 in four arms, at 133% to 135% of GLM's time | [#1358][i1358], [#1432][i1432] |
+| Inkling 2 Small, EXL3 2.55 bpw | 2026-11-21 | 90/90 in 3 runs, at 204% of GLM's time | [#1435][i1435] |
 | Nemotron-3.5-Super-VL NVFP4; MiMo-V2.6-Flash-RL | 2026-10-24 | dropped after the standard set at 209.4% and 478.7% of GLM's time | [#1231][i1231], [#1032][i1032] |
 | GLM TR3 4 bpw, same recipe as GLM | 2026-10-06, older client | 122/126, 4,271.0 s, against the chosen GLM quant's 124/126 and 4,111.1 s | [#970][i970] |
 | Qwen3.8-Flash-Next, every server | 2026-10-07 to 10-12, older client | passed nearly every trial, at 188% to 265% of GLM's time: it spent 14,000 to 16,800 reasoning tokens a trial, against GLM's 2,800 to 3,500 | [#865][i865], [#897][i897], [#977][i977] |
@@ -223,3 +225,6 @@ fails CI past that, and its docstring says where new evidence goes.
 [i1246]: https://github.com/evanwtf/local-llm/issues/1246
 [i1255]: https://github.com/evanwtf/local-llm/issues/1255
 [i1262]: https://github.com/evanwtf/local-llm/issues/1262
+[i1358]: https://github.com/evanwtf/local-llm/issues/1358
+[i1432]: https://github.com/evanwtf/local-llm/issues/1432
+[i1435]: https://github.com/evanwtf/local-llm/issues/1435
