@@ -937,9 +937,9 @@ the turn with the chat heartbeat when it is due (§3a).
   ```
 
   **Launch every server as a `systemd-run --user --property=KillMode=process`
-  unit**, with its log appended to a file. The harness's memory reaper kills a
-  session's background shell once a model is resident, and a plain transient
-  unit kills the recipe's `setsid` memory guard when the launcher exits (#691).
+  unit**, with its log appended to a file. Why: the harness's reaper and a plain
+  transient unit both kill launch processes
+  ([#691](../docs/dgx-spark-runbook.md#what-kills-a-process-the-agent-starts-691)).
   After the launcher exits, confirm the guard is alive on **both** nodes.
   **A stale worker container on node B holds its whole GPU** and makes the next
   launch fail like a fabric problem. Stop it with the recipe's own wrapper.

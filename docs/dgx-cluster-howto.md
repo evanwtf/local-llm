@@ -112,10 +112,9 @@ loginctl enable-linger "$USER"
 loginctl show-user "$USER" -p Linger   # must print Linger=yes, on each node
 ```
 
-Long jobs run as `systemd-run --user` units (#691). Without lingering, the
-user manager stops every such unit when the ssh session that started it ends:
-on the worker that once stopped a `docker pull` after 18 s and an engine rank
-after 10 s.
+Long jobs run as `systemd-run --user` units. Without lingering, the user
+manager stops them when the ssh session ends
+([why](dgx-spark-runbook.md#what-kills-a-process-the-agent-starts-691)).
 
 ## 6. Reboot both nodes
 

@@ -179,6 +179,107 @@ Two-node recipes use their own start and stop scripts
 ([`hardware/Cortex-X925-128GB-GB10-x2/howto.md`](../hardware/Cortex-X925-128GB-GB10-x2/howto.md)).
 Stop a server with its own wrapper, never `pkill` (see the last section).
 
+## What kills a process the agent starts (#691)
+
+Four things have killed processes that an agent started on the cluster. Three
+removed a safety process with no error shown. Each one is now prevented, but
+only if the launch follows the rules below.
+
+| process | where it lives | what can kill it |
+|---|---|---|
+| a server, a download, a long copy, a client batch, a memory guard | its own `systemd-run --user --property=KillMode=process` unit | the unit's own stop; on a node without linger, the end of the ssh session |
+| a short wait loop or watcher | the agent's background shell | the agent's low-memory reaper, at any time while a model is resident |
+| an engine rank in a recipe | a Docker container | the recipe's stop script, or earlyoom |
+| the heartbeat cadence | `local-llm-cluster-heartbeat.timer`, a `systemd --user` timer on the head | nothing that an agent session does |
+
+### 1. The agent's low-memory reaper kills background shells
+
+*Symptom:* a background `Bash` task stops with "stopped because the system is
+running low on memory". The task itself used almost no memory.
+
+*Cause:* Claude Code stops every background shell when `MemAvailable` is low.
+On a Spark, a resident two-node model **is** low memory, for hours: the head
+idles at 2 to 4.5 GiB. On 2026-09-22 the reaper killed a launcher's shell
+wrapper, a boot watcher and a `sleep`-based heartbeat shell. On 2026-10-12 a TensorFold
+engine's RAM tier dipped to 3.7 GiB, and each dip killed the batch watcher.
+Docker containers and systemd units survived each time.
+
+*Prevention:* run everything that must outlive the session as a
+`systemd-run --user` unit. The reaper does not touch units. Keep only short,
+disposable waiters in background shells, and expect to lose them while a model
+loads. The opt-out, `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1`, takes
+effect only at Claude Code startup. A session cannot set it for itself.
+
+*State, 2026-11-20:* every launch since 2026-09-23 runs as a unit, and no
+server has died this way since. The reaper still kills the session's own wait
+loops; re-run the check by hand when one dies.
+
+### 2. A transient unit kills its leftover processes when it exits
+
+*Symptom:* a recipe's memory guard stops when its launcher finishes. Nothing
+reports it.
+
+*Cause:* the #685 recipe starts its guard with
+`nohup setsid bash scripts/memguard.sh …`. `setsid` leaves the session but not
+the cgroup. A plain transient unit has `KillMode=control-group`, so systemd
+killed the guard when the launcher unit exited. On 2026-09-22 the head then
+sat at ~4.5 GiB `MemAvailable` with no guard for about two minutes.
+
+*Prevention:* launch with `--property=KillMode=process`, or run each helper as
+its own unit. Then **confirm that each safety process runs**, not only that it
+is configured: after the launcher exits, check the guard's PID or unit on both
+nodes, and check `systemctl is-active earlyoom` on both nodes.
+
+*State, 2026-11-20:* every launch uses `KillMode=process`
+([`agent-opener-prompt.md`](../hardware/agent-opener-prompt.md), step 4).
+
+### 3. A session's scheduled ticks stop while the session is idle
+
+*Symptom:* a 30-minute heartbeat stays registered but does not fire. On
+2026-09-22 four ticks did not fire on time. Two came late, each just after an
+operator message. The cluster sat idle and loaded for 27 and 21 minutes with
+no one told (#648, #672).
+
+*Cause:* the heartbeat was a session cron job (`/loop 30m`). The session
+scheduler does not fire ticks while the session sits idle in the background.
+The operator reported this upstream.
+
+*Prevention:* the cadence does not depend on the session.
+`local-llm-cluster-heartbeat.timer` runs `scripts/cluster_heartbeat.py` at :07
+and :37 and records fresh readings from both nodes. The session runs its own
+recurring loop for the chat update
+([`AGENTS.md`](../AGENTS.md)), and the timer does not depend on it.
+
+*State, 2026-11-20:* the timer is enabled and active on the head.
+
+### 4. Without linger, the worker's user units die with the ssh session
+
+*Symptom:* a unit started on the worker over ssh stops seconds after it
+starts. On 2026-10-12 a `docker pull` unit stopped after 18 s, and a #919
+engine rank stopped after 10 s (exit 143).
+
+*Cause:* the worker had `Linger=no`. Without linger, the user manager stops
+every user unit when the last session for that user closes. That includes a
+unit started as `ssh <worker> "systemd-run --user …"`. The prevention for
+causes 1 and 2 holds only on a node with linger on.
+
+*Prevention:* `loginctl enable-linger "$USER"` on both nodes (no sudo needed).
+A rebuilt node needs it again
+([`dgx-cluster-howto.md`](dgx-cluster-howto.md#5-ssh-both-directions-by-the-fabric-names)).
+
+*State, 2026-11-20:* `loginctl show-user evan -p Linger` reads `Linger=yes` on
+the head and on the worker.
+
+### A related trap: two recipes' NFS servers on one head
+
+This one does not kill a process; it leaves one that cannot stop. Two recipes
+each run their own NFS server container on the head, and only one can hold
+rpcbind, statd and :2049. On 2026-09-22 one recipe's NFS container blocked the
+other's. After the run, the second container could not be stopped:
+`rpcbind` was stuck in state D, and only a head reboot cleared it. Run one
+recipe's NFS server at a time. Stop it while its clients are still healthy,
+before you remove the worker's mounts.
+
 ## Unified memory can OOM-lock the whole box
 
 The 128 GB pool is shared by CPU and GPU, with no separate VRAM ceiling. When
