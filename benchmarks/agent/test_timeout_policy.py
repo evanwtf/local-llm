@@ -8,13 +8,20 @@ here reads a GPU.
 
 from __future__ import annotations
 
+import logging
+import pathlib
 import sys
+import tomllib
 
+import pytest
 import results
 from timeout_policy import (
+    IDLE_FLOOR_WATTS,
+    TIER_IDLE_FLOOR_WATTS,
     ClientResult,
     IdleStallWatchdog,
     cell_should_abort,
+    resolve_idle_floor,
     run_client_with_watchdog,
 )
 
@@ -379,3 +386,141 @@ def test_a_child_that_outlives_its_deadline_is_timed_out():
     )
     assert result.timed_out is True
     assert result.idle_stalled is False
+
+
+# --- the idle floor per tier (#1450) ------------------------------------------
+#
+# On GB10 a light model decodes at 15.8-17.3 W per GPU, under the 20 W global
+# floor, so the watchdog killed a live trial (#1450). The floor now resolves
+# flag > backend key > tier default > global default.
+
+
+def test_an_explicit_flag_wins_over_backend_and_tier() -> None:
+    backend = {"tier": "gb10-spark-x2", "idle_floor_watts": 14.0}
+    assert resolve_idle_floor(25.0, backend) == (25.0, "flag")
+
+
+def test_a_backend_key_wins_over_the_tier_default() -> None:
+    backend = {"tier": "gb10-spark-x2", "idle_floor_watts": 14.0}
+    assert resolve_idle_floor(None, backend) == (14.0, "backend")
+
+
+def test_an_integer_backend_key_is_accepted() -> None:
+    # TOML writes `idle_floor_watts = 14` as an int.
+    assert resolve_idle_floor(None, {"idle_floor_watts": 14}) == (14.0, "backend")
+
+
+@pytest.mark.parametrize("tier", ["gb10-spark", "gb10-spark-x2"])
+def test_a_gb10_tier_gets_13_watts(tier: str) -> None:
+    assert resolve_idle_floor(None, {"tier": tier}) == (13.0, "tier")
+
+
+def test_an_unmapped_tier_keeps_the_global_default() -> None:
+    assert resolve_idle_floor(None, {"tier": "desktop-3080ti"}) == (
+        IDLE_FLOOR_WATTS,
+        "default",
+    )
+
+
+def test_a_backend_without_a_tier_keeps_the_global_default() -> None:
+    assert resolve_idle_floor(None, {}) == (IDLE_FLOOR_WATTS, "default")
+
+
+def test_the_global_default_is_still_20_watts() -> None:
+    # Non-GB10 tiers must not change behavior.
+    assert IDLE_FLOOR_WATTS == 20.0
+
+
+@pytest.mark.parametrize("bad", ["12", True, 0, -3.0, float("nan"), float("inf")])
+def test_a_bad_backend_key_is_refused(bad: object) -> None:
+    with pytest.raises(ValueError, match="idle_floor_watts"):
+        resolve_idle_floor(None, {"idle_floor_watts": bad})
+
+
+@pytest.mark.parametrize("bad", [0.0, -1.0, float("nan"), float("inf")])
+def test_a_bad_flag_is_refused(bad: float) -> None:
+    # NaN reads every sample as idle and kills each live trial at 600 s; a
+    # floor <= 0 never sees idle and switches the watchdog off.
+    with pytest.raises(ValueError, match="--idle-floor-watts"):
+        resolve_idle_floor(bad, {"tier": "gb10-spark-x2"})
+
+
+def test_the_gb10_floor_sits_between_loaded_idle_and_light_decode() -> None:
+    """#1450. The cluster watchdog reads the busier node, and the worker idles
+    with a TP2 model resident at a 10-min peak median of up to 12.2 W
+    (60 days of DCGM). Inkling 2 Mini decodes at 15.8-17.3 W per GPU
+    (2026-11-21). The floor must sit strictly between, or the watchdog either
+    misses real stalls (at or under idle) or kills a live trial (above
+    decode)."""
+    for tier in ("gb10-spark", "gb10-spark-x2"):
+        assert 12.2 < TIER_IDLE_FLOOR_WATTS[tier] < 15.8, tier
+        assert TIER_IDLE_FLOOR_WATTS[tier] == 13.0, tier
+
+
+def test_a_floor_given_without_a_source_does_not_claim_the_default() -> None:
+    assert IdleStallWatchdog(lambda: 1.0).idle_floor_source == "default"
+    given = IdleStallWatchdog(lambda: 1.0, idle_floor_watts=13.0)
+    assert given.idle_floor_source == "caller"
+
+
+def test_every_gb10_tier_in_tasks_toml_has_a_floor() -> None:
+    """A new GB10 tier name must not fall back silently to the 20 W floor."""
+    cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
+    tiers = {b.get("tier") for b in cfg["backend"].values()}
+    gb10 = {t for t in tiers if isinstance(t, str) and t.startswith("gb10")}
+    assert gb10, "no GB10 tier in tasks.toml: the test reads the wrong file"
+    assert gb10 <= set(TIER_IDLE_FLOOR_WATTS), gb10 - set(TIER_IDLE_FLOOR_WATTS)
+
+
+def test_every_backend_idle_floor_key_in_tasks_toml_resolves() -> None:
+    cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
+    for backend in cfg["backend"].values():
+        resolve_idle_floor(None, backend)
+
+
+def test_a_row_with_an_idle_floor_validates() -> None:
+    row = _verdict_row(idle_floor_watts=12.0)
+    assert results.validate(row) == []
+
+
+def test_a_wrongly_typed_idle_floor_is_a_violation() -> None:
+    row = _verdict_row(idle_floor_watts="12")
+    assert any("idle_floor_watts" in e for e in results.validate(row))
+
+
+def test_the_stall_log_names_the_floor_and_its_source(caplog) -> None:
+    clock = _Now()
+    wd = IdleStallWatchdog(
+        _Sampler([5.0]),
+        idle_floor_watts=13.0,
+        idle_floor_source="tier",
+        idle_stall_secs=0.0,
+        monotonic=clock,
+    )
+    log = logging.getLogger("test_idle_floor_log")
+    with caplog.at_level(logging.ERROR, logger="test_idle_floor_log"):
+        result = run_client_with_watchdog(
+            [sys.executable, "-c", "import time; time.sleep(5.0)"],
+            cwd=None,
+            env=None,
+            timeout=30.0,
+            watchdog=wd,
+            poll_secs=0.01,
+            grace_secs=2.0,
+            log=log,
+        )
+    assert result.idle_stalled is True
+    assert "13 W (tier)" in caplog.text
+
+
+def test_sample_watts_shows_the_tier_floor(monkeypatch, caplog) -> None:
+    import timeout_policy
+
+    monkeypatch.setattr(timeout_policy, "gpu_watts", lambda: 16.4)
+    with caplog.at_level(logging.INFO):
+        assert timeout_policy._sample_watts("gb10-spark-x2") == 0
+    assert "idle floor 13 W, from tier" in caplog.text
+    caplog.clear()
+    with caplog.at_level(logging.INFO):
+        timeout_policy._sample_watts(None)
+    assert "idle floor 20 W, from default" in caplog.text

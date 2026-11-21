@@ -47,7 +47,7 @@ testpaths = ["."]
 norecursedirs = ["sandbox", "*.egg", ".*", "_darcs", "build", "CVS",
                  "dist", "node_modules", "venv", "{arch}"]
 markers = [
-    "integration: needs ~/git/gmail-archive at the pinned commit and uv",
+    "integration: needs a live dependency (~/git/gmail-archive at the pinned commit and uv; or gcx and the DGX host names) and skips without it",
     "slow: allocates real memory or takes seconds; not part of the default run",
     "real_stash_paths: reads this machine's real repositories; opts out of conftest's stash redirect",
     "fast: a repo-contract guard -- registry, docs, indexes, ledger shape. Applied by conftest from FAST_MODULES, never written on a test by hand. `pytest -m fast` is the pre-push gate; CI still runs everything",
