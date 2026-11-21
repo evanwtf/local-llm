@@ -55,8 +55,9 @@ import logs
 
 logger = logging.getLogger(__name__)
 
-#: The approved engine revision (#1435). Another revision needs a new approval.
-ENGINE_SHA = "299eeaf3ae4474a79c29a9b5dda000a5f0dccad0"
+#: The engine revision (#1435): the approved 299eeaf3 minus its last commit, which
+#: drops live requests under load (the fork README, f77d161). Another needs approval.
+ENGINE_SHA = "32419261a520046e5379ec2221dd3dc0327a98fe"
 ENGINE_TREE = "git/inkling2-exl3"
 BUILD_DIR = f"engines/inkling2-exl3-{ENGINE_SHA[:8]}"
 #: The extension `python setup.py build_ext --inplace` leaves in exllamav3.
@@ -178,7 +179,7 @@ def rank_shell(rank: int, serve_args: list[str]) -> str:
     ]  # fmt: skip
     pip = ["pip", "install", "-q", "--no-index", "--find-links", "/work/wheels"]
     return (
-        f"{shlex.join([*pip, *WHEELS])}; cd /work/engine && "
+        f"{shlex.join([*pip, *WHEELS])} && cd /work/engine && "
         f"PYTHONPATH=/work/build/exllamav3 exec {shlex.join(torchrun)}"
     )
 
