@@ -71,7 +71,7 @@ import shutil
 import string
 import sys
 import tempfile
-from collections.abc import Mapping, MutableSequence, Sequence
+from collections.abc import Iterable, Mapping, MutableSequence, Sequence
 from typing import Any, Protocol
 
 from PIL import Image
@@ -546,10 +546,23 @@ def render_image_prompt(
     )
 
 
-def new_id(taken: set[str]) -> str:
+def id_words(names: Iterable[str]) -> frozenset[str]:
+    """The words a blind id must not spell (#1440): each model name and each
+    of its letter-and-digit parts of two characters or more (`h3`, `wan`,
+    `t2v`), plus `seed`. A random id once read `zf4ch3`: it failed the blind
+    check, and it hinted at the arm to the judge."""
+    words = {"seed"}
+    for name in names:
+        words |= {p for p in re.split(r"[^a-z0-9]+", name.lower()) if len(p) >= 2}
+    return frozenset(words)
+
+
+def new_id(taken: set[str], avoid: Iterable[str] = ()) -> str:
+    """A fresh random id, not in `taken` and spelling none of `avoid`."""
+    words = tuple(avoid)
     while True:
         run_id = "".join(secrets.choice(ID_CHARS) for _ in range(ID_LEN))
-        if run_id not in taken:
+        if run_id not in taken and not any(w in run_id for w in words):
             taken.add(run_id)
             return run_id
 
@@ -669,6 +682,7 @@ def blind(
     # copy loop, for clips and images alike.
     rng.shuffle(runs)
     taken: set[str] = set()
+    avoid = id_words(model_names(arm_cfg))
     key: dict[str, Any] = {
         "schema": 2,
         "made": now_iso(),
@@ -690,7 +704,7 @@ def blind(
     key_written = False
     try:
         for run in runs:
-            run_id = new_id(taken)
+            run_id = new_id(taken, avoid)
             ids_by_clip[run.clip].append(run_id)
             folder = stage / run.clip / run_id
             folder.mkdir(parents=True)

@@ -283,6 +283,30 @@ def test_blind_judge_files_do_not_name_the_arm_or_seed(
                     assert word not in text
 
 
+def test_new_id_redraws_an_id_that_spells_a_model_word(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # #1440: CI drew `gtbh3a` and then `zf4ch3`; `h3` names an arm, so the
+    # blind check failed and the id itself hinted at the model.
+    draws = iter("gtbh3azf4ch3abcdef")
+    monkeypatch.setattr(judge.secrets, "choice", lambda _chars: next(draws))
+    taken: set[str] = set()
+    assert judge.new_id(taken, avoid={"h3"}) == "abcdef"
+    assert taken == {"abcdef"}
+
+
+def test_id_words_cover_every_word_the_blind_check_forbids() -> None:
+    arms = {
+        "h3-t2v": {"model": "MiniMaxAI/MiniMax-H3"},
+        "wan-t2v": {"model": "Wan-AI/Wan2.2-T2V-A14B-Diffusers"},
+    }
+    words = judge.id_words(judge.model_names(arms))
+    for word in ("h3", "wan", "t2v", "minimax", "seed"):
+        assert word in words
+    # One character is too short to avoid: it would refuse most ids.
+    assert all(len(w) >= 2 for w in words)
+
+
 def test_blind_prompt_lists_folders_checklist_and_numbered_defects(
     env: Env, blind_dir: pathlib.Path
 ) -> None:
