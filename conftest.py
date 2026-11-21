@@ -186,6 +186,9 @@ EXPECTED_SKIPS = (
     r"needs sandbox-exec \(macOS\)",
     # #968: the tool self-test runs the pinned client image; CI builds none.
     r"docker or local-llm-client:\S+ is not available here",
+    # #1450: the idle-floor evidence test reads Prometheus through gcx on the
+    # DGX; the CI runner has neither gcx nor the host names.
+    r"needs gcx and the DGX host names",
 )
 
 
