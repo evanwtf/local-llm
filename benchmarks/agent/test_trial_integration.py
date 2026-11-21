@@ -225,3 +225,26 @@ def test_a_client_that_crashes_before_any_output_is_not_a_model_failure(
     assert row["agent_error"] is True
     assert row["client_returncode"] != 0
     assert results.is_excluded(row)
+
+
+@needs_repo
+def test_a_watched_trial_stamps_the_idle_floor_it_used(scripted_agent, tmp_path):
+    """#1450: the row records the floor the watchdog used, here the GB10 tier
+    default, so a later read-out can tell which rule judged the trial."""
+    row = run.one_trial(
+        CFG,
+        _task("mbox-strip-envelope"),
+        "stub",
+        {"model": "stub", "context_tokens": 1, "tier": "gb10-spark-x2"},
+        trial=1,
+        workdir=tmp_path,
+        timeout=600,
+        dry_run=False,
+        client=scripted_agent,
+        solutions=tmp_path / "solutions",
+        sandbox=False,
+        watts_sampler=lambda: 999.0,
+    )
+    assert row["idle_floor_watts"] == 13.0
+    row["finished"] = results.now()  # main() stamps it after one_trial
+    assert results.validate(row) == []

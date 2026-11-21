@@ -3,12 +3,14 @@
 Two policies, kept in one module so the reasoning lives in one place.
 
 **Why this exists.** On the DGX Spark an agent trial sometimes "runs" for many
-minutes while the GPU sits at idle *power* (~9-13 W): the client (opencode) is
-stuck not calling the model, so the trial rides its full per-step wall-clock
+minutes while the GPU sits at idle *power* (about 8 to 12 W with a model
+resident; the cluster's worker reads up to 12.2 W, #1450): the client
+(opencode) is stuck not calling the model, so the trial rides its full per-step wall-clock
 timeout doing nothing. GPU power is the honest signal here -- ``utilization.gpu``
 reads 96% while weights merely load and 0% mid-trial during a tool phase, so it
 lies in both directions. ``scripts/gpu_utilization.py`` already encodes the
-power rule (``IDLE_WATTS``, ``is_busy``), and this module reuses it.
+power rule (``IDLE_WATTS``, ``is_busy``), and this module reuses it as the
+global floor; ``TIER_IDLE_FLOOR_WATTS`` overrides it per hardware tier.
 
 (A) ``IdleStallWatchdog`` + ``run_client_with_watchdog`` kill a single trial
 whose GPU has been idle for a continuous window, well before its wall-clock
@@ -34,8 +36,9 @@ import signal
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 # gpu_utilization lives in scripts/, which is not on the default import path.
 # Insert it the same way provenance.py reaches scripts/lib: at import, so the
@@ -55,9 +58,31 @@ logger = logging.getLogger(__name__)
 #: trial that is actually working.
 WattsSampler = Callable[[], float | None]
 
-#: The idle floor: at or above this the GPU is doing real work. Sourced from
-#: gpu_utilization so there is one definition of "idle" on this hardware.
+#: The global idle floor: at or above this the GPU is doing real work. Sourced
+#: from gpu_utilization. It applies where no backend key and no tier floor
+#: (TIER_IDLE_FLOOR_WATTS) says otherwise; see resolve_idle_floor.
 IDLE_FLOOR_WATTS: float = gpu_utilization.IDLE_WATTS
+
+#: The idle floor per hardware tier (``tier`` in tasks.toml), where the global
+#: floor is wrong for that hardware (#1450). A light model on GB10 decodes
+#: under 20 W per GPU, so the global floor killed a live trial there.
+TIER_IDLE_FLOOR_WATTS: dict[str, float] = {
+    # 13 W: above the GB10 loaded idle and below light-model decode (#1450).
+    # The cluster reads the busier node, and the worker idles with a TP2 model
+    # resident at 11.5-12.0 W average, 10-min peak median 11.8-12.2 W (head
+    # 10.5-10.8 W). Inkling 2 Mini decodes at 15.8-17.3 W per GPU (lowest
+    # 10-min peak 14.75 W). The #1450 review (60 days, 15 s steps): 12 W
+    # missed 58% of 1,179 quiet 10-min windows, 13 W 19%; 0 Inkling-busy
+    # windows fall under 13 W, 89 of 324 under 20 W.
+    # scripts/idle_floor_evidence.py recounts it with back-to-back windows
+    # (2026-11-21: quiet missed 43% at 12 W, 10% at 13 W; Inkling 0 of 43
+    # killed at 13 W, 9 of 43 at 20 W).
+    "gb10-spark": 13.0,
+    "gb10-spark-x2": 13.0,  # same GPU; one floor for both tiers
+}
+
+#: Where a resolved idle floor came from, in precedence order.
+IdleFloorSource = Literal["flag", "backend", "tier", "default"]
 
 #: A continuous idle stretch this long (seconds) means the trial has stalled.
 #: An agent trial alternates decode with tool and test phases, so a short
@@ -75,6 +100,47 @@ DEFAULT_GRACE_SECS: float = 5.0
 #: (coarser) power-poll interval, so a fast runaway is caught with little
 #: overshoot: at ~0.5 GiB/s a 15s poll overshoots ~7.5 GiB, a 2s poll ~1 GiB.
 DEFAULT_MEM_POLL_SECS: float = 2.0
+
+
+def positive_watts(value: object, what: str = "idle floor") -> float:
+    """``value`` as a positive finite float, or ValueError naming ``what``.
+
+    NaN compares false with everything, so a NaN floor reads every sample as
+    idle and kills each live trial at the window; a floor at or below zero
+    never sees idle and switches the watchdog off. Both are typos, not choices.
+    """
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not math.isfinite(value)
+        or value <= 0
+    ):
+        raise ValueError(f"{what} must be a positive finite number, got {value!r}")
+    return float(value)
+
+
+def resolve_idle_floor(
+    flag: float | None, backend: Mapping[str, object]
+) -> tuple[float, IdleFloorSource]:
+    """Return the idle floor for one backend, and where it came from (#1450).
+
+    Precedence: an explicit ``--idle-floor-watts`` flag, then the backend's
+    ``idle_floor_watts`` key in tasks.toml, then the default for the
+    backend's ``tier``, then the global :data:`IDLE_FLOOR_WATTS`.
+
+    A flag or backend key that is not a positive finite number raises
+    ValueError: a typo must stop the run, not fall back silently to another
+    floor or disable the watchdog.
+    """
+    if flag is not None:
+        return positive_watts(flag, "--idle-floor-watts"), "flag"
+    if "idle_floor_watts" in backend:
+        value = backend["idle_floor_watts"]
+        return positive_watts(value, "backend idle_floor_watts"), "backend"
+    tier = backend.get("tier")
+    if isinstance(tier, str) and tier in TIER_IDLE_FLOOR_WATTS:
+        return TIER_IDLE_FLOOR_WATTS[tier], "tier"
+    return IDLE_FLOOR_WATTS, "default"
 
 
 class IdleStallWatchdog:
@@ -103,12 +169,19 @@ class IdleStallWatchdog:
         watts: WattsSampler,
         *,
         idle_floor_watts: float = IDLE_FLOOR_WATTS,
+        idle_floor_source: IdleFloorSource | None = None,
         idle_stall_secs: float = DEFAULT_IDLE_STALL_SECS,
         poll_secs: float = DEFAULT_POLL_SECS,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self._watts = watts
         self.idle_floor_watts = idle_floor_watts
+        #: Where the floor came from (#1450), for the stall log line. Not
+        #: given: "default" for the global floor, else "caller", so a floor
+        #: passed without a source never claims to be the global default.
+        self.idle_floor_source: str = idle_floor_source or (
+            "default" if idle_floor_watts == IDLE_FLOOR_WATTS else "caller"
+        )
         self.idle_stall_secs = idle_stall_secs
         self.poll_secs = poll_secs
         self._monotonic = monotonic
@@ -297,9 +370,10 @@ def run_client_with_watchdog(
         if watchdog.stalled():
             idle_stalled = True
             log.error(
-                "client GPU-idle-stall: below %.0f W for >= %.0fs -- killing the "
-                "process group (was riding a %s timeout doing nothing)",
+                "client GPU-idle-stall: below %g W (%s) for >= %.0fs -- killing "
+                "the process group (was riding a %s timeout doing nothing)",
                 watchdog.idle_floor_watts,
+                watchdog.idle_floor_source,
                 watchdog.idle_stall_secs,
                 "None" if timeout is None else f"{timeout:.0f}s",
             )
@@ -427,12 +501,15 @@ def _evaluate(backend: str, results_path: pathlib.Path, total: int | None) -> in
     return 1 if abort else 0
 
 
-def _sample_watts() -> int:
+def _sample_watts(tier: str | None = None) -> int:
+    floor, source = resolve_idle_floor(None, {"tier": tier} if tier else {})
     watts = gpu_watts()
     if watts is None:
         logger.info("GPU power unavailable")
     else:
-        logger.info("GPU power: %.1f W (idle floor %.0f W)", watts, IDLE_FLOOR_WATTS)
+        logger.info(
+            "GPU power: %.1f W (idle floor %g W, from %s)", watts, floor, source
+        )
     return 0
 
 
@@ -457,14 +534,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="planned cell size to judge against; default: the rows on disk",
     )
 
-    sub.add_parser("sample-watts", help="print one GPU watts reading, best effort")
+    sw = sub.add_parser("sample-watts", help="print one GPU watts reading, best effort")
+    sw.add_argument(
+        "--tier",
+        default=None,
+        help="show the idle floor for this tasks.toml tier (13 W on GB10, "
+        f"#1450); default: the global {IDLE_FLOOR_WATTS:g} W",
+    )
 
     args = parser.parse_args(argv)
     provenance.configure()
 
     if args.cmd == "evaluate":
         return _evaluate(args.backend, args.results, args.total)
-    return _sample_watts()
+    return _sample_watts(args.tier)
 
 
 if __name__ == "__main__":

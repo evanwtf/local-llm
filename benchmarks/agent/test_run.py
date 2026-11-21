@@ -3216,7 +3216,7 @@ def _oracle_repo(tmp_path):
     return repo, run.git(["rev-parse", "HEAD"], repo)
 
 
-def _agent_trial(tmp_path, monkeypatch, shell, **kw):
+def _agent_trial(tmp_path, monkeypatch, shell, backend=None, idle_watchdog=False, **kw):
     """One real trial whose agent is a shell command run in the checkout."""
     repo, commit = _oracle_repo(tmp_path)
     monkeypatch.setitem(
@@ -3237,7 +3237,7 @@ def _agent_trial(tmp_path, monkeypatch, shell, **kw):
             "test_command": "python3 tests/check.py",
         },
         "seam",
-        {"model": "stub", "context_tokens": 1},
+        backend or {"model": "stub", "context_tokens": 1},
         trial=1,
         workdir=tmp_path / "work",
         timeout=60,
@@ -3247,9 +3247,77 @@ def _agent_trial(tmp_path, monkeypatch, shell, **kw):
         gates=False,
         sandbox=False,
         prepare_env_first=False,
-        idle_watchdog=False,
+        idle_watchdog=idle_watchdog,
         **kw,
     )
+
+
+# --- #1450: the idle floor a watched trial used is on its row ---------------
+
+
+@pytest.mark.parametrize(
+    ("extra", "flag", "want"),
+    [
+        ({"tier": "gb10-spark"}, None, 13.0),
+        ({"tier": "gb10-spark-x2"}, None, 13.0),
+        ({"tier": "desktop-3080ti"}, None, 20.0),
+        ({}, None, 20.0),
+        ({"tier": "gb10-spark-x2", "idle_floor_watts": 11}, None, 11.0),
+        ({"tier": "gb10-spark-x2", "idle_floor_watts": 11}, 25.0, 25.0),
+    ],
+)
+def test_a_watched_trial_stamps_the_floor_it_used(
+    tmp_path, monkeypatch, extra, flag, want
+):
+    row = _agent_trial(
+        tmp_path,
+        monkeypatch,
+        SOLVE,
+        backend={"model": "stub", "context_tokens": 1, **extra},
+        idle_watchdog=True,
+        idle_floor_watts=flag,
+        watts_sampler=lambda: 999.0,
+    )
+    assert results.verdict(row) is True, row["pytest"]
+    assert row["idle_floor_watts"] == want
+
+
+def test_an_unwatched_trial_has_no_idle_floor(tmp_path, monkeypatch):
+    row = _agent_trial(
+        tmp_path,
+        monkeypatch,
+        SOLVE,
+        backend={"model": "stub", "context_tokens": 1, "tier": "gb10-spark-x2"},
+        idle_watchdog=False,
+    )
+    assert results.verdict(row) is True, row["pytest"]
+    assert "idle_floor_watts" not in row
+
+
+def test_check_idle_floors_resolves_each_backend():
+    args = run.build_parser().parse_args(["--backend", "a"])
+    got = run.check_idle_floors(
+        args, {"a": {"tier": "gb10-spark-x2"}, "b": {"idle_floor_watts": 14}}
+    )
+    assert got == {"a": (13.0, "tier"), "b": (14.0, "backend")}
+
+
+def test_check_idle_floors_exits_on_a_bad_backend_key():
+    args = run.build_parser().parse_args(["--backend", "a"])
+    with pytest.raises(SystemExit, match="backend a: .*idle_floor_watts"):
+        run.check_idle_floors(args, {"a": {"idle_floor_watts": "12"}})
+
+
+def test_check_idle_floors_does_nothing_without_the_watchdog():
+    args = run.build_parser().parse_args(["--backend", "a", "--no-idle-watchdog"])
+    assert run.check_idle_floors(args, {"a": {"idle_floor_watts": "12"}}) == {}
+
+
+@pytest.mark.parametrize("bad", ["nan", "inf", "0", "-3", "x"])
+def test_a_bad_idle_floor_flag_is_refused_at_parse(bad, capsys):
+    with pytest.raises(SystemExit):
+        run.build_parser().parse_args(["--backend", "b", "--idle-floor-watts", bad])
+    assert "--idle-floor-watts" in capsys.readouterr().err
 
 
 def test_a_committed_test_edit_still_touches_the_tests(tmp_path, monkeypatch):
@@ -3571,6 +3639,17 @@ def test_the_early_stop_is_on_by_default() -> None:
     args = run.build_parser().parse_args(["--backend", "b"])
     assert args.no_early_stop is False
     assert run.check_early_stop_args(args) is None
+
+
+def test_the_idle_floor_flag_defaults_to_not_given() -> None:
+    # #1450: None means "resolve from the backend key or the tier", so the
+    # flag must not default to a number that looks like an explicit choice.
+    assert run.build_parser().parse_args(["--backend", "b"]).idle_floor_watts is None
+
+
+def test_an_explicit_idle_floor_flag_is_kept() -> None:
+    args = run.build_parser().parse_args(["--backend", "b", "--idle-floor-watts", "12"])
+    assert args.idle_floor_watts == 12.0
 
 
 def test_the_step_timeout_is_a_flat_1800_seconds() -> None:

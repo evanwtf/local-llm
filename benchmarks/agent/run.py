@@ -5340,7 +5340,7 @@ def one_trial(
     batch=None,
     idle_watchdog=True,
     idle_stall_secs=timeout_policy.DEFAULT_IDLE_STALL_SECS,
-    idle_floor_watts=timeout_policy.IDLE_FLOOR_WATTS,
+    idle_floor_watts=None,
     watts_sampler=None,
 ):
     target = task_target(cfg, task)
@@ -5632,6 +5632,19 @@ def one_trial(
             result["client_mem_limit_gib"] = round(container_limit, 2)
         oom_before = memcap.cgroup_oom_kills()
         if idle_watchdog:
+            # #1450: None means "not given on the command line", so the
+            # backend key, then the tier default, then the global floor apply.
+            floor_watts, floor_source = timeout_policy.resolve_idle_floor(
+                idle_floor_watts, backend
+            )
+            result["idle_floor_watts"] = floor_watts
+            logger.info(
+                "%s: GPU-idle-stall floor %g W (from %s), window %.0fs (#1450)",
+                name,
+                floor_watts,
+                floor_source,
+                idle_stall_secs,
+            )
             watchdog = timeout_policy.IdleStallWatchdog(
                 watts_sampler
                 or (
@@ -5641,7 +5654,8 @@ def one_trial(
                     if (nodes := _server_nodes())
                     else timeout_policy.gpu_watts
                 ),
-                idle_floor_watts=idle_floor_watts,
+                idle_floor_watts=floor_watts,
+                idle_floor_source=floor_source,
                 idle_stall_secs=idle_stall_secs,
             )
             proc = timeout_policy.run_client_with_watchdog(
@@ -6029,6 +6043,39 @@ def one_trial(
     return result
 
 
+def check_idle_floors(args, backends):
+    """Resolve each backend's GPU-idle-stall floor once and log it (#1450).
+
+    A bad flag or `idle_floor_watts` key stops the run with SystemExit here,
+    before any trial, and not mid-batch. With --no-idle-watchdog no floor is
+    used, so nothing is checked. Returns {backend: (watts, source)}.
+    """
+    if args.no_idle_watchdog:
+        return {}
+    floors = {}
+    for bname, backend in backends.items():
+        try:
+            floors[bname] = timeout_policy.resolve_idle_floor(
+                args.idle_floor_watts, backend
+            )
+        except ValueError as e:
+            raise SystemExit(f"backend {bname}: {e} (#1450)") from e
+        logger.info(
+            "GPU-idle-stall floor for %s: %g W (from %s) (#1450)",
+            bname,
+            *floors[bname],
+        )
+    return floors
+
+
+def _idle_floor_arg(text):
+    """argparse type for --idle-floor-watts: a positive finite float (#1450)."""
+    try:
+        return timeout_policy.positive_watts(float(text), "--idle-floor-watts")
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e)) from e
+
+
 def build_parser():
     """The CLI parser, extracted so a test can introspect its choices. #319
     added a reader engine to DraftProbe.SOURCES but not to --draft-log-engine,
@@ -6297,10 +6344,13 @@ def build_parser():
     )
     p.add_argument(
         "--idle-floor-watts",
-        type=float,
-        default=timeout_policy.IDLE_FLOOR_WATTS,
-        help="GPU watts at or above which the GPU counts as working "
-        f"(default {timeout_policy.IDLE_FLOOR_WATTS:.0f}, from gpu_utilization) (#366).",
+        type=_idle_floor_arg,
+        default=None,
+        help="GPU watts at or above which the GPU counts as working (#366). "
+        "Given, it wins for every backend. Not given: the backend's "
+        "idle_floor_watts in tasks.toml, else the tier default "
+        "(timeout_policy.TIER_IDLE_FLOOR_WATTS; 13 W on GB10, #1450), else "
+        f"{timeout_policy.IDLE_FLOOR_WATTS:.0f} W from gpu_utilization.",
     )
     p.add_argument(
         "--no-idle-watchdog",
@@ -6793,6 +6843,9 @@ def main():
             server_facts["directory"],
             args.results,
         )
+    # #1450: before the lock, the gates and the target setup, so a bad floor
+    # costs nothing.
+    check_idle_floors(args, backends)
     absent = tasks_missing_targets(cfg, tasks)
     if absent and args.task:
         listed = "\n".join(f"  {name}: {repo}" for name, repo in sorted(absent.items()))

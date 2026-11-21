@@ -87,6 +87,11 @@ OPTIONAL: dict[str, type | tuple[type, ...]] = {
     # deadline). None/absent on every non-timeout trial. Additive, so no
     # schema bump -- older rows simply do not carry it.
     "timeout_reason": (str, type(None)),
+    # #1450. The GPU-idle-stall floor, in watts, the watchdog used for this
+    # trial: from the flag, the backend key, the tier default or the global
+    # default. Absent when the watchdog was off, on a dry run, on a trial that
+    # stopped before the client phase, and on every row before it.
+    "idle_floor_watts": (int, float),
     # #714. Set only on a replay task's row: "replay", and what reproduces it
     # -- `replay.commit` and `replay.parent` (full shas), `replay.reverted`
     # (each path and whether it was restored from the parent or deleted),

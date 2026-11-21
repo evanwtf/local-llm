@@ -644,7 +644,14 @@ outweigh that:
 **What saves the time instead** is stopping the stack, not the step: the early
 stop above, and the #366 guards in `benchmarks/agent/timeout_policy.py` (an
 idle-GPU watchdog per trial, and a circuit breaker for a cell that mostly times
-out).
+out). The watchdog's idle floor is 20 W, except on GB10, where it is 13 W
+(#1450). A light model decodes there at 15.8 to 17.3 W per GPU, under 20 W.
+The cluster's worker idles with a model resident at up to 12.2 W, and the
+watchdog reads the busier node, so 12 W would miss most real stalls.
+`scripts/idle_floor_evidence.py` recounts this from Prometheus. A backend's
+`idle_floor_watts` key in `tasks.toml` overrides the tier, and
+`--idle-floor-watts` overrides both. Each watched row records the floor as
+`idle_floor_watts`.
 
 Rerun the evidence when the ledger grows:
 
