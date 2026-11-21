@@ -4364,6 +4364,30 @@ recipe_dir = "~/git/inkling2-exl3"
 recipe_pin = "32419261"
 recipe_pin_reason = "operator approved 299eeaf3 (#1435, 2026-11-20); 32419261 is that tree minus its last commit (24 added lines in server/i2_server.py), which the fork author reports drops live requests under concurrent load (README at f77d161, 2026-11-21). A later revision needs a new approval"
 
+# #1438 (operator, 2026-11-21: test Inkling 2 Mini as well as Inkling 2 Small): the vendor checkpoint on
+# vLLM's own inkling-2-mini image, across both Sparks. Stage 1 control: glm53fexl3tfqmiaai20261010dual2xrc.
+# Launch (both nodes, worker first):
+#   uv run python scripts/vllm_two_node.py start --model-dir ~/models/thinkingmachines--Inkling-2-Mini-ed40e7da62 \
+#     --image vllm/vllm-openai:inkling-2-mini --name mini -- --served-model-name inkling-2-mini \
+#     --tokenizer-mode inkling --max-model-len 262144 --max-num-batched-tokens 1024 \
+#     --limit-mm-per-prompt '{"image":0}' --gpu-memory-utilization 0.8 \
+#     --reasoning-parser inkling --enable-auto-tool-choice --tool-call-parser inkling \
+#     --speculative-config '{"method":"dspark","num_speculative_tokens":7,"draft_sample_method":"probabilistic"}' \
+#     --default-chat-template-kwargs '{"reasoning_effort":"low"}' --enable-prompt-tokens-details
+[backend.inkling2mininvfp4vllmdsparkdual2xrc]
+description = "#1438: Inkling 2 Mini (thinkingmachines/Inkling-2-Mini @ed40e7da62, 26B looped MoE, 3.5B active, 128 experts top 8, ModelOpt NVFP4, 20.2 GB with the bundled DSpark drafter) on BOTH Sparks: tensor parallel 2 over the ConnectX fabric (scripts/vllm_two_node.py: mp executor, --nnodes 2, NCCL on all four fabric paths). Image vllm/vllm-openai:inkling-2-mini (sha256:c2dc759f5984, pushed 2026-11-20; vLLM 0.35 is not released), the image the vLLM recipe names. Recipe flags (recipes.vllm.ai, read 2026-11-21): --reasoning-parser inkling, --enable-auto-tool-choice --tool-call-parser inkling, DSpark speculative decoding (7 draft tokens, probabilistic), --max-model-len 262144 (the recipe's DGX Spark cap). GB10 limits from vllm-project/vllm#69012: --max-num-batched-tokens 1024 (the router kernel needs more shared memory than SM12x has from 2,048 tokens a step; fix in PR #69021, not merged) and --limit-mm-per-prompt image 0 (the vision encoder calls FA3, which has no SM12x kernel), so text only. --tokenizer-mode inkling, GMU 0.8. Reasoning effort low on the server (--default-chat-template-kwargs reasoning_effort low; the renderer reads only reasoning_effort, #69012 point 3); the client also sends low. Served as inkling-2-mini on :8888. REMOTE CLIENT"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "inkling-2-mini"
+active_params_b = 3.5
+aider_model = "openai/inkling-2-mini"
+opencode_model = "vllm8888/inkling-2-mini"
+context_tokens = 262144
+topology = "remote"
+image = "vllm/vllm-openai:inkling-2-mini"
+
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]
 description = "#1095: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the fast option's weights) across TWO DGX Sparks on STOCK TensorFold native 1.1.3 (ashhart/TensorFold release tensorfold-1.1.3-linux-aarch64, sha256 checked; no MiaAI patches), launched by scripts/tensorfold_native_two_node.py: TF_GLM_WORLD=2, NCCL on all four fabric paths, libnccl 2.29.7 from vllm/vllm-openai:v0.32.0. Serve flags chosen to match the leader glm53fexl3tfqmiaai20261010dual2xrc: --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768; drafts the engine default (on); sampling the engine default (temperature 1.0, top_p 0.95); reasoning_effort low sent by the client. REMOTE CLIENT"
