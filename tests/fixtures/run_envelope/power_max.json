@@ -1,0 +1,59 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "vector",
+  "result": [
+   {
+    "metric": {
+     "DCGM_FI_DRIVER_VERSION": "580.178.04",
+     "Hostname": "e39559d0926c",
+     "UUID": "GPU-8984be64-f4ec-9706-2d60-9ea7f8ba028d",
+     "device": "nvidia0",
+     "gpu": "0",
+     "instance": "worker-host:9400",
+     "job": "dcgm",
+     "modelName": "NVIDIA GB10",
+     "pci_bus_id": "0000000F:01:00.0"
+    },
+    "value": [
+     1795304446.885,
+     "39.919"
+    ]
+   },
+   {
+    "metric": {
+     "DCGM_FI_DRIVER_VERSION": "580.178.04",
+     "Hostname": "a367cdbf7577",
+     "UUID": "GPU-5bcdc8f3-7882-8e82-1ffb-2281349cd8ef",
+     "device": "nvidia0",
+     "gpu": "0",
+     "instance": "head-host:9400",
+     "job": "dcgm",
+     "modelName": "NVIDIA GB10",
+     "pci_bus_id": "0000000F:01:00.0"
+    },
+    "value": [
+     1795304446.885,
+     "38.758"
+    ]
+   },
+   {
+    "metric": {
+     "DCGM_FI_DRIVER_VERSION": "595.99.02",
+     "Hostname": "38ece91e2de1",
+     "UUID": "GPU-5a7a1eac-a583-77b1-1c31-e50c6e3c7aef",
+     "device": "nvidia0",
+     "gpu": "0",
+     "instance": "other-1:9400",
+     "job": "dcgm",
+     "modelName": "NVIDIA GeForce RTX 4070 Laptop GPU",
+     "pci_bus_id": "00000000:01:00.0"
+    },
+    "value": [
+     1795304446.885,
+     "590.006"
+    ]
+   }
+  ]
+ }
+}
