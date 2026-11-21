@@ -60,7 +60,7 @@ result row stamps the exact sha it ran on.
 | `~/engines/llama.cpp-b11669` | `ggml-org/llama.cpp` | llama.cpp | `b11669` (`620d222`) | the first tag with Nemotron 3.5 Super VL / Bolt support (ggml-org/llama.cpp#30520), for the #1103 Bolt screen |
 | `~/engines/llama.cpp-b11700` | `ggml-org/llama.cpp` | llama.cpp | `b11700` (`23f7aab`) | the #1090 refresh, 2026-10-16 |
 | `~/engines/llama.cpp-b11827` | `ggml-org/llama.cpp` | llama.cpp | `b11827` (`970b51c`) | the #1090 refresh, 2026-10-22, on both nodes; served from the head |
-| `~/git/inkling2-exl3` | `oracle9i88/inkling2-exl3` (MIT fork of `0xSero/inkling2-exl3`) | exllamav3 | `spark` at `299eeaf3` | the Inkling 2 overlay for exllamav3 v1.6.6 on two Sparks; the `inkling2sexl3255evanguodual2xrc` tree (#1435). On both nodes, with the build beside it in `~/engines/inkling2-exl3-299eeaf3` (below) |
+| `~/git/inkling2-exl3` | `oracle9i88/inkling2-exl3` (MIT fork of `0xSero/inkling2-exl3`) | exllamav3 | `spark` at `32419261` | the Inkling 2 overlay for exllamav3 v1.6.6 on two Sparks; the `inkling2sexl3255evanguodual2xrc` tree (#1435). On both nodes, with the build beside it in `~/engines/inkling2-exl3-32419261` (below) |
 
 Notes:
 
@@ -70,11 +70,15 @@ Notes:
   out the tag, and build with
   `-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=121 -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF --target llama-server`.
   `currency.tag_engine_item` checks each against the newest release tag.
-- **The inkling2-exl3 build is not in its checkout.** `~/engines/inkling2-exl3-299eeaf3` holds
+- **The inkling2-exl3 build is not in its checkout.** `~/engines/inkling2-exl3-32419261` holds
   `build/exllamav3` (exllamav3 `v1.6.6` at `bd1f5191`, with the fork's `patches/` and `overlay/` applied,
   extension built with `TORCH_CUDA_ARCH_LIST=12.1 python setup.py build_ext --inplace`) and `wheels/`
   (`spark/requirements-spark.lock`, hash-checked), both made inside `nvcr.io/nvidia/pytorch:26.07-py3`
-  as the fork's README says. `scripts/inkling2_two_node.py` refuses a node whose checkout is not at
+  as the fork's README says. That lock leaves out `huggingface-hub`, and the image ships 1.24.0 where
+  `transformers==5.23.0` needs 1.31 or later, so `wheels/` also holds five PyPI wheels, each checked
+  against its PyPI sha256 (#1435): `huggingface_hub==1.33.0`, `hf-xet==1.8.0`, `typer==0.27.3`,
+  `annotated-doc==0.0.5` and `shellingham==1.5.4`. Their hashes are in
+  `requirements-extra-local.lock` beside `wheels/`. `scripts/inkling2_two_node.py` refuses a node whose checkout is not at
   the pinned sha or whose extension is missing.
 - **ds4 is one repository, several worktrees.** `~/git/ds4`, `~/git/ds4-main`
   and `~/git/ds4-ivan-qwen38fn` are the same `evanwtf/ds4` fork at different

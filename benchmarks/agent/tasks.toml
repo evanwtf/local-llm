@@ -4347,7 +4347,7 @@ recipe_pin_reason = "the fastest pick on the two-Spark page (#1095) was measured
 # #1435 (operator-approved 2026-11-20): Inkling 2 Small on the inkling2-exl3 overlay, both revisions pinned.
 # Stage 1 control: glm53fexl3tfqmiaai20261010dual2xrc.
 [backend.inkling2sexl3255evanguodual2xrc]
-description = "#1435: Inkling 2 Small (594B MoE, 17B active) EXL3 2.55 bpw average, experts 1.5 to 4 bpw per expert, attention 6 bpw, head 8 bpw (Evanguo12/Inkling-2-Small-EXL3-2.55bpw-2Spark @0265bcd7590f), full copy on each node, across TWO DGX Sparks on oracle9i88/inkling2-exl3 branch spark @299eeaf3ae44 (MIT fork of 0xSero/inkling2-exl3: an Inkling 2 overlay for exllamav3 v1.6.6 @bd1f5191, extension built for sm_121 in nvcr.io/nvidia/pytorch:26.07-py3: torch 2.13.0a0, CUDA 13.3, NCCL 2.30.7). Launched by scripts/inkling2_two_node.py: one torchrun rank per Spark in the NGC image, the worker first, NCCL on all four fabric paths and RoCE devices, reserve 6 GiB. The fork's two-Spark serving flags: 4 slots of up to 524,288 tokens, 4-bit global / 8-bit sliding-window KV sized from free memory, --spec-mode auto (MTP drafts), prefix cache (24 snapshots, every 16,384 tokens), 2,048-row prompt chunks, default max_tokens 32,768, default thinking budget 60,000 tokens. Reasoning effort low on the server: the pinned chat template with its default effort changed from 0.9 to low (the server has no flag); a request's own reasoning_effort still wins. Served as inkling-2-small on :18100. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768"
+description = "#1435: Inkling 2 Small (594B MoE, 17B active) EXL3 2.55 bpw average, experts 1.5 to 4 bpw per expert, attention 6 bpw, head 8 bpw (Evanguo12/Inkling-2-Small-EXL3-2.55bpw-2Spark @0265bcd7590f), full copy on each node, across TWO DGX Sparks on oracle9i88/inkling2-exl3 branch spark @32419261a520 (MIT fork of 0xSero/inkling2-exl3: an Inkling 2 overlay for exllamav3 v1.6.6 @bd1f5191, extension built for sm_121 in nvcr.io/nvidia/pytorch:26.07-py3: torch 2.13.0a0, CUDA 13.3, NCCL 2.30.7). Launched by scripts/inkling2_two_node.py: one torchrun rank per Spark in the NGC image, the worker first, NCCL on all four fabric paths and RoCE devices, reserve 6 GiB. The fork's two-Spark serving flags: 4 slots of up to 524,288 tokens, 4-bit global / 8-bit sliding-window KV sized from free memory, --spec-mode auto (MTP drafts), prefix cache (24 snapshots, every 16,384 tokens), 2,048-row prompt chunks, default max_tokens 32,768, default thinking budget 60,000 tokens. Reasoning effort low on the server: the pinned chat template with its default effort changed from 0.9 to low (the server has no flag); a request's own reasoning_effort still wins. Served as inkling-2-small on :18100. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:18100"
 auth_token = "local"
@@ -4361,8 +4361,8 @@ topology = "remote"
 smoke_protocol = "openai"
 engine_tree = "~/git/inkling2-exl3"
 recipe_dir = "~/git/inkling2-exl3"
-recipe_pin = "299eeaf3"
-recipe_pin_reason = "operator approved this revision only (#1435, 2026-11-20); a later one needs a new approval"
+recipe_pin = "32419261"
+recipe_pin_reason = "operator approved 299eeaf3 (#1435, 2026-11-20); 32419261 is that tree minus its last commit (24 added lines in server/i2_server.py), which the fork author reports drops live requests under concurrent load (README at f77d161, 2026-11-21). A later revision needs a new approval"
 
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]

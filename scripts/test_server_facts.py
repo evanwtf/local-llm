@@ -266,15 +266,15 @@ def test_the_inkling2_backend_passes_the_currency_gate_at_its_pin(
     )
     name = "inkling2sexl3255evanguodual2xrc"
     spec = tomllib.loads(tasks.read_text())["backend"][name]
-    assert spec["recipe_pin"] == "299eeaf3"
+    assert spec["recipe_pin"] == "32419261"
     assert spec["recipe_pin_reason"]
     (tmp_path / ".git").mkdir()
     spec = {**spec, "recipe_dir": str(tmp_path)}
     answers = {
         "fetch --quiet origin": "",
-        "rev-parse --short HEAD": "299eeaf3",
+        "rev-parse --short HEAD": "32419261",
         "rev-parse --abbrev-ref origin/HEAD": "origin/spark",
-        "rev-parse --short origin/spark": "299eeaf3",
+        "rev-parse --short origin/spark": "32419261",
         "rev-list --count HEAD..origin/spark": "0",
         "tag --merged": "",
     }
