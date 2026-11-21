@@ -68,6 +68,10 @@ ENGINES: dict[str, dict[str, str]] = {
     # release tag. A backend names its tree (`engine_tree`), so a row records
     # the tag's sha and the binary's mtime.
     "sushi": {"binary_rel": "zig-out/bin/sushi"},
+    # The inkling2-exl3 overlay (#1435): `engine_tree` is its git checkout, so a
+    # row records the overlay's sha. The built extension sits outside the tree
+    # (~/engines/inkling2-exl3-<sha8>), so there is no binary mtime to record.
+    "exllamav3": {},
 }
 
 
@@ -271,7 +275,9 @@ def identity(engine: str, tree: str | None = None) -> dict[str, object]:
     ds4 fork names it here, so the row records exactly which tree served it.
     """
     spec = ENGINES.get(engine)
-    if not spec:
+    # `is None`, not falsy: exllamav3's entry is an empty dict (a git tree,
+    # no binary), and it must still report the tree's sha (#1435).
+    if spec is None:
         return {}
     # A tree is only known when the caller names one or the registry declares
     # one. A brew binary has neither, and must not fall through to the current

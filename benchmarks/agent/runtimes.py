@@ -70,6 +70,13 @@ RUNTIMES: dict[str, dict[Host, Runtime]] = {
         DARWIN_ARM64: _rt("built from a ds4 checkout (Metal)", "source"),
         LINUX_AARCH64: _rt("built from a ds4 checkout (CUDA)", "source"),
     },
+    # #1435: the inkling2-exl3 overlay on exllamav3 v1.6.6, its extension
+    # built in the NGC PyTorch image (scripts/inkling2_two_node.py).
+    "exllamav3": {
+        LINUX_AARCH64: _rt(
+            "a pinned overlay checkout, built in the NGC image", "source"
+        ),
+    },
     "llama.cpp": {
         DARWIN_ARM64: _rt("built from a llama.cpp checkout (Metal)", "source"),
         LINUX_AARCH64: _rt("built from a tagged llama.cpp checkout (CUDA)", "source"),

@@ -4344,6 +4344,26 @@ recipe_dir = "~/miaai-tf-glm"
 recipe_pin = "3fd60df"
 recipe_pin_reason = "the fastest pick on the two-Spark page (#1095) was measured at 3fd60df (TensorFold v0.6.0 + 107 patches, image tensorfold-glm53:v0.6.0-e66c657a433d); #1337 reruns it as pinned under the 1,900 MHz cap. Later commits move to a 123-patch image and are a new series"
 
+# #1435 (operator-approved 2026-11-20): Inkling 2 Small on the inkling2-exl3 overlay, both revisions pinned.
+# Stage 1 control: glm53fexl3tfqmiaai20261010dual2xrc.
+[backend.inkling2sexl3255evanguodual2xrc]
+description = "#1435: Inkling 2 Small (594B MoE, 17B active) EXL3 2.55 bpw average, experts 1.5 to 4 bpw per expert, attention 6 bpw, head 8 bpw (Evanguo12/Inkling-2-Small-EXL3-2.55bpw-2Spark @0265bcd7590f), full copy on each node, across TWO DGX Sparks on oracle9i88/inkling2-exl3 branch spark @299eeaf3ae44 (MIT fork of 0xSero/inkling2-exl3: an Inkling 2 overlay for exllamav3 v1.6.6 @bd1f5191, extension built for sm_121 in nvcr.io/nvidia/pytorch:26.07-py3: torch 2.13.0a0, CUDA 13.3, NCCL 2.30.7). Launched by scripts/inkling2_two_node.py: one torchrun rank per Spark in the NGC image, the worker first, NCCL on all four fabric paths and RoCE devices, reserve 6 GiB. The fork's two-Spark serving flags: 4 slots of up to 524,288 tokens, 4-bit global / 8-bit sliding-window KV sized from free memory, --spec-mode auto (MTP drafts), prefix cache (24 snapshots, every 16,384 tokens), 2,048-row prompt chunks, default max_tokens 32,768, default thinking budget 60,000 tokens. Reasoning effort low on the server: the pinned chat template with its default effort changed from 0.9 to low (the server has no flag); a request's own reasoning_effort still wins. Served as inkling-2-small on :18100. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:18100"
+auth_token = "local"
+engine = "exllamav3"
+model = "inkling-2-small"
+active_params_b = 17
+aider_model = "openai/inkling-2-small"
+opencode_model = "inkling18100/inkling-2-small"
+context_tokens = 524288
+topology = "remote"
+smoke_protocol = "openai"
+engine_tree = "~/git/inkling2-exl3"
+recipe_dir = "~/git/inkling2-exl3"
+recipe_pin = "299eeaf3"
+recipe_pin_reason = "operator approved this revision only (#1435, 2026-11-20); a later one needs a new approval"
+
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]
 description = "#1095: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the fast option's weights) across TWO DGX Sparks on STOCK TensorFold native 1.1.3 (ashhart/TensorFold release tensorfold-1.1.3-linux-aarch64, sha256 checked; no MiaAI patches), launched by scripts/tensorfold_native_two_node.py: TF_GLM_WORLD=2, NCCL on all four fabric paths, libnccl 2.29.7 from vllm/vllm-openai:v0.32.0. Serve flags chosen to match the leader glm53fexl3tfqmiaai20261010dual2xrc: --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768; drafts the engine default (on); sampling the engine default (temperature 1.0, top_p 0.95); reasoning_effort low sent by the client. REMOTE CLIENT"

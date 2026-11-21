@@ -147,6 +147,7 @@ Every live backend in `tasks.toml`, by machine. A `retired` note in
 | `glm53fexl3tfmiaai1104dual2x` | #1358: GLM-5.3-Flash EXL3 4bpw TF quant on MiaAI's 1104 recipe (TensorFold native Zig f350cd3e + 105 patches), both Sparks, remote client | TensorFold | 164 GB |
 | `glm53fexl3tfmiaai1104p4dual2x` | #1358 arm B: the 1104 recipe at 4 streams and a 262K window (the control's shape), both Sparks, remote client | TensorFold | 164 GB |
 | `glm53fexl3tfmiaai1104p4ct0dual2x` | #1358 arm C: arm B with CLEAR_THINKING=0 (earlier reasoning kept), both Sparks, remote client | TensorFold | 164 GB |
+| `inkling2sexl3255evanguodual2xrc` | #1435: Inkling 2 Small EXL3 2.55 bpw (Evanguo12 @0265bcd7), per-expert rates, 524K context, reasoning effort low server-side (template default), both Sparks, remote client | exllamav3 v1.6.6 + inkling2-exl3 overlay @299eeaf3 (`scripts/inkling2_two_node.py`) | 198.7 GB on each node |
 | `ripple65bnvfp4vllmprdual2x` | #1357: Ripple-65B Preview NVFP4 (Ricursive, 65B dense) on a vLLM PR #65745 build, both Sparks, remote client | vLLM | 53 GB |
 | `ripple65bnvfp4dflash2vllmprdual2x` | #1357: Ripple-65B Preview NVFP4 + DFlash2 drafter on a vLLM PR #65745 build, both Sparks, remote client | vLLM | 61 GB |
 | `glm53ffp4localdual2xrc` | NVIDIA's first-party QAD FP4 GLM-5.3-Flash across two Sparks, eugr recipe glm-5.3-flash.yaml @0bdc9c9 with GMU 0.79 (memory floor), thinking on like C1, remote client (#1128) | vLLM TP=2 in eugr/spark-vllm-b12x | 165.3 GiB |

@@ -73,6 +73,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `heartbeat_gate.py` | any | Stop hook: a tick turn must end with the heartbeat script's own output. |
 | `hf_sweep.py` | any | Watch Hugging Face for new quants of the models we actually run. |
 | `hidden_test_candidates.py` | any | Pick a replay task's held-out tests (#726) by measuring each test, not guessing. |
+| `inkling2_two_node.py` | any | Serve Inkling 2 Small EXL3 on both DGX Sparks with the inkling2-exl3 engine. |
 | `kv_prefix_audit.py` | mac | Measure how much prefill a stalled KV prefix costs (#64, #50). |
 | `kv_prefix_reuse.py` | mac | Measure how much of a prompt ds4 reuses from its prefix cache (#190). |
 | `load_matrix.py` | mac | Load each of a set of gguf files with the PLE sidecar, serially, and |
