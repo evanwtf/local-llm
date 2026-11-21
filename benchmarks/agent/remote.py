@@ -349,6 +349,11 @@ INSTANCE_PROBES: dict[str, tuple[str, str]] = {
     # The prometheus crate is built without its process collector, so there is
     # no start time. /metrics is always routed; no flag is needed.
     "atlas": ("counter", "/metrics"),
+    # #1435: inkling2-exl3 299eeaf3 (server/i2_server.py) has no request
+    # counter or start time. Its /health carries `stats`, whose `pre_tok` and
+    # `dec_steps` start at 0 at launch and only grow; every request prefills
+    # or decodes at least once, so their sum serves as the counter.
+    "exllamav3": ("counter", "/health"),
 }
 
 #: Engines checked and found to publish no instance marker over HTTP (#948).
@@ -401,6 +406,8 @@ def parse_instance(kind: str, text: str) -> float | None:
     except ValueError:
         return _metrics_counter(text)
     value = data.get("requests_total") if isinstance(data, dict) else None
+    if value is None and isinstance(data, dict):
+        value = _stats_counter(data.get("stats"))
     # bool is an int in Python; a true/false counter is not a counter.
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         return None
@@ -440,6 +447,20 @@ _ZERO_MARKERS = frozenset(
         "atlas_kernel_lookups_unresolved",
     }
 )
+
+
+#: The /health `stats` counters whose sum is the inkling2-exl3 marker (#1435).
+_STATS_COUNTER_NAMES = ("pre_tok", "dec_steps")
+
+
+def _stats_counter(stats: object) -> int | None:
+    """The sum of the `_STATS_COUNTER_NAMES` ints in a /health `stats`, or None."""
+    if not isinstance(stats, dict):
+        return None
+    values = [stats.get(name) for name in _STATS_COUNTER_NAMES]
+    if any(isinstance(v, bool) or not isinstance(v, int) or v < 0 for v in values):
+        return None
+    return sum(v for v in values if isinstance(v, int))
 
 
 def _metrics_counter(metrics: str) -> int | None:

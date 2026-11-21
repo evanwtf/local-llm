@@ -969,3 +969,43 @@ def test_every_remote_speculative_arm_reads_its_counters_over_http():
     assert bad == {}, (
         f"remote speculative arms without an HTTP-read draft_engine: {bad}"
     )
+
+
+#: /health of inkling2-exl3 299eeaf3 (server/i2_server.py `health`), trimmed.
+INKLING2_HEALTH = (
+    '{"status": "ok", "stats": {"dec_steps": 40, "dec_time": 1.5, "pre_tok": 2,'
+    ' "pre_time": 0.2, "spec_steps": 30, "plain_steps": 10}, "spec": true,'
+    ' "kv_tokens": 1280000, "active": 0, "queued": 0, "prefix": {}}'
+)
+
+
+def test_inkling2_reads_its_stats_counters_from_health():
+    asked = []
+
+    def fetch(url, timeout):
+        asked.append(url)
+        return INKLING2_HEALTH
+
+    got = remote.read_instance("http://srv:18100/v1", "exllamav3", fetch)
+    assert asked == ["http://srv:18100/health"]
+    assert got == {"engine": "exllamav3", "kind": "counter", "value": 42}
+
+
+def test_inkling2_stats_that_are_not_counters_are_unreadable():
+    assert remote.parse_instance("counter", '{"stats": {"pre_tok": 2}}') is None
+    bad = '{"stats": {"pre_tok": 2.0, "dec_steps": 1}}'
+    assert remote.parse_instance("counter", bad) is None
+    assert (
+        remote.parse_instance("counter", '{"stats": {"pre_tok": true, "dec_steps": 1}}')
+        is None
+    )
+
+
+def test_check_instance_refuses_a_restarted_inkling2():
+    facts = {
+        "backend": "b",
+        "instance": {"engine": "exllamav3", "kind": "counter", "value": 900},
+    }
+    backends = {"b": {"engine": "exllamav3", "base_url": "http://srv:18100"}}
+    with pytest.raises(SystemExit, match="restarted"):
+        remote.check_instance(facts, backends, lambda url, timeout: INKLING2_HEALTH)

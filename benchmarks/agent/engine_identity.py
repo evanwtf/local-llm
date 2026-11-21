@@ -68,6 +68,10 @@ ENGINES: dict[str, dict[str, str]] = {
     # release tag. A backend names its tree (`engine_tree`), so a row records
     # the tag's sha and the binary's mtime.
     "sushi": {"binary_rel": "zig-out/bin/sushi"},
+    # The inkling2-exl3 overlay (#1435): `engine_tree` is its git checkout, so a
+    # row records the overlay's sha. The built extension sits outside the tree
+    # (~/engines/inkling2-exl3-<sha8>), so there is no binary mtime to record.
+    "exllamav3": {},
 }
 
 
