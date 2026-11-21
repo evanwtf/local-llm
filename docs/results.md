@@ -286,7 +286,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 3930 rows, sha256 972d109064a2.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 4020 rows, sha256 4ef5ca09d053.*
 
 #### Every stack measured under OpenCode
 
@@ -309,10 +309,10 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | dsv41f1017tfzigjay176024bdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.3.2 uv=0.13.9) | 27/29 | 49s | 137s | 1.9x | 1.4x | 5.0x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.31) | 30/30 | 49s | 123s | 2.2x | 1.5x | 4.0x |
 | dsv41f1017tfzigjay176024bdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.2.7) | 25/29 | 49s | 142s | 2.1x | 1.3x | 7.3x |
+| inkling2sexl3255evanguodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.3.2 uv=0.13.9) | 100/100 | 49s | 118s | 1.6x | 1.2x | 2.8x |
 | dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.1) | 30/30 | 50s | 115s | 2.3x | 1.4x | 4.2x |
 | beam10tfbertdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.2.2) | 29/30 | 52s | 77s | 1.7x | 1.3x | 3.2x |
 | dsv41f1017tfzigjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.1) | 28/28 | 53s | 77s | 2.1x | 1.7x | 2.7x |
-| inkling2sexl3255evanguodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.3.2 uv=0.13.9) | 10/10 | 56s | 115s | — | — | 2.7x |
 | dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.2.5 uv=0.13.6 python=3.14.10 ripgrep=15.2.0) | 10/10 | 56s | 137s | — | — | 3.8x |
 | nemotron35supervldflashnothinkdual2xv032 @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 14/14 | 57s | 104s | 2.0x | 1.2x | 5.2x |
 | dsv41f1017eaqtfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4 uv=0.13.5 python=3.14.9) | 10/10 | 59s | 122s | — | — | 3.9x |
