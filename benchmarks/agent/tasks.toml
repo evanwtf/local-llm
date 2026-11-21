@@ -4455,6 +4455,23 @@ topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/miaai-glm-1104"
 
+# #1432 (operator 2026-11-20; run after #1435): #1358 arm B on the 1104 recipe's TensorFold 1.3.0 head.
+# One change against arm B: the engine and recipe (f350cd3e + 106 patches -> 81de26f6 + 16). Control: glm53fexl3tfqmiaai20261010dual2xrc.
+[backend.glm53fexl3tfmiaai1104tf130p4dual2x]
+description = "#1432: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517) across TWO DGX Sparks via MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104 @a691916c: TensorFold native Zig engine 1.3.0 (ashhart/TensorFold 81de26f6 + 16 MiaAI patches; patch 0010 TF_TOOL_CALL_GUARD is opt-in and left off), Zig 0.17.0, sm_121, image built locally, tagged tensorfold-glm53-spark:748a4e4e3e89. #1358 arm B's settings (fp8 KV on shared pages, q8 dense and head, ABSORB_MMA=1, MEMORY_RESERVE_GIB=10.7, DFlash2 drafts at 4 bits (incoai bf582e4e), THINKING=1, reasoning_effort low, PARALLEL=4, CONTEXT=262144) plus the recipe's new defaults CACHE_FIRST=1 and PROMPT_CACHE_GIB=5; PDL on the GLM kernels (the recipe default). Served as GLM-5.3-Flash-EXL3 on :8888. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "GLM-5.3-Flash-EXL3"
+active_params_b = 18
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "tfmia8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/miaai-glm-1104"
+
 # #1032 (operator-approved 2026-10-24): the speed candidate from the 2026-10-24 two-Spark sweep.
 [backend.mimov26flashrlexl3tfdflashdual2x]
 description = "#1032: Xiaomi MiMo-V2.6-Flash-RL (309B MoE, 15B active) EXL3 3.0 bpw (ajensenwaud/MiMo-V2.6-Flash-RL-exl3-3.0bpw @139d9a4e1e; the same 34 weight files as the recipe pin f2d8d10010) across TWO DGX Sparks, tensor parallel 2, via ajensenwaud/MiMo-V2.6-2x-DGX-Spark-TensorFold @a6292a2f92: TensorFold python-0.6 @ed78d6f + 30 patches, exllamav3 1.6.0, image built locally (mimo-tf:4df8c51482). Recipe defaults: DFlash drafter on (the pack's, 8-token blocks), 4 streams, context sized from free memory; only local overrides are the worker, the fabric addresses, the model path, and NCCL named on all four fabric paths; REMOTE CLIENT"
