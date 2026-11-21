@@ -4360,6 +4360,9 @@ context_tokens = 524288
 topology = "remote"
 smoke_protocol = "openai"
 engine_tree = "~/git/inkling2-exl3"
+recipe_dir = "~/git/inkling2-exl3"
+recipe_pin = "299eeaf3"
+recipe_pin_reason = "operator approved this revision only (#1435, 2026-11-20); a later one needs a new approval"
 
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]

@@ -42,6 +42,17 @@ def test_a_git_tree_reports_its_sha(tmp_path):
     assert "engine_dirty" not in got, "a clean tree is not dirty"
 
 
+def test_an_engine_with_an_empty_entry_still_reports_its_git_sha(tmp_path):
+    """exllamav3 (#1435) registers `{}`: a tree, no binary. Its rows must carry
+    the overlay checkout's sha, not nothing."""
+    tree = _git_tree(tmp_path)
+    got = engine_identity.identity("exllamav3", tree=str(tree))
+    assert got["engine_name"] == "exllamav3"
+    assert got["engine_version"]
+    assert got["engine_tree"] == str(tree)
+    assert "engine_built" not in got
+
+
 def test_a_dirty_git_tree_is_marked_dirty(tmp_path):
     tree = _git_tree(tmp_path, dirty=True)
     got = engine_identity.identity("ds4", tree=str(tree))

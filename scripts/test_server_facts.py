@@ -250,3 +250,40 @@ def test_the_engines_with_an_argv_reader():
         "tandemllm",
         "ds4",
     }
+
+
+def test_the_inkling2_backend_passes_the_currency_gate_at_its_pin(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#1435: a remote backend with no recipe_dir or image refuses; the
+    inkling2-exl3 checkout is its recipe, pinned to the approved revision."""
+    import tomllib
+
+    import currency
+
+    tasks = pathlib.Path(server_facts.__file__).resolve().parents[1] / (
+        "benchmarks/agent/tasks.toml"
+    )
+    name = "inkling2sexl3255evanguodual2xrc"
+    spec = tomllib.loads(tasks.read_text())["backend"][name]
+    assert spec["recipe_pin"] == "299eeaf3"
+    assert spec["recipe_pin_reason"]
+    (tmp_path / ".git").mkdir()
+    spec = {**spec, "recipe_dir": str(tmp_path)}
+    answers = {
+        "fetch --quiet origin": "",
+        "rev-parse --short HEAD": "299eeaf3",
+        "rev-parse --abbrev-ref origin/HEAD": "origin/spark",
+        "rev-parse --short origin/spark": "299eeaf3",
+        "rev-list --count HEAD..origin/spark": "0",
+        "tag --merged": "",
+    }
+
+    def run(argv: list[str], timeout: int = 30) -> str | None:
+        joined = " ".join(argv)
+        return next((v for k, v in answers.items() if k in joined), None)
+
+    monkeypatch.setattr(currency, "STAMP", tmp_path / "stamp.json")
+    assert server_facts.check_current(name, spec, run) is None
+    answers["rev-parse --short HEAD"] = "1234567"
+    assert server_facts.check_current(name, spec, run) is not None

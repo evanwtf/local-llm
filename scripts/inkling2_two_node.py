@@ -18,10 +18,14 @@ This launcher builds the same container commands, with four local changes:
   chat template's default, 0.9. So the launcher writes a copy of the pinned
   template whose default is "low" (0.2) and passes it with `--chat-template`.
   A request that sends its own `reasoning_effort` still wins.
-- **The pin is checked first.** Both nodes must hold the engine checkout at
-  `ENGINE_SHA` and a built extension, or the launch refuses.
+- **Each node is checked first** (`refusals`). The launch refuses unless both
+  nodes hold a clean engine checkout at `ENGINE_SHA`, a built extension, every
+  file in the pack's SHA256SUMS with no unfinished download, at least
+  `MIN_MEM_AVAILABLE_GIB` free, nothing on the API or store port, and no
+  container or process holding the GPU (the dcgm monitors excepted).
 
     uv run python scripts/inkling2_two_node.py start --name inkling2
+    uv run python scripts/inkling2_two_node.py start --nccl-debug INFO   # first launch: confirm NET/IB
     uv run python scripts/inkling2_two_node.py status --name inkling2
     uv run python scripts/inkling2_two_node.py stop --name inkling2
 
@@ -99,6 +103,18 @@ SERVE_ARGS = (
     "--prefix-every", "16384",
     "--chunk", "2048",
 )  # fmt: skip
+#: Lines in the pack's SHA256SUMS at 0265bcd7: every weight and config file.
+SUMS_ENTRIES = 132
+#: The least MemAvailable a node may have before a launch. The server sizes
+#: its KV cache from what is free, so a node with less serves a smaller cache
+#: than the backend describes, or runs out while loading ~100 GB of weights.
+MIN_MEM_AVAILABLE_GIB = 105
+#: Containers that request the GPU only to read its counters; they hold no
+#: memory to speak of and stay up during every run.
+GPU_MONITORS = frozenset({"dcgm", "dcgm-exporter"})
+#: Seconds one command on a node may take; ssh gives up connecting sooner.
+NODE_TIMEOUT_S = 120
+SSH_CONNECT_TIMEOUT_S = 10
 #: Rank 0 prints this just before uvicorn starts (server/i2_server.py).
 READY_LINE = f"serving on http://0.0.0.0:{PORT}"
 
@@ -117,9 +133,13 @@ def low_effort_template(text: str) -> str:
     return text.replace(TEMPLATE_DEFAULT, TEMPLATE_LOW)
 
 
-def container_env() -> dict[str, str]:
-    """The fork's container environment, with the fabric named in full."""
-    return {
+def container_env(nccl_debug: str = "WARN") -> dict[str, str]:
+    """The fork's container environment, with the fabric named in full.
+
+    `nccl_debug="INFO"` also logs NCCL's init and network choice, so the
+    first launch can confirm `NET/IB : Using` (RoCE, not TCP) in both logs.
+    """
+    env = {
         "NCCL_SOCKET_IFNAME": IFACES,
         "GLOO_SOCKET_IFNAME": IFACES,
         "NCCL_IB_HCA": IB_HCAS,
@@ -135,13 +155,16 @@ def container_env() -> dict[str, str]:
         "NCCL_P2P_DISABLE": "1",
         "NCCL_SHM_DISABLE": "1",
         "TORCH_NCCL_USE_COMM_NONBLOCKING": "0",
-        "NCCL_DEBUG": "WARN",
+        "NCCL_DEBUG": nccl_debug,
         "I2_P2P_AR": "1",
         "MALLOC_MMAP_THRESHOLD_": "262144",
         "MALLOC_TRIM_THRESHOLD_": "33554432",
         "HF_HUB_OFFLINE": "1",
         "TRANSFORMERS_OFFLINE": "1",
     }
+    if nccl_debug == "INFO":
+        env["NCCL_DEBUG_SUBSYS"] = "INIT,NET"
+    return env
 
 
 def rank_shell(rank: int, serve_args: list[str]) -> str:
@@ -160,7 +183,14 @@ def rank_shell(rank: int, serve_args: list[str]) -> str:
     )
 
 
-def docker_run(*, rank: int, name: str, home: str, serve_args: list[str]) -> list[str]:
+def docker_run(
+    *,
+    rank: int,
+    name: str,
+    home: str,
+    serve_args: list[str],
+    nccl_debug: str = "WARN",
+) -> list[str]:
     """The foreground `docker run` argv for one rank, with absolute paths."""
     build = f"{home}/{BUILD_DIR}"
     argv = [
@@ -173,7 +203,7 @@ def docker_run(*, rank: int, name: str, home: str, serve_args: list[str]) -> lis
         "-v", f"{home}/models/{MODEL}:/model:ro",
         "-v", f"{home}/models:/models:ro",
     ]  # fmt: skip
-    for key, value in container_env().items():
+    for key, value in container_env(nccl_debug).items():
         argv += ["-e", f"{key}={value}"]
     argv += ["--entrypoint", "bash", IMAGE, "-c", rank_shell(rank, serve_args)]
     return argv
@@ -188,7 +218,12 @@ def log_path(home: str, name: str, rank: int) -> str:
 
 
 def systemd_unit(
-    *, rank: int, name: str, home: str, serve_args: list[str]
+    *,
+    rank: int,
+    name: str,
+    home: str,
+    serve_args: list[str],
+    nccl_debug: str = "WARN",
 ) -> list[str]:
     """`systemd-run` wrapping one rank's `docker run` as the unit's main process."""
     log = log_path(home, name, rank)
@@ -197,37 +232,145 @@ def systemd_unit(
         "--property=KillMode=process",
         f"--property=StandardOutput=append:{log}",
         f"--property=StandardError=append:{log}",
-        *docker_run(rank=rank, name=name, home=home, serve_args=serve_args),
+        *docker_run(
+            rank=rank,
+            name=name,
+            home=home,
+            serve_args=serve_args,
+            nccl_debug=nccl_debug,
+        ),
     ]  # fmt: skip
 
 
-def preflight_shell(name: str, rank: int) -> str:
-    """Checks one node passes before its rank starts; prints `$HOME` last."""
-    sha = shlex.quote(ENGINE_SHA)
+_FACTS_SHELL = r"""
+M="$HOME/models/@MODEL@"; B="$HOME/@BUILD@"; E="$HOME/@TREE@"
+systemctl --user reset-failed @UNIT@ >/dev/null 2>&1 || true
+echo "home=$HOME"
+echo "engine_head=$(git -C "$E" rev-parse HEAD 2>/dev/null)"
+if git -C "$E" diff --quiet HEAD 2>/dev/null; then echo engine_dirty=0; else echo engine_dirty=1; fi
+echo "extension=$(sha256sum "$B"/@EXT@ 2>/dev/null | awk '{print $1}' | head -1)"
+if [ -f "$M/SHA256SUMS" ]; then
+  echo "sums=$(wc -l < "$M/SHA256SUMS")"
+  awk '{sub(/^\*/, "", $2); print $2}' "$M/SHA256SUMS" |
+    while IFS= read -r f; do [ -e "$M/$f" ] || echo "missing=$f"; done
+else
+  echo sums=none
+fi
+echo "incomplete=$(find "$M/.cache/huggingface/download" -name '*.incomplete' 2>/dev/null | wc -l)"
+echo "mem_kib=$(awk '/MemAvailable/ {print $2}' /proc/meminfo)"
+ss -ltnH | awk '{print $4}' | grep -E ':(@PORT@|@MPORT@)$' | sed 's/^/listen=/'
+echo "unit_active=$(systemctl --user is-active @UNIT@ 2>/dev/null)"
+docker ps -q | xargs -r docker inspect --format '{{.Name}} {{if .HostConfig.DeviceRequests}}gpu{{end}}' |
+  awk '$2 == "gpu" || $1 ~ /^\/i2spark-r/ {sub(/^\//, "", $1); print "gpu_container=" $1}'
+nvidia-smi --query-compute-apps=pid,process_name --format=csv,noheader 2>/dev/null |
+  grep -E '^[0-9]' | sed 's/^/gpu_app=/'
+"""
+
+
+def facts_shell(name: str, rank: int) -> str:
+    """A read-only probe of one node, one `key=value` per line.
+
+    Its only write is `reset-failed` on this rank's unit: a failed transient
+    unit keeps its name and blocks the next `systemd-run`.
+    """
+    subs = {
+        "@MODEL@": MODEL,
+        "@BUILD@": BUILD_DIR,
+        "@TREE@": ENGINE_TREE,
+        "@EXT@": EXTENSION_GLOB,
+        "@UNIT@": unit_name(name, rank),
+        "@PORT@": str(PORT),
+        "@MPORT@": str(MASTER_PORT),
+    }
+    text = _FACTS_SHELL
+    for key, value in subs.items():
+        text = text.replace(key, value)
+    return text
+
+
+def parse_facts(text: str) -> dict[str, list[str]]:
+    """`key=value` lines to {key: [values]}; other lines are ignored."""
+    facts: dict[str, list[str]] = {}
+    for line in text.splitlines():
+        key, sep, value = line.partition("=")
+        if sep and key.isidentifier():
+            facts.setdefault(key, []).append(value.strip())
+    return facts
+
+
+def _one(facts: dict[str, list[str]], key: str) -> str:
+    return (facts.get(key) or [""])[0]
+
+
+def refusals(facts: dict[str, list[str]], name: str, rank: int) -> list[str]:
+    """Every reason this node must not start its rank; empty means go."""
+    why = []
+    head = _one(facts, "engine_head")
+    if head != ENGINE_SHA:
+        why.append(f"engine checkout at {head or 'nothing'}, not {ENGINE_SHA}")
+    if _one(facts, "engine_dirty") != "0":
+        why.append(f"engine checkout ~/{ENGINE_TREE} has uncommitted changes")
+    if not _one(facts, "extension"):
+        why.append(f"no built exllamav3 extension in ~/{BUILD_DIR}")
+    sums = _one(facts, "sums")
+    if not sums.isdigit():
+        why.append(f"no SHA256SUMS in ~/models/{MODEL}: the weights are not there")
+    elif int(sums) != SUMS_ENTRIES:
+        why.append(f"SHA256SUMS lists {sums} files, not {SUMS_ENTRIES}")
+    missing = facts.get("missing", [])
+    if missing:
+        why.append(f"{len(missing)} files in SHA256SUMS are absent, e.g. {missing[:3]}")
+    incomplete = _one(facts, "incomplete")
+    if incomplete not in ("", "0"):
+        why.append(f"{incomplete} *.incomplete files: a download is unfinished")
+    mem = _one(facts, "mem_kib")
+    gib = int(mem) / 2**20 if mem.isdigit() else 0.0
+    if gib < MIN_MEM_AVAILABLE_GIB:
+        why.append(
+            f"MemAvailable {gib:.1f} GiB is under {MIN_MEM_AVAILABLE_GIB} GiB: "
+            "something else holds memory"
+        )
+    for addr in facts.get("listen", []):
+        why.append(f"{addr} is already listening")
+    if _one(facts, "unit_active") == "active":
+        why.append(f"unit {unit_name(name, rank)} is already active")
+    holders = [c for c in facts.get("gpu_container", []) if c not in GPU_MONITORS]
+    if holders:
+        why.append(f"running containers hold the GPU: {holders}")
+    for app in facts.get("gpu_app", []):
+        why.append(f"a GPU process is running: {app}")
+    return why
+
+
+def prepare_shell(name: str) -> str:
+    """After the checks pass: the log directory, and no stale container."""
     return (
-        "set -e; "
-        f'got=$(git -C "$HOME/{ENGINE_TREE}" rev-parse HEAD); '
-        f'[ "$got" = {sha} ] || {{ echo "engine at $got, not {ENGINE_SHA}" >&2; exit 1; }}; '
-        f'ls "$HOME"/{BUILD_DIR}/{EXTENSION_GLOB} >/dev/null || '
-        '{ echo "no built exllamav3 extension" >&2; exit 1; }; '
-        f'[ -f "$HOME/models/{MODEL}/config.json" ] || '
-        f'{{ echo "no weights at ~/models/{MODEL}" >&2; exit 1; }}; '
-        f"! systemctl --user is-active --quiet {unit_name(name, rank)} || "
-        f'{{ echo "unit {unit_name(name, rank)} is already active" >&2; exit 1; }}; '
         'mkdir -p "$HOME/bench-logs"; '
-        f"docker rm -f {name}-r{rank} >/dev/null 2>&1 || true; "
-        'printf %s "$HOME"'
+        f"docker rm -f {shlex.quote(name)}-r$RANK >/dev/null 2>&1 || true"
     )
 
 
 def on_node(rank: int, command: str) -> subprocess.CompletedProcess[str]:
-    """Run a shell line on the node of `rank`: the head is local."""
+    """Run a shell line on the node of `rank`: the head is local.
+
+    A node that does not answer fails in seconds, not at the TCP timeout.
+    """
     argv = (
         ["bash", "-c", command]
         if rank == 0
-        else ["ssh", "-n", "-o", "BatchMode=yes", WORKER, command]
-    )
-    return subprocess.run(argv, capture_output=True, text=True, check=False)
+        else [
+            "ssh", "-n", "-o", "BatchMode=yes",
+            "-o", f"ConnectTimeout={SSH_CONNECT_TIMEOUT_S}", WORKER, command,
+        ]
+    )  # fmt: skip
+    try:
+        return subprocess.run(
+            argv, capture_output=True, text=True, check=False, timeout=NODE_TIMEOUT_S
+        )
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(
+            argv, 124, "", f"no answer from rank {rank}'s node in {NODE_TIMEOUT_S} s"
+        )
 
 
 def write_low_template(home: str) -> None:
@@ -241,23 +384,48 @@ def write_low_template(home: str) -> None:
 
 
 def start(args: argparse.Namespace) -> int:
-    homes: dict[int, str] = {}
+    facts: dict[int, dict[str, list[str]]] = {}
+    refused = False
     for rank in (1, 0):
-        r = on_node(rank, preflight_shell(args.name, rank))
+        r = on_node(rank, facts_shell(args.name, rank))
+        facts[rank] = parse_facts(r.stdout)
+        why = refusals(facts[rank], args.name, rank)
+        if r.returncode and not facts[rank]:
+            why = [f"the probe failed: {r.stderr.strip()}"]
+        for reason in why:
+            logger.error("rank %d refuses: %s", rank, reason)
+        refused = refused or bool(why)
+    if refused:
+        return 1
+    homes = {rank: _one(facts[rank], "home") for rank in (0, 1)}
+    for rank in (1, 0):
+        r = on_node(rank, f"RANK={rank}; {prepare_shell(args.name)}")
         if r.returncode:
-            logger.error("rank %d preflight failed: %s", rank, r.stderr.strip())
+            logger.error("rank %d prepare failed: %s", rank, r.stderr.strip())
             return 1
-        homes[rank] = r.stdout.strip()
     write_low_template(homes[0])
     for rank in (1, 0):  # the worker first; rank 0 holds the store it waits for
         argv = systemd_unit(
-            rank=rank, name=args.name, home=homes[rank], serve_args=args.serve_args
+            rank=rank,
+            name=args.name,
+            home=homes[rank],
+            serve_args=args.serve_args,
+            nccl_debug=args.nccl_debug,
         )
         line = shlex.join(argv)
-        logger.info("rank %d: %s", rank, line)
+        # Separate builds of the extension differ byte for byte; record each.
+        logger.info(
+            "rank %d (extension sha256 %s): %s",
+            rank,
+            _one(facts[rank], "extension"),
+            line,
+        )
         r = on_node(rank, line)
         if r.returncode:
             logger.error("rank %d did not start: %s", rank, r.stderr.strip())
+            if rank == 0:  # do not leave the worker waiting for a store
+                on_node(1, stop_shell(args.name, 1))
+                logger.error("stopped rank 1 because rank 0 did not start")
             return 1
         logger.info("rank %d log: %s", rank, log_path(homes[rank], args.name, rank))
     logger.info(
@@ -312,6 +480,12 @@ def main(argv: list[str] | None = None) -> int:
         "start", help="start rank 1 on the worker, then rank 0 here"
     )
     p_start.add_argument("--name", default="inkling2")
+    p_start.add_argument(
+        "--nccl-debug",
+        choices=("WARN", "INFO"),
+        default="WARN",
+        help="INFO also sets NCCL_DEBUG_SUBSYS=INIT,NET, to confirm RoCE in the logs",
+    )
     p_start.add_argument("serve_args", nargs=argparse.REMAINDER)
     for cmd, text in (("stop", "stop both ranks"), ("status", "show both ranks")):
         p = sub.add_parser(cmd, help=text)

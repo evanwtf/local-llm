@@ -275,7 +275,9 @@ def identity(engine: str, tree: str | None = None) -> dict[str, object]:
     ds4 fork names it here, so the row records exactly which tree served it.
     """
     spec = ENGINES.get(engine)
-    if not spec:
+    # `is None`, not falsy: exllamav3's entry is an empty dict (a git tree,
+    # no binary), and it must still report the tree's sha (#1435).
+    if spec is None:
         return {}
     # A tree is only known when the caller names one or the registry declares
     # one. A brew binary has neither, and must not fall through to the current
