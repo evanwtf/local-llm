@@ -162,20 +162,21 @@ also very valuable." So we rank on correctness first, then time.
 
 | model and server | tested | result | issue |
 |---|---|---|---|
-| DeepSeek-1017, sudoingX recipe v2.0, sudoingx 2.8 bpw | 2026-10-25 | 41/41, 5,348.7 s (111.8%); hidden 345 of 380 (90.8%). This is why section 1 pins the recipe at `cc59c360` | [#1244][i1244] |
-| DeepSeek-1017, EXL3 2.5 bpw (bertholomus), on bertholomus TensorFold TP2 | 2026-10-27 to 10-28, 3 runs, OpenCode 2.2.0 | 118/119, 4,153.4 s pooled (95.5%); hidden 94.9%, 95.2% and 93.3%, below the best all-around choice in every run | [#930][i930] |
-| DeepSeek-1017, EXL3 2.8 bpw (jayleaton), on TensorFold Zig | 2026-10-18 to 10-19 | 34/35, with 7 trials not counted; the server crashed (`PoolExhausted`) after 5 h 7 min | [#1142][i1142] |
+| DeepSeek-1017, sudoingX recipe v2.0, sudoingx 2.8 bpw | 2026-10-25 | 41/41, 5,348.7 s (111.8%); hidden 345 of 380 (90.8%), so section 1 pins `cc59c360` | [#1244][i1244] |
+| DeepSeek-1017, EXL3 2.5 bpw (bertholomus), on bertholomus TensorFold TP2 | 2026-10-27 to 10-28, 3 runs, OpenCode 2.2.0 | 118/119, 4,153.4 s pooled (95.5%); hidden 94.9%, 95.2% and 93.3%, each below the best all-around choice | [#930][i930] |
+| DeepSeek-1017, EXL3 2.8 bpw (jayleaton), on TensorFold Zig | 2026-10-18 to 10-19 | 34/35, 7 trials not counted; the server crashed (`PoolExhausted`) after 5 h 7 min | [#1142][i1142] |
 | GLM-5.3-Flash FP4-Local on vLLM | 2026-10-21 | 41/42, 6,704.7 s (153.8% of GLM); hidden 72.6% | [#1128][i1128] |
 | GLM on TensorFold's own engine 1.1.3, no recipe | 2026-10-24 | standard set 30/30, 425.4 s (162.1% of the recipe) | [#1095][i1095] |
 | GLM on MiaAI's 1104 recipe, TensorFold native | 2026-11-05 and 11-21 | 30/30 in four arms, at 133% to 135% of GLM's time | [#1358][i1358], [#1432][i1432] |
 | Inkling 2 Small, EXL3 2.55 bpw | 2026-11-21 | 90/90 in 3 runs, at 204% of GLM's time | [#1435][i1435] |
-| Nemotron-3.5-Super-VL NVFP4; MiMo-V2.6-Flash-RL | 2026-10-24 | dropped after the standard set at 209.4% and 478.7% of GLM's time | [#1231][i1231], [#1032][i1032] |
-| GLM TR3 4 bpw, same recipe as GLM | 2026-10-06, older client | 122/126, 4,271.0 s, against the chosen GLM quant's 124/126 and 4,111.1 s | [#970][i970] |
-| Qwen3.8-Flash-Next, every server | 2026-10-07 to 10-12, older client | passed nearly every trial, at 188% to 265% of GLM's time: it spent 14,000 to 16,800 reasoning tokens a trial, against GLM's 2,800 to 3,500 | [#865][i865], [#897][i897], [#977][i977] |
+| DeepSeek-1017 EAQ v1.1, MiaAI recipe `c7f2b85` | 2026-11-21, 2 runs | 25/25, stopped at 201% and 203% of GLM's time | [#1168][i1168] |
+| Nemotron-3.5-Super-VL NVFP4; MiMo-V2.6-Flash-RL | 2026-10-24 | standard set at 209.4% and 478.7% of GLM's time | [#1231][i1231], [#1032][i1032] |
+| GLM TR3 4 bpw, same recipe as GLM | 2026-10-06, older client | 122/126, 4,271.0 s; the chosen quant: 124/126, 4,111.1 s | [#970][i970] |
+| Qwen3.8-Flash-Next, every server | 2026-10-07 to 10-12, older client | nearly every trial passed, at 188% to 265% of GLM's time: 14,000 to 16,800 reasoning tokens a trial, against GLM's 2,800 to 3,500 | [#865][i865], [#897][i897], [#977][i977] |
 
-"Older client" means OpenCode before 2.0.32. Its times do not compare with the
-rows above. Stacks dropped before any test, and results from before the client
-fix of 2026-10-06 ([#968][i968]), are in the archive below.
+"Older client" means OpenCode before 2.0.32; its times do not compare. Untested
+stacks and results from before the 2026-10-06 client fix ([#968][i968]) are in
+the archive below.
 
 ---
 
