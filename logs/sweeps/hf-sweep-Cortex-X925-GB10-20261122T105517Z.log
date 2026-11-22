@@ -1,0 +1,107 @@
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 2026-11-22T10:55:17Z (05:55:17 EST) | harness aadcacc
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement bwrap
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] Hugging Face sweep since 2026-11-21T22:55:17Z (12h)
+
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] == Qwen3.8-Flash-Next -- our fastest stack (llama.cpp Q3, and the 112 GB MLX build)
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? maxwell1500/Qwen3.8-Flash-Next-128E-Recovery-LoRA          2026-11-22T10:33         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? bearzi/Qwen3.8-Flash-Next-oQ2e                             2026-11-22T09:10         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? bearzi/Qwen3.8-Flash-Next-oQ2eL                            2026-11-22T09:10         dl=7
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? bearzi/Qwen3.8-Flash-Next-oQ3e                             2026-11-22T07:46         dl=8
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? bearzi/Qwen3.8-Flash-Next-oQ3eL                            2026-11-22T07:46         dl=12
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? bearzi/Qwen3.8-Flash-Next-oQ4e                             2026-11-22T07:45         dl=13
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? bearzi/Qwen3.8-Flash-Next-oQ4eL                            2026-11-22T07:45         dl=118
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? LTM-Lab/Qwen3.8-Flash-Next-FP4-Local-Abliterated-v17       2026-11-22T07:20         dl=29
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? dongfangshuo/Dongfangshuo-Qwen3.8-Flash-Next-NSFW          2026-11-22T06:44         dl=47097
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     quocbao747/Qwen3.8-Flash-Next-Uncensored-NVFP4-2xGB10      2026-11-22T05:31         dl=64
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     ansoncat/qwen3.8-flash-next-ds4-64gb-mac-gguf              2026-11-22T03:53         dl=179
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     rSalone/Qwen3.8-Flash-Next-GSQ-RCO-uncensored-L6-41-GGUF   2026-11-22T03:39         dl=46
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     agentionai/Qwen3.8-Flash-Next-Gyro-GGUF                    2026-11-22T00:08         dl=2334597
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     agentionai/Qwen3.8-Flash-Next-Gyro-Coder-GGUF              2026-11-21T23:59         dl=55731
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     agentionai/Qwen3.8-Flash-Next-Gyro-abliterated-Huihui-GGUF 2026-11-21T23:46         dl=1761365
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] == DeepSeek-V4-Flash -- our only independent lineage; ds4 serves it
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     3MPER0RR/Qwen3.8-27B-3MPER0RR-abliterated-BF16-DeepSeek-V4 2026-11-22T10:42         dl=21
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     wnstsc/Huihui-DeepSeek-V4.1-Flash-1017-abliterated-GGUF    2026-11-22T06:58         dl=2
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Evotrek/DeepSeek-V4.1-Flash-1017                           2026-11-22T06:33         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     zanezhang666/Huihui-DeepSeek-V4.1-Flash-1017-abliterated-G 2026-11-22T06:31         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     zanezhang666/DeepSeek-V4.1-Flash-1017-Uncensored-GSQ-RCO-G 2026-11-22T06:30         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     zanezhang666/Huihui-DeepSeek-V4-Flash-0731-abliterated-GGU 2026-11-22T06:29         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     zanezhang666/Huihui-DeepSeek-V4-Flash-abliterated-ds4-GGUF 2026-11-22T06:27         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     zanezhang666/DeepSeek-V4.1-Flash-1017-Uncensored-GSQ-RCO-I 2026-11-22T06:26         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     elvezjp/DeepSeek-V4.1-Flash-1017-ELVEZ-Q2-gguf             2026-11-22T05:37         dl=70
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     elvezjp/DeepSeek-V4.1-Flash-1017-ELVEZ-Q2-ja1-gguf         2026-11-22T05:37         dl=59
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     elvezjp/DeepSeek-V4.1-Flash-1017-ELVEZ-FP4-gguf            2026-11-22T05:37         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? PrblyElect/DeepSeek-V4.1-Flash-TP3-3x-DGX-Spark            2026-11-22T04:51         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? jm2787/PatrickStar-DeepSeek-V41-Flash-C8                   2026-11-22T03:52         dl=40
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     3MPER0RR/Qwen3-8B-3MPER0RR-BF16-DeepSeek-V4-Flash          2026-11-22T00:43         dl=733
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] == GLM-5.3-Flash -- the other non-Qwen on ds4
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     kongke83/GLM-5.3-Flash-UNCENSORED-FP8                      2026-11-22T10:45         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     d3vilbug/GLM-5.3-Flash-Dealign-EXL3                        2026-11-22T09:45         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     manateelazycat/GLM-5.3-Flash-vLLM-NVFP4-Thor-TP4           2026-11-22T08:30         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     manateelazycat/GLM-5.3-Flash-vLLM-DFlash2                  2026-11-22T04:25         dl=6
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     manateelazycat/GLM-5.3-Flash-NVFP4-Thor-TP4                2026-11-22T03:47         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? manateelazycat/GLM-5.3-Flash-Thor-TP4                      2026-11-22T00:03         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] == Qwen3.6-27B -- the 31 GB 'start here' pick
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Xylolabs/Qwen3.6-27B-Tenstorrent-Tensix-BFP8               2026-11-22T10:46         dl=91
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/Qwen3.6-27B-Tenstorrent-Tensix-BFP4               2026-11-22T09:10         dl=110
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     ggml-org/Qwen3.6-27B-GGUF                                  2026-11-22T05:55         dl=93816
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Xylolabs/Qwen3.6-27B-GGUF                                  2026-11-22T05:41         dl=355
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] == Ornith-1.5 -- fastest measured backend
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/Ornith-1.5-35B-A3B-Tenstorrent-Tensix-BFP4-Expert 2026-11-22T10:52         dl=76
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/Ornith-1.5-9B-Tenstorrent-Tensix-BFP4-Out8        2026-11-22T09:07         dl=93
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/Ornith-1.5-35B-A3B-Tenstorrent-Tensix-BFP4        2026-11-22T09:06         dl=138
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Nullmega/Amethyst-1.5-9b-sft-ornith-sft-20261121-final-001 2026-11-22T04:26         dl=14
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] == gemma-4-26b -- the MLX Fast leaderboard model; measured 11/11
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? AlexHung29629/gemma4-26b-a4b-mopd-merged-student-78steps   2026-11-22T10:53         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? AlexHung29629/gemma4-26b-a4b-mopd-student-78steps          2026-11-22T10:52         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Xylolabs/gemma-4-26B-A4B-it-qat-q4_0-unquantized-Tenstorre 2026-11-22T10:50         dl=91
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/gemma-4-26B-A4B-it-qat-q4_0-unquantized-Tenstorre 2026-11-22T10:50         dl=98
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Xylolabs/gemma-4-26B-A4B-Tenstorrent-Tensix-BFP8           2026-11-22T10:50         dl=129
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/gemma-4-26B-A4B-Tenstorrent-Tensix-BFP4           2026-11-22T10:50         dl=135
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Xylolabs/gemma-4-26B-A4B-it-Tenstorrent-Tensix-BFP8        2026-11-22T10:46         dl=127
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/gemma-4-26B-A4B-it-Tenstorrent-Tensix-BFP4        2026-11-22T09:12         dl=201
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Xylolabs/gemma-4-26B-A4B-GGUF                              2026-11-22T09:00         dl=364
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Bharath0209/gemma-4-26b-a4b-it-mixed-gguf                  2026-11-22T05:31         dl=15
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? krystofmitka/ThinkingBomb-gemma-4-26B-A4B                  2026-11-22T03:10         dl=712
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     FarhadSu/Gemma-4-26B-A4B-Uncensored-GGUF                   2026-11-21T23:17         dl=118
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] == gemma-4-31b -- the Google-lineage backend, measured 12/12
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Xylolabs/gemma-4-31B-it-qat-q4_0-unquantized-Tenstorrent-T 2026-11-22T10:51         dl=88
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/gemma-4-31B-it-qat-q4_0-unquantized-Tenstorrent-T 2026-11-22T10:51         dl=99
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/gemma-4-31B-it-Tenstorrent-Tensix-BFP4-MLP        2026-11-22T10:51         dl=151
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Xylolabs/gemma-4-31B-Tenstorrent-Tensix-BFP8               2026-11-22T10:50         dl=91
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/gemma-4-31B-Tenstorrent-Tensix-BFP4-MLP           2026-11-22T10:50         dl=92
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? 3MPER0RR/gemma-4-31b-it-3MPER0RR-abliterated               2026-11-22T10:29         dl=112
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Koshkasa/Nimbz_Gemma-4-Orthia-31B-IQ4_XS-GGUF-tied         2026-11-22T10:25         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? suzinkrbyk/sz-128k-sec50k-gemma-4-31b-it                   2026-11-22T10:17         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     kabcnd/Kenzan-Gemma-4-31B-PinGrid-GGUF                     2026-11-22T08:46         dl=34
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? egeboy35/gemma-4-31B-it-mret-64k-merged                    2026-11-22T07:53         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? egeboy35/gemma-4-31B-it-mret-32k-merged                    2026-11-22T07:52         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? egeboy35/gemma-4-31B-it-mret-128k-merged                   2026-11-22T07:52         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     Xylolabs/gemma-4-31B-it-GGUF                               2026-11-22T05:41         dl=2473
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? khazic/gemma4_31b_sea7_2ep_sft                             2026-11-22T04:22         dl=0
+2026-11-22T05:55:17-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] == Nemotron -- NVIDIA's Nemotron lineage; NVFP4/FP8 for Blackwell
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     terelabs/Nemotron-3-Nano-4B-Invoicity-GGUF                 2026-11-22T10:44         dl=0
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? divinetribe/Nemotron-3-Nano-Omni-30B-Abliterated-MM-8bit   2026-11-22T09:20         dl=558
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? divinetribe/Nemotron-3-Nano-Omni-30B-Abliterated-MM-4bit   2026-11-22T09:20         dl=471
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     divinetribe/Nemotron-3-Nano-Omni-30B-Abliterated-MM-bf16   2026-11-22T09:20         dl=874
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-Tenstorrent 2026-11-22T09:06         dl=106
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-Tenstorrent 2026-11-22T09:06         dl=171
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/NVIDIA-Nemotron-3-Nano-30B-A3B-Tenstorrent-Tensix 2026-11-22T09:06         dl=256
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Xylolabs/NVIDIA-Nemotron-3-Nano-30B-A3B-Tenstorrent-Tensix 2026-11-22T09:06         dl=113
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     LTM-Lab/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4-v17   2026-11-22T07:19         dl=23
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? Dummy9898/mesosfer-d24-sft-nemotron                        2026-11-22T06:58         dl=0
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]   ? barez59/nemotron-asr-streaming-farsi-coreml-int8           2026-11-22T06:24         dl=3
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     ggml-org/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-GGUF       2026-11-22T05:48         dl=85965
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3.5-Bolt-E4B-Abliterated-i1-GGUF     2026-11-22T02:44         dl=588
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a]     mradermacher/Nemotron-3.5-Bolt-E4B-Abliterated-GGUF        2026-11-22T00:23         dl=583
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 8 result(s) hidden as unloadable on gb10 (mlx, rocm, exl2). Re-run with --all to see them.
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] 
+Legend:  (blank) loads here   ? unclassified, check it   x hidden
+2026-11-22T05:55:18-0500 INFO [aadcacc@Cortex-X925-GB10 none pld=n/a] log: /tmp/tmp.BvhDrQtlra/wt/logs/sweeps/hf-sweep-Cortex-X925-GB10-20261122T105517Z.log
