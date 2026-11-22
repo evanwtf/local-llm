@@ -4388,6 +4388,38 @@ context_tokens = 262144
 topology = "remote"
 image = "vllm/vllm-openai:inkling-2-mini"
 
+# #1458 (DGX source sweep, 2026-11-21): the #1438 arm on vLLM main at c32251b5d, which carries
+# vllm#69028 (Inkling 2 Mini; SM12x sent around the TMA router kernel) and vllm#69021 (the TMA
+# k_group_partials path kept on SM12x). Same weights, flags and drafter as #1438, except that
+# --max-num-batched-tokens 1024 is dropped: vLLM then schedules 2,048 tokens a step (logged:
+# "max_num_scheduled_tokens is set to 2048 based on the speculative decoding settings").
+# Image local/vllm-openai:inkling2-c32251b5d: FROM vllm/vllm-openai:inkling-2-mini plus
+# vllm-0.34.0rc1.dev1129+gc32251b5d-cp38-abi3-manylinux_2_28_aarch64.whl from wheels.vllm.ai
+# (sha256 07477b5869a0d9849441d664784ff9df24d3242d6343e8d226a03c93f34f8f2d), pip --no-deps; the
+# wheel pins torch 2.14.0, torchaudio 2.11.1, torchvision 0.29.2, flashinfer-python 0.7.4, all
+# as in the base image. No released image or nightly carried both merges on 2026-11-21.
+# Launch (both nodes, worker first):
+#   uv run python scripts/vllm_two_node.py start --model-dir ~/models/thinkingmachines--Inkling-2-Mini-ed40e7da62 \
+#     --image local/vllm-openai:inkling2-c32251b5d --name mini -- --served-model-name inkling-2-mini \
+#     --tokenizer-mode inkling --max-model-len 262144 \
+#     --limit-mm-per-prompt '{"image":0}' --gpu-memory-utilization 0.8 \
+#     --reasoning-parser inkling --enable-auto-tool-choice --tool-call-parser inkling \
+#     --speculative-config '{"method":"dspark","num_speculative_tokens":7,"draft_sample_method":"probabilistic"}' \
+#     --default-chat-template-kwargs '{"reasoning_effort":"low"}' --enable-prompt-tokens-details
+[backend.inkling2mininvfp4vllmmaindual2xrc]
+description = "#1458: Inkling 2 Mini NVFP4 (thinkingmachines/Inkling-2-Mini @ed40e7da62) on BOTH Sparks, TP2 over the ConnectX fabric (scripts/vllm_two_node.py), on vLLM main c32251b5d (vllm#69028 + vllm#69021: the SM12x router-kernel fix) instead of the #1438 image. Image local/vllm-openai:inkling2-c32251b5d (the #1438 image plus the official c32251b5d aarch64 wheel). The #1438 flags without --max-num-batched-tokens 1024: vLLM schedules 2,048 tokens a step (the DSpark default with 7 draft tokens). DSpark drafts (7, probabilistic), 262K context, text only (vision still needs FA3 on SM12x, vllm#69012), reasoning effort low on the server. Served as inkling-2-mini on :8888. REMOTE CLIENT"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "inkling-2-mini"
+active_params_b = 3.5
+aider_model = "openai/inkling-2-mini"
+opencode_model = "vllm8888/inkling-2-mini"
+context_tokens = 262144
+topology = "remote"
+image = "local/vllm-openai:inkling2-c32251b5d"
+
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]
 description = "#1095: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the fast option's weights) across TWO DGX Sparks on STOCK TensorFold native 1.1.3 (ashhart/TensorFold release tensorfold-1.1.3-linux-aarch64, sha256 checked; no MiaAI patches), launched by scripts/tensorfold_native_two_node.py: TF_GLM_WORLD=2, NCCL on all four fabric paths, libnccl 2.29.7 from vllm/vllm-openai:v0.32.0. Serve flags chosen to match the leader glm53fexl3tfqmiaai20261010dual2xrc: --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768; drafts the engine default (on); sampling the engine default (temperature 1.0, top_p 0.95); reasoning_effort low sent by the client. REMOTE CLIENT"
