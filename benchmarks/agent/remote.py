@@ -370,6 +370,14 @@ NO_INSTANCE_MARKER: dict[str, str] = {
         "POST /v1 routes; it publishes no start time or request counter, so "
         "a restart under the same model name is not detected (#948)"
     ),
+    # #383: tensorrt_llm/commands/serve.py at v1.4.0rc4 starts the OpenAI
+    # server with no process start time on any route this repo has read. A
+    # counter or start-time probe needs a live read of its /metrics first.
+    "trtllm": (
+        "trtllm-serve 1.4.0rc4 is not known to publish a start time, and no "
+        "request counter has been read live from it yet, so a restart under "
+        "the same model name is not detected (#383)"
+    ),
 }
 
 #: The server flag that turns on the route an engine's marker lives on. Named

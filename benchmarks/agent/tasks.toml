@@ -4445,18 +4445,25 @@ recipe_pin_reason = "the image is the #1438 image plus the official wheels.vllm.
 
 # #383: TensorRT-LLM against vLLM as the two-Spark engine, on NVIDIA's own NVFP4 GLM-5.3-Flash weights.
 # Image nvcr.io/nvidia/tensorrt-llm/release:1.4.0rc4, the first 1.4 release that loads this checkpoint
-# (config model_type glm5_next). One MPI job over both nodes, after NVIDIA's "Run on two Sparks" recipe
-# (NVIDIA/dgx-spark-playbooks nvidia/trt-llm/README.md @3088315054); the recipe's sshd entrypoint is
-# vendored at that commit and checked by sha256 before every start. glm5_next is in neither of
-# TRT-LLM's parser auto-maps at v1.4.0rc4, so glm47 is passed for both (the launcher's default).
-# Launch (both nodes, worker first; the server log lands in ~/bench-logs on the head):
+# (config model_type glm5_next; v1.3.0 has no modeling_glm5_next). Image currency is checked by hand for
+# now: preflight does not compare an nvcr.io tag with newer releases, and rc4 was the newest tag on
+# 2026-11-18. One MPI job (Open MPI 5, one rank per node) over both nodes, after NVIDIA's "Run on two
+# Sparks" recipe (NVIDIA/dgx-spark-playbooks nvidia/trt-llm/README.md @3088315054); the recipe's sshd
+# entrypoint is vendored at that commit and checked by sha256 before every start. glm5_next is in
+# neither of TRT-LLM's parser auto-maps at v1.4.0rc4, so glm47 is passed for both (the launcher's
+# default). Chunked prefill is on: without it rc4 refuses a prompt longer than --max_num_tokens, so the
+# 262K context holds only with it. Reasoning effort low, set on the server; rc4 drops a request's
+# reasoning_effort for glm5_next, so the launcher serves the snapshot's chat template with its default
+# changed from 'max' to 'low'.
+# Launch (both nodes, worker first; waits for /v1/models; the server log and the serve argv land in
+# ~/bench-logs on the head):
 #   uv run python scripts/trtllm_two_node.py start \
 #     --model-dir ~/.cache/huggingface/hub/models--nvidia--GLM-5.3-Flash-NVFP4/snapshots/1d00738646cbb0c6d0a9eb403dac5f366f1473a7 \
 #     --image nvcr.io/nvidia/tensorrt-llm/release:1.4.0rc4 --name glm-5.3-flash-nvfp4 \
 #     --max-num-tokens 32768 --max-batch-size 4 --max-seq-len 262144 --kv-free-fraction 0.8
 #   uv run python scripts/trtllm_two_node.py stop --name glm-5.3-flash-nvfp4
 [backend.glm53fnvfp4trtllmdual2xrc]
-description = "#383: GLM-5.3-Flash NVFP4 (nvidia/GLM-5.3-Flash-NVFP4 @1d007386, 190.4 GiB) on BOTH Sparks, TensorRT-LLM tensor parallel 2 over the ConnectX fabric (scripts/trtllm_two_node.py: one mpirun job, trtllm-llmapi-launch trtllm-serve, PyTorch backend, NCCL on all four fabric paths). Image nvcr.io/nvidia/tensorrt-llm/release:1.4.0rc4. Flags: --max_num_tokens 32768 --max_batch_size 4 (the NVIDIA two-Spark recipe's values), --max_seq_len 262144, KV free-memory fraction 0.8 with dtype auto, CUDA graph padding on, --tool_parser glm47 --reasoning_parser glm47. Served as glm-5.3-flash-nvfp4 on :8888. REMOTE CLIENT"
+description = "#383: GLM-5.3-Flash NVFP4 (nvidia/GLM-5.3-Flash-NVFP4 @1d007386, 190.4 GiB) on BOTH Sparks, TensorRT-LLM tensor parallel 2 over the ConnectX fabric (scripts/trtllm_two_node.py: one Open MPI 5 job, one rank per node, trtllm-llmapi-launch trtllm-serve, PyTorch backend, NCCL on all four fabric paths). Image nvcr.io/nvidia/tensorrt-llm/release:1.4.0rc4. Flags: --max_num_tokens 32768 --max_batch_size 4 (the NVIDIA two-Spark recipe's values), --max_seq_len 262144 with chunked prefill on (rc4 refuses a longer prompt than max_num_tokens without it), KV free-memory fraction 0.8 with dtype auto, CUDA graph padding on, --tool_parser glm47 --reasoning_parser glm47. Reasoning effort low, set on the server; rc4 drops a request's reasoning_effort for glm5_next (the snapshot's chat template with its default changed from max to low, --chat_template). Served as glm-5.3-flash-nvfp4 on :8888. REMOTE CLIENT"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"

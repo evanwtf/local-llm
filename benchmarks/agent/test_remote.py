@@ -616,6 +616,34 @@ def test_an_engine_without_a_marker_is_not_probed():
     assert "/v1/models" in got["reason"]
 
 
+def test_trtllm_is_classified_as_having_no_marker():
+    """#383: server_facts refuses an engine in neither table."""
+
+    def fetch(url, timeout):
+        raise AssertionError("must not be called")
+
+    got = remote.read_instance("http://srv:8888", "trtllm", fetch)
+    assert got is not None and got["kind"] == "none"
+    assert "#383" in got["reason"]
+
+
+def test_every_remote_backend_engine_is_classified():
+    """An engine in neither table refuses every remote batch (#948)."""
+    import pathlib
+    import tomllib
+
+    tasks = pathlib.Path(__file__).resolve().parent / "tasks.toml"
+    backends = tomllib.loads(tasks.read_text())["backend"]
+    engines = {
+        str(b.get("engine", "")).lower()
+        for b in backends.values()
+        if b.get("topology") == "remote" and not b.get("retired")
+    }
+    known = set(remote.INSTANCE_PROBES) | set(remote.NO_INSTANCE_MARKER)
+    assert "trtllm" in engines
+    assert not engines - known, sorted(engines - known)
+
+
 def test_an_unclassified_engine_reads_as_no_record():
     def fetch(url, timeout):
         raise AssertionError("must not be called")
