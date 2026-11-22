@@ -113,8 +113,9 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
         "the other CUDA-native path to NVFP4 on the Spark (#293, #299)",
         (DGX,),
     ),
-    "NVIDIA/flare-local-inference": (
-        "NVIDIA Flare: a Rust local server for SM121, built for coding agents (#1207)",
+    # Renamed from NVIDIA/flare-local-inference; GitHub redirects the old name.
+    "NVIDIA/hyperflare-inference": (
+        "NVIDIA Hyperflare: a Rust server for SM121, for coding agents (#1207, #1459)",
         (DGX,),
     ),
     "sgl-project/sglang": (
