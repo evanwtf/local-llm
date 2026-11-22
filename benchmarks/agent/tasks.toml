@@ -4443,6 +4443,43 @@ recipe_dir = "~/engines/vllm-main"
 recipe_pin = "c32251b5d"
 recipe_pin_reason = "the image is the #1438 image plus the official wheels.vllm.ai wheel built at c32251b5d (vllm#69028 + vllm#69021, the SM12x router fix); vLLM main moves several times an hour, so this arm measures that commit. A newer arm needs a new wheel and image (#1458)"
 
+# #383: the vLLM arm of the TensorRT-LLM vs vLLM comparison, on the same weights
+# (nvidia/GLM-5.3-Flash-NVFP4 @1d00738646, 190.4 GiB, the 2026-10-28 routed-expert update; #896
+# and #999 measured 423acf37) and the #1458 image (vLLM main c32251b5d). The weights are hard
+# links of the HF snapshot under ~/models (no extra disk). GB10 memory (2026-11-22):
+#   - KV pinned at 3 GiB per GPU: 8 GiB held 1,191,045 tokens (4.54 x 262,144), 3 GiB holds one
+#     full context, and the head idled at 3.6 GiB free with 8 GiB;
+#   - --max-num-seqs 4: the default 256 drove the head to 3.9 GiB free before warmup ended;
+#   - --gpu-memory-utilization 0.85: the default 0.92 asks 111.95 GiB, 107.96 GiB were free;
+#   - 8192-token prefill chunks; text only; reasoning effort low by default on the server, and the
+#     client also sends low (the template defaults to max).
+# Launch (both nodes, worker first):
+#   uv run python scripts/vllm_two_node.py start --model-dir ~/models/nvidia--GLM-5.3-Flash-NVFP4-1d00738646 \
+#     --image local/vllm-openai:inkling2-c32251b5d --name glm53nvfp4 -- --served-model-name glm-5.3-flash-nvfp4 \
+#     --max-model-len 262144 --gpu-memory-utilization 0.85 --kv-cache-memory-bytes 3221225472 \
+#     --max-num-seqs 4 --max-num-batched-tokens 8192 --limit-mm-per-prompt '{"image":0,"video":0}' \
+#     --reasoning-parser glm45 --enable-auto-tool-choice --tool-call-parser glm47 \
+#     --default-chat-template-kwargs '{"reasoning_effort":"low"}' --enable-prompt-tokens-details
+[backend.glm53fnvfp4vllmmaindual2xrc]
+description = "#383: GLM-5.3-Flash NVFP4 (nvidia/GLM-5.3-Flash-NVFP4 @1d00738646, 190.4 GiB) on BOTH Sparks, TP2 over the ConnectX fabric (scripts/vllm_two_node.py), on vLLM main c32251b5d; KV pinned at 3 GiB per GPU, max-num-seqs 4, 8192-token chunks, text only, reasoning effort low on the server; the vLLM arm of the TensorRT-LLM comparison"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "glm-5.3-flash-nvfp4"
+active_params_b = 18
+aider_model = "openai/glm-5.3-flash-nvfp4"
+opencode_model = "vllm8888/glm-5.3-flash-nvfp4"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+image = "local/vllm-openai:inkling2-c32251b5d"
+# #1357: a locally built image; its currency is the vLLM checkout pinned at the wheel's commit.
+image_source = "local"
+recipe_dir = "~/engines/vllm-main"
+recipe_pin = "c32251b5d"
+recipe_pin_reason = "the #1458 image (the #1438 image plus the official wheels.vllm.ai wheel built at c32251b5d); #383 compares engines on fixed weights, so this arm measures that commit beside TensorRT-LLM 1.4.0rc4"
+
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]
 description = "#1095: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the fast option's weights) across TWO DGX Sparks on STOCK TensorFold native 1.1.3 (ashhart/TensorFold release tensorfold-1.1.3-linux-aarch64, sha256 checked; no MiaAI patches), launched by scripts/tensorfold_native_two_node.py: TF_GLM_WORLD=2, NCCL on all four fabric paths, libnccl 2.29.7 from vllm/vllm-openai:v0.32.0. Serve flags chosen to match the leader glm53fexl3tfqmiaai20261010dual2xrc: --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768; drafts the engine default (on); sampling the engine default (temperature 1.0, top_p 0.95); reasoning_effort low sent by the client. REMOTE CLIENT"
