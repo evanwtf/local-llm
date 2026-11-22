@@ -67,6 +67,10 @@ logger = logging.getLogger(__name__)
 # row. `mlx-serve` was added for #191 before its first measurement.
 # `tensorfold-dsv41` and `tf-dsv41-m1` are the native TensorFold Zig ranks
 # (#919): rank 0 serves, rank 1 follows on the other node (#680 finding 21).
+# `tensorfold-native` is the stock release archive's binary, which
+# `scripts/tensorfold_native_two_node.py` runs on both ranks (#1095, #1469).
+# It was missing for a month: on 2026-11-22 it held 95,538 MiB while
+# machine_state said "Currently on GPU: idle" (#1481).
 INFERENCE = (
     "llama-server",
     "ollama",
@@ -76,6 +80,7 @@ INFERENCE = (
     "sushi",
     "tensorfold-dsv41",
     "tf-dsv41-m1",
+    "tensorfold-native",
 )
 
 # Engines that run as a Python program. Their executable is `python3`, so the
