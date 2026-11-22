@@ -4460,7 +4460,7 @@ recipe_pin_reason = "the image is the #1438 image plus the official wheels.vllm.
 #   uv run python scripts/trtllm_two_node.py start \
 #     --model-dir ~/.cache/huggingface/hub/models--nvidia--GLM-5.3-Flash-NVFP4/snapshots/1d00738646cbb0c6d0a9eb403dac5f366f1473a7 \
 #     --image nvcr.io/nvidia/tensorrt-llm/release:1.4.0rc4 --name glm-5.3-flash-nvfp4 \
-#     --max-num-tokens 32768 --max-batch-size 4 --max-seq-len 262144 --kv-free-fraction 0.8
+#     --max-num-tokens 8192 --max-batch-size 4 --max-seq-len 262144 --kv-free-fraction 0.35
 #   uv run python scripts/trtllm_two_node.py stop --name glm-5.3-flash-nvfp4
 [backend.glm53fnvfp4trtllmdual2xrc]
 description = "#383: GLM-5.3-Flash NVFP4 (nvidia/GLM-5.3-Flash-NVFP4 @1d007386, 190.4 GiB) on BOTH Sparks, TensorRT-LLM tensor parallel 2 over the ConnectX fabric (scripts/trtllm_two_node.py: one Open MPI 5 job, one rank per node, trtllm-llmapi-launch trtllm-serve, PyTorch backend, NCCL on all four fabric paths). Image nvcr.io/nvidia/tensorrt-llm/release:1.4.0rc4. Flags: --max_num_tokens 32768 --max_batch_size 4 (the NVIDIA two-Spark recipe's values), --max_seq_len 262144 with chunked prefill on (rc4 refuses a longer prompt than max_num_tokens without it), KV free-memory fraction 0.8 with dtype auto, CUDA graph padding on, --tool_parser glm47 --reasoning_parser glm47. Reasoning effort low, set on the server; rc4 drops a request's reasoning_effort for glm5_next (the snapshot's chat template with its default changed from max to low, --chat_template). Served as glm-5.3-flash-nvfp4 on :8888. REMOTE CLIENT"

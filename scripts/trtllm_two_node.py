@@ -337,6 +337,10 @@ def llm_api_yaml(kv_free_fraction: float) -> str:
         "kv_cache_config:\n"
         '  dtype: "auto"\n'
         f"  free_gpu_memory_fraction: {kv_free_fraction}\n"
+        # No host KV tier: on GB10 host and GPU share one memory, and rc4's
+        # automatic 4.34 GiB host quota helped push the head under earlyoom's
+        # 1 GiB line at the end of warmup (2026-11-22).
+        "  host_cache_size: 0\n"
         "cuda_graph_config:\n"
         "  enable_padding: true\n"
     )
@@ -364,6 +368,9 @@ def serve_argv(args: argparse.Namespace) -> list[str]:
         "--chat_template", CONTAINER_TEMPLATE,
         "--tool_parser", args.tool_parser,
         "--reasoning_parser", args.reasoning_parser,
+        # One HTTP front end, not rc4's default 8: the extra processes run on
+        # the head only, after warmup, and the head has no memory to spare.
+        "--num_serve_frontends", "1",
     ]  # fmt: skip
     return argv + list(args.serve_args)
 
@@ -759,10 +766,13 @@ def parse(argv: list[str] | None = None) -> argparse.Namespace:
         "--name", required=True, type=container_name, help="the served model name"
     )
     p_start.add_argument("--port", type=int, default=8888)
-    p_start.add_argument("--max-num-tokens", type=int, default=32768)
+    # 8192, the TRT-LLM default: a 32768-token autotune ran a node out of
+    # memory on GB10. Chunked prefill keeps longer prompts working.
+    p_start.add_argument("--max-num-tokens", type=int, default=8192)
     p_start.add_argument("--max-batch-size", type=int, default=4)
     p_start.add_argument("--max-seq-len", type=int, default=262144)
-    p_start.add_argument("--kv-free-fraction", type=float, default=0.8)
+    # 0.35: at 0.8 and 0.6 earlyoom killed rank 0 on the head (2026-11-22).
+    p_start.add_argument("--kv-free-fraction", type=float, default=0.35)
     p_start.add_argument("--tool-parser", default=DEFAULT_PARSER)
     p_start.add_argument("--reasoning-parser", default=DEFAULT_PARSER)
     p_start.add_argument("--log-dir", default=str(pathlib.Path.home() / "bench-logs"))
