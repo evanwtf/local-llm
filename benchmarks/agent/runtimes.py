@@ -108,6 +108,11 @@ RUNTIMES: dict[str, dict[Host, Runtime]] = {
     "tensorfold": {
         LINUX_AARCH64: _rt("a linux-aarch64 release archive", "prebuilt"),
     },
+    # #383: NVIDIA's NGC release image (scripts/trtllm_two_node.py).
+    "trtllm": {
+        DARWIN_ARM64: _rt(_NO_METAL),
+        LINUX_AARCH64: _rt("a released NGC image (nvcr.io tensorrt-llm)", "prebuilt"),
+    },
     "vllm": {
         DARWIN_ARM64: _rt(_NO_METAL),
         LINUX_AARCH64: _rt("released images and wheels for aarch64", "prebuilt"),

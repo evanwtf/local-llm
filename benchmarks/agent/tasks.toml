@@ -4443,6 +4443,33 @@ recipe_dir = "~/engines/vllm-main"
 recipe_pin = "c32251b5d"
 recipe_pin_reason = "the image is the #1438 image plus the official wheels.vllm.ai wheel built at c32251b5d (vllm#69028 + vllm#69021, the SM12x router fix); vLLM main moves several times an hour, so this arm measures that commit. A newer arm needs a new wheel and image (#1458)"
 
+# #383: TensorRT-LLM against vLLM as the two-Spark engine, on NVIDIA's own NVFP4 GLM-5.3-Flash weights.
+# Image nvcr.io/nvidia/tensorrt-llm/release:1.4.0rc4, the first 1.4 release that loads this checkpoint
+# (config model_type glm5_next). One MPI job over both nodes, after NVIDIA's "Run on two Sparks" recipe
+# (NVIDIA/dgx-spark-playbooks nvidia/trt-llm/README.md @3088315054); the recipe's sshd entrypoint is
+# vendored at that commit and checked by sha256 before every start. glm5_next is in neither of
+# TRT-LLM's parser auto-maps at v1.4.0rc4, so glm47 is passed for both (the launcher's default).
+# Launch (both nodes, worker first; the server log lands in ~/bench-logs on the head):
+#   uv run python scripts/trtllm_two_node.py start \
+#     --model-dir ~/.cache/huggingface/hub/models--nvidia--GLM-5.3-Flash-NVFP4/snapshots/1d00738646cbb0c6d0a9eb403dac5f366f1473a7 \
+#     --image nvcr.io/nvidia/tensorrt-llm/release:1.4.0rc4 --name glm-5.3-flash-nvfp4 \
+#     --max-num-tokens 32768 --max-batch-size 4 --max-seq-len 262144 --kv-free-fraction 0.8
+#   uv run python scripts/trtllm_two_node.py stop --name glm-5.3-flash-nvfp4
+[backend.glm53fnvfp4trtllmdual2xrc]
+description = "#383: GLM-5.3-Flash NVFP4 (nvidia/GLM-5.3-Flash-NVFP4 @1d007386, 190.4 GiB) on BOTH Sparks, TensorRT-LLM tensor parallel 2 over the ConnectX fabric (scripts/trtllm_two_node.py: one mpirun job, trtllm-llmapi-launch trtllm-serve, PyTorch backend, NCCL on all four fabric paths). Image nvcr.io/nvidia/tensorrt-llm/release:1.4.0rc4. Flags: --max_num_tokens 32768 --max_batch_size 4 (the NVIDIA two-Spark recipe's values), --max_seq_len 262144, KV free-memory fraction 0.8 with dtype auto, CUDA graph padding on, --tool_parser glm47 --reasoning_parser glm47. Served as glm-5.3-flash-nvfp4 on :8888. REMOTE CLIENT"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "trtllm"
+model = "glm-5.3-flash-nvfp4"
+active_params_b = 18
+aider_model = "openai/glm-5.3-flash-nvfp4"
+opencode_model = "trtllm8888/glm-5.3-flash-nvfp4"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+image = "nvcr.io/nvidia/tensorrt-llm/release:1.4.0rc4"
+
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]
 description = "#1095: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the fast option's weights) across TWO DGX Sparks on STOCK TensorFold native 1.1.3 (ashhart/TensorFold release tensorfold-1.1.3-linux-aarch64, sha256 checked; no MiaAI patches), launched by scripts/tensorfold_native_two_node.py: TF_GLM_WORLD=2, NCCL on all four fabric paths, libnccl 2.29.7 from vllm/vllm-openai:v0.32.0. Serve flags chosen to match the leader glm53fexl3tfqmiaai20261010dual2xrc: --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768; drafts the engine default (on); sampling the engine default (temperature 1.0, top_p 0.95); reasoning_effort low sent by the client. REMOTE CLIENT"
