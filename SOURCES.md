@@ -454,7 +454,7 @@ NVFP4/FP8 serving on Blackwell; the two-Spark pick's engine (#1160)
 the other CUDA-native path to NVFP4 on the Spark (#293, #299)
 
 * **[`NVIDIA/hyperflare-inference`](https://github.com/NVIDIA/hyperflare-inference)**  
-NVIDIA Hyperflare (renamed from `flare-local-inference`): a Rust server for SM121, for coding agents (#1207, #1459)
+NVIDIA Hyperflare: a Rust server for SM121, for coding agents (#1207, #1459)
 
 * **[`sgl-project/sglang`](https://github.com/sgl-project/sglang)**  
 aggregate multi-stream serving; the DGX's throughput emphasis (#307)
