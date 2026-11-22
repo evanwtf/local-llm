@@ -158,6 +158,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `tm_model_guard.py` | mac | Fail if Time Machine would back up a model file. #440 |
 | `tool_error_conditional.py` | any | Does a tool error make the NEXT tool call more likely to fail? (#112) |
 | `tool_retry_count.py` | any | Count tool-call outcomes from an OpenCode client transcript. |
+| `trtllm_two_node.py` | any | Serve one TensorRT-LLM model across both DGX Sparks, tensor parallel 2 (#383). |
 | `ttft_probe.py` | any | Time-to-first-token against a vLLM endpoint, client-observed vs engine (#346). |
 | `unitctl.py` | any | start / stop / status for the processes this repo runs. #234 |
 | `upstream_sweep.py` | any | Sweep the repositories this project depends on, in one command. |
