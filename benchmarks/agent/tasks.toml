@@ -4344,6 +4344,23 @@ recipe_dir = "~/miaai-tf-glm"
 recipe_pin = "3fd60df"
 recipe_pin_reason = "the fastest pick on the two-Spark page (#1095) was measured at 3fd60df (TensorFold v0.6.0 + 107 patches, image tensorfold-glm53:v0.6.0-e66c657a433d); #1337 reruns it as pinned under the 1,900 MHz cap. Later commits move to a 123-patch image and are a new series"
 
+[backend.glm53fexl3tfmiaai3906dual2xrc]
+description = "#1465: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the control's weights; DFlash2 drafter @bf582e4e, the control's) across TWO DGX Sparks via MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold recipe main @3906ac6 (2026-11-04): TensorFold v0.6.0 + 123 patches, image tensorfold-glm53:v0.6.0-789e8f3bdfa2 built locally (PULL=0). The control glm53fexl3tfqmiaai20261010dual2xrc is the same recipe pinned at 3fd60df (107 patches)."
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "GLM-5.3-Flash-EXL3"
+active_params_b = 18
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "tfmia8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+# A second checkout (git worktree of ~/miaai-tf-glm), so the control's checkout and pin stay as they are.
+# Unpinned: it tracks the recipe's default branch.
+recipe_dir = "~/miaai-tf-glm-head"
+
 # #1435 (operator-approved 2026-11-20): Inkling 2 Small on the inkling2-exl3 overlay, both revisions pinned.
 # Stage 1 control: glm53fexl3tfqmiaai20261010dual2xrc.
 [backend.inkling2sexl3255evanguodual2xrc]
