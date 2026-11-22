@@ -128,6 +128,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `restart_between_trials.py` | any | Restart-between-trials: does server state degrade a session? #112, #77. |
 | `route_ab_report.py` | mac | Attribute #149 route-A/B rows to sweep windows and evaluate the screens. |
 | `route_agent_ab.py` | mac | ds4's Metal 4 TensorOps route against the withheld one, on the agent bench. |
+| `run_envelope.py` | any | The thermal and power envelope of a two-Spark run window, one line per node. |
 | `screen_stacks.py` | any | #762 Stage 2: which stacks earn more runs after one full run, and which are cut. |
 | `sensor_windows.py` | mac | Join a monitord sensor series to benchmark sweep windows. |
 | `series_readout.py` | any | Read out an interleaved two-arm series from saved row files (#970). |

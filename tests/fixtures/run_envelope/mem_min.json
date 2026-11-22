@@ -1,0 +1,71 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "vector",
+  "result": [
+   {
+    "metric": {
+     "instance": "other-2:9100"
+    },
+    "value": [
+     1795305465.058,
+     "22432600064"
+    ]
+   },
+   {
+    "metric": {
+     "instance": "other-3:9100"
+    },
+    "value": [
+     1795305465.058,
+     "29533425664"
+    ]
+   },
+   {
+    "metric": {
+     "instance": "other-4:9100"
+    },
+    "value": [
+     1795305465.058,
+     "9499475968"
+    ]
+   },
+   {
+    "metric": {
+     "instance": "head-host:9100"
+    },
+    "value": [
+     1795305465.058,
+     "6312071168"
+    ]
+   },
+   {
+    "metric": {
+     "instance": "worker-host:9100"
+    },
+    "value": [
+     1795305465.058,
+     "6250881024"
+    ]
+   },
+   {
+    "metric": {
+     "instance": "other-1:9100"
+    },
+    "value": [
+     1795305465.058,
+     "60821159936"
+    ]
+   },
+   {
+    "metric": {
+     "instance": "other-5"
+    },
+    "value": [
+     1795305465.058,
+     "432394240"
+    ]
+   }
+  ]
+ }
+}

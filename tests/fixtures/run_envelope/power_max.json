@@ -1,0 +1,35 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "vector",
+  "result": [
+   {
+    "metric": {
+     "instance": "worker-host:9400"
+    },
+    "value": [
+     1795305464.882,
+     "39.919"
+    ]
+   },
+   {
+    "metric": {
+     "instance": "head-host:9400"
+    },
+    "value": [
+     1795305464.882,
+     "38.758"
+    ]
+   },
+   {
+    "metric": {
+     "instance": "other-1:9400"
+    },
+    "value": [
+     1795305464.882,
+     "590.006"
+    ]
+   }
+  ]
+ }
+}
