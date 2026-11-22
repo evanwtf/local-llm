@@ -1060,6 +1060,28 @@ def test_the_tensorfold_zig_ranks_are_servers():
     assert [p.pid for p in got] == [61001, 61002]
 
 
+def test_the_stock_tensorfold_release_binary_is_a_server():
+    """#1481: `tensorfold-native` is the stock release's executable (#1095, #1469).
+
+    On 2026-11-22 it held 95,538 MiB on the head while `machine_state.py` said
+    "Currently on GPU: idle". The launcher runs it under `timeout` inside an
+    `sh -c`; only the binary itself is a server, so a wrapper never counts twice.
+    """
+    ps = (
+        "  PID    RSS  ELAPSED COMMAND\n"
+        "703273 1596 00:19:30 sh -c TENSORFOLD_NO_UPDATE_CHECK=1 TF_GLM_WORLD=2 timeout 14400 "
+        "/home/u/tensorfold-native/tensorfold-1.3.4-linux-aarch64/bin/tensorfold-native serve /m\n"
+        "703274 1624 00:19:30 timeout 14400 "
+        "/home/u/tensorfold-native/tensorfold-1.3.4-linux-aarch64/bin/tensorfold-native serve /m\n"
+        "703275 4400000 00:19:30 "
+        "/home/u/tensorfold-native/tensorfold-1.3.4-linux-aarch64/bin/tensorfold-native serve /m "
+        "--port 8888 --name GLM-5.3-Flash-EXL3\n"
+    )
+    got = preflight.parse_ps(ps)
+    assert [p.pid for p in got] == [703275]
+    assert [p.short for p in got] == ["tensorfold-native"]
+
+
 def test_python_hosted_servers_are_found_by_module_or_script():
     got = preflight.parse_ps(PY_SERVERS_PS)
     assert [p.pid for p in got] == [51001, 51002, 51003, 51004]
