@@ -281,6 +281,14 @@ def test_the_yaml_carries_the_kv_fraction() -> None:
     assert "enable_padding: true" in step.argv[-1]
 
 
+def test_the_yaml_loads_the_model_text_only() -> None:
+    # The first live start (2026-11-22) failed on both ranks without it: rc4
+    # will not build GLM-5.3-Flash's vision encoder on the image's transformers.
+    step = _step("write the LLM API options")
+    assert step.argv is not None
+    assert "\ndisable_mm_encoder: true\n" in step.argv[-1]
+
+
 def test_a_model_dir_outside_the_hub_cache_is_refused() -> None:
     with pytest.raises(SystemExit, match="must sit under"):
         t.container_model_path("/models/elsewhere")

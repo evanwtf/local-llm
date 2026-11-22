@@ -35,6 +35,9 @@ nvidia/trt-llm/README.md at 3088315054). It departs from the recipe here:
   `glm5_next`), `--backend pytorch` dropped (deprecated; it is the default),
   and chunked prefill on: without it rc4 refuses any prompt longer than
   `--max_num_tokens` with HTTP 400.
+- **Text only:** `disable_mm_encoder: true` in the options file. rc4 refuses
+  to build GLM-5.3-Flash's vision encoder with the image's transformers 5.5.4,
+  and agent trials send no images.
 - **Reasoning effort low, set on the server.** rc4 has no serving extension
   for `glm5_next`, so it drops a request's `reasoning_effort`, and the
   snapshot's template then defaults to "max". The launcher serves a copy of
@@ -318,9 +321,19 @@ def hostfile_text() -> str:
 
 
 def llm_api_yaml(kv_free_fraction: float) -> str:
-    """The recipe's extra-llm-api-options file."""
+    """The recipe's extra-llm-api-options file, plus a text-only model load.
+
+    ``disable_mm_encoder`` (``llmapi/llm_args.py`` at v1.4.0rc4) skips the
+    vision encoder. Without it the first live start failed on both ranks:
+    "GLM-5.3-Flash image/video processing requires transformers==5.17.0. For
+    text-only inference on older Transformers, set disable_mm_encoder=True"
+    (``_torch/models/modeling_glm5_next_vision.py``; the image ships
+    transformers 5.5.4). Agent trials are text-only, and the encoder's GPU
+    memory goes to the KV cache instead.
+    """
     return (
         "print_iter_log: false\n"
+        "disable_mm_encoder: true\n"
         "kv_cache_config:\n"
         '  dtype: "auto"\n'
         f"  free_gpu_memory_fraction: {kv_free_fraction}\n"
