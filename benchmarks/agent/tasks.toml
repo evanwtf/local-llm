@@ -4480,6 +4480,32 @@ recipe_dir = "~/engines/vllm-main"
 recipe_pin = "c32251b5d"
 recipe_pin_reason = "the #1458 image (the #1438 image plus the official wheels.vllm.ai wheel built at c32251b5d); #383 compares engines on fixed weights, so this arm measures that commit beside TensorRT-LLM 1.4.0rc4"
 
+# #383: the vLLM arm above with prefix caching on. The first run (2026-11-22) passed 10/10
+# but early stop fired on time: 556.2 s against the leader's 264.3 s on the same trials (210.4%),
+# with a median step TTFT of 3,369 ms. vLLM leaves prefix caching off for this hybrid (KDA)
+# model unless asked, so every step re-read the whole context. The #896 recipe
+# (glm-5.3-flash-gx10/image/entrypoint.sh) always passes --enable-prefix-caching with a
+# 2304-token block, one KDA block. Everything else is unchanged.
+# Launch: the command above plus --enable-prefix-caching --block-size 2304.
+[backend.glm53fnvfp4vllmmainpcdual2xrc]
+description = "#383: glm53fnvfp4vllmmaindual2xrc with prefix caching on (--enable-prefix-caching --block-size 2304, as the #896 recipe); GLM-5.3-Flash NVFP4 (nvidia @1d00738646) on vLLM main c32251b5d, TP2 on both Sparks, KV 3 GiB per GPU, max-num-seqs 4, 8192-token chunks, text only, reasoning effort low"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "glm-5.3-flash-nvfp4"
+active_params_b = 18
+aider_model = "openai/glm-5.3-flash-nvfp4"
+opencode_model = "vllm8888/glm-5.3-flash-nvfp4"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+image = "local/vllm-openai:inkling2-c32251b5d"
+image_source = "local"
+recipe_dir = "~/engines/vllm-main"
+recipe_pin = "c32251b5d"
+recipe_pin_reason = "the #1458 image (the #1438 image plus the official wheels.vllm.ai wheel built at c32251b5d); #383 compares engines on fixed weights, so this arm measures that commit beside TensorRT-LLM 1.4.0rc4"
+
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]
 description = "#1095: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the fast option's weights) across TWO DGX Sparks on STOCK TensorFold native 1.1.3 (ashhart/TensorFold release tensorfold-1.1.3-linux-aarch64, sha256 checked; no MiaAI patches), launched by scripts/tensorfold_native_two_node.py: TF_GLM_WORLD=2, NCCL on all four fabric paths, libnccl 2.29.7 from vllm/vllm-openai:v0.32.0. Serve flags chosen to match the leader glm53fexl3tfqmiaai20261010dual2xrc: --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768; drafts the engine default (on); sampling the engine default (temperature 1.0, top_p 0.95); reasoning_effort low sent by the client. REMOTE CLIENT"
