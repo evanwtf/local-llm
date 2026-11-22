@@ -144,6 +144,7 @@ Every live backend in `tasks.toml`, by machine. A `retired` note in
 | `nemotron35supervldflashnothinkdual2xv032` | #1231: Super VL NVFP4 + LiLiCorr DFlash, reasoning off, both Sparks (TP=2), remote client | vLLM v0.32.0 | 70 GB |
 | `mimov26flashrlexl3tfdflashdual2x` | #1032: MiMo-V2.6-Flash-RL EXL3 3.0 bpw + DFlash, TensorFold python-0.6, both Sparks (TP=2), remote client | TensorFold | 114 GB |
 | `glm53fexl3tfnative113dual2x` | #1095: GLM-5.3-Flash EXL3 4bpw TF quant on stock TensorFold native 1.1.3, both Sparks, remote client | TensorFold | 164 GB |
+| `glm53fexl3tfnative134dual2x` | #1469: the #1095 arm on stock TensorFold native 1.3.4 (two-GB10 GLM prefill changes #4499, index split off), both Sparks, remote client | TensorFold | 164 GB |
 | `glm53fexl3tfmiaai1104dual2x` | #1358: GLM-5.3-Flash EXL3 4bpw TF quant on MiaAI's 1104 recipe (TensorFold native Zig f350cd3e + 105 patches), both Sparks, remote client | TensorFold | 164 GB |
 | `glm53fexl3tfmiaai1104p4dual2x` | #1358 arm B: the 1104 recipe at 4 streams and a 262K window (the control's shape), both Sparks, remote client | TensorFold | 164 GB |
 | `glm53fexl3tfmiaai1104p4ct0dual2x` | #1358 arm C: arm B with CLEAR_THINKING=0 (earlier reasoning kept), both Sparks, remote client | TensorFold | 164 GB |

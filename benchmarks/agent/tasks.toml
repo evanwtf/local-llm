@@ -4522,6 +4522,29 @@ topology = "remote"
 smoke_protocol = "openai"
 engine_tree = "~/tensorfold-native/tensorfold-1.1.3-linux-aarch64"
 
+# #1469: the #1095 arm above on stock TensorFold 1.3.4, the first release with the two-GB10 GLM
+# prefill changes (#4499: dense attention only on the rows sparse attention leaves untouched; prefill
+# skips the unread MTP and query projections). One change against glm53fexl3tfnative113dual2x: the
+# release binary. Same weights, NCCL copy and serve flags. TF_GLM_INDEX_SPLIT (#4510) stays off here.
+# Launch: uv run python scripts/tensorfold_native_two_node.py start \
+#   --binary ~/tensorfold-native/tensorfold-1.3.4-linux-aarch64/bin/tensorfold-native \
+#   --nccl-dir ~/tensorfold-native/nccl --model <Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517> \
+#   --name glm134 -- --port 8888 --name GLM-5.3-Flash-EXL3 --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768
+[backend.glm53fexl3tfnative134dual2x]
+description = "#1469: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the fast option's weights) across TWO DGX Sparks on STOCK TensorFold native 1.3.4 (ashhart/TensorFold release tensorfold-1.3.4-linux-aarch64, 2026-11-22, carrying the two-GB10 GLM prefill changes #4499 and #4510 (index split left off) and the GB10 start-up budget fix, sha256 checked; no MiaAI patches), launched by scripts/tensorfold_native_two_node.py: TF_GLM_WORLD=2, NCCL on all four fabric paths, libnccl 2.29.7 from vllm/vllm-openai:v0.32.0. Serve flags chosen to match the leader glm53fexl3tfqmiaai20261010dual2xrc: --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768; drafts the engine default (on); sampling the engine default (temperature 1.0, top_p 0.95); reasoning_effort low sent by the client. REMOTE CLIENT"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "GLM-5.3-Flash-EXL3"
+active_params_b = 18
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "tfmia8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+engine_tree = "~/tensorfold-native/tensorfold-1.3.4-linux-aarch64"
+
 # #1358 (operator-approved 2026-11-05): MiaAI's new 1104 recipe, the native Zig engine on the pick's own weights.
 # Its control is glm53fexl3tfqmiaai20261010dual2xrc (same weights, older Python-engine recipe, #1337 capped).
 [backend.glm53fexl3tfmiaai1104dual2x]
