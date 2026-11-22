@@ -4419,6 +4419,12 @@ opencode_model = "vllm8888/inkling-2-mini"
 context_tokens = 262144
 topology = "remote"
 image = "local/vllm-openai:inkling2-c32251b5d"
+# #1357: a locally built image has no registry digest, so its currency is the checkout it is
+# built from: a blobless vLLM clone, pinned at the commit whose official wheel the image carries.
+image_source = "local"
+recipe_dir = "~/engines/vllm-main"
+recipe_pin = "c32251b5d"
+recipe_pin_reason = "the image is the #1438 image plus the official wheels.vllm.ai wheel built at c32251b5d (vllm#69028 + vllm#69021, the SM12x router fix); vLLM main moves several times an hour, so this arm measures that commit. A newer arm needs a new wheel and image (#1458)"
 
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]
