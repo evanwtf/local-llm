@@ -1,0 +1,25 @@
+# grok sweep (dgx)
+# requested window: last 24 hours
+# written:  2026-11-26T17:20:42Z  (local: 2026-11-26 12:20:42 EST)
+# query:    Search X for posts and replies from @MiaAI_lab, @sudoingX, @0xSero, @jayleaton, @ashxhart, @no_stp_on_snek, @Raullen, @Brooooook_lyn, @bleysg, @ViC305, @yume_arasaki, @sfxnz, @plotarmordev, @AlexanderChopra, @JoesInvestments, @mrru5s3ll in the last 24 hours about running LLMs on NVIDIA DGX Spark or GB10 (one or two Sparks): vLLM, TensorFold, SGLang, TensorRT-LLM, NVFP4, FP8, EXL3 recipes, two-node tensor parallel, coding agents. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+Not signed in. To authenticate without a browser, run:
+  grok login --device-code
+
+Alternatively, set the XAI_API_KEY environment variable or run `grok login` on a machine with a browser.
+Error: Not signed in. To authenticate without a browser, run:
+  grok login --device-code
+
+Alternatively, set the XAI_API_KEY environment variable or run `grok login` on a machine with a browser.
+[grok exit 1]
+
+# xurl search (1 call)
+# written: 2026-11-26T17:21:39Z
+# query: (from:MiaAI_lab OR from:sudoingX OR from:0xSero OR from:jayleaton OR from:ashxhart OR from:yume_arasaki OR from:ViC305 OR from:mrru5s3ll) -is:retweet -n 10
+{
+  "detail":"credits depleted",
+  "status":402,
+  "title":"Payment Required",
+  "type":"https://api.x.com/2/problems/credits-depleted"
+}
+[xurl exit 1]
