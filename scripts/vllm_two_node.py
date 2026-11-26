@@ -17,6 +17,13 @@ cluster already serves Qwen with (`~/qwen38-dual-latest/start.sh`, @cd839d0).
 Everything after `--` is passed to `vllm serve` on both nodes unchanged. Paths
 under `~/models` are mounted at `/models` on both nodes, so a drafter path in
 those arguments is written as `/models/<drafter>`.
+
+`--env KEY=VALUE` (repeatable) adds an environment variable to both
+containers, for a model card that needs one (#1011: GLM-5.3-Flash wants
+`VLLM_USE_DEEP_GEMM=0`). The fabric setup must stay the same on every arm, so
+the launcher refuses a key that starts with NCCL_, GLOO_, UCX_, TP_, NVSHMEM_
+or MASTER_, and any key the launcher sets itself. A key must match
+`[A-Za-z_][A-Za-z0-9_]*`.
 """
 
 from __future__ import annotations
@@ -24,6 +31,7 @@ from __future__ import annotations
 import argparse
 import logging
 import pathlib
+import re
 import shlex
 import subprocess
 import sys
@@ -43,6 +51,9 @@ IB_HCAS = "rocep1s0f1,roceP2p1s0f1,rocep1s0f0,roceP2p1s0f0"
 IB_GID_INDEX = 3
 MASTER_PORT = 50000
 MODELS_DIR = "~/models"
+#: `--env` may not set these: they steer the fabric, and every arm shares it.
+FABRIC_PREFIXES = ("NCCL_", "GLOO_", "UCX_", "TP_", "NVSHMEM_", "MASTER_")
+ENV_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 def docker_run(
@@ -53,6 +64,7 @@ def docker_run(
     model: str,
     port: int,
     vllm_args: list[str],
+    extra_env: dict[str, str] | None = None,
 ) -> list[str]:
     """The `docker run` argv for one node. Rank 0 serves the API."""
     host_ip = HEAD_IP if rank == 0 else WORKER_IP
@@ -69,6 +81,12 @@ def docker_run(
         "TRANSFORMERS_OFFLINE": "1",
         "VLLM_HOST_IP": host_ip,
     }
+    for key, value in (extra_env or {}).items():
+        if not ENV_KEY.fullmatch(key):
+            raise ValueError(f"--env {key!r} is not a valid variable name")
+        if key in env or key.startswith(FABRIC_PREFIXES):
+            raise ValueError(f"--env {key} would change the fabric setup")
+        env[key] = value
     argv = [
         "docker", "run", "-d", "--name", f"{name}-rank{rank}",
         "--gpus", "all", "--network", "host", "--ipc", "host",
@@ -104,6 +122,17 @@ def shell_line(argv: list[str]) -> str:
     )
 
 
+def parse_env(pairs: list[str]) -> dict[str, str]:
+    """`KEY=VALUE` strings to a dict; a pair with no `=` or no key is an error."""
+    env: dict[str, str] = {}
+    for pair in pairs:
+        key, sep, value = pair.partition("=")
+        if not sep or not key:
+            raise ValueError(f"--env needs KEY=VALUE, got {pair!r}")
+        env[key] = value
+    return env
+
+
 def start(args: argparse.Namespace) -> int:
     model = pathlib.Path(args.model_dir).expanduser().name
     common = {
@@ -112,6 +141,7 @@ def start(args: argparse.Namespace) -> int:
         "model": model,
         "port": args.port,
         "vllm_args": args.vllm_args,
+        "extra_env": parse_env(args.env),
     }
     worker = shell_line(docker_run(rank=1, **common))
     head = shell_line(docker_run(rank=0, **common))
@@ -143,6 +173,13 @@ def main(argv: list[str] | None = None) -> int:
     p_start.add_argument("--image", required=True)
     p_start.add_argument("--name", required=True)
     p_start.add_argument("--port", type=int, default=8888)
+    p_start.add_argument(
+        "--env",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="extra environment for both containers (repeatable)",
+    )
     p_start.add_argument("vllm_args", nargs=argparse.REMAINDER)
     p_stop = sub.add_parser("stop", help="remove both containers")
     p_stop.add_argument("--name", required=True)
