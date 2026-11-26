@@ -1,0 +1,193 @@
+# grok sweep (dgx), 4-week window, query 2
+# requested window: the last 4 weeks (2026-10-29 to 2026-11-26)
+# written:  2026-11-26T17:23:07Z  (local: 2026-11-26 12:23:07 EST)
+# query:    Search X for posts and replies from @no_stp_on_snek, @Raullen, @Brooooook_lyn, @bleysg, @plotarmordev, @AlexanderChopra, @JoesInvestments, @mrru5s3ll, @mmastrac, @2WildTech, @johncodes in the last 4 weeks (2026-10-29 to 2026-11-26) about running LLMs on NVIDIA DGX Spark or GB10 (one, two or more Sparks): model recipes, vLLM, TensorFold, SGLang, TensorRT-LLM, NVFP4, FP8, EXL3, tensor parallel across nodes, measured speeds, coding agents. List every matching post. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for those accounts over the last four weeks, then keep only posts that name DGX Spark or GB10 and include a URL plus a UTC time.
+
+The first pass found Spark posts from a few accounts. I'll page further and search each handle so replies and the other names are not missed.
+
+- 2026-11-26T16:04:39Z | @mmastrac | https://x.com/mmastrac/status/2125984085298602362 | gr8 keeps its own comms stack and runs the KV node on a Xeon with no NVIDIA card, over any ConnectX.
+- 2026-11-26T13:11:39Z | @mmastrac | https://x.com/mmastrac/status/2125940548091662725 | He says to start from the 4x Spark recipe, because that build still has memory left to tune.
+- 2026-11-26T01:24:34Z | @plotarmordev | https://x.com/plotarmordev/status/2125762604299599993 | His usual machines are 3 DGX Sparks, one M5 Ultra Studio, and an M5 Max MacBook.
+- 2026-11-25T22:34:54Z | @mmastrac | https://x.com/mmastrac/status/2125719908277535149 | gr8 serves the EXLR8 GLM 5.3 weights at 8 sessions and 1M context.
+- 2026-11-25T21:08:22Z | @mmastrac | https://x.com/mmastrac/status/2125698129634922788 | The published 4-Spark GLM 5.3 numbers are already behind gr8's latest changes and will rise.
+- 2026-11-25T19:52:37Z | @mmastrac | https://x.com/mmastrac/status/2125679068649791559 | GLM 5.3 on 4 Sparks serves 8 streams with 442k shared context, and remote KV can be added.
+- 2026-11-25T14:16:15Z | @mmastrac | https://x.com/mmastrac/status/2125594418053108130 | He calls gr8 the fastest high-quality GLM 5.3 engine on 4 DGX Sparks, at 61.7 / 39.7 / 79 tok/s for code, prose, and structured output.
+- 2026-11-25T10:47:27Z | @plotarmordev | https://x.com/plotarmordev/status/2125541870264877304 | TensorFold 1.3.5 makes Inkling 2 Mini 70% faster on a DGX Spark.
+- 2026-11-24T22:30:58Z | @mmastrac | https://x.com/mmastrac/status/2125356531550204369 | Kindling's first open quant of Ernie 5.5 Flash Preview asks people to donate Spark or other NVIDIA GPU time.
+- 2026-11-24T12:03:54Z | @plotarmordev | https://x.com/plotarmordev/status/2125198723194204498 | More TensorFold multi-stream work is coming for RTX Spark and DGX Spark once a recipe lands.
+- 2026-11-24T00:24:36Z | @mmastrac | https://x.com/mmastrac/status/2125022740180844906 | He flags those Qwen3.8 Flash Next speeds as a one-Spark result.
+- 2026-11-24T00:22:05Z | @mmastrac | https://x.com/mmastrac/status/2125022106849309176 | The Qwen 3.8 Flash Next gr8 release is fully pmcgx, and the quoted run is 61.5 tok/s on one Spark and 89.2 tok/s on two.
+- 2026-11-23T18:26:00Z | @plotarmordev | https://x.com/plotarmordev/status/2124932492499050960 | TensorFold 1.3.4 makes GLM 2K prompts 15% faster on 2 Sparks when TF_GLM_PAIR_EXPERTS=1.
+- 2026-11-23T17:20:00Z | @plotarmordev | https://x.com/plotarmordev/status/2124915883097444783 | His agents send a median 58K-token prompt to the DeepSeek server on 2 Sparks.
+- 2026-11-23T08:13:05Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2124778248974561422 | He wants to run Inkling 2 Mini on his DGX Spark.
+- 2026-11-23T06:29:57Z | @plotarmordev | https://x.com/plotarmordev/status/2124752295376322999 | He is waiting on GLM 5.4 weights so he can try the model on his Sparks.
+- 2026-11-23T03:23:12Z | @mmastrac | https://x.com/mmastrac/status/2124705295889015238 | He calls 4-Spark GLM 5.3 on gr8 the sweet spot and says updates keep landing.
+- 2026-11-23T00:56:11Z | @plotarmordev | https://x.com/plotarmordev/status/2124668299812434278 | He freed his third Spark on Tuesday.
+- 2026-11-23T00:53:45Z | @plotarmordev | https://x.com/plotarmordev/status/2124667684877148480 | He ran TP3 for two or three weeks, then switched to TP2 to free one Spark.
+- 2026-11-22T22:33:09Z | @mmastrac | https://x.com/mmastrac/status/2124632305016914230 | Two 200mm fans hold eight Sparks near 70C, and the limiter trips above 80C under quant jobs or concurrency above 2.
+- 2026-11-22T22:30:02Z | @mmastrac | https://x.com/mmastrac/status/2124631519637746041 | The eight Sparks are two TP=4 rings plus one remote KV node, and the next cable plan is for testing TP=1 through 6.
+- 2026-11-22T22:14:07Z | @mmastrac | https://x.com/mmastrac/status/2124627511439192172 | Eight DGX Sparks plus one Strix Halo put more than 1TB of VRAM in a 12U 10-inch rack.
+- 2026-11-22T17:37:58Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2124558015953281111 | He says the model runs on a DGX Spark or a 32GB Mac through Ollama, with GGUF for llama.cpp and native NVFP4 training.
+- 2026-11-22T15:33:00Z | @plotarmordev | https://x.com/plotarmordev/status/2124526568273842262 | His DeepSeek server on 2 Sparks stayed up through 27K agent requests since Tuesday on Mia's recipe.
+- 2026-11-22T14:29:37Z | @mmastrac | https://x.com/mmastrac/status/2124510618501976105 | The first 10-inch rack holds eight DGX Sparks, and the second rack is for the remote KV node and a Strix Halo.
+- 2026-11-22T11:24:01Z | @plotarmordev | https://x.com/plotarmordev/status/2124463908459356572 | He says he was lent a 64GB RTX Spark to test on.
+- 2026-11-22T10:58:33Z | @plotarmordev | https://x.com/plotarmordev/status/2124457501651288438 | He is starting from the stock build and will run the test on an RTX Spark.
+- 2026-11-22T10:54:32Z | @plotarmordev | https://x.com/plotarmordev/status/2124456492040413297 | He started RTX Spark optimizations.
+- 2026-11-22T10:32:34Z | @plotarmordev | https://x.com/plotarmordev/status/2124450963268477349 | He reposts the note that listing both NCCL devices on a 2-Spark cable speeds long prompts by 26-28%.
+- 2026-11-22T10:32:25Z | @plotarmordev | https://x.com/plotarmordev/status/2124450922906427862 | That 4-Spark GLM 5.3 Flash run is one stream with MTP, about 33 tok/s at 1M without drafting, FP4, and about 48GB per Spark.
+- 2026-11-22T08:45:00Z | @plotarmordev | https://x.com/plotarmordev/status/2124423891145658409 | He will not put a Flash fine-tune on his Sparks until it is compared with the base model on the same prompts and the same device.
+- 2026-11-22T08:01:39Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2124412982608404886 | He plans to test Inkling 2 Mini on his DGX Spark because the model is about 20GB.
+- 2026-11-22T07:29:00Z | @plotarmordev | https://x.com/plotarmordev/status/2124404765207503121 | GLM 5.3 Flash in TensorFold 1.3.3 hits 172 tok/s after a 1M-token prompt on 4 DGX Sparks, up from 151.5.
+- 2026-11-22T00:06:00Z | @plotarmordev | https://x.com/plotarmordev/status/2124293280708084035 | Inkling 2 Mini's built-in drafter takes DGX Spark SGLang decode from 37 to 83 tok/s, and the gain falls to about 1.5x at temperature 1.
+- 2026-11-21T22:22:37Z | @mmastrac | https://x.com/mmastrac/status/2124267262697972214 | Kindling's community quants let someone donate a Spark, an RTX 6000, or a CPU and put their name on the quant.
+- 2026-11-21T14:58:00Z | @plotarmordev | https://x.com/plotarmordev/status/2124155371904504088 | Listing both NCCL devices on one cable between 2 DGX Sparks makes long prompts 26-28% faster, and TensorFold's recipe listed only one.
+- 2026-11-21T11:02:00Z | @plotarmordev | https://x.com/plotarmordev/status/2124095981088026745 | On a Spark or Mac, a long agent instruction file is prefilled on every cold start before the first token.
+- 2026-11-21T09:06:09Z | @plotarmordev | https://x.com/plotarmordev/status/2124066826607022512 | Mia's 2x Spark GLM 5.3 Flash recipe is down to 13 patches because most of her speedups landed in TensorFold 1.3.0.
+- 2026-11-21T02:06:11Z | @plotarmordev | https://x.com/plotarmordev/status/2123961138618699930 | He plans TensorFold optimization work on an M5 Max and on RTX Spark laptops over the weekend.
+- 2026-11-21T01:00:01Z | @plotarmordev | https://x.com/plotarmordev/status/2123944485612577043 | Inkling 2 Mini is about 20GB, so an RTX Spark laptop can run it, and the Unsloth 4-bit build is 17.6GB.
+- 2026-11-20T23:21:09Z | @plotarmordev | https://x.com/plotarmordev/status/2123919607870419395 | Hy4 Flash on 2 DGX Sparks in vLLM, with unchanged FP8 weights, writes code at 29.8 tok/s, matching a second run at 29.7.
+- 2026-11-20T14:51:19Z | @plotarmordev | https://x.com/plotarmordev/status/2123791305319022946 | He reposts the 2-Spark NCCL_IB_HCA note.
+- 2026-11-20T09:35:35Z | @plotarmordev | https://x.com/plotarmordev/status/2123711847773946115 | Full Hy4 is a 770B model and not a home download, so he says not to buy a Spark for it off that post.
+- 2026-11-20T07:42:00Z | @plotarmordev | https://x.com/plotarmordev/status/2123683261289296125 | On two DGX Sparks, listing both port devices in NCCL_IB_HCA uses more of the 200 Gb/s link and makes long prompts 26-28% faster.
+- 2026-11-20T04:31:00Z | @plotarmordev | https://x.com/plotarmordev/status/2123635194418663437 | A model's first-night tok/s on a Spark or Mac is the floor, because engines and recipes keep catching up for weeks.
+- 2026-11-20T02:49:16Z | @JoesInvestments | https://x.com/JoesInvestments/status/2123609592844210233 | Claude Code and Hermes are his harnesses, and Hermes can call a DGX cluster running DeepSeek plus Mac Studio and RTX 5090 sidecars running Qwen 3.8 Flash Next.
+- 2026-11-20T00:45:39Z | @plotarmordev | https://x.com/plotarmordev/status/2123578484111065270 | TensorFold's recipes page lets you pick one Spark or two Sparks and copy one deploy command.
+- 2026-11-19T19:01:40Z | @Raullen | https://x.com/Raullen/status/2123491916000223665 | An agent rented a 96GB Blackwell, installed vLLM, and served a 55GB model in 20 minutes, so he says owning a DGX Spark is no longer the point.
+- 2026-11-19T16:22:30Z | @mmastrac | https://x.com/mmastrac/status/2123451863018377570 | He posts the updated 4x Spark GLM 5.3 recipe and offers to write up the remote KV recipe.
+- 2026-11-19T16:22:30Z | @mmastrac | https://x.com/mmastrac/status/2123451861344903522 | GLM 5.3 full bit387 on 4 DGX Sparks matches bit400, and about 17GB of remote KV holds 1M context at about 65 tok/s for four streams or 80 tok/s for eight.
+- 2026-11-19T14:04:00Z | @plotarmordev | https://x.com/plotarmordev/status/2123417007056146580 | His order on a Spark or Mac is one default model, then measure tok/s and memory, then quant versus full, then serve one agent.
+- 2026-11-19T13:25:37Z | @plotarmordev | https://x.com/plotarmordev/status/2123407346739356127 | TensorFold 1.2.10 is 57% faster at decode on one DGX Spark with eight chats sharing a 32K prompt.
+- 2026-11-19T10:54:11Z | @plotarmordev | https://x.com/plotarmordev/status/2123369238182453311 | He switches between TP2 and TP3, uses TP2 to free a Spark, and prefers DeepSeek to GLM Flash.
+- 2026-11-19T09:37:00Z | @plotarmordev | https://x.com/plotarmordev/status/2123349813945106492 | DeepSeek V4.1 Flash on two DGX Sparks did 153.5 tok/s across 4 chats, 0.5 tok/s under Mia's published 154.0 on TensorFold.
+- 2026-11-19T07:48:00Z | @plotarmordev | https://x.com/plotarmordev/status/2123322383088120080 | For an agent on a Spark or Mac, the first guardrail he wants is a tool allowlist.
+- 2026-11-19T03:29:00Z | @plotarmordev | https://x.com/plotarmordev/status/2123257203683430675 | Save real prompts and rerun them on every new quant you try on a Spark or Mac.
+- 2026-11-18T16:39:48Z | @mmastrac | https://x.com/mmastrac/status/2123093826323808583 | The k4 EXLR8 recipe gives about 450k context on 4 DGX Sparks, and he says that k4 beats EXL3 and NVFP4.
+- 2026-11-18T15:28:00Z | @plotarmordev | https://x.com/plotarmordev/status/2123075757941686299 | He runs some coding agents locally and treats any connection that is not his Mac or Spark as cloud use.
+- 2026-11-18T13:42:00Z | @plotarmordev | https://x.com/plotarmordev/status/2123049083946328133 | Hy4 Flash is 440GB in BF16 and 287GB in FP8, and the parameter labels do not say whether it fits his Sparks.
+- 2026-11-18T10:33:00Z | @plotarmordev | https://x.com/plotarmordev/status/2123001519075184863 | sparkDash's spark-attic frees the 2GB a headless DGX Spark reserves for a monitor.
+- 2026-11-18T09:14:12Z | @plotarmordev | https://x.com/plotarmordev/status/2122981688368410960 | He thought Hy4 Flash would fit on one Spark, and it does not.
+- 2026-11-18T09:06:00Z | @plotarmordev | https://x.com/plotarmordev/status/2122979625647374684 | His NVFP4 estimate for Hy4 Flash is about 220GB, so it means TP=2 on Sparks with little room left for context.
+- 2026-11-18T05:05:36Z | @plotarmordev | https://x.com/plotarmordev/status/2122919128357097890 | With several agents on one Spark, the wait you notice is time to first token for the last request, which is scheduling.
+- 2026-11-17T18:44:00Z | @mmastrac | https://x.com/mmastrac/status/2122762695220797665 | They are redoing the GLM 5.3 EXLR8 quant from mcg to mul1, about 200 Spark-hours, to drop KL by another 1%.
+- 2026-11-17T15:29:12Z | @mmastrac | https://x.com/mmastrac/status/2122713673471074737 | They may have freed enough memory to raise the two-Spark bit profile while a new GLM 5.3 quant pass improves KL.
+- 2026-11-17T14:25:29Z | @mmastrac | https://x.com/mmastrac/status/2122697636797178294 | On four Sparks, TP=4 and a TP=4 ring are now close, and a switch starts to matter at TP=5 or with remote KV.
+- 2026-11-17T10:03:00Z | @plotarmordev | https://x.com/plotarmordev/status/2122631581814731014 | After 12 quants, Mia's pick for GLM 5.3 on 4 Sparks is the K4 file, closer to BF16 than NVIDIA NVFP4 and smaller.
+- 2026-11-17T07:55:00Z | @plotarmordev | https://x.com/plotarmordev/status/2122599369031761944 | A correction an agent learns on his Spark should go in a file the Mac and the reviewer also read.
+- 2026-11-17T03:35:36Z | @plotarmordev | https://x.com/plotarmordev/status/2122534090880553094 | llama.cpp 1.0 refuses tools or MCP on a LAN address unless you set an API key, including when you serve from a Spark or Mac.
+- 2026-11-17T02:10:14Z | @mmastrac | https://x.com/mmastrac/status/2122512608549040361 | gr8 was tuned so GLM 5.3 K4 fits on 4 DGX Sparks with 440k context.
+- 2026-11-16T16:00:06Z | @mmastrac | https://x.com/mmastrac/status/2122359062780420551 | They will cut gr8 memory use so the K4 GLM 5.3 quant can run on 4 Sparks.
+- 2026-11-16T15:30:01Z | @plotarmordev | https://x.com/plotarmordev/status/2122351489217896943 | Running Qwen or DeepSeek on your own Spark keeps the prompts on your desk.
+- 2026-11-16T09:20:00Z | @plotarmordev | https://x.com/plotarmordev/status/2122258372292465075 | Most stated GLM 5.3 endpoints on OpenRouter are 4-bit, while on a Spark or Mac you pick the file yourself.
+- 2026-11-15T22:08:17Z | @mmastrac | https://x.com/mmastrac/status/2122089331372544164 | Realmark on his 2x Spark GLM 5.3 Flash recipe shows a quality cliff at 95k that tok/s hid.
+- 2026-11-15T21:07:53Z | @plotarmordev | https://x.com/plotarmordev/status/2122074132070424786 | So far only the Sparks are serving, and the Mac is not set up yet.
+- 2026-11-15T11:30:00Z | @plotarmordev | https://x.com/plotarmordev/status/2121928700354535461 | A TensorFold PR fits 8 Gemma4 31B streams instead of 4 on a GB10 in the same KV memory, with cold prompts up to 2.6% slower.
+- 2026-11-15T10:53:05Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2121919408662823085 | He published a post on running production AI on a DGX Spark.
+- 2026-11-14T17:01:34Z | @mmastrac | https://x.com/mmastrac/status/2121649752668512334 | He calls the remote KV box a way to make 1 or 2 Sparks more useful.
+- 2026-11-14T14:40:00Z | @plotarmordev | https://x.com/plotarmordev/status/2121614126988533787 | The Spark's point is 128GB for models one card cannot hold, and a discrete card is what you buy for speed.
+- 2026-11-14T12:27:00Z | @plotarmordev | https://x.com/plotarmordev/status/2121580656442704224 | An HP laptop with the RTX Spark chip drops from 80 to 39.5 TFLOP/s under a long Linux load because the power limit falls from 80W to 45W.
+- 2026-11-14T10:50:32Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2121556380956131365 | He published a DGX Spark benchmark of Qwen 3.8 with AEON DFlash2.
+- 2026-11-14T10:41:00Z | @plotarmordev | https://x.com/plotarmordev/status/2121553980622786623 | He runs DeepSeek V4.1 Flash (552B) with Drama 3 on a Mac and 3 DGX Sparks.
+- 2026-11-14T06:19:25Z | @mmastrac | https://x.com/mmastrac/status/2121488152917586031 | The added box costs no decode speed and only gives the Sparks extra memory.
+- 2026-11-14T06:18:17Z | @plotarmordev | https://x.com/plotarmordev/status/2121487866073055422 | Six DGX Sparks give 768GB on one CRS804, and he says big models belong on the Sparks and a flash model on 2 PRO 6000s.
+- 2026-11-14T04:29:37Z | @mmastrac | https://x.com/mmastrac/status/2121460522147262956 | On a tight budget he says one Spark can work, or a dual 3090 with a lot of non-DDR5 RAM.
+- 2026-11-14T02:36:31Z | @mmastrac | https://x.com/mmastrac/status/2121432056865730773 | A $1,000 Xeon, DDR3, and a ConnectX card add 128GB to the Spark cluster, with 40GB used as GLM 5.3 KV and about a 10% prefill hit on long context.
+- 2026-11-13T22:45:18Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2121373870670368890 | On a DGX Spark, Qwen 3.8 with AEON DFlash2 hit a median 43.7 tok/s, 23.1% above his July Qwen 3.6 mean.
+- 2026-11-13T22:45:06Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2121373818749083913 | His GB10 tok/s figures are full-stack results, not an isolated attention benchmark.
+- 2026-11-13T20:11:20Z | @JoesInvestments | https://x.com/JoesInvestments/status/2121335124054741053 | On the same 4 DGX Sparks and the same agent load, one build holds 340+ tok/s with 30 agents, and gr8 switches three models in under 30 seconds.
+- 2026-11-13T14:57:07Z | @mmastrac | https://x.com/mmastrac/status/2121256046362824743 | TP4 is the Spark sweet spot, especially with remote KV.
+- 2026-11-13T14:45:52Z | @mmastrac | https://x.com/mmastrac/status/2121253216029724676 | GLM 5.3 full on four DGX Sparks is still the model he trusts for the hard problems.
+- 2026-11-13T10:51:25Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2121194214990168123 | He published a DGX Spark benchmark covering Qwen, Gemma, and a diffusion model.
+- 2026-11-13T02:40:30Z | @JoesInvestments | https://x.com/JoesInvestments/status/2121070673116495927 | He calls a DGX Spark plus an RTX 5090 and a Mac Studio Max or Ultra a strong combo.
+- 2026-11-13T02:04:33Z | @JoesInvestments | https://x.com/JoesInvestments/status/2121061625461358887 | He says oMLX can use a DGX Spark as a prefill accelerator over Ethernet, and he is starting a docked-GPU version of that split.
+- 2026-11-12T23:54:03Z | @mmastrac | https://x.com/mmastrac/status/2121028783637713354 | gr8 went from zero to one of the fastest Spark engines over a few months.
+- 2026-11-12T20:51:47Z | @mmastrac | https://x.com/mmastrac/status/2120982915949711644 | DeepSeek on four Sparks in gr8 hits 8400 tok/s prefill and over 200 tok/s at concurrency.
+- 2026-11-11T16:55:37Z | @plotarmordev | https://x.com/plotarmordev/status/2120561095677214854 | He reposts Mia's GLM 5.3 Flash update that adds a TP4 recipe for 4 DGX Sparks, including a switchless setup.
+- 2026-11-11T15:27:57Z | @mmastrac | https://x.com/mmastrac/status/2120539030672810212 | The remote KV path works on cheap Sparks and on the budget Xeon, with a small performance hit.
+- 2026-11-11T03:06:39Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2120352475362504916 | He asks whether the method can run on a DGX Spark, slower than the original but faster than DFlash.
+- 2026-11-11T03:06:06Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2120352340050145351 | He asks how the result looks on a Spark.
+- 2026-11-10T19:20:12Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2120235092174119289 | Hermes turns take 9–13 seconds on the API, and he will test a local model on his DGX Spark next.
+- 2026-11-10T15:45:00Z | @plotarmordev | https://x.com/plotarmordev/status/2120180933445787656 | GLM-5.3 on 8 DGX Sparks did about 44 tok/s in TensorFold and 26 in vLLM, with more than twice the context, on different compressions.
+- 2026-11-10T01:24:00Z | @mmastrac | https://x.com/mmastrac/status/2119964255583625306 | The Kindling GLM 5.3 Flash recipe for 2 DGX Sparks does nearly 100 tok/s at 8 streams and 76 tok/s at one stream.
+- 2026-11-09T16:19:38Z | @mmastrac | https://x.com/mmastrac/status/2119827260656292004 | The single-Spark GLM 5.3 Flash recipe now returns harness reasoning, fixes a TP=1 attention bug, and moves to a bit201 tool-call quant.
+- 2026-11-09T15:50:00Z | @plotarmordev | https://x.com/plotarmordev/status/2119819803837989027 | DeepSeek V4.1 Flash hit 438 tok/s on 4 DGX Sparks with 16 copies of one prompt, and 380 tok/s with a different prompt per user.
+- 2026-11-08T21:59:01Z | @mmastrac | https://x.com/mmastrac/status/2119550282787123532 | He rebuilt the rack around a CRS804 to run two TP=4 rings, or one TP=4 mesh plus two TP=2 models, with the Kindling fast switcher.
+- 2026-11-08T15:21:20Z | @JoesInvestments | https://x.com/JoesInvestments/status/2119450204512419959 | He cites about 43 tok/s on one DGX Spark for Qwen 3.8 Flash Next as a published comparison for that model.
+- 2026-11-08T14:59:16Z | @mmastrac | https://x.com/mmastrac/status/2119444651568722370 | The 2x Spark GLM 5.3 Flash EXLR8 recipe is up.
+- 2026-11-08T13:48:20Z | @JoesInvestments | https://x.com/JoesInvestments/status/2119426796592439564 | On 4 Sparks behind a switch he can run real agent traffic at 30+ streams and report throughput, first token, and errors.
+- 2026-11-08T08:00:45Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2119339325804658985 | His DGX Spark at [LAN address redacted] serves vLLM on port 8000 and ComfyUI on 8188, fully offline.
+- 2026-11-08T05:53:07Z | @mmastrac | https://x.com/mmastrac/status/2119307206063722705 | Two Sparks on the EXLR8 3.49 mix run 8 sessions.
+- 2026-11-08T05:29:22Z | @mmastrac | https://x.com/mmastrac/status/2119301228752769076 | The two-Spark GLM 5.3 Flash bit349 recipe peaks at 98 tok/s, with code at 74 and prefill at 1675, for up to 8 sessions.
+- 2026-11-07T19:22:15Z | @JoesInvestments | https://x.com/JoesInvestments/status/2119148442710680004 | He runs that DeepSeek build on 4 Sparks and sees as many as 450 tok/s at 32 concurrent streams.
+- 2026-11-07T15:51:48Z | @plotarmordev | https://x.com/plotarmordev/status/2119095481305546909 | LingSpark runs 560B Ling-3.1-flash with a 1M context on 2 DGX Sparks at 32 to 35 tok/s, and about 26 tok/s after a 128K prompt.
+- 2026-11-06T20:49:46Z | @mmastrac | https://x.com/mmastrac/status/2118808078045102330 | gr8 can switch four Sparks among GLM 5.3 full, GLM 5.3 Flash, and DeepSeek 4.1 Flash with a few seconds of downtime.
+- 2026-11-06T17:11:59Z | @mmastrac | https://x.com/mmastrac/status/2118753271443841236 | EXLR8 mixes K2, K3, and K4, but a single Spark can only run the K2 manifest.
+- 2026-11-06T16:52:19Z | @mmastrac | https://x.com/mmastrac/status/2118748324274851993 | On one Spark, more than one session has to drop to MTP because there is not enough memory for DFlash on every session.
+- 2026-11-06T15:13:42Z | @mmastrac | https://x.com/mmastrac/status/2118723504560566555 | The one-Spark GLM 5.3 Flash recipe is ready.
+- 2026-11-06T15:05:55Z | @mmastrac | https://x.com/mmastrac/status/2118721548878319861 | He points at the one-Spark GLM 5.3 Flash recipe.
+- 2026-11-06T15:04:24Z | @mmastrac | https://x.com/mmastrac/status/2118721167146234062 | The one-Spark GLM 5.3 Flash recipe holds 700k KV on DGX OS and up to 1M on Kindling Spark OS, at EXLR8 K2 quality he equates to 2.5-bit EXL3.
+- 2026-11-06T14:56:56Z | @mmastrac | https://x.com/mmastrac/status/2118719286546227667 | He posts the one-Spark GLM 5.3 Flash recipe link.
+- 2026-11-06T14:35:20Z | @mmastrac | https://x.com/mmastrac/status/2118713850136867141 | He says that recipe is for one Spark only.
+- 2026-11-06T12:39:40Z | @plotarmordev | https://x.com/plotarmordev/status/2118684741943861744 | He is locking the cluster so the Mac's model servers answer only the Mac, and the Mac reaches the Sparks over Tailscale.
+- 2026-11-06T12:28:28Z | @plotarmordev | https://x.com/plotarmordev/status/2118681923891745255 | A faster GPU next to a Spark mostly buys speed, and most Spark owners already have the machine they need.
+- 2026-11-06T11:13:22Z | @plotarmordev | https://x.com/plotarmordev/status/2118663026111103446 | He reposts Mia's 2x DGX Spark GLM 5.3 Flash update, whose hard tool-eval score is now 93.
+- 2026-11-06T10:06:53Z | @plotarmordev | https://x.com/plotarmordev/status/2118646292369055808 | He agrees that 2 Sparks stand in for an M5 Ultra 256GB and 4 Sparks for a 512GB, and that extra money should buy GPUs for speed.
+- 2026-11-06T04:22:55Z | @mmastrac | https://x.com/mmastrac/status/2118559730029527484 | A single-Spark GLM 5.3 Flash recipe is coming on EXLR8, with code at 53 tok/s, prose at 29, and prefill at 1200.
+- 2026-11-06T04:14:08Z | @JoesInvestments | https://x.com/JoesInvestments/status/2118557520612450564 | His mission is to use GPUs to raise the speed of Apple silicon and DGX Spark.
+- 2026-11-05T01:20:44Z | @mmastrac | https://x.com/mmastrac/status/2118151494876926441 | He thinks they can assemble 20 to 30 Sparks for the quant.
+- 2026-11-05T01:18:03Z | @JoesInvestments | https://x.com/JoesInvestments/status/2118150821691207830 | He has been daily-driving DeepSeek and wants the new result tested, and he wishes he had 8 Sparks.
+- 2026-11-05T01:17:09Z | @JoesInvestments | https://x.com/JoesInvestments/status/2118150592396972396 | He reposts a report that full 753B GLM-5.3 generates code at 73.6 tok/s on four DGX Sparks at 1M context.
+- 2026-11-04T21:06:24Z | @mmastrac | https://x.com/mmastrac/status/2118087491408593335 | He offers to help quant pmcgx Kimi experts and says some Sparks could join that EXLR8 run.
+- 2026-11-04T19:22:55Z | @mmastrac | https://x.com/mmastrac/status/2118061446110302297 | Kimi-K3.1-Pro is 2.8T parameters and 1.5TB of weights, so a 1.4-bit quant for four Sparks would take a dozen Sparks a few weeks.
+- 2026-11-04T17:28:56Z | @mmastrac | https://x.com/mmastrac/status/2118032764918509824 | vLLM is starting a local-AI group, and he asks DGX Spark users to join #sig-local-ai.
+- 2026-11-04T16:05:56Z | @mmastrac | https://x.com/mmastrac/status/2118011875531350053 | He says the DGX Spark is strong on compute and links and weak on memory bandwidth, and extra blades could offload drafting and KV for GLM 5.3 and DeepSeek 4.1 Flash.
+- 2026-11-04T15:12:45Z | @plotarmordev | https://x.com/plotarmordev/status/2117998489418522864 | On a 64GB RTX Spark under Windows, the BIOS split gives the GPU at most 48GB and needs a reboot to change.
+- 2026-11-04T15:00:24Z | @mmastrac | https://x.com/mmastrac/status/2117995381363748921 | He points at gr8 as the multi-Spark engine for GLM 5.3, GLM 5.3 Flash, and DeepSeek.
+- 2026-11-04T14:30:01Z | @mmastrac | https://x.com/mmastrac/status/2117987737970311568 | He wants to see where a Spark plus an RTX 6000 lands with GLM 5.3 Flash EXLR8.
+- 2026-11-04T09:25:13Z | @plotarmordev | https://x.com/plotarmordev/status/2117911031850930639 | He asks whether that model needs 2 Sparks.
+- 2026-11-04T08:49:05Z | @plotarmordev | https://x.com/plotarmordev/status/2117901940336325027 | He asks how many Sparks the model needs.
+- 2026-11-04T08:48:05Z | @plotarmordev | https://x.com/plotarmordev/status/2117901685985333554 | He asks whether the setup is a Mac plus one Spark or several Sparks behind the Mac.
+- 2026-11-04T06:58:30Z | @Brooooook_lyn | https://x.com/Brooooook_lyn/status/2117874109040537772 | He says vLLM and SGLang target full server GPUs, community engines are what run well on the cut-down box, and networking 4 DGX Sparks is hard without a costly 400G switch.
+- 2026-11-04T00:46:59Z | @plotarmordev | https://x.com/plotarmordev/status/2117780613168259279 | He has 3 Sparks, a 256GB Mac Studio, and an unused 5090, and he is organizing them so each one gets used.
+- 2026-11-04T00:02:12Z | @plotarmordev | https://x.com/plotarmordev/status/2117769345799774555 | His first test will be DeepSeek V4.1 at TP3, because the third Spark was busy with other jobs.
+- 2026-11-03T23:08:48Z | @mmastrac | https://x.com/mmastrac/status/2117755904217203108 | A gr8 voice path uses about 30GB on part of a DGX Spark so you can talk to DeepSeek 4.1 Flash and interrupt it.
+- 2026-11-03T15:09:00Z | @plotarmordev | https://x.com/plotarmordev/status/2117635158757314924 | TensorFold proposes a layer split between a DGX Spark and a Mac over Ethernet, so a model can fit that neither machine holds alone.
+- 2026-11-03T13:59:56Z | @plotarmordev | https://x.com/plotarmordev/status/2117617777423130790 | Once a model does not fit on one card, the Spark wins by default, and when it fits, the card is faster.
+- 2026-11-03T13:55:33Z | @plotarmordev | https://x.com/plotarmordev/status/2117616675982028942 | He puts the Spark in the good-and-cheap corner for his workflow, and would pick an RTX 6000 for speed on models that fit a card.
+- 2026-11-03T13:18:00Z | @plotarmordev | https://x.com/plotarmordev/status/2117607224705204696 | It takes about 8 DGX Sparks to match one RTX 5090 or PRO 6000 in memory bandwidth, and clusters scale poorly past about 4 Sparks.
+- 2026-11-03T11:20:18Z | @plotarmordev | https://x.com/plotarmordev/status/2117577606757597235 | His Spark and Mac Drama 3 recipe now reads speaker tags so one script can voice several speakers.
+- 2026-11-03T08:05:57Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2117528695233798607 | A 70B model at 4-bit OOMs on his DGX Spark.
+- 2026-11-03T04:21:19Z | @plotarmordev | https://x.com/plotarmordev/status/2117472165817995544 | On one Spark, TensorFold beats vLLM on Qwen3.8 Flash Next, from 75 to 95 tok/s at 2 users, 114 to 145 at 4 users, and 2200 to 2956 tok/s of 8K prefill.
+- 2026-11-02T18:42:00Z | @plotarmordev | https://x.com/plotarmordev/status/2117326373866095055 | He opened the 256GB Mac Studio and is setting up a cluster of that Mac and his DGX Sparks.
+- 2026-11-02T16:20:45Z | @mmastrac | https://x.com/mmastrac/status/2117290827118694604 | gr8 on four DGX Sparks serves three EXLR8 models and boots in under 30 seconds.
+- 2026-11-02T12:48:00Z | @plotarmordev | https://x.com/plotarmordev/status/2117237288027521416 | He says the project runs on Linux and Apple silicon, so it works on a DGX Spark as is.
+- 2026-11-02T09:39:38Z | @plotarmordev | https://x.com/plotarmordev/status/2117189882762473776 | He will take a Spark off the public web and have the Mac manage inference on the Spark cluster.
+- 2026-11-02T03:55:10Z | @plotarmordev | https://x.com/plotarmordev/status/2117103197257166937 | He reposts that Nemotron 3.5 Bolt will run in TensorFold on an RTX Spark N1X Windows laptop, including on battery.
+- 2026-11-01T21:35:04Z | @mmastrac | https://x.com/mmastrac/status/2117007541788135495 | He is on four Sparks and offers help for an RTX 6000 port.
+- 2026-11-01T21:03:13Z | @mmastrac | https://x.com/mmastrac/status/2116999525625901484 | He posts the gr8 repo and the DeepSeek V4.1 Flash EXLR8 weights.
+- 2026-11-01T21:03:13Z | @mmastrac | https://x.com/mmastrac/status/2116999523486838801 | EXLR8 for DeepSeek 4.1 Flash is ready, and GLM 5.3 and GLM 5.3 Flash are getting large speedups.
+- 2026-11-01T16:05:20Z | @plotarmordev | https://x.com/plotarmordev/status/2116924562625757497 | He says Gemini Spark no longer works for him and guesses they blocked that access path.
+- 2026-11-01T13:15:13Z | @plotarmordev | https://x.com/plotarmordev/status/2116881751499030696 | He links Mia's Nemotron 3.5 Bolt TensorFold recipe for DGX Spark, plus his Windows port and a bug-fix PR.
+- 2026-11-01T13:15:12Z | @plotarmordev | https://x.com/plotarmordev/status/2116881744586854881 | TensorFold on an RTX Spark N1X, with Mia's recipe and NVIDIA's LiLiCorr drafter, runs Nemotron 3.5 Bolt at up to 100 tok/s, as much as 2.8x faster.
+- 2026-11-01T10:16:17Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2116836717936234755 | He says SpaceTimeViking has strong tuned models for the Spark.
+- 2026-11-01T10:15:45Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2116836583458709666 | On his Spark, Aeon Ornith-1.0-35B NVFP4 in vLLM with AEON DFlash n=6 does about 109 tok/s coding, 116 math, and 59 prose.
+- 2026-11-01T08:01:48Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2116802876651847852 | A local-first stack now beats the cloud for daily dev work if you have a DGX or a decent GPU box.
+- 2026-11-01T08:01:05Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2116802696917475521 | Hermes ties vLLM on port 8000 and ComfyUI on 8188 into one local config, with no cloud keys for the core models.
+- 2026-11-01T08:00:48Z | @mrru5s3ll | https://x.com/mrru5s3ll/status/2116802625022910561 | He is running Qwen3 35B A3B locally on a DGX Spark for coding.
+- 2026-11-01T06:30:28Z | @plotarmordev | https://x.com/plotarmordev/status/2116779888833347716 | If he keeps the Mac, he would run models up to about 200GB there and leave big-model inference to the 3 Sparks.
+- 2026-11-01T05:06:27Z | @mmastrac | https://x.com/mmastrac/status/2116758746005487683 | K4 will be tight on four Sparks, remote KV can cover that case, and bit325 is his sweet spot for quality plus session space.
+- 2026-11-01T05:04:49Z | @mmastrac | https://x.com/mmastrac/status/2116758335202771398 | EXLR8 KL is significantly better than EXL3 on the quant he is comparing.
+- 2026-11-01T04:55:19Z | @mmastrac | https://x.com/mmastrac/status/2116755944537542810 | He points at the gr8 repo.
+- 2026-11-01T01:43:10Z | @mmastrac | https://x.com/mmastrac/status/2116707587668504716 | He asks about a safetensors translation and says adding GGUF to gr8 would be more work.
+- 2026-11-01T00:36:20Z | @mmastrac | https://x.com/mmastrac/status/2116690769771974976 | A GeeekPi fan makes the four-Spark shelf run cool, and the next step is a 128GB remote KV node over ConnectX.
+- 2026-10-31T19:16:00Z | @mmastrac | https://x.com/mmastrac/status/2116610154976116890 | The language-steering examples are real GLM 5.3 runs on gr8.
+- 2026-10-31T02:40:31Z | @plotarmordev | https://x.com/plotarmordev/status/2116359635217084776 | He reposts that a DGX Spark fan follows GPU load, so CPU-heavy agent loops can heat the CPU while the GPU sits idle.
+- 2026-10-30T16:30:43Z | @mmastrac | https://x.com/mmastrac/status/2116206172080607725 | He posts gr8 plus the GLM 5.3 and GLM 5.3 Flash EXLR8 quant repos.
+- 2026-10-30T13:57:59Z | @plotarmordev | https://x.com/plotarmordev/status/2116167737429102919 | He dedicates a whole Spark to agent work because some tasks need dozens of gigabytes of RAM.
+- 2026-10-30T13:15:39Z | @plotarmordev | https://x.com/plotarmordev/status/2116157084349927455 | He has been using one Spark for compute and says each box should do the job it is good at.
+- 2026-10-30T13:11:29Z | @plotarmordev | https://x.com/plotarmordev/status/2116156032481395087 | The CPU-heat issue hit the Spark he uses to run jobs.
+- 2026-10-30T11:25:00Z | @plotarmordev | https://x.com/plotarmordev/status/2116129236645749211 | If a Spark runs agents all day, watch CPU temperature, and sparkDash plus dgx-spark-fan-thermald can drive the fans from CPU zones.
+- 2026-10-30T11:25:00Z | @plotarmordev | https://x.com/plotarmordev/status/2116129235672666211 | The DGX Spark fan tracks GPU load, so agent loops, tokenization, compiles, or CPU offload can heat the CPU without the fan speeding up.
+- 2026-10-29T14:37:22Z | @plotarmordev | https://x.com/plotarmordev/status/2115815259550486921 | He reposts TensorFold 1.1.9 release tests of Qwen3.8-27B on GB10 with an MLX 4-bit checkpoint.
+[grok exit 0]

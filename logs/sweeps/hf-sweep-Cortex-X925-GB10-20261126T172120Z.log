@@ -1,0 +1,57 @@
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] 2026-11-26T17:21:20Z (12:21:20 EST) | harness 19c8005
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement bwrap
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] Hugging Face sweep since 2026-11-26T14:21:20Z (3h)
+
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] == Qwen3.8-Flash-Next -- our fastest stack (llama.cpp Q3, and the 112 GB MLX build)
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? Rocicleito/Qwen3.8-Flash-Next-FNT2                         2026-11-26T17:13         dl=0
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     ATOMIKMN/Qwen3.8-Flash-Next-Abliterated-Uncensored-Turbo-B 2026-11-26T16:58         dl=0
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     Saiko016/Qwen3.8-Flash-Next-GSQ-RCO-Coder-Hybrid-UD-IQ2_XS 2026-11-26T16:36         dl=0
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     Ashlyn4202025/qwen3.8-next-flash-iqr-v4-c256k              2026-11-26T15:44         dl=0
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     immiq/Qwen3.8-Flash-Next-Abliterated-E8P-Q2A8-HQ           2026-11-26T14:21         dl=1
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] == DeepSeek-V4-Flash -- our only independent lineage; ds4 serves it
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? AI-SecurityAgent/DeepSeek-V4.1-Flash-1017-FP16             2026-11-26T17:20         dl=0
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? JMNI-Labs/DeepSeek-V4.1-Flash-1017-FLARE                   2026-11-26T17:01         dl=0
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? JMNI-Labs/DeepSeek-V4.1-Flash-1017-abliterated-FLARE       2026-11-26T15:58         dl=0
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     AI-SecurityAgent/DeepSeek-V4.1-Flash-1017-abliterated-FP8  2026-11-26T15:22         dl=0
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? wenzhouwu/YoungAi-DeepSeek-V4.1-Flash-1017                 2026-11-26T14:36         dl=934
+2026-11-26T12:21:20-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] == Ornith-1.5 -- fastest measured backend
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     JuwanH/Ornith-1.5-35B-A3B-abliterated-MTP-Vision-GGUF      2026-11-26T16:45         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? qualcomm-ai-hub-community/Ornith-1.5-9B-Hi-Fi-fraQtl       2026-11-26T15:29         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     fraQtl/Ornith-1.5-9B-Hi-Fi-GGUF                            2026-11-26T15:29         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] == gemma-4-26b -- the MLX Fast leaderboard model; measured 11/11
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     thquangpc/gemma-4-26B-A4B-it-qat-q4_0-uncensored-heretic-v 2026-11-26T16:05         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? mr-andrey-isachenko/Tenet-26B-A4B-Gemma4-Unslop-v2         2026-11-26T14:24         dl=23
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] == gemma-4-31b -- the Google-lineage backend, measured 12/12
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? khazic/gemma4_31b_sea8_2ep_sft                             2026-11-26T17:14         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? keptn/gemma4-31b-i8g                                       2026-11-26T16:56         dl=168
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? keptn/gemma4-31b-w5                                        2026-11-26T16:56         dl=209
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? keptn/gemma4-31b-a4                                        2026-11-26T16:56         dl=379
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     keptn/gemma4-31b-exl3                                      2026-11-26T16:56         dl=65
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     thquangpc/gemma-4-31B-Queen-it-qat-q4_0-unquantized-GGUF   2026-11-26T16:06         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     thquangpc/gemma-4-31B-it-qat-q4_0-uncensored-heretic-GGUF  2026-11-26T16:05         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     ND911/Gemma-4-31B-Vellum-Unbound-GGUF                      2026-11-26T15:19         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] == nvidia -- NVIDIA's own HF org: Nemotron, NVFP4/FP8 builds, DGX-loadable
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     nvidia/Nemotron-3.5-Rerank-8B-BF16                         2026-11-26T16:42         dl=10760
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] == Nemotron -- NVIDIA's Nemotron lineage; NVFP4/FP8 for Blackwell
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? keptn/nemotron-3.5-bolt-e4b-i8g                            2026-11-26T16:56         dl=190
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? keptn/nemotron-3.5-bolt-e4b-a4                             2026-11-26T16:56         dl=185
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     keptn/nemotron-3.5-bolt-e4b-exl3                           2026-11-26T16:56         dl=39
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     nvidia/Nemotron-3.5-Rerank-8B-BF16                         2026-11-26T16:42         dl=10760
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? aisingapore/Nemotron-SEA-LION-v5-E4B-SpecDecoder           2026-11-26T16:38         dl=37
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     aisingapore/Nemotron-SEA-LION-v5-E4B-INT4                  2026-11-26T16:38         dl=49
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     aisingapore/Nemotron-SEA-LION-v5-E4B-FP8                   2026-11-26T16:38         dl=52
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? aisingapore/Nemotron-SEA-LION-v5-E4B                       2026-11-26T16:38         dl=324
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     loom-draft/mradermacher-NVIDIA-Nemotron-Labs-3-Elastic-30B 2026-11-26T16:37         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]   ? loom-draft/lmstudio-community-Nemotron-3-Nano-Omni-30B-A3B 2026-11-26T16:37         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     AtomicChat/Nemotron-Labs-Image-30B-A3B-GGUF                2026-11-26T15:26         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a]     StudioYebisu-ship-it/Nemotron-Labs-Image-30B-A3B-W5W4-GPTQ 2026-11-26T14:57         dl=0
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] 1 result(s) hidden as unloadable on gb10 (mlx, rocm, exl2). Re-run with --all to see them.
+2026-11-26T12:21:21-0500 INFO [19c8005@Cortex-X925-GB10 none pld=n/a] 
+Legend:  (blank) loads here   ? unclassified, check it   x hidden

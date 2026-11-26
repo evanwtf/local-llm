@@ -1,0 +1,37 @@
+# grok sweep (dgx), second attempt after the operator signed in
+# requested window: last 24 hours
+# written:  2026-11-26T17:22:13Z  (local: 2026-11-26 12:22:13 EST)
+# query:    Search X for posts and replies from @MiaAI_lab, @sudoingX, @0xSero, @jayleaton, @ashxhart, @no_stp_on_snek, @Raullen, @Brooooook_lyn, @bleysg, @ViC305, @yume_arasaki, @sfxnz, @plotarmordev, @AlexanderChopra, @JoesInvestments, @mrru5s3ll in the last 24 hours about running LLMs on NVIDIA DGX Spark or GB10 (one or two Sparks): vLLM, TensorFold, SGLang, TensorRT-LLM, NVFP4, FP8, EXL3 recipes, two-node tensor parallel, coding agents. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for posts and replies from those accounts in the last 24 hours about DGX Spark and GB10.
+
+The first pass hit the result cap and missed several accounts. I'll pull the rest of the 24-hour window and check the accounts that did not appear.
+
+- 2026-11-26 17:02:06 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125998543563628576 | A DGX Station does not give you the 2TB of memory that a large GB10 Spark cluster does.
+- 2026-11-26 16:41:29 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125993352781021421 | She asks whether the Spark interconnect they want is a switch.
+- 2026-11-26 16:35:24 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125991823583920495 | She confirms Qwen3.8 27B is off her DGX Spark model list.
+- 2026-11-26 16:35:16 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125991789635015082 | A merely usable GLM 5.3 on one DGX Spark is not good enough for her.
+- 2026-11-26 16:34:52 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125991690003439860 | Kimi K3 might run on DGX Spark, but it is not a model she uses.
+- 2026-11-26 16:18:36 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125987594517528698 | vLLM recipes exist for these Spark models, and her recipes use TensorFold.
+- 2026-11-26 15:53:13 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125981209201414605 | Ling has a good chance of becoming the best model on a single DGX Spark.
+- 2026-11-26 15:53:02 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125981160429990100 | Inkling 2 Mini leaves plenty of context free on a 64GB DGX Spark.
+- 2026-11-26 15:52:35 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125981050296045624 | With three Sparks she would run two plus one rather than wait for a fourth.
+- 2026-11-26 15:42:09 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125978423546065366 | Six Sparks can use a ring or a switch, and her recipe is for a switch only.
+- 2026-11-26 15:30:14 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125975423964082600 | On one DGX Spark she recommends only Qwen3.8 Flash Next or Inkling 2 Mini, and on two Sparks she prefers GLM 5.3 Flash, with DeepSeek V4.1 Flash as the alternative.
+- 2026-11-26 13:32:36 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125945820088504344 | She dropped maintenance of her DeepSeek V4.1 Flash recipe and endorses PICO, which she says reaches 10k+ prefill on DGX and beats Macs for DeepSeek.
+- 2026-11-26 10:35:30 UTC | @sudoingX | https://x.com/sudoingX/status/2125901253884436873 | His FP8 LingSante 3.1 Air VL scored 914 of 1,200 on a medical exam on 2x DGX Sparks with vLLM tensor parallel 2, at about 14.7 tok/s per stream across eight streams.
+- 2026-11-26 10:09:40 UTC | @ashxhart | https://x.com/ashxhart/status/2125894750192742483 | He asks for a repeatable EXL3 run on Spark as a baseline before those models move to TFQ.
+- 2026-11-26 09:30:46 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125884962348093520 | She runs GLM 5.3 and GLM 5.3 Flash on 6x DGX Sparks plus 2x RTX PRO 6000s.
+- 2026-11-26 09:26:05 UTC | @sfxnz | https://x.com/sfxnz/status/2125883784734330903 | Inkling 2 Mini plus DFlash2 on one DGX Spark with TensorFold 1.3.5 does 42.3–46.2 tok/s prose at one stream and 2,564 tok/s prefill at 16k with FP8 KV.
+- 2026-11-26 09:19:49 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2125882204354224626 | She links a DGX Spark 128GB TensorFold recipe for Inkling 2 Mini at 48.3 tok/s single stream and 145 tok/s across eight streams, with a 200K needle pass.
+- 2026-11-26 08:17:57 UTC | @ashxhart | https://x.com/ashxhart/status/2125866637635076477 | Inkling 2 Mini beats Qwen3.8-27B as the best model for a 48–64GB RTX Spark on TensorFold with Mia's recipe.
+- 2026-11-26 05:35:23 UTC | @sudoingX | https://x.com/sudoingX/status/2125825727186813042 | Text-only LingSante 3.1 Flash coded a beating 3D heart in Three.js through Hermes agent on 4x DGX Sparks over llama.cpp RPC.
+- 2026-11-26 01:24:34 UTC | @plotarmordev | https://x.com/plotarmordev/status/2125762604299599993 | He runs local inference mostly on 3 DGX Sparks, one M5 Ultra Studio, and an M5 Max MacBook.
+- 2026-11-26 00:13:10 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125744637474111740 | She points to her Inkling 2 Mini TensorFold recipe for DGX Spark and says more speedups are coming.
+- 2026-11-26 00:00:02 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2125741333406978527 | On a 128GB DGX Spark the TensorFold Inkling 2 Mini recipe does 48.3 tok/s single stream, 145 tok/s across eight streams, 3,497 tok/s prefill, and a passing 200K needle test, and TensorFold 1.3.5 claims another 70%.
+- 2026-11-25 21:06:52 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125697752730661057 | A 3-Spark build of the full GLM 5.3 TensorFold recipe is coming soon.
+- 2026-11-25 19:39:57 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125675881309843813 | She posts the Hugging Face weights for GLM 5.3 EXL3 K4 and the DERISKED Cyber EXL3 4 bpw quant used on DGX Sparks.
+- 2026-11-25 19:39:57 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125675878470529292 | She posts the KL-divergence figure for the GLM 5.3 DERISKED EXL3 4 bpw quant.
+- 2026-11-25 19:39:56 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125675873948811520 | Full GLM 5.3 on TensorFold does about 39 tok/s at TP4 with ~288k context and about 49 tok/s at TP6 with ~845k context, on K4 or DERISKED EXL3 4 bpw.
+- 2026-11-25 17:53:21 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125649052893401532 | She shows top-quality GLM 5.3 running on 6x DGX Spark.
+[grok exit 0]

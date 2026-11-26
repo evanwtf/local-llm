@@ -1,0 +1,330 @@
+# grok sweep (dgx), 4-week window, query 1
+# requested window: the last 4 weeks (2026-10-29 to 2026-11-26)
+# written:  2026-11-26T17:23:07Z  (local: 2026-11-26 12:23:07 EST)
+# query:    Search X for posts and replies from @MiaAI_lab, @sudoingX, @0xSero, @jayleaton, @ashxhart, @yume_arasaki, @ViC305, @sfxnz in the last 4 weeks (2026-10-29 to 2026-11-26) about running LLMs on NVIDIA DGX Spark or GB10 (one, two or more Sparks): model recipes, vLLM, TensorFold, SGLang, TensorRT-LLM, NVFP4, FP8, EXL3, tensor parallel across nodes, measured speeds, coding agents. List every matching post. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for those accounts over the last four weeks and keep only posts about DGX Spark or GB10.
+
+The first page is mostly recent Spark posts. I'll page each account so older recipes and replies are included.
+
+The first page stops around 19–25 November. I'll page further back through 29 October.
+
+Early November still has recipe posts. I'll page that window next.
+
+- 2026-11-26 17:02:06 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125998543563628576 | Mia says a DGX Station will not give you 2 TB of memory.
+- 2026-11-26 16:18:36 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125987594517528698 | Mia says vLLM Spark recipes exist, and her own recipes use TensorFold.
+- 2026-11-26 15:30:14 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125975423964082600 | Mia maps models to one, two, four, six, and eight DGX Sparks, and says one Spark should run Qwen3.8 Flash Next or Inkling 2 Mini rather than a heavily quantized DeepSeek V4.1 Flash or GLM 5.3 Flash.
+- 2026-11-26 13:32:36 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125945820088504344 | Mia says her DeepSeek V4.1 Flash recipe is no longer maintained, and she endorses PICO, which she says reaches 10k+ prefill on DGX hardware.
+- 2026-11-26 13:26:07 UTC | @jayleaton | https://x.com/jayleaton/status/2125944188638540118 | JJ says Inkling 2 Mini hits 90.3 tok/s of code on an M5 Mac Studio in LocalRouter, and DGX Spark support is coming.
+- 2026-11-26 11:29:20 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125914797741076924 | Mia reposts that Inkling 2 Mini built a whole HTML page in 47 minutes on one DGX Spark.
+- 2026-11-26 10:35:30 UTC | @sudoingX | https://x.com/sudoingX/status/2125901253884436873 | Sudo says his own FP8 LingSante 3.1 Air VL scored 914 of 1,200 medical questions on 2x DGX Sparks in vLLM at TP=2, at about 14.7 tok/s per stream across eight streams.
+- 2026-11-26 10:09:40 UTC | @ashxhart | https://x.com/ashxhart/status/2125894750192742483 | Ash says a repeatable EXL3 run on a Spark would give helpers a baseline.
+- 2026-11-26 09:30:46 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125884962348093520 | Mia says she is running GLM 5.3 and GLM 5.3 Flash on 6x DGX Sparks plus 2x RTX PRO 6000s.
+- 2026-11-26 09:26:05 UTC | @sfxnz | https://x.com/sfxnz/status/2125883784734330903 | Sufyan says Inkling 2 Mini plus DFlash2 on TensorFold 1.3.5 does 42.3–46.2 tok/s of prose on one DGX Spark, with 2,564 tok/s prefill at 16k and an FP8 KV cache.
+- 2026-11-26 09:19:49 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2125882204354224626 | Yume cites a DGX Spark 128 GB TensorFold run of Inkling 2 Mini at 48.3 tok/s single stream, 145 tok/s across eight streams, 3,497 tok/s prefill, and a passing 200K needle test.
+- 2026-11-26 05:35:23 UTC | @sudoingX | https://x.com/sudoingX/status/2125825727186813042 | Sudo says LingSante 3.1 Flash coded a beating heart in Three.js through Hermes on 4x DGX Sparks over llama.cpp RPC, with no vision.
+- 2026-11-26 00:13:10 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125744637474111740 | Mia points people to her Inkling 2 Mini TensorFold recipe for DGX Spark.
+- 2026-11-26 00:00:02 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2125741333406978527 | Yume says a DGX Spark 128 GB TensorFold recipe runs Inkling 2 Mini at 48.3 tok/s single stream and 145 tok/s aggregate at eight streams, with 3,497 tok/s prefill and a passing 200K needle.
+- 2026-11-25 21:06:52 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125697752730661057 | Mia says a three-Spark version of the GLM 5.3 recipe is coming soon.
+- 2026-11-25 19:39:56 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125675873948811520 | Mia says full GLM 5.3 on TensorFold does about 39 tok/s at TP4 and about 49 tok/s at TP6 on DGX Sparks, with TP6 holding about 845k context.
+- 2026-11-25 17:53:21 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125649052893401532 | Mia shows top-quality GLM 5.3 running on 6x DGX Sparks.
+- 2026-11-25 16:46:55 UTC | @ViC305 | https://x.com/ViC305/status/2125632333059670148 | Cruz says his Ling-3.2-Air SAGE-REXL3 5.01 bpw quant is 75.45 GiB and is built for a full 1M context on one DGX Spark.
+- 2026-11-25 14:44:28 UTC | @jayleaton | https://x.com/jayleaton/status/2125601517520744596 | JJ reposts that TensorFold 1.3.5 makes Inkling 2 Mini 70% faster on a DGX Spark.
+- 2026-11-25 12:57:43 UTC | @ashxhart | https://x.com/ashxhart/status/2125574654471688343 | Ash asks for the launch command and results of a two-Spark DeepSeek recipe.
+- 2026-11-25 11:44:33 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2125556242584338509 | Yume posts receipts that include a DeepSeek-on-Sparks ladder of 95/96/91/94/94/93 across 915,246 tokens.
+- 2026-11-25 11:44:01 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2125556108517654666 | Yume says DeepSeek V4.1 Flash 1017 EXL3 at TP=2 on two DGX Sparks scored 95/168 with reasoning off and 142/168 with reasoning on, and held 93/168 at 915,246 tokens.
+- 2026-11-25 06:05:28 UTC | @ViC305 | https://x.com/ViC305/status/2125470908576116986 | Cruz says his 74.37 GiB LingSante 3.1 Air VL SAGE quant read a three-year bloodwork set at 48 tok/s on one DGX Spark.
+- 2026-11-25 04:07:36 UTC | @sudoingX | https://x.com/sudoingX/status/2125441246571426020 | Sudo reposts his clip of LingSante 3.1 Flash coding on 4x DGX Sparks.
+- 2026-11-25 02:04:59 UTC | @ViC305 | https://x.com/ViC305/status/2125410387550220504 | Cruz says the same Inkling 2 Mini SAGE-EXL3 quants that did 108.8 tok/s of code on a DGX Spark do 217.3 tok/s of code on one RTX 4090.
+- 2026-11-25 00:00:47 UTC | @ashxhart | https://x.com/ashxhart/status/2125379134650294734 | Ash asks how long one of those clips took to render on the Spark.
+- 2026-11-24 22:14:47 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125352457932824695 | Mia says DFlash2 is now in the Inkling 2 Mini DGX Spark recipe and prose decode is much faster.
+- 2026-11-24 19:57:00 UTC | @ViC305 | https://x.com/ViC305/status/2125317781675471338 | Cruz says LingSante 3.1 Air VL at official MXFP4 did 139 tok/s on one RTX PRO 6000 in SGLang while reading five medicine labels.
+- 2026-11-24 17:36:54 UTC | @ViC305 | https://x.com/ViC305/status/2125282526885478640 | Cruz says Inkling 2 Mini SAGE-EXL3 with DFlash2 does 108.8 tok/s of code and 57.5 tok/s of prose on one DGX Spark, using about 26–27 GB.
+- 2026-11-24 17:17:17 UTC | @sudoingX | https://x.com/sudoingX/status/2125277588491047071 | Sudo says LingSante 3.1 Flash, 560B with 25B active, decodes at 14.34 tok/s with MTP across 4x DGX Sparks over llama.cpp RPC and RDMA while Hermes codes organs.
+- 2026-11-24 17:14:59 UTC | @0xSero | https://x.com/0xSero/status/2125277009228300626 | Sero tells someone to port vLLM to Metal and keep speculative decoding on until speed hits the memory-bandwidth limit.
+- 2026-11-24 17:10:37 UTC | @0xSero | https://x.com/0xSero/status/2125275909129474145 | Sero says the target stack is vLLM or SGLang with a 4-bit quant.
+- 2026-11-24 14:16:00 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125231966689661088 | Mia reposts that NVIDIA sent an RTX Spark to build the Llama app and llama.cpp on Windows.
+- 2026-11-24 13:15:20 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125216698894815700 | Mia tells a reader to run Inkling 2 Mini on a Spark.
+- 2026-11-24 13:00:02 UTC | @sudoingX | https://x.com/sudoingX/status/2125212849102336213 | Sudo says the official FP8 of Ling 3.2 Air is 129.3 GB and will land on his 2x DGX Sparks that night.
+- 2026-11-24 10:51:46 UTC | @sudoingX | https://x.com/sudoingX/status/2125180571081154742 | Sudo says his handmade FP8 of LingSante 3.1 Air VL runs at 45 tok/s on 2x DGX Sparks in vLLM at TP=2, with each GB10 holding 71,883 MiB.
+- 2026-11-24 10:41:41 UTC | @jayleaton | https://x.com/jayleaton/status/2125178031715311724 | JJ reposts Mia’s Inkling 2 Mini DGX Spark recipe.
+- 2026-11-24 10:29:55 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125175069693407565 | Mia says Inkling 2 Mini on TensorFold does 48 tok/s of prose on one DGX Spark and 145 tok/s across four streams, with a 2200 MHz clock cap.
+- 2026-11-24 06:24:07 UTC | @ViC305 | https://x.com/ViC305/status/2125113212928716949 | Cruz says he picks a DGX Spark because Linux and NVIDIA will not drop update support the way Macs do.
+- 2026-11-24 05:28:39 UTC | @jayleaton | https://x.com/jayleaton/status/2125099253492248616 | JJ says he is mainly looking for Spark or Mac recipes.
+- 2026-11-24 01:40:02 UTC | @ViC305 | https://x.com/ViC305/status/2125041720668868857 | Cruz says his 1.51 bpw SAGE-EXL3 of 560B LingSante 3.1 Flash defeated three synthetic insurance-denial arguments at 28 tok/s on one DGX Spark.
+- 2026-11-24 01:01:00 UTC | @jayleaton | https://x.com/jayleaton/status/2125031898460086363 | JJ says a TP=2 rewrite on RTX 6000s, based on his earlier DGX Spark CUDA work, got prefill to 1.95x at 128k while single-stream decode stayed at 0.98x of TP=1.
+- 2026-11-23 23:30:46 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2125009191567770025 | Mia says the model fits on just one Spark because it is small.
+- 2026-11-23 22:36:19 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2124995486931104181 | Mia says the Inkling 2 Mini DGX Spark recipe drops the next day.
+- 2026-11-23 18:30:35 UTC | @ViC305 | https://x.com/ViC305/status/2124933648822788594 | Cruz says official MXFP4 LingSante 3.1 Air VL ran at 142 tok/s on one RTX PRO 6000 in SGLang and found a $701 billing gap.
+- 2026-11-23 11:06:03 UTC | @sudoingX | https://x.com/sudoingX/status/2124821778396749830 | Sudo says he loaded 560B LingSante 3.1 Flash on 4x borrowed DGX Sparks and will publish the runs.
+- 2026-11-23 10:57:51 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2124819711062090183 | Yume asks how to run that model on a Spark.
+- 2026-11-23 09:50:19 UTC | @0xSero | https://x.com/0xSero/status/2124802716694442357 | Sero says a 6x RTX PRO 6000 build on MCIO will plug into his switch with 4–8 DGX Sparks.
+- 2026-11-23 05:54:57 UTC | @sudoingX | https://x.com/sudoingX/status/2124743484309712969 | Sudo says LingSante 3.1 Air VL, 124B with 5.5B active, is the right model for 2x DGX Sparks.
+- 2026-11-23 00:00:22 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2124654250298868073 | Mia says she will release an Inkling 2 Mini recipe for DGX Spark and RTX PRO 6000.
+- 2026-11-22 23:35:43 UTC | @ViC305 | https://x.com/ViC305/status/2124648050518097971 | Cruz says the Spark was down.
+- 2026-11-22 21:51:46 UTC | @ViC305 | https://x.com/ViC305/status/2124621890119717184 | Cruz says he would pick an RTX 4090 or a DGX Spark, and he recommends the Spark if you can afford it.
+- 2026-11-22 21:18:48 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2124613593962250748 | Mia shows a rack holding 6x DGX Sparks, a MikroTik CRS804, an unmanaged switch, and an OPNsense firewall.
+- 2026-11-22 16:59:28 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2124548330114146750 | Yume links Mia’s DeepSeek V4.1 Flash 1017 recipe for 2x DGX Sparks, the EXL3 2.9 bpw pack, and TensorFold as the desk arm of her test.
+- 2026-11-22 16:59:17 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2124548281602879813 | Yume says Mia’s TensorFold EXL3 of DeepSeek V4.1 Flash 1017 on two DGX Sparks scored 95/168 against the cloud’s 96/168 with reasoning off, and 93 versus 92 at about 900k tokens.
+- 2026-11-22 16:06:47 UTC | @sudoingX | https://x.com/sudoingX/status/2124535068878340301 | Sudo says he will bench 560B LingSante 3.1 Flash on 4x DGX Sparks against Ling 3.0 Flash Sante.
+- 2026-11-22 14:55:08 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2124517040904118565 | Mia says adding another Spark beats the compared box, and she still wants a discrete GPU for image and video generation.
+- 2026-11-22 14:50:58 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2124515992306913668 | Mia says one Spark practically beats the compared machine and costs less.
+- 2026-11-22 14:41:50 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2124513694151565455 | Mia asks whether the pictured run is one Spark.
+- 2026-11-22 12:22:24 UTC | @sfxnz | https://x.com/sfxnz/status/2124478602385224155 | Sufyan answers that the machine in question is the DGX Spark.
+- 2026-11-22 00:40:00 UTC | @jayleaton | https://x.com/jayleaton/status/2124301837104775268 | JJ says his Qwen3.5-9B TensorFold recipe does 78 tok/s in one chat and 479 tok/s across 16 chats on a DGX Spark.
+- 2026-11-21 20:01:30 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2124231753170587658 | Mia says Qwen3.8 Flash Next, which fits a 128 GB DGX Spark, produced 100 distinct HTML files and is one of the better open models for web design.
+- 2026-11-21 10:06:22 UTC | @sfxnz | https://x.com/sfxnz/status/2124081982988501398 | Sufyan says the model sits on his DGX Spark and he reaches it from his laptop and phone.
+- 2026-11-21 03:39:38 UTC | @sudoingX | https://x.com/sudoingX/status/2123984656202875304 | Sudo reposts that an 8-Spark cluster, 128 GB each, is the biggest local-AI box of the year.
+- 2026-11-20 21:58:19 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123898759381733785 | Mia says she will try Inkling 2 Mini, a 26B model with a 20 GB checkpoint, on her DGX Spark.
+- 2026-11-20 20:21:52 UTC | @ashxhart | https://x.com/ashxhart/status/2123874490887324160 | Ash says TensorFold 1.3.2 runs Muse Spark Open on two GB10s.
+- 2026-11-20 19:43:46 UTC | @0xSero | https://x.com/0xSero/status/2123864902712578458 | Sero says his Omarchy image ships optimized recipes for 65 machines and works with DGX and RTX Sparks.
+- 2026-11-20 16:35:51 UTC | @sfxnz | https://x.com/sfxnz/status/2123817609250345355 | Sufyan asks who has run the Qwen3.8-27B draft model on DGX Sparks and what speed they saw.
+- 2026-11-20 13:33:05 UTC | @sfxnz | https://x.com/sfxnz/status/2123771617289638276 | Sufyan says he is running that model on a single Spark.
+- 2026-11-20 12:05:54 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123749674913779924 | Mia says the GLM 5.3 Flash recipe for 2x DGX Sparks on TensorFold 1.3.0 cut the patch set from 100+ to 13 and reserves prompt-cache space up front.
+- 2026-11-20 10:17:37 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123722425775030473 | Mia says she runs Qwen3.8 Flash Next on 2x DGX Sparks and DeepSeek V4.1 Flash on 4x DGX Sparks, with GLM 5.3 Flash on 2x RTX PRO 6000s as the main worker.
+- 2026-11-20 10:15:34 UTC | @sfxnz | https://x.com/sfxnz/status/2123721908122435795 | Sufyan says he owns two DGX Sparks and TP4 is getting more attractive as flash models grow.
+- 2026-11-20 08:32:39 UTC | @sfxnz | https://x.com/sfxnz/status/2123696009171624015 | Sufyan says a single-DGX-Spark recipe for Hy4, 770B total and 49B active, is coming.
+- 2026-11-20 00:08:33 UTC | @ViC305 | https://x.com/ViC305/status/2123569147225526345 | Cruz says he previously recommended a DGX Spark per scientist as a local Hermes lab agent.
+- 2026-11-19 23:19:14 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123556734933311658 | Mia says she has 6 DGX Sparks and can help.
+- 2026-11-19 23:09:34 UTC | @ashxhart | https://x.com/ashxhart/status/2123191914816033050 | Ash says TensorFold 1.2.10 decodes Qwen3.8-27B 57% faster on a GB10 at eight streams with a shared 32K prefix.
+- 2026-11-19 23:09:29 UTC | @ashxhart | https://x.com/ashxhart/status/2123191896734417154 | Ash repeats that TensorFold 1.2.10 decodes Qwen3.8-27B 57% faster on a GB10 at eight streams with a shared 32K prefix.
+- 2026-11-19 18:46:44 UTC | @sfxnz | https://x.com/sfxnz/status/2123488159635816595 | Sufyan says a useful local box should at least run Qwen3.8 Flash Next, which fits one DGX Spark or the new RTX Spark.
+- 2026-11-19 18:08:30 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123478540343558489 | Mia links NVIDIA’s post that RTX Spark desktops for local AI are on sale.
+- 2026-11-19 18:07:19 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123478241469985218 | Mia says RTX Spark is the same box as DGX Spark but on Windows and without ConnectX-7, and she names Qwen3.8 Flash Next and Qwen3.8-27B as the first models to compare.
+- 2026-11-19 17:43:25 UTC | @ashxhart | https://x.com/ashxhart/status/2123472227278451174 | Ash says he wants to see how the Spark path comes together.
+- 2026-11-19 17:03:13 UTC | @ViC305 | https://x.com/ViC305/status/2123462111137521681 | Cruz says his Hy4-Flash SAGE-REXL3 4.84 bpw quant is 92.9 GiB and is sized for one DGX Spark, with Engram tables on NVMe.
+- 2026-11-19 15:55:04 UTC | @sfxnz | https://x.com/sfxnz/status/2123444959529271713 | Sufyan says a large update is coming for GLM 5.3 Flash on 2x DGX Sparks.
+- 2026-11-19 13:22:16 UTC | @ashxhart | https://x.com/ashxhart/status/2123406503935987738 | Ash says it is good to see the model working on one Spark, and he asks what prompts people are using.
+- 2026-11-19 13:22:09 UTC | @ashxhart | https://x.com/ashxhart/status/2123406475347267863 | Ash says the Flash Next recipe documents 262K context on one Spark with the EXL3 3.05 bpw pack, and he has not seen a verified five-slot run at that context.
+- 2026-11-19 13:18:00 UTC | @jayleaton | https://x.com/jayleaton/status/2123043042664091821 | JJ says he plans DGX Spark BF16 and DGX Spark EXL3 builds of SenseNova-Loop-9B on TensorFold.
+- 2026-11-19 13:13:17 UTC | @jayleaton | https://x.com/jayleaton/status/2123404246188167309 | JJ posts a SenseNova-Loop-9B TensorFold recipe with MLX 4-bit and 8-bit quants marked for Mac and Spark.
+- 2026-11-19 10:28:26 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123362759068827655 | Mia reposts a measured 153.5 tok/s across four chats of DeepSeek V4.1 Flash on two DGX Sparks, against her recipe’s published 154.0.
+- 2026-11-19 09:45:22 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123351919297245391 | Mia says spark-attic updates are live in sparkDash.
+- 2026-11-19 09:01:58 UTC | @sfxnz | https://x.com/sfxnz/status/2123340997698449529 | Sufyan says a DGX Spark today feels like a different machine from four months ago because of community optimizations.
+- 2026-11-19 08:28:21 UTC | @ashxhart | https://x.com/ashxhart/status/2123332540656390385 | Ash says spark-attic 0.1.6 frees about 2 GB more KV cache per DGX Spark from display memory a headless box never uses.
+- 2026-11-19 08:21:36 UTC | @ashxhart | https://x.com/ashxhart/status/2123330839908102452 | Ash says he does not yet have a verified single-Spark recipe for those weights.
+- 2026-11-19 07:55:57 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123324384559399318 | Mia says a real-world GLM 5.3 Flash test showed 4x DGX Sparks beating a 512 GB M5 Ultra.
+- 2026-11-19 07:17:33 UTC | @ViC305 | https://x.com/ViC305/status/2123314722217083198 | Cruz says old miner cards lack native FP4 and FP8 tensor cores, so they miss the inference advantage of a Blackwell DGX Spark.
+- 2026-11-18 22:52:21 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123187582268002696 | Mia links her GLM 5.3 Flash recipe page for DGX Sparks, build 1104.
+- 2026-11-18 22:33:25 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123182817714524259 | Mia says the one-Spark Qwen3.8 Flash Next recipe now uses TensorFold 1.2.7, which raises decode a bit and lowers time to first token at five streams, and adds video and PDF input.
+- 2026-11-18 22:19:47 UTC | @0xSero | https://x.com/0xSero/status/2123179389265600949 | Sero says DaisyRose-27B, trained by the SGLang lab, is another strong model for 16–96 GB owners.
+- 2026-11-18 13:18:00 UTC | @jayleaton | https://x.com/jayleaton/status/2123043042664091821 | JJ lists planned TensorFold quants for SenseNova-Loop-9B, including DGX Spark BF16 and DGX Spark EXL3.
+- 2026-11-18 12:36:15 UTC | @sfxnz | https://x.com/sfxnz/status/2123032537903612345 | Sufyan says whoever gets GTA 6 running on a DGX Spark will blow up.
+- 2026-11-18 11:31:15 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2123016180080480711 | Mia reposts that spark-attic in sparkDash returns 2 GB on a headless Spark in one click.
+- 2026-11-18 07:36:48 UTC | @ViC305 | https://x.com/ViC305/status/2122957178437001274 | Cruz says he is already making an EXL3 quant of Hy4-Flash for one Spark.
+- 2026-11-18 06:45:12 UTC | @0xSero | https://x.com/0xSero/status/2122944191143841996 | Sero calls open-weight Hy4-Flash a new model for one and two DGX Sparks.
+- 2026-11-18 06:26:00 UTC | @jayleaton | https://x.com/jayleaton/status/2122939359251046727 | JJ asks who wants DGX Spark TensorFold recipes for Hy4-Flash.
+- 2026-11-18 06:23:24 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2122938707523059985 | Mia says Hy4-Flash is 224B with 12B active and a 287 GB FP8 checkpoint, and a 4-bit pack could probably fit one DGX Spark.
+- 2026-11-18 04:34:03 UTC | @0xSero | https://x.com/0xSero/status/2122911186899620294 | Sero says he will wire an RTX PRO 6000 into his 4x DGX Spark rig to imitate a DGX Station for half the price.
+- 2026-11-18 03:31:05 UTC | @sudoingX | https://x.com/sudoingX/status/2122895340299067539 | Sudo says he runs models on 2x DGX Sparks and a Strix Halo, so one open engine that covers those chips decides whether a new model runs on day one.
+- 2026-11-18 03:14:29 UTC | @sudoingX | https://x.com/sudoingX/status/2122891164760391995 | Sudo says better memory use is the SGLang 1.0 change he wants most, because memory is the first wall on his 2x DGX Sparks.
+- 2026-11-18 01:03:00 UTC | @sudoingX | https://x.com/sudoingX/status/2122858075002450306 | Sudo says he runs DeepSeek V4.1 Flash at 2.80 bpw on 2x DGX Sparks with his own kernels, and he still wants labs to ship 12B–60B dense models.
+- 2026-11-18 00:17:26 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2122846606961918286 | Mia says the first product she would ship is a 256 GB Spark with more than 800 GB/s of memory bandwidth.
+- 2026-11-17 15:39:19 UTC | @ashxhart | https://x.com/ashxhart/status/2122716219862134846 | Ash asks for the two-Spark GLM 5.3 Flash link and the exact checkpoint before he will call a winner.
+- 2026-11-17 15:38:11 UTC | @ashxhart | https://x.com/ashxhart/status/2122715935966658711 | Ash says Qwen3.8-27B is a documented native starting point for one Spark.
+- 2026-11-17 14:46:36 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2122702951575888259 | Mia posts the sparkDash and spark-attic repos that reclaim display memory on a DGX Spark.
+- 2026-11-17 14:46:35 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2122702948190847191 | Mia says spark-attic, now one click inside sparkDash, returns about 2 GB that a headless DGX Spark reserves for the display.
+- 2026-11-17 14:40:15 UTC | @sudoingX | https://x.com/sudoingX/status/2122701352883442152 | Sudo says one week of Ling 3.0 Flash Sante on 2x DGX Sparks matched the card on MedQA and MedMCQA and landed 5.5 points under on MedXpertQA.
+- 2026-11-17 14:25:52 UTC | @jayleaton | https://x.com/jayleaton/status/2122697735631671589 | JJ says DGX Sparks for everyone.
+- 2026-11-17 12:50:04 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2122673627493474361 | Mia says sparkDash can cap a DGX Spark’s GPU clock across reboots so the boxes run cooler with little speed loss.
+- 2026-11-17 08:26:00 UTC | @ashxhart | https://x.com/ashxhart/status/2122607170235621521 | Ash says a two-Spark speed claim needs the same model, quant, prompt, and stream count before he will compare it.
+- 2026-11-17 01:52:28 UTC | @jayleaton | https://x.com/jayleaton/status/2122508135781073269 | JJ says he added some of his features to Spark Dash.
+- 2026-11-16 20:08:14 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2122421506357489702 | Mia reposts sparkplug.sh as a benchmark guide for picking a model for DGX Sparks.
+- 2026-11-16 16:31:18 UTC | @jayleaton | https://x.com/jayleaton/status/2122366912604873005 | JJ says he is sending pull requests so Spark Dash picks up many of his features.
+- 2026-11-16 16:30:10 UTC | @jayleaton | https://x.com/jayleaton/status/2122366628616958157 | JJ says he gave 2 TB of a 4 TB Spark to a bucket, because the TP2 models all live on Spark 1.
+- 2026-11-16 16:28:04 UTC | @sudoingX | https://x.com/sudoingX/status/2122366100843471346 | Sudo says Hermes drove Ling 3.0 Flash Sante through a 76-year record on 2x DGX Sparks at 56.1 tok/s at 31k context and 44.0 tok/s at 97k.
+- 2026-11-16 16:39:15 UTC | @ViC305 | https://x.com/ViC305/status/2122368915779334613 | Cruz says he will make a SAGE-EXL3 quant of Sage-S2.1-Flash so the 320B model fits on one DGX Spark.
+- 2026-11-16 14:58:40 UTC | @jayleaton | https://x.com/jayleaton/status/2122343602135441634 | JJ offers a pull request to Spark Dash.
+- 2026-11-16 14:51:20 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2122341755320242441 | Mia says NVFP4 should win prefill and lose decode to EXL3 on Sparks, and for eight Sparks she would run full GLM 5.3 for backend and cyber work.
+- 2026-11-16 13:57:51 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2122328294767161837 | Mia links the GLM 5.3 EXL3 K4 quant she chose for 4x DGX Sparks.
+- 2026-11-16 13:57:50 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2122328290543227267 | Mia says twelve quants later, wrldsuksgo2mars’s K4 stays closer to BF16 than NVIDIA NVFP4 and is her pick for GLM 5.3 on 4x DGX Sparks.
+- 2026-11-16 13:51:54 UTC | @jayleaton | https://x.com/jayleaton/status/2122326798730232031 | JJ says his dashboard grew past a Spark-only tool because he also has many non-Spark devices.
+- 2026-11-16 06:30:20 UTC | @sudoingX | https://x.com/sudoingX/status/2122215673988559003 | Sudo reposts that he will bring 2x DGX Sparks to a hands-on agent event in Bangkok.
+- 2026-11-16 04:34:16 UTC | @sudoingX | https://x.com/sudoingX/status/2122186466470379734 | Sudo reposts that a DGX Spark is a private server with 128 GB and a Blackwell GPU.
+- 2026-11-15 22:01:22 UTC | @ashxhart | https://x.com/ashxhart/status/2122087589742260505 | Ash asks for the exact checkpoint and quant so a one-to-four-Spark recipe can be scoped.
+- 2026-11-15 21:42:55 UTC | @ViC305 | https://x.com/ViC305/status/2122082944848392279 | Cruz says the community gave him the DGX Spark and he quantizes for it because he believes in the product.
+- 2026-11-15 19:44:11 UTC | @ViC305 | https://x.com/ViC305/status/2122053064358342871 | Cruz says his Nex-N2.6 quant of a GLM 5.3 Flash finetune hit 40 tok/s decode and 1,046 tok/s prefill on one DGX Spark.
+- 2026-11-15 19:14:51 UTC | @ViC305 | https://x.com/ViC305/status/2122045683129876976 | Cruz says 2x DGX Sparks stay under 500 W and draw about 120–180 W depending on the task.
+- 2026-11-15 16:24:30 UTC | @ViC305 | https://x.com/ViC305/status/2122002813203128421 | Cruz says one Spark can do 80–90 tok/s decode and 2,200 tok/s prefill on Qwen Flash Next, enough for four people at once.
+- 2026-11-15 16:15:38 UTC | @ViC305 | https://x.com/ViC305/status/2122000584467480799 | Cruz says solar for DGX Sparks is about six times cheaper than solar for a 2,000 W multi-GPU tower.
+- 2026-11-15 15:10:21 UTC | @sudoingX | https://x.com/sudoingX/status/2121984154963480662 | Sudo links the FP8 Ling 3.0 Flash Sante weights he is running on 2x DGX Sparks.
+- 2026-11-15 15:10:20 UTC | @sudoingX | https://x.com/sudoingX/status/2121984150253240451 | Sudo says Hermes is driving Ling 3.0 Flash Sante on 2x DGX Sparks through a 76-year record, with each request capped at 131k tokens.
+- 2026-11-15 13:18:00 UTC | @jayleaton | https://x.com/jayleaton/status/2121955879243469021 | JJ says his DeepSeek V4.1 Flash update on two DGX Sparks does 84 tok/s of code and 61 tok/s of chat on one stream, and 155 tok/s across eight chats.
+- 2026-11-15 11:16:34 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121925322220216483 | Mia reposts EXL3 K4 expert weights for Inkling 2 Small and their RAM requirement.
+- 2026-11-15 10:17:45 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121910517279101203 | Mia says one Spark is her first priority for the GLM 5.3 recipe.
+- 2026-11-15 07:06:34 UTC | @ViC305 | https://x.com/ViC305/status/2121862407362593149 | Cruz says “costs more” is not enough to choose hardware, and DGX Sparks remain the best value in local inference.
+- 2026-11-15 06:25:19 UTC | @ViC305 | https://x.com/ViC305/status/2121852025923330272 | Cruz says 2x DGX Sparks cost about $24 a month in US electricity against about $140 for 4x 170HX cards, and Blackwell has the FP4 and FP8 cores those cards lack.
+- 2026-11-14 21:39:49 UTC | @0xSero | https://x.com/0xSero/status/2121719777106465269 | Sero prices a build at $18k with 3x DGX Sparks.
+- 2026-11-14 19:32:58 UTC | @ViC305 | https://x.com/ViC305/status/2121687857043808387 | Cruz says the Spark’s memory let him push that quant only to 262k context.
+- 2026-11-14 18:38:46 UTC | @ViC305 | https://x.com/ViC305/status/2121674217074892947 | Cruz says two SAGE-REXL3 2.48 bpw quants, Nex-N2.6 and GLM 5.3 Flash, are about 96.5 GiB and sized for one 128 GB DGX Spark, with N2.6 aimed at 262K context.
+- 2026-11-14 16:44:39 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121645498004127885 | Mia reposts a comparison of Qwen hits on an RTX 5090 against one DGX Spark.
+- 2026-11-14 16:10:05 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121636799239917996 | Mia says she is testing GLM 5.3 BF16 against six quants, including NVIDIA NVFP4 and EXL3, and she will keep the best even if it is slower.
+- 2026-11-14 15:48:13 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121631295209898335 | Mia reposts a write-up on revamping the security of a DGX Spark cluster.
+- 2026-11-14 15:10:40 UTC | @jayleaton | https://x.com/jayleaton/status/2121621845854347770 | JJ says voice plus chat on one Spark was a bit slow, and the split setup is instant.
+- 2026-11-14 13:48:00 UTC | @jayleaton | https://x.com/jayleaton/status/2121601040956997970 | JJ says LocalRouter on 2x DGX Sparks keeps Qwen3.8 Flash Next on Spark 1 and puts voice, image, and video on Spark 2, with chat at 44–56 tok/s.
+- 2026-11-14 09:37:05 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121537898092577149 | Mia says she is testing GLM 5.3 quants and building a quality-first recipe for four or more DGX Sparks.
+- 2026-11-14 07:40:48 UTC | @0xSero | https://x.com/0xSero/status/2121508635105022331 | Sero says Inkling Small 2 now fits on 3x DGX Sparks or 4x RTX PRO 6000s, with a 7.5M-token KV cache and 120 tok/s, and he expects large speedups within two days.
+- 2026-11-14 06:25:15 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121489618545574153 | Mia reposts a 6-Spark, 768 GB cluster on one CRS804, and says people who can afford it should copy her split.
+- 2026-11-14 02:07:18 UTC | @jayleaton | https://x.com/jayleaton/status/2121424706469573063 | JJ links his Qwen3.8 Flash Next TensorFold recipe for Spark.
+- 2026-11-14 02:06:47 UTC | @jayleaton | https://x.com/jayleaton/status/2121424575900885197 | JJ says Compute Lanes on one DGX Spark raised Qwen3.8 Flash Next from 50 to 93 correct on 120 math tasks and cut tokens per task from 6,605 to 908.
+- 2026-11-14 01:00:02 UTC | @sudoingX | https://x.com/sudoingX/status/2121407775230062618 | Sudo jokes that a board accepted Jensen’s resignation, while his 2x DGX Sparks read 71 years of a synthetic record in 61 seconds.
+- 2026-11-13 20:32:38 UTC | @sfxnz | https://x.com/sfxnz/status/2121340484660408600 | Sufyan says bigger models are downloaded for the DGX Sparks.
+- 2026-11-13 19:57:38 UTC | @sfxnz | https://x.com/sfxnz/status/2121331673614938182 | Sufyan says the DGX Spark he bought for £4,200 three months ago now costs nearly twice that.
+- 2026-11-13 18:04:51 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121303292890284369 | Mia says a head-to-head of GLM 5.3 Flash showed 4x DGX Sparks beating a Mac Studio M5 Ultra 512 GB.
+- 2026-11-13 14:53:03 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121255026517483686 | Mia asks which hardware she is supposed to be running on 2x DGX Sparks.
+- 2026-11-13 14:23:45 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121247652113166710 | Mia says JJ’s Compute Lanes changes for Qwen3.8 Flash Next on 2x DGX Sparks will merge into her recipe.
+- 2026-11-13 13:48:23 UTC | @jayleaton | https://x.com/jayleaton/status/2121238750659551735 | JJ says the full Qwen Spark build is going up as a pull request.
+- 2026-11-13 13:35:00 UTC | @jayleaton | https://x.com/jayleaton/status/2121235381865881970 | JJ says Compute Lanes on Qwen3.8 Flash Next at TP=2 across 2x DGX Sparks scored 92 versus 58 on 120 math tasks and cut median time from 141 seconds to 12.3.
+- 2026-11-13 12:00:05 UTC | @sudoingX | https://x.com/sudoingX/status/2121211494998168018 | Sudo says 2x DGX Sparks are enough to run frontier-class local models with no data leaving the machine.
+- 2026-11-13 10:52:17 UTC | @sudoingX | https://x.com/sudoingX/status/2121194431705645081 | Sudo says one 130,993-token synthetic record prefilled at 2,148 tok/s on 2x DGX Sparks and Ling 3.0 Flash Sante wrote at 45.7 tok/s with MTP.
+- 2026-11-13 08:04:03 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2121152098306085309 | Yume says DGX Spark owners can now run DeepSeek V4.1 Flash, GLM 5.3, and Qwen 3.8 on a desk.
+- 2026-11-13 00:23:30 UTC | @0xSero | https://x.com/0xSero/status/2121036196256293365 | Sero says Inkling 2 Small, converted to FP4 or EXL3, will run on 3x DGX Sparks, 4x RTX PRO 6000s, or a 512 GB M5 Ultra.
+- 2026-11-12 23:22:08 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121020753567219903 | Mia says she went from 3 DGX Sparks to 6 in three months.
+- 2026-11-12 23:00:56 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121015415321321842 | Mia says all six DGX Sparks are now on the CRS804 and she is ready to work.
+- 2026-11-12 22:01:09 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2121000370176729362 | Mia says Inkling 2 Small is 594B with 17B active and a 394 GB NVFP4 checkpoint, which is too big for her taste.
+- 2026-11-12 20:20:11 UTC | @ViC305 | https://x.com/ViC305/status/2120974963352166598 | Cruz says Hermes and Qwen4-Max-Preview built a fleet dashboard, and real GPU telemetry was tested on a DGX Spark with vLLM, SGLang, and EXL3.
+- 2026-11-12 17:35:54 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2120933619380162908 | Mia says she owns 6 DGX Sparks and 2 RTX PRO 6000s, plans big models on the Sparks and a flash model on the 6000s, and wants two more of each for TP8.
+- 2026-11-12 16:37:45 UTC | @ViC305 | https://x.com/ViC305/status/2120918986376589515 | Cruz jokes that a Vera Rubin Spark launches around May–June 2028.
+- 2026-11-12 15:34:25 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2120903047832285502 | Mia says she secured another DGX Spark.
+- 2026-11-12 08:36:34 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2120797889987244203 | Mia shows sparkDash deleting unused Docker images across every Spark at once.
+- 2026-11-12 08:23:59 UTC | @sudoingX | https://x.com/sudoingX/status/2120794725951373612 | Sudo says his Bangkok agent event will run his daily agents live on 2x DGX Sparks next to cloud models.
+- 2026-11-12 08:00:38 UTC | @sfxnz | https://x.com/sfxnz/status/2120788849823723830 | Sufyan releases Sparkline, a self-hosted dashboard for DGX Sparks and GPUs.
+- 2026-11-11 22:35:52 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2120646718484078646 | Mia says sparkDash 2.9 adds quant fidelity tests, a storage manager, fleet clock caps, Pico decode numbers, and TensorFold cache and prefill fixes for DGX Sparks.
+- 2026-11-11 17:09:34 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2120564605307203592 | Mia says TP2 is running well and she would use a third Spark for something else.
+- 2026-11-11 16:21:47 UTC | @0xSero | https://x.com/0xSero/status/2120552580875169978 | Sero says his pair is 2x DGX Sparks, GX10, with 1 TB NVMe, ASUS OEM.
+- 2026-11-11 15:37:50 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2120541517798334885 | Mia says GLM 5.3 Flash at TP4 on four DGX Sparks does 77 tok/s on EXL3 and 52 tok/s on FP8 for one stream, with EXL3 holding about 8.39M KV against 3.15M for FP8.
+- 2026-11-11 15:17:50 UTC | @jayleaton | https://x.com/jayleaton/status/2120536485892153565 | JJ says Compute Lanes on one DGX Spark lifted Qwen3.8 Flash Next from 50 to 92 correct on 120 compute tasks.
+- 2026-11-11 15:05:08 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2120533290230894880 | Yume says NVIDIA’s NVFP4 GLM 5.3 Flash on vLLM plus MBX, tensor-parallel over RoCE on two DGX Sparks, did 165.4 tok/s aggregate at 16 seats and 43/43 on a 43-call tool workflow.
+- 2026-11-11 11:22:55 UTC | @sudoingX | https://x.com/sudoingX/status/2120477368494047579 | Sudo says official FP8 Ling 3.0 Flash Sante, 128.4 GB, loaded across 2x DGX Sparks and smoked at 59.6 tok/s with MTP.
+- 2026-11-11 08:02:10 UTC | @0xSero | https://x.com/0xSero/status/2120426844772298904 | Sero says 24 hours of DSpine training for GLM 5.3 Flash is piping RTX PRO 6000 inference into 3x DGX Sparks, and he still needs about 1.7x to beat DFlash.
+- 2026-11-11 05:04:22 UTC | @0xSero | https://x.com/0xSero/status/2120382103682785400 | Sero tells every DGX Spark owner that the linked EXO Labs local-AI piece is the way.
+- 2026-11-11 04:44:16 UTC | @0xSero | https://x.com/0xSero/status/2120377045234626853 | Sero offers someone a Spark if they have a use for it.
+- 2026-11-10 23:00:23 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2120290500251185444 | Mia posts the lowest DGX Spark price she has seen, and says it ships internationally.
+- 2026-11-10 18:00:23 UTC | @0xSero | https://x.com/0xSero/status/2120215006080127201 | Sero says his first Omarchy grant payment bought an Acer DGX Spark that he gave away.
+- 2026-11-10 17:30:01 UTC | @ashxhart | https://x.com/ashxhart/status/2120207360983798198 | Ash says TensorFold 1.2.6 cut 16-agent time to first token on a GB10 from 105 seconds to 25.8 seconds, and GLM 5.3 Flash code decode is 32% faster on two GB10s at TP=2.
+- 2026-11-10 13:26:01 UTC | @sfxnz | https://x.com/sfxnz/status/2120145958440669433 | Sufyan says his GLM 5.3 Flash recipe on 2x DGX Sparks now serves eight agents at once, follow-ups start in 2.6 seconds instead of 7 minutes, and 1M context still works.
+- 2026-11-10 10:26:14 UTC | @ashxhart | https://x.com/ashxhart/status/2120100715267792960 | Ash says TensorFold is coming to ComfyUI, starting with an experimental MOSS image sampler on GB10.
+- 2026-11-10 08:56:08 UTC | @ashxhart | https://x.com/ashxhart/status/2120078041766564157 | Ash says both model variants are on the list for what DGX support would need.
+- 2026-11-10 08:49:03 UTC | @ashxhart | https://x.com/ashxhart/status/2120076255370346951 | Ash says a 48 GB Mac mini is enough to start with local AI, and you do not need a Spark to run TensorFold.
+- 2026-11-09 19:36:42 UTC | @0xSero | https://x.com/0xSero/status/2119876856002625911 | Sero links his GLM 5.3 Flash EXL3 quant built for Spark.
+- 2026-11-09 19:34:15 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2119876240865903065 | Yume says Mia’s recipes were his way into getting the most from his DGX Sparks.
+- 2026-11-09 19:32:03 UTC | @0xSero | https://x.com/0xSero/status/2119875686567723354 | Sero says the spec decoder is about 1 GB, so a 2.2 bpw GLM Flash should run on 1x DGX Spark.
+- 2026-11-09 19:28:19 UTC | @0xSero | https://x.com/0xSero/status/2119874747471405377 | Sero says he trained a DSpine speculative decoder for GLM 5.3 Flash on 4x DGX Sparks in eight hours and saw about a 20% boost.
+- 2026-11-09 18:26:14 UTC | @sfxnz | https://x.com/sfxnz/status/2119859124389204349 | Sufyan says he is using the tool on his DGX Spark with Claude, GLM, and DeepSeek.
+- 2026-11-09 17:20:59 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2119842702422368359 | Mia says she is testing Omarchy app development against Qwen3.8 Flash Next on one DGX Spark.
+- 2026-11-09 16:16:03 UTC | @sfxnz | https://x.com/sfxnz/status/2119826362253127833 | Sufyan answers with the single word “spark”.
+- 2026-11-09 15:44:09 UTC | @0xSero | https://x.com/0xSero/status/2119818331821945028 | Sero says Omarchy on the DGX Sparks is live.
+- 2026-11-09 15:36:35 UTC | @sfxnz | https://x.com/sfxnz/status/2119816429080019042 | Sufyan calls DHH’s pair of DGX Sparks, with Omarchy and local AI tuning, big for Spark owners.
+- 2026-11-09 13:17:48 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2119781501315203471 | Mia says EXL3 at 3 bpw should fit better than NVFP4 at similar quality, and she will soon work on GLM for four or more Sparks.
+- 2026-11-09 11:00:21 UTC | @ashxhart | https://x.com/ashxhart/status/2119746911607402750 | Ash asks who can supply an RTX Spark laptop for TensorFold.
+- 2026-11-09 08:02:09 UTC | @sfxnz | https://x.com/sfxnz/status/2119702068504191276 | Sufyan says his DGX Sparks are far more useful now than when he bought them.
+- 2026-11-09 04:20:29 UTC | @sudoingX | https://x.com/sudoingX/status/2119646284437237876 | Sudo says the official 128.4 GB FP8 of Ling 3.0 Flash Sante is too big for one Spark, fits across two, and is already pulled onto both of his.
+- 2026-11-08 16:46:42 UTC | @ashxhart | https://x.com/ashxhart/status/2119471685040820575 | Ash thanks Mike for the Spark.
+- 2026-11-07 18:43:42 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2119138743105777899 | Mia reposts Qwen 3.8 27B NVFP4 running in the TensorFold CLI on a Windows RTX 5090.
+- 2026-11-07 18:42:53 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2119138536460783664 | Mia says Imagination Studio is the best image and video stack she has run on one DGX Spark, and it replaced ChatGPT for images.
+- 2026-11-07 18:00:27 UTC | @ashxhart | https://x.com/ashxhart/status/2119127859109507526 | Ash says direct-read loading is not GB10-only, and the 28–31% figure is cold-load time measured on a GB10, not prefill speed.
+- 2026-11-07 13:48:59 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2118702185433194687 | Mia reposts that the new GLM 5.3 Flash recipe on 2x DGX Sparks no longer re-prefills a 450k-token conversation from scratch.
+- 2026-11-07 13:45:00 UTC | @jayleaton | https://x.com/jayleaton/status/2119063571040809418 | JJ says Compute Lanes on 2x DGX Sparks cut generated-task time from 26.9 seconds to 6.3 seconds and used 78% fewer tokens, with the same 60/60 score.
+- 2026-11-07 09:55:54 UTC | @sudoingX | https://x.com/sudoingX/status/2119005917941485584 | Sudo reposts advice to build llama.cpp from source when starting local LLMs.
+- 2026-11-07 06:43:10 UTC | @jayleaton | https://x.com/jayleaton/status/2118957414699708454 | JJ says the feature is for the DGX Sparks and will likely land in later models too.
+- 2026-11-07 00:09:12 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118858269456466263 | Yume says he recently helped install a small Spark cluster that serves agents for internal finance and project questions.
+- 2026-11-06 21:00:39 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118810818628432344 | Yume says NVIDIA is positioned for client inference with the RTX Spark.
+- 2026-11-06 16:57:00 UTC | @sfxnz | https://x.com/sfxnz/status/2118749502941073624 | Sufyan says Sparkline 0.1.0 adds multi-GPU views and an LLM-benchmark fix, and he has only tested it on a DGX Spark.
+- 2026-11-06 13:48:59 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2118702185433194687 | Mia reposts the GLM 5.3 Flash 2x DGX Spark recipe with the cache fix.
+- 2026-11-06 13:13:22 UTC | @jayleaton | https://x.com/jayleaton/status/2118693222885273803 | JJ says 300–400 GB of RAM becomes the cost-performance middle, and he asks who is pushing DGX Spark prices up 40% in Bangkok.
+- 2026-11-06 06:01:29 UTC | @ViC305 | https://x.com/ViC305/status/2118584536355471477 | Cruz says he is glad the Spark inspired the buyer.
+- 2026-11-06 05:57:58 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118583652217143774 | Yume says he deleted the original Inkling off his Sparks because 4 TB fills up, and he asks Mia whether the new one runs on dual DGX Sparks.
+- 2026-11-05 22:42:36 UTC | @ViC305 | https://x.com/ViC305/status/2118474085722451975 | Cruz points at the Spark, and at the coming MaixStation, as the small-box future of local AI.
+- 2026-11-05 21:48:43 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2118460529169813591 | Mia reposts that GLM 5.3 Flash, a 321B MoE, decodes at 16.0 tok/s on one DGX Spark with a 128K window.
+- 2026-11-05 20:08:50 UTC | @ViC305 | https://x.com/ViC305/status/2118435389073654088 | Cruz says he can put the model at TP1 the same way he did Ling 3.1, and he links a 1.51 bpw EXL3.
+- 2026-11-05 19:44:58 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2118429384063291870 | Mia says two Sparks replace a 256 GB M5 Ultra and four Sparks replace a 512 GB one, and discrete GPUs are the way to go faster.
+- 2026-11-05 19:12:21 UTC | @sfxnz | https://x.com/sfxnz/status/2118421175403503937 | Sufyan says his EXL3 4 bpw GLM 5.3 Flash on stock TensorFold across 2x DGX Sparks does 34 tok/s on one stream and 59 tok/s aggregate at eight streams, with 1M context, versus 28/29 tok/s and 327k on his NVFP4 vLLM recipe.
+- 2026-11-05 18:25:26 UTC | @ashxhart | https://x.com/ashxhart/status/2118409369888907387 | Ash asks whether the reader means a single DGX Spark.
+- 2026-11-05 16:38:02 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118382340179464486 | Yume links Strata’s DGX Spark notes, including the 24,576-expert cache, about 930 kernel launches per token, and 45 versus 37 tok/s.
+- 2026-11-05 16:35:23 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118381673230520569 | Yume says DFlash2 is slower than MTP on a Spark, 37 versus 45 tok/s, because GB10 decode is bound by about 930 kernel launches per token, and one Spark on Strata does 45.5–46.5 tok/s on Qwen IQ3_S.
+- 2026-11-05 16:26:22 UTC | @ViC305 | https://x.com/ViC305/status/2118379406905545010 | Cruz says he already has Ripple-65B running as NVFP4 on his DGX Spark.
+- 2026-11-05 15:34:18 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2118366301743976775 | Mia says her Imagination Studio pull request lets you paste an image and edit it locally on one DGX Spark.
+- 2026-11-05 15:00:03 UTC | @ashxhart | https://x.com/ashxhart/status/2118357683300659287 | Ash says the TensorFold CUDA challenge board shows +175.9% on Qwen 3.8 27B on a DGX Spark.
+- 2026-11-05 13:19:17 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2118332325981241745 | Mia reposts that the 128 GB DGX Spark went from $3,999 to $6,950.
+- 2026-11-05 06:13:06 UTC | @jayleaton | https://x.com/jayleaton/status/2118225070355333538 | JJ says his home rack averaged 150 million local tokens a day on the DGX Sparks over the last week.
+- 2026-11-05 03:43:20 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118187382508069033 | Yume asks whether Windows is really that large a limit for the RTX Spark.
+- 2026-11-05 02:53:44 UTC | @ViC305 | https://x.com/ViC305/status/2118174898443174018 | Cruz says the alternative to $50k of RTX 6000s is Qwen Flash Next on one Spark.
+- 2026-11-05 02:46:15 UTC | @ViC305 | https://x.com/ViC305/status/2118173016429592610 | Cruz says the Spark does not crawl: he cites about 30 tok/s for Ripple and 70+ tok/s for Qwen Flash Next.
+- 2026-11-05 00:09:12 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118858269456466263 | Yume says a company Spark cluster serves agents for internal spending and project help.
+- 2026-11-04 19:29:17 UTC | @ViC305 | https://x.com/ViC305/status/2118063048162423203 | Cruz says he will validate Ripple-65B, a 65B dense coding model, and the thread later states he got it onto a Spark at NVFP4.
+- 2026-11-04 18:01:28 UTC | @ViC305 | https://x.com/ViC305/status/2118040952002740609 | Cruz says he will try to build something for his 2x and 4x Spark readers from the Kimi K3.1 Pro weights.
+- 2026-11-04 17:11:23 UTC | @ViC305 | https://x.com/ViC305/status/2118028345615229131 | Cruz says AgentSparko hit about 40 tok/s decode and 1,020 tok/s prefill with his DeepSeek V4.1 Flash 1.55 bpw EXL3 on one DGX Spark, and he folded that work into his recipe.
+- 2026-11-04 17:10:39 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118028163909583052 | Yume’s source reply lists a two-DGX-Spark uncensor path as a keys overlay on Mia’s EAQ pack under TensorFold.
+- 2026-11-04 17:06:36 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118027143074787559 | Yume says his own two-Spark setup runs an uncensor overlay on Mia’s EAQ pack in TensorFold, and prose is 7.5% slower with it on.
+- 2026-11-04 16:05:45 UTC | @sfxnz | https://x.com/sfxnz/status/2118011828580016379 | Sufyan links his GLM 5.3 Flash NVFP4 vLLM recipe for 2x DGX Sparks.
+- 2026-11-04 15:40:16 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2118005417494155664 | Mia says the new GLM 5.3 Flash 1104 recipe for 2x DGX Sparks, ported to GB10 on TensorFold, does about 48 tok/s on one stream and about 87 tok/s at four streams, with prefill around 1,700–1,800 tok/s.
+- 2026-11-04 12:58:14 UTC | @ashxhart | https://x.com/ashxhart/status/2117964637983703174 | Ash says the CUDA challenge number is one Spark at batch size 1, and a separate test would be needed for 16 requests.
+- 2026-11-04 12:00:01 UTC | @ashxhart | https://x.com/ashxhart/status/2117949986323267837 | Ash says the leading TensorFold CUDA challenge run is +175.9% on Qwen 3.8 27B on a DGX Spark.
+- 2026-11-04 09:19:57 UTC | @ashxhart | https://x.com/ashxhart/status/2117909704739262953 | Ash says FP4-Local runs on one Spark, and he still needs to verify it at TP2 before recommending it over the tested NVFP4 checkpoint.
+- 2026-11-04 07:33:12 UTC | @ViC305 | https://x.com/ViC305/status/2117882839731728613 | Cruz says he wants the open Hy4 weights so he can fit the model on one DGX Spark with SAGE-EXL3.
+- 2026-11-04 04:28:57 UTC | @jayleaton | https://x.com/jayleaton/status/2117836474695774364 | JJ says the MaixStation claims similar performance to a DGX Spark in a smaller board and would need a new engine.
+- 2026-11-04 02:45:19 UTC | @ViC305 | https://x.com/ViC305/status/2117810393481728008 | Cruz says he makes custom quants for DGX Spark and offers to test the new board.
+- 2026-11-04 01:42:47 UTC | @ViC305 | https://x.com/ViC305/status/2117794654586650969 | Cruz says Chris’s TensorFold TP4 plus DFlash2 recipe runs full 753B GLM 5.3 at 73.6 tok/s of structured output on four DGX Sparks, with a 1M context and a prefix cache that cut a later turn from 85.3 seconds to 19.4.
+- 2026-11-03 23:40:04 UTC | @ashxhart | https://x.com/ashxhart/status/2117763772882268249 | Ash says the headline speedup narrows to about 42% at 2K and 38% at 64K for Qwen3.8-27B EXL3 on one GB10.
+- 2026-11-03 23:31:59 UTC | @ashxhart | https://x.com/ashxhart/status/2117761739467243726 | Ash says a vLLM three-Spark recipe will not run in TensorFold, and a three-Spark TensorFold recipe still needs to be written and tested.
+- 2026-11-03 21:36:20 UTC | @ashxhart | https://x.com/ashxhart/status/2117732633773805656 | Ash says TensorFold 1.2.2 prefills Qwen3.8-27B EXL3 38–42% faster on GB10 from 2K to 64K, and it loads NVIDIA’s Qwen3.8 Flash Next NVFP4 checkpoint on CUDA at TP=2.
+- 2026-11-03 12:28:53 UTC | @ashxhart | https://x.com/ashxhart/status/2117594866905760198 | Ash says a reported fee is big enough to equal another Spark.
+- 2026-11-03 04:41:00 UTC | @ViC305 | https://x.com/ViC305/status/2117477120305995932 | Cruz says one Spark is enough for DeepSeek Flash, two is enough, and four Sparks are not necessary for flash models.
+- 2026-11-03 01:48:32 UTC | @ViC305 | https://x.com/ViC305/status/2117433715341287490 | Cruz says his 1.55 bpw SAGE-EXL3 of DeepSeek V4.1 Flash beats several larger GGUFs on some scores while running on one DGX Spark.
+- 2026-11-02 22:26:27 UTC | @ViC305 | https://x.com/ViC305/status/2117382861208817931 | Cruz says the 1.55 bpw DeepSeek quant fits full context on one Spark with no quality loss, and it targets his coming REXL3 engine.
+- 2026-11-02 22:05:47 UTC | @ViC305 | https://x.com/ViC305/status/2117377659110048093 | Cruz says his 117.2 GB 1.55 bpw DeepSeek SAGE-EXL3 is aimed at a one-Spark 262K context.
+- 2026-11-02 16:49:07 UTC | @0xSero | https://x.com/0xSero/status/2117297965039804751 | Sero tells DGX Spark owners to look at SparkHome, which runs a local voice agent on GB10 and can spawn Qwen to build missing features.
+- 2026-11-02 16:46:51 UTC | @sfxnz | https://x.com/sfxnz/status/2117297396564521097 | Sufyan says Sparkline’s new numbers, including a 6x faster 7-day history query and a fixed LLM benchmark, were measured on a GB10.
+- 2026-11-02 15:42:26 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2117281184510296159 | Mia reposts a warning that turning off MPTCP is not enough to fix CVE-2026-98432 on Linux DGX Sparks.
+- 2026-11-02 14:06:28 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2117257034890432610 | Mia asks 2x DGX Spark owners whether they usually run GLM 5.3 Flash or DeepSeek V4.1 Flash 1017, and says updates to both are probably coming.
+- 2026-11-02 05:26:04 UTC | @0xSero | https://x.com/0xSero/status/2117126070403289559 | Sero lists five DGX Sparks at $35,000 inside $64,000 of hardware he has given away in five months.
+- 2026-11-02 03:20:00 UTC | @ashxhart | https://x.com/ashxhart/status/2117094346193338712 | Ash says TensorFold 1.2.1 runs MiniMax-M3.1-Flash on two GB10s with Mia’s EXL3 pack, and Gemma 4 31B on one GB10 goes from 12.2 tok/s to 28.3 tok/s with Google’s MTP assistant.
+- 2026-11-02 01:24:21 UTC | @jayleaton | https://x.com/jayleaton/status/2117065239913213999 | JJ says to update DGX Sparks a month or two behind the latest drop, because launch drivers can fail and some updates unlock more memory.
+- 2026-11-01 23:32:57 UTC | @ashxhart | https://x.com/ashxhart/status/2117037208230314344 | Ash says he cannot yet run one model across a whole mixed Mac and Spark rack, though mixed setups are possible.
+- 2026-11-01 21:03:13 UTC | @ViC305 | https://x.com/ViC305/status/2116999525508534691 | Cruz says MiniMax credited his SAGE-EXL3 of M3.1 Flash, which he fit onto one Spark at 96% top-1 and 0.02 KLD.
+- 2026-11-01 13:48:00 UTC | @jayleaton | https://x.com/jayleaton/status/2116889997982982519 | JJ links the Compute Lanes pull request for his DeepSeek V4.1 TensorFold Spark recipe.
+- 2026-11-01 13:47:46 UTC | @jayleaton | https://x.com/jayleaton/status/2116889939237605574 | JJ says Compute Lanes let DeepSeek V4.1 Flash run code on the Spark CPU mid-generation, and with lanes off the KV mirror still does 107.2 tok/s of code.
+- 2026-11-01 13:17:25 UTC | @ashxhart | https://x.com/ashxhart/status/2116882302995411127 | Ash says Nemotron 3.5 Bolt on TensorFold hits 100 tok/s of code on an RTX Spark laptop on battery with Mia’s recipe and NVIDIA’s drafter.
+- 2026-11-01 13:12:15 UTC | @jayleaton | https://x.com/jayleaton/status/2116881004908699905 | JJ posts the same Compute Lanes pull request for the DeepSeek Spark recipe.
+- 2026-11-01 12:37:14 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2116872190528487467 | Mia posts what she calls the cheapest DGX Spark on sale.
+- 2026-11-01 09:33:23 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2116825922116481525 | Mia says DeepSeek V4.1 Flash for 4x DGX Sparks now supports NVIDIA NVFP4, which adds 4–6% prefill, and optional per-node loading cut one reported load from 315 seconds to 96.
+- 2026-11-01 04:57:47 UTC | @ViC305 | https://x.com/ViC305/status/2116756566997446870 | Cruz points at his one-Spark RED-SNOW GLM Flash quant and his one-Spark DeepSeek post.
+- 2026-11-01 00:21:00 UTC | @jayleaton | https://x.com/jayleaton/status/2116686910441857076 | JJ says he clocks his DGX Sparks at 2100 MHz so benchmarks are a floor, and 2200 MHz is the sweet spot.
+- 2026-10-31 14:49:39 UTC | @jayleaton | https://x.com/jayleaton/status/2116543127721001440 | JJ says his DeepSeek recipe was written for TP=X in theory, and he has not tried a third Spark.
+- 2026-10-31 14:20:00 UTC | @ashxhart | https://x.com/ashxhart/status/2116535665248669850 | Ash says TensorFold 1.2.0 adds NVFP4 Qwen3.6-35B-A3B and dense EXL3 Qwen3.8-27B on CUDA, with the measured speedups keeping the same tokens.
+- 2026-10-31 14:03:22 UTC | @jayleaton | https://x.com/jayleaton/status/2116531480545612016 | JJ links his DeepSeek V4.1 TensorFold recipe for Spark.
+- 2026-10-31 14:02:48 UTC | @jayleaton | https://x.com/jayleaton/status/2116531337276666178 | JJ says the Spark recipe pull request is merged.
+- 2026-10-31 13:18:00 UTC | @jayleaton | https://x.com/jayleaton/status/2116520061213294749 | JJ says DeepSeek V4.1 Flash 1017 on two DGX Sparks does 100.9 tok/s on a real coding task with MTP and 2,203 tok/s prefill at 128K on the latest TensorFold.
+- 2026-10-31 10:02:20 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2116470822424781146 | Yume asks where a new Spark was bought.
+- 2026-10-31 05:04:41 UTC | @jayleaton | https://x.com/jayleaton/status/2116395916106305840 | JJ says he would use the full-size weights if they fit his 2x DGX Spark recipe.
+- 2026-10-30 23:08:31 UTC | @ashxhart | https://x.com/ashxhart/status/2116306284450545773 | Ash thanks Mike for direct access to a donated DGX Spark for TensorFold development.
+- 2026-10-30 20:41:22 UTC | @ashxhart | https://x.com/ashxhart/status/2116269252877447244 | Ash says a DGX Station on hand would let him scale TensorFold toward enterprise.
+- 2026-10-30 18:36:10 UTC | @0xSero | https://x.com/0xSero/status/2116237744133538123 | Sero says sparkLimiter’s clock cap costs 1–2% throughput and he runs it on all four of his Sparks to stop overheating and crashes.
+- 2026-10-30 17:43:33 UTC | @0xSero | https://x.com/0xSero/status/2116224503391178804 | Sero says one Opus session orchestrated 2x DGX Sparks to generate MiniMax-H3 video, and the session cost $400.
+- 2026-10-30 16:50:02 UTC | @ViC305 | https://x.com/ViC305/status/2116211035640299726 | Cruz says his DeepSeek V4.1 Flash SAGE-EXL3 is about 123 GB, scored 94.1% on his nine-suite set, and a public vLLM config measured 35.5 tok/s on one 128 GB DGX Spark past 500K context.
+- 2026-10-30 16:27:46 UTC | @sfxnz | https://x.com/sfxnz/status/2116205429080633509 | Sufyan says performance fixes for GLM 5.3 Flash on two DGX Sparks are coming.
+- 2026-10-30 15:12:51 UTC | @ashxhart | https://x.com/ashxhart/status/2116186577580003405 | Ash says an October 4 GLM test on the two-Spark recipe was slightly slower and still has an output mismatch, so it needs a clean rerun.
+- 2026-10-30 15:04:09 UTC | @jayleaton | https://x.com/jayleaton/status/2116184385829634100 | JJ says on one Spark the lanes all run together, and on two Sparks they split the stack for concurrency.
+- 2026-10-30 13:30:12 UTC | @sfxnz | https://x.com/sfxnz/status/2116160744605503753 | Sufyan says he would wait for RTX Spark to support Linux, and he would buy a MacBook if he needed a machine now.
+- 2026-10-30 13:05:00 UTC | @jayleaton | https://x.com/jayleaton/status/2116154402549490159 | JJ says LocalRouter’s media stack already runs on a DGX Spark, and he has started porting the same TensorFold models to an M5 Mac Studio.
+- 2026-10-30 12:42:28 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2116148733637230623 | Mia says GLM 5.3 Flash on TensorFold is already posting very high decode on 2x RTX PRO 6000s at a 400 W cap, before real optimization.
+- 2026-10-30 11:45:57 UTC | @sfxnz | https://x.com/sfxnz/status/2116134507153621376 | Sufyan says he is building with DGX Sparks.
+- 2026-10-30 08:56:36 UTC | @sfxnz | https://x.com/sfxnz/status/2116091888872910856 | Sufyan says his 2x DGX Spark DeepSeek V4.1 Flash EXL3 vLLM recipe does 50+ tok/s.
+- 2026-10-30 03:26:20 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2116008775928930410 | Yume says a GB10 at $7,000 is a poor payback next to a $2,000 card, which can do video and Qwen 3.8 27B but not the top local LLMs.
+- 2026-10-30 02:43:28 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2115997989105999928 | Yume says NVIDIA FP4 GLM 5.3 Flash on two DGX Sparks in vLLM at TP=2 rises from 30.3 tok/s at 8k to 48.0 tok/s at 232k, and from 37.9 tok/s alone to 165.4 tok/s at 16 seats.
+- 2026-10-30 02:24:27 UTC | @jayleaton | https://x.com/jayleaton/status/2115993201450639646 | JJ links his DeepSeek V4.1 TensorFold Spark recipe.
+- 2026-10-30 01:22:37 UTC | @jayleaton | https://x.com/jayleaton/status/2115977643111944263 | JJ says Cruz is the one-Spark specialist, and his own tests show a point where extra hardware cost compounds.
+- 2026-10-29 23:57:36 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118492960698646626 | Yume says one Spark on Strata does 45.5–46.5 tok/s on Qwen IQ3_S, while his two Sparks on a different recipe do 78.4 tok/s of prose and 126.4 tok/s of code.
+- 2026-10-29 23:54:01 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2118492058621272367 | Yume publishes the same Spark-versus-desktop speed matrix, including GB10 kernel-launch limits and his two-Spark numbers.
+- 2026-10-29 23:25:26 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2115948150813037050 | Yume says his own DGX Spark recipes peak at 119 tok/s of prose at four streams, and he cannot match a quoted 150 tok/s at that concurrency.
+- 2026-10-29 22:34:47 UTC | @yume_arasaki | https://x.com/yume_arasaki/status/2115935406026035401 | Yume links the public receipts for his two-Spark FP4 GLM run, his one-Spark Qwen run, and his two-Spark DeepSeek and GLM EXL3 runs.
+- 2026-10-29 16:19:51 UTC | @ViC305 | https://x.com/ViC305/status/2115841052120956984 | Cruz says he compressed 816B Muse Spark Open to about 120 GB at 1.13 bpw with 96.48% top-1 agreement, and a two-DGX-Spark serving recipe is next.
+- 2026-10-29 14:36:14 UTC | @ashxhart | https://x.com/ashxhart/status/2115814974366884081 | Ash says TensorFold 1.1.9 prefills Qwen3.8-27B 9–11% faster on GB10 with an MLX 4-bit checkpoint, and Kolibri-1 3–8% faster on GB10.
+- 2026-10-29 14:11:13 UTC | @sfxnz | https://x.com/sfxnz/status/2115808678444241405 | Sufyan answers a hardware question with “DGX SPARK”.
+- 2026-10-29 14:07:29 UTC | @sfxnz | https://x.com/sfxnz/status/2115807739171512810 | Sufyan says a 2200 MHz cap plus vertical placement drops Spark temperatures about 7–10 degrees.
+- 2026-10-29 13:54:00 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2115804348068278780 | Mia says capping every DGX Spark at 2200 MHz is worth it, with almost no speed loss and much cooler temps, using sparkLimiter or sparkDash.
+- 2026-10-29 12:54:45 UTC | @sudoingX | https://x.com/sudoingX/status/2115789433668808741 | Sudo says his own 2.7-bit EXL3 is 196 GB across two Sparks and does 61.8 tok/s of prose, with the recipe in his dgx-spark-deepseek-v41 repo.
+- 2026-10-29 07:17:46 UTC | @sfxnz | https://x.com/sfxnz/status/2115704630768525562 | Sufyan lists DGX Sparks as his second-best life investment, after his health.
+- 2026-10-29 07:13:21 UTC | @sfxnz | https://x.com/sfxnz/status/2115703518547820964 | Sufyan says he would pick the Sparks for the Spark community.
+- 2026-10-29 04:21:06 UTC | @jayleaton | https://x.com/jayleaton/status/2115660172681163044 | JJ says his next buy will be an AMD Halo machine or another DGX Spark.
+[grok exit 0]
