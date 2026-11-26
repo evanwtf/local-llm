@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import argparse
 import pathlib
 import shlex
+import subprocess
 import sys
 
 import pytest
@@ -91,8 +91,23 @@ def test_extra_env_reaches_both_nodes() -> None:
         assert argv.index("VLLM_USE_DEEP_GEMM=0") < argv.index("--entrypoint")
 
 
-def test_extra_env_cannot_replace_a_fabric_variable() -> None:
-    with pytest.raises(ValueError, match="NCCL_IB_HCA"):
+@pytest.mark.parametrize(
+    "key",
+    [
+        "NCCL_IB_HCA",
+        "NCCL_NET",
+        "NCCL_IB_TC",
+        "UCX_NET_DEVICES",
+        "GLOO_DEVICE_TRANSPORT",
+        "MASTER_ADDR",
+        "TP_SOCKET_IFNAME",
+        "NVSHMEM_x",
+        "VLLM_HOST_IP",
+        "HF_HUB_OFFLINE",
+    ],
+)
+def test_extra_env_cannot_change_the_fabric_setup(key: str) -> None:
+    with pytest.raises(ValueError, match="fabric setup"):
         v.docker_run(
             rank=0,
             name="glm",
@@ -100,7 +115,21 @@ def test_extra_env_cannot_replace_a_fabric_variable() -> None:
             model="ckpt",
             port=8888,
             vllm_args=[],
-            extra_env={"NCCL_IB_HCA": "mlx5_0"},
+            extra_env={key: "x"},
+        )
+
+
+@pytest.mark.parametrize("key", ["1ABC", "A-B", "A B", "A=B", ""])
+def test_extra_env_refuses_a_bad_key_name(key: str) -> None:
+    with pytest.raises(ValueError, match="not a valid variable name"):
+        v.docker_run(
+            rank=1,
+            name="glm",
+            image="i",
+            model="ckpt",
+            port=8888,
+            vllm_args=[],
+            extra_env={key: "x"},
         )
 
 
@@ -114,17 +143,29 @@ def test_parse_env_keeps_an_equals_sign_in_the_value() -> None:
     assert v.parse_env(["A=b=c", "EMPTY="]) == {"A": "b=c", "EMPTY": ""}
 
 
-def test_start_parses_env_before_the_vllm_arguments(
+def test_start_gives_both_ranks_the_same_extra_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    parser_args = ["start", "--model-dir", "~/models/x", "--image", "i", "--name", "n"]
-    parser_args += ["--env", "VLLM_USE_DEEP_GEMM=0", "--", "--max-num-seqs", "4"]
-    seen: dict[str, list[str]] = {}
+    calls: list[list[str]] = []
 
-    def fake_start(args: argparse.Namespace) -> int:
-        seen["env"], seen["vllm"] = args.env, args.vllm_args
-        return 0
+    def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0)
 
-    monkeypatch.setattr(v, "start", fake_start)
-    assert v.main(parser_args) == 0
-    assert seen == {"env": ["VLLM_USE_DEEP_GEMM=0"], "vllm": ["--max-num-seqs", "4"]}
+    monkeypatch.setattr(v.subprocess, "run", fake_run)
+    argv = ["start", "--model-dir", "~/models/ckpt", "--image", "i", "--name", "n"]
+    argv += ["--env", "VLLM_USE_DEEP_GEMM=0", "--", "--max-num-seqs", "4"]
+    assert v.main(argv) == 0
+
+    ssh, head = calls
+    assert ssh[:3] == ["ssh", "-o", "BatchMode=yes"]
+    assert head[:2] == ["bash", "-c"]
+    worker_argv, head_argv = shlex.split(ssh[-1]), shlex.split(head[-1])
+    for node in (worker_argv, head_argv):
+        assert _env(node)["VLLM_USE_DEEP_GEMM"] == "0"
+        assert node[node.index("serve") + 2 : node.index("serve") + 4] == [
+            "--max-num-seqs",
+            "4",
+        ]
+    assert _after(worker_argv, "--node-rank") == "1"
+    assert _after(head_argv, "--node-rank") == "0"

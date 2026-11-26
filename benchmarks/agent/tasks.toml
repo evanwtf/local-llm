@@ -4511,7 +4511,11 @@ recipe_pin_reason = "the #1458 image (the #1438 image plus the official wheels.v
 # (ModelOpt), BF16 attention, shared experts, embeddings and vision tower; 124 GiB of weights.
 # autotrust/GLM5.3-Flash-E192-DGX-Spark @ef3f9cff8ad6c5db6fefdcbcb2414c30cb86bf9f (MIT, 129.9 GiB
 # with the MTP draft), verified against the Hub on both nodes (scripts/verify_hf_weights.py).
-# Engine: the official vllm/vllm-openai:v0.34.0 image (arm64, sha256:20fdb089454afbb3...), unpatched. The card validates on the
+# Engine: the official vllm/vllm-openai:v0.34.0 image, unpatched: arm64, registry digest
+# sha256:20fdb089454afbb324efa4110a2c025ff7b27cc1a086e07aa580b18df8ad1ce1
+# (the head's pull). The worker got it by docker save | docker load over the fabric; its
+# Docker (containerd image store) reports a different image Id and RepoDigest (a207b839...),
+# while the 40 layer diff IDs and the creation time match the head's. The card validates on the
 # vllm#53906 branch at 7e2d791 plus 8f8cc41 (kpool metadata graph-safe); both commits are in
 # that PR, merged 2026-09-03, and v0.34.0 contains the merge.
 # Flags: the card's two-Spark recipe (it defers to the E224 DEPLOY-2X-DGX-SPARK.md runbook):
@@ -4521,9 +4525,12 @@ recipe_pin_reason = "the #1458 image (the #1438 image plus the official wheels.v
 # declares 1,048,576), prefix caching with a 2304-token block (vLLM leaves it off for this hybrid
 # KDA model; without it #383 re-read the whole context every step), text only, reasoning effort
 # low on the server (the template defaults to max), prompt token details.
-# No MTP: the card's MTP path needs an out-of-tree vLLM patch, and the repo's own
-# MTP-NVFP4-ISSUES.md says this repo's mtp-nvfp4/ draft fails to load (BF16 shared experts
-# under an NVFP4 manifest).
+# No MTP: the model repo's MTP path needs its scripts/vllm_glm5next_standalone_mtp_draft.patch,
+# and this arm runs unpatched stock v0.34.0.
+# OpenCode client entry (provider vllm8888, model glm53-flash-e192). The chat template maps any
+# effort other than low or high to max, and a client-side reasoning_effort overrides the server
+# default, so the entry sets reasoningEffort to "low" or leaves it out:
+#   "glm53-flash-e192": {"limit": {"context": 262144, "output": 32768}}
 # Launch (both nodes, worker first):
 #   uv run python scripts/vllm_two_node.py start \
 #     --model-dir ~/models/autotrust--GLM5.3-Flash-E192-DGX-Spark-ef3f9cff8a \
@@ -4535,7 +4542,7 @@ recipe_pin_reason = "the #1458 image (the #1438 image plus the official wheels.v
 #     --reasoning-parser glm45 --enable-auto-tool-choice --tool-call-parser glm47 \
 #     --default-chat-template-kwargs '{"reasoning_effort":"low"}' --enable-prompt-tokens-details
 [backend.glm53fe192nvfp4vllmdual2xrc]
-description = "#1011: GLM-5.3-Flash E192 (autotrust/GLM5.3-Flash-E192-DGX-Spark @ef3f9cff8a: 192 of 288 routed experts, NAS-pruned, 18B active, NVFP4 experts, 124 GiB of weights) on BOTH Sparks, TP2 over the ConnectX fabric (scripts/vllm_two_node.py), on the official vllm/vllm-openai:v0.34.0 image (arm64, registry digest sha256:20fdb089454a; the worker has the same 40 layers by docker save | docker load over the fabric), unpatched. The card's two-Spark flags: VLLM_USE_DEEP_GEMM=0, fp8 KV, GMU 0.79, max-num-seqs 16, 8192-token chunks, FlashInfer autotune off, parsers glm47/glm45. Plus, as the #383 arm: 262K window, prefix caching (block 2304), text only, reasoning effort low on the server. No MTP (needs an out-of-tree patch; this repo's draft does not load). Served as glm53-flash-e192 on :8888. REMOTE CLIENT"
+description = "#1011: GLM-5.3-Flash E192 (autotrust/GLM5.3-Flash-E192-DGX-Spark @ef3f9cff8a: 192 of 288 routed experts, NAS-pruned, 18B active, NVFP4 experts, 124 GiB of weights) on BOTH Sparks, TP2 over the ConnectX fabric (scripts/vllm_two_node.py), on the official vllm/vllm-openai:v0.34.0 image (arm64, registry digest sha256:20fdb089454afbb324efa4110a2c025ff7b27cc1a086e07aa580b18df8ad1ce1; the worker has the same 40 layer diff IDs by docker save | docker load over the fabric, though its containerd store reports a different Id), unpatched. The card's two-Spark flags: VLLM_USE_DEEP_GEMM=0, fp8 KV, GMU 0.79, max-num-seqs 16, 8192-token chunks, FlashInfer autotune off, parsers glm47/glm45. Plus, as the #383 arm: 262K window, prefix caching (block 2304), text only, reasoning effort low on the server. No MTP (it needs the model repo's vLLM patch; this arm is unpatched stock v0.34.0). OpenCode entry: no reasoningEffort (or low), limit context 262144, output 32768. Served as glm53-flash-e192 on :8888. REMOTE CLIENT"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"

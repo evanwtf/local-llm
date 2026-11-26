@@ -20,8 +20,10 @@ those arguments is written as `/models/<drafter>`.
 
 `--env KEY=VALUE` (repeatable) adds an environment variable to both
 containers, for a model card that needs one (#1011: GLM-5.3-Flash wants
-`VLLM_USE_DEEP_GEMM=0`). It cannot replace a fabric or NCCL variable: those
-must stay the same on every arm, so the launcher refuses the override.
+`VLLM_USE_DEEP_GEMM=0`). The fabric setup must stay the same on every arm, so
+the launcher refuses a key that starts with NCCL_, GLOO_, UCX_, TP_, NVSHMEM_
+or MASTER_, and any key the launcher sets itself. A key must match
+`[A-Za-z_][A-Za-z0-9_]*`.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from __future__ import annotations
 import argparse
 import logging
 import pathlib
+import re
 import shlex
 import subprocess
 import sys
@@ -48,6 +51,9 @@ IB_HCAS = "rocep1s0f1,roceP2p1s0f1,rocep1s0f0,roceP2p1s0f0"
 IB_GID_INDEX = 3
 MASTER_PORT = 50000
 MODELS_DIR = "~/models"
+#: `--env` may not set these: they steer the fabric, and every arm shares it.
+FABRIC_PREFIXES = ("NCCL_", "GLOO_", "UCX_", "TP_", "NVSHMEM_", "MASTER_")
+ENV_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 def docker_run(
@@ -76,8 +82,10 @@ def docker_run(
         "VLLM_HOST_IP": host_ip,
     }
     for key, value in (extra_env or {}).items():
-        if key in env:
-            raise ValueError(f"--env {key} would replace the launcher's own value")
+        if not ENV_KEY.fullmatch(key):
+            raise ValueError(f"--env {key!r} is not a valid variable name")
+        if key in env or key.startswith(FABRIC_PREFIXES):
+            raise ValueError(f"--env {key} would change the fabric setup")
         env[key] = value
     argv = [
         "docker", "run", "-d", "--name", f"{name}-rank{rank}",
