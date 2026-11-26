@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import pathlib
 import shlex
 import sys
@@ -72,3 +73,58 @@ def test_shell_line_leaves_the_models_mount_for_the_remote_shell_to_expand() -> 
     line = v.shell_line(_run(1))
     assert "-v ~/models:/models:ro" in line
     assert shlex.split(line)[0] == "docker"
+
+
+def test_extra_env_reaches_both_nodes() -> None:
+    for rank in (0, 1):
+        argv = v.docker_run(
+            rank=rank,
+            name="glm",
+            image="vllm/vllm-openai:v0.34.0",
+            model="ckpt",
+            port=8888,
+            vllm_args=[],
+            extra_env={"VLLM_USE_DEEP_GEMM": "0"},
+        )
+        assert _env(argv)["VLLM_USE_DEEP_GEMM"] == "0"
+        # The variable goes to docker, before the image name.
+        assert argv.index("VLLM_USE_DEEP_GEMM=0") < argv.index("--entrypoint")
+
+
+def test_extra_env_cannot_replace_a_fabric_variable() -> None:
+    with pytest.raises(ValueError, match="NCCL_IB_HCA"):
+        v.docker_run(
+            rank=0,
+            name="glm",
+            image="i",
+            model="ckpt",
+            port=8888,
+            vllm_args=[],
+            extra_env={"NCCL_IB_HCA": "mlx5_0"},
+        )
+
+
+@pytest.mark.parametrize("bad", ["NOEQUALS", "=value"])
+def test_parse_env_refuses_a_malformed_pair(bad: str) -> None:
+    with pytest.raises(ValueError, match="KEY=VALUE"):
+        v.parse_env([bad])
+
+
+def test_parse_env_keeps_an_equals_sign_in_the_value() -> None:
+    assert v.parse_env(["A=b=c", "EMPTY="]) == {"A": "b=c", "EMPTY": ""}
+
+
+def test_start_parses_env_before_the_vllm_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parser_args = ["start", "--model-dir", "~/models/x", "--image", "i", "--name", "n"]
+    parser_args += ["--env", "VLLM_USE_DEEP_GEMM=0", "--", "--max-num-seqs", "4"]
+    seen: dict[str, list[str]] = {}
+
+    def fake_start(args: argparse.Namespace) -> int:
+        seen["env"], seen["vllm"] = args.env, args.vllm_args
+        return 0
+
+    monkeypatch.setattr(v, "start", fake_start)
+    assert v.main(parser_args) == 0
+    assert seen == {"env": ["VLLM_USE_DEEP_GEMM=0"], "vllm": ["--max-num-seqs", "4"]}
