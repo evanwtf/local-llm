@@ -17,7 +17,9 @@ answers with a fixed script of tool calls, one per tool, then runs the real
 * **in the image**, through `client_container.container_argv`: the trial's
   user, privileges, mounts and memory limit;
 * **under the trial's sandbox**, through `run.client_launch_argv` and
-  `run.agent_env`: the same bwrap wrapper, deny list and environment;
+  `run.agent_env`: the same bwrap wrapper, deny list and environment. The
+  deny list covers every ledger in the checkout (#477), so the self-test
+  needs no run ledger of its own;
 * **in a throwaway repo** under the trials' own scratch root.
 
 Then it reads the transcript. Every tool part must be `completed`, and its
@@ -94,7 +96,10 @@ class Step:
     effect: Callable[[pathlib.Path, str], str | None]
     #: The status the call must end in. `question` must end in `error`: a
     #: headless 2.x run cancels it rather than wait for an answer (#1086).
-    expect: str = "completed"
+    #: None takes either `completed` or `error`: a refused shell command may
+    #: end either way, and its effect is what decides. A call that never
+    #: finished still fails.
+    expect: str | None = "completed"
 
 
 def _file_is(path: pathlib.Path, want: str) -> str | None:
@@ -114,6 +119,108 @@ def _output_has(needle: str, what: str) -> Callable[[pathlib.Path, str], str | N
         return f"its output does not contain {what} ({needle!r})"
 
     return check
+
+
+#: What the two harness probes must print: the kernel's refusal of the write,
+#: and git's discovery failure once the .git is hidden (#477). The discovery
+#: wording, not the bare "not a git repository": a worktree whose main .git
+#: is not mounted prints "not a git repository: <path>" with or without the
+#: fix, and would pass without testing anything. Discovery ends in either
+#: "(or any of the parent directories)" or, in the client container, where
+#: the hidden .git is a mount, "(or any parent up to mount point <dir>)"
+#: (measured 2026-11-27). Both start with this.
+READ_ONLY = "Read-only file system"
+NOT_A_REPO = "not a git repository (or any "
+
+
+def _harness_probe(
+    harness_root: pathlib.Path, token: str
+) -> Callable[[pathlib.Path, str], str | None]:
+    """The write probe's check: the file must not exist afterward (#477).
+
+    Checked from outside the sandbox, where the real checkout is. A file
+    that got through is removed, so a failed probe leaves no debris.
+    """
+    probe = harness_root / f"PROBE-{token}"
+
+    def check(_workdir: pathlib.Path, output: str) -> str | None:
+        if probe.exists():
+            probe.unlink(missing_ok=True)
+            return f"a trial wrote {probe}: the harness checkout is writable"
+        # Positive evidence, not only absence: a missing directory would
+        # also leave no file, and would prove nothing about the bind.
+        if READ_ONLY not in output:
+            return f"its output does not show the refusal ({READ_ONLY!r})"
+        return None
+
+    return check
+
+
+def _git_probe(harness_root: pathlib.Path) -> Callable[[pathlib.Path, str], str | None]:
+    """The git probe's check: no line of tasks.toml may reach the trial (#477)."""
+    tasks = harness_root / "benchmarks" / "agent" / "tasks.toml"
+
+    def check(_workdir: pathlib.Path, output: str) -> str | None:
+        if (harness_root / ".git").is_file():
+            return (
+                f"{harness_root} is a git worktree; its main .git is not in the "
+                "container, so the probe cannot test the hidden history. Run the "
+                "self-test from a main checkout"
+            )
+        try:
+            lines = [ln for ln in tasks.read_text().splitlines() if len(ln) >= 20]
+        except OSError as exc:
+            return f"cannot read {tasks} to compare: {exc}"
+        # Every line: OpenCode trims a long output, and the part it keeps
+        # need not be the start of the file (measured 2026-11-27).
+        if any(ln in output for ln in lines):
+            return "`git show` read tasks.toml from the harness's .git"
+        if NOT_A_REPO not in output:
+            return f"its output does not show the refusal ({NOT_A_REPO!r})"
+        return None
+
+    return check
+
+
+def harness_probes(
+    tool: str, harness_root: pathlib.Path, token: str, major: int
+) -> list[Step]:
+    """Two escapes a trial must NOT manage (#477). Both run as shell commands.
+
+    The client container mounts the host's harness checkout read-write. bwrap
+    binds it read-only and hides its .git, so a write there fails, and so does
+    `git show` of `tasks.toml`, the file that holds every prompt and check.
+
+    The git probe passes `safe.directory=*` as an agent could. Without the
+    hidden .git, git in the trial refuses the host-owned checkout only for
+    "dubious ownership" (the trial env drops the container's safe.directory),
+    and one flag gets past that: measured on the client, 2026-11-27.
+    """
+    root = str(harness_root)
+
+    def call(command: str, what: str) -> dict[str, Any]:
+        if major >= 2:
+            return {"command": command}
+        return {"command": command, "description": what}
+
+    return [
+        Step(
+            tool,
+            call(f"printf %s {token} > {root}/PROBE-{token}", "Probe a write"),
+            _harness_probe(harness_root, token),
+            expect=None,
+        ),
+        Step(
+            tool,
+            call(
+                f"git -c safe.directory='*' -C {root} "
+                "show HEAD:benchmarks/agent/tasks.toml",
+                "Probe the git history",
+            ),
+            _git_probe(harness_root),
+            expect=None,
+        ),
+    ]
 
 
 def plant(workdir: pathlib.Path, token: str) -> None:
@@ -145,8 +252,11 @@ def steps(
     token: str,
     base_url: str = "http://127.0.0.1:1/v1",
     major: int = 1,
+    harness_root: pathlib.Path | None = None,
 ) -> list[Step]:
     """One call per tool the trials use, in the order the stub sends them.
+
+    Then the two harness probes (`harness_probes`), which must fail.
 
     OpenCode 1.18.34 offers bash, edit, glob, grep, read, skill, task,
     todowrite, webfetch and write. `task` starts a subagent, which is a
@@ -156,8 +266,14 @@ def steps(
     cannot pass for this one. `base_url` is the stub's, which serves the
     page `webfetch` reads.
     """
+    # Read at call time, not bound as a default, so a test can point it at a
+    # fake checkout: the real one may be a worktree, where the probe refuses.
+    harness_root = harness_root or REPO
     if major >= 2:
-        return steps_2x(workdir, token, base_url)
+        return [
+            *steps_2x(workdir, token, base_url),
+            *harness_probes("shell", harness_root, token, major),
+        ]
     written = workdir / "written.txt"
     edited = workdir / "edit_me.txt"
     marker = workdir / "bash-wrote.txt"
@@ -226,6 +342,7 @@ def steps(
             },
             _output_has(token, "the stub's page"),
         ),
+        *harness_probes("bash", harness_root, token, major),
     ]
 
 
@@ -592,16 +709,27 @@ def check(transcript: str, workdir: pathlib.Path, script: list[Step]) -> list[st
             failures.append(f"{step.tool}: never ran (no tool part in the transcript)")
             continue
         remaining.remove(part)
-        if part.status != step.expect:
+        finished = ("completed", "error")
+        if (
+            part.status not in finished
+            if step.expect is None
+            else part.status != step.expect
+        ):
             detail = part.error if part.status != "completed" else part.output
             failures.append(
-                f"{step.tool}: {part.status} (expected {step.expect}): "
+                f"{step.tool}: {part.status} "
+                f"(expected {step.expect or 'completed or error'}): "
                 f"{_first_line(detail)}"
             )
             continue
-        why = step.effect(
-            workdir, part.output if step.expect == "completed" else part.error
+        text = (
+            part.output
+            if step.expect == "completed"
+            else part.error
+            if step.expect is not None
+            else "\n".join(t for t in (part.output, part.error) if t)
         )
+        why = step.effect(workdir, text)
         if why:
             failures.append(f"{step.tool}: {part.status}, but {why}")
     for part in remaining:

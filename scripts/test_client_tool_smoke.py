@@ -64,6 +64,18 @@ def _healthy_outputs(workdir: pathlib.Path) -> dict[str, str]:
     }
 
 
+#: What a sandbox that holds prints for the two harness probes (#477), in
+#: the order the script sends them.
+PROBE_OUTPUTS = (
+    f"sh: 1: cannot create /harness/PROBE-{TOKEN}: {mod.READ_ONLY}",
+    (
+        "fatal: not a git repository (or any parent up to mount point /root/git)\n"
+        "Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set)."
+    ),
+)
+N_PROBES = len(PROBE_OUTPUTS)
+
+
 def _apply_effects(workdir: pathlib.Path) -> None:
     """What a working client leaves on disk after the script."""
     (workdir / "bash-wrote.txt").write_text(TOKEN)
@@ -75,12 +87,28 @@ def _transcript(workdir: pathlib.Path, broken: dict[str, str] | None = None) -> 
     broken = broken or {}
     outputs = _healthy_outputs(workdir)
     lines = ['{"type": "step_start", "timestamp": 1}']
+    base = len(mod.TOOLS) - N_PROBES
     for n, tool in enumerate(mod.TOOLS):
-        if tool in broken:
+        if n >= base:
+            lines.append(_event(tool, "completed", output=PROBE_OUTPUTS[n - base], n=n))
+        elif tool in broken:
             lines.append(_event(tool, "error", error=broken[tool], n=n))
         else:
             lines.append(_event(tool, "completed", output=outputs[tool], n=n))
     return "\n".join(lines) + "\n"
+
+
+@pytest.fixture(autouse=True)
+def fake_repo(tmp_path_factory, monkeypatch):
+    """The probes' default harness root, as a main checkout. Hermetic: the
+    real checkout may be a git worktree, where the git probe refuses (#477)."""
+    root = tmp_path_factory.mktemp("repo")
+    tasks = root / "benchmarks" / "agent" / "tasks.toml"
+    tasks.parent.mkdir(parents=True)
+    tasks.write_text('prompt = "a line long enough to count as a leak"\n')
+    (root / ".git").mkdir()
+    monkeypatch.setattr(mod, "REPO", root)
+    return root
 
 
 @pytest.fixture
@@ -100,7 +128,8 @@ def test_the_script_covers_every_tool_the_trials_use():
         "glob",
         "todowrite",
     }
-    assert len(mod.TOOLS) == len(set(mod.TOOLS)), "one call per tool"
+    tools = mod.TOOLS[:-N_PROBES]
+    assert len(tools) == len(set(tools)), "one call per tool"
 
 
 def test_an_all_completed_transcript_with_every_effect_passes(workdir):
@@ -415,8 +444,11 @@ def _healthy_2x(workdir: pathlib.Path) -> str:
         for name in mod.SESSION_MOVE_TOOLS
     )
     lines = []
+    base = len(mod.TOOLS_2X) - N_PROBES
     for n, tool in enumerate(mod.TOOLS_2X):
-        if tool == "question":
+        if n >= base:
+            lines.append(_event(tool, "completed", output=PROBE_OUTPUTS[n - base], n=n))
+        elif tool == "question":
             lines.append(_event(tool, "error", error=QUESTION_ERROR, n=n))
         elif tool == "execute":
             lines.append(_event(tool, "completed", output=next(refusals), n=n))
@@ -437,11 +469,14 @@ def test_a_healthy_2x_transcript_passes(workdir):
     assert mod.check(_healthy_2x(workdir), workdir, script) == []
 
 
+QUESTION_N = mod.TOOLS_2X.index("question")
+
+
 def test_a_question_that_completes_fails(workdir):
     """A question that got an answer means something answered for the user."""
     transcript = _healthy_2x(workdir).replace(
-        _event("question", "error", error=QUESTION_ERROR, n=len(mod.TOOLS_2X) - 1),
-        _event("question", "completed", output="a", n=len(mod.TOOLS_2X) - 1),
+        _event("question", "error", error=QUESTION_ERROR, n=QUESTION_N),
+        _event("question", "completed", output="a", n=QUESTION_N),
     )
     failures = mod.check(transcript, workdir, mod.steps(workdir, TOKEN, major=2))
     assert len(failures) == 1 and failures[0].startswith("question: completed")
@@ -499,3 +534,141 @@ def test_a_worktree_create_that_works_fails_the_self_test(workdir):
             "tools.opencode.worktree_create (\"Unknown tool 'opencode.worktree_create'\")"
         )
     ]
+
+
+# --- #477: the harness checkout is read-only and its history hidden ----------
+
+
+def _fake_harness(tmp_path: pathlib.Path) -> pathlib.Path:
+    root = tmp_path / "harness"
+    tasks = root / "benchmarks" / "agent" / "tasks.toml"
+    tasks.parent.mkdir(parents=True)
+    tasks.write_text('prompt = "restore the body of parse_date please"\n')
+    (root / ".git").mkdir()
+    return root
+
+
+def _probe_steps(tmp_path: pathlib.Path, major: int = 1) -> list[mod.Step]:
+    return mod.steps(
+        tmp_path, TOKEN, major=major, harness_root=_fake_harness(tmp_path)
+    )[-N_PROBES:]
+
+
+@pytest.mark.parametrize("major", [1, 2])
+def test_both_majors_end_with_the_two_harness_probes(tmp_path, major):
+    probes = _probe_steps(tmp_path, major)
+    tool = "shell" if major >= 2 else "bash"
+    assert [s.tool for s in probes] == [tool, tool]
+    root = tmp_path / "harness"
+    assert f"> {root}/PROBE-{TOKEN}" in probes[0].args["command"]
+    assert probes[1].args["command"] == (
+        f"git -c safe.directory='*' -C {root} show HEAD:benchmarks/agent/tasks.toml"
+    )
+    assert all(s.expect is None for s in probes)
+
+
+def test_a_write_that_reached_the_harness_fails_and_is_cleaned_up(tmp_path):
+    write, _ = _probe_steps(tmp_path)
+    probe = tmp_path / "harness" / f"PROBE-{TOKEN}"
+    probe.write_text(TOKEN)
+    why = write.effect(tmp_path, "")
+    assert why is not None and "harness checkout is writable" in why
+    assert not probe.exists()
+
+
+def test_a_write_probe_without_the_refusal_text_fails(tmp_path):
+    """No file and no refusal: a missing directory, not a read-only bind."""
+    write, _ = _probe_steps(tmp_path)
+    assert write.effect(tmp_path, "sh: 1: cannot create: No such file") is not None
+    assert write.effect(tmp_path, PROBE_OUTPUTS[0]) is None
+
+
+def test_a_git_show_that_read_tasks_toml_fails(tmp_path):
+    _, git = _probe_steps(tmp_path)
+    leaked = 'prompt = "restore the body of parse_date please"\n'
+    why = git.effect(tmp_path, leaked)
+    assert why is not None and "read tasks.toml" in why
+    assert git.effect(tmp_path, PROBE_OUTPUTS[1]) is None
+
+
+def test_a_probe_that_never_finished_fails(workdir):
+    """`expect=None` takes completed or error, never a call left running."""
+    _apply_effects(workdir)
+    script = mod.steps(workdir, TOKEN)
+    n = len(mod.TOOLS) - 1
+    text = _transcript(workdir).replace(
+        _event("bash", "completed", output=PROBE_OUTPUTS[1], n=n),
+        _event("bash", "running", n=n),
+    )
+    failures = mod.check(text, workdir, script)
+    assert len(failures) == 1 and failures[0].startswith("bash: running")
+
+
+def test_a_refusal_reported_as_an_error_passes(workdir):
+    _apply_effects(workdir)
+    script = mod.steps(workdir, TOKEN)
+    n = len(mod.TOOLS) - 2
+    text = _transcript(workdir).replace(
+        _event("bash", "completed", output=PROBE_OUTPUTS[0], n=n),
+        _event("bash", "error", error=PROBE_OUTPUTS[0], n=n),
+    )
+    assert mod.check(text, workdir, script) == []
+
+
+def test_a_leak_from_deep_in_tasks_toml_is_caught(tmp_path):
+    """OpenCode trims a long output; the kept part may start mid-file."""
+    steps = _probe_steps(tmp_path)
+    tasks = tmp_path / "harness" / "benchmarks" / "agent" / "tasks.toml"
+    body = "".join(f'name = "task-number-{n:04d}-padding"\n' for n in range(500))
+    tasks.write_text(body)
+    tail = body.splitlines()[-3]
+    why = steps[1].effect(tmp_path, f"...trimmed...\n{tail}\n")
+    assert why is not None and "read tasks.toml" in why
+
+
+def test_a_worktrees_unmounted_git_does_not_pass_for_a_hidden_one(tmp_path):
+    """L2: "not a git repository: <path>" is what a worktree prints when its
+    main .git is not mounted. It is not the discovery failure the fix gives."""
+    _, git = _probe_steps(tmp_path)
+    why = git.effect(tmp_path, "fatal: not a git repository: /x/.git/worktrees/X")
+    assert why is not None and "does not show the refusal" in why
+
+
+def test_the_git_probe_refuses_to_run_from_a_worktree(tmp_path):
+    """L2: from a worktree the container lacks the main .git, so the probe
+    would prove nothing either way."""
+    _, git = _probe_steps(tmp_path)
+    git_dir = tmp_path / "harness" / ".git"
+    git_dir.rmdir()
+    git_dir.write_text("gitdir: /x/.git/worktrees/harness\n")
+    why = git.effect(tmp_path, PROBE_OUTPUTS[1])
+    assert why is not None and "is a git worktree" in why
+
+
+def test_a_probe_reads_its_output_and_its_error_together(workdir):
+    """L6: noise in the output must not hide the refusal in the error."""
+    _apply_effects(workdir)
+    script = mod.steps(workdir, TOKEN)
+    n = len(mod.TOOLS) - 2
+    text = _transcript(workdir).replace(
+        _event("bash", "completed", output=PROBE_OUTPUTS[0], n=n),
+        _event("bash", "error", error=PROBE_OUTPUTS[0], n=n).replace(
+            '"status": "error"', '"status": "error", "output": "exit status 1"'
+        ),
+    )
+    assert mod.tool_parts(text)[n].output == "exit status 1"
+    assert mod.check(text, workdir, script) == []
+
+
+@pytest.mark.parametrize(
+    "refusal",
+    [
+        # bwrap on a host: the hidden .git is an empty directory.
+        "fatal: not a git repository (or any of the parent directories): .git",
+        # In the client container, measured 2026-11-27.
+        PROBE_OUTPUTS[1],
+    ],
+)
+def test_both_discovery_failures_pass_the_git_probe(tmp_path, refusal):
+    _, git = _probe_steps(tmp_path)
+    assert git.effect(tmp_path, refusal) is None
