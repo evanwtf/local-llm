@@ -196,3 +196,75 @@ def test_a_live_day_has_power_on_the_grid() -> None:
     if not any(w.peak_w is not None for w in wins):
         pytest.skip("gcx returned no power data (not authenticated?)")
     assert all(w.ts % ev.WINDOW_S == 0 for w in wins)
+
+
+# --- #1453: the engine rule ------------------------------------------------
+
+
+def test_resident_engines_collects_each_engine_up() -> None:
+    raw = _matrix(
+        ({"engine": "vllm", "model": "m"}, [(600, "1")]),
+        ({"engine": "tensorfold", "model": "t"}, [(600, "1"), (1200, "1")]),
+    )
+    assert ev.resident_engines(raw) == {
+        600: ("tensorfold", "vllm"),
+        1200: ("tensorfold",),
+    }
+
+
+def test_the_engine_rule_covers_the_watchdogs_engines() -> None:
+    # The exporter writes llama.cpp as "llamacpp"; tasks.toml as "llama.cpp".
+    assert ev.has_engine_signal(("vllm",))
+    assert ev.has_engine_signal(("llamacpp",))
+    assert ev.has_engine_signal(("sglang",))
+    assert not ev.has_engine_signal(("tensorfold",))
+    assert not ev.has_engine_signal(())
+
+
+def test_rule_count_judges_engine_windows_at_the_engine_floor() -> None:
+    wins = [
+        _w(14.0, engines=("vllm",)),  # quiet, 13 <= 14 < 20: power misses it
+        _w(14.0, engines=("tensorfold",)),  # quiet, power rule: missed
+        _w(21.0, engines=("vllm",)),  # quiet, above the engine floor: missed
+        _w(10.0, engines=("vllm",)),  # quiet, caught by both
+    ]
+    row = ev.count_rule(wins, power_floor=13.0, engine_floor=20.0)
+    assert (row.quiet, row.missed) == (4, 2)
+    (old,) = ev.count(wins, [13.0])
+    assert old.missed == 3
+
+
+def test_rule_count_never_kills_a_working_engine_window() -> None:
+    wins = [
+        _w(5.0, engines=("vllm",), tokens=100.0, running_max=1.0),
+        _w(5.0, engines=("tensorfold",), tokens=100.0, running_max=1.0),
+    ]
+    row = ev.count_rule(wins, power_floor=13.0, engine_floor=20.0)
+    # The vLLM window has the engine's word; the TensorFold one is judged by
+    # power alone, as the watchdog does.
+    assert (row.generating, row.gen_killed) == (2, 1)
+
+
+def test_a_saved_window_without_engines_loads() -> None:
+    # --save files written before #1453 have no `engines` key.
+    w = ev.Window(
+        ts=0,
+        peak_w=1.0,
+        models=(),
+        running_max=None,
+        running_min=None,
+        tokens=None,
+        requests=None,
+    )
+    assert w.engines == ()
+
+
+def test_missed_by_engine_splits_the_gain() -> None:
+    wins = [
+        _w(14.0, engines=("vllm",)),
+        _w(14.0, engines=("tensorfold",)),
+        _w(10.0, engines=("tensorfold",)),
+        _w(14.0, engines=("vllm",), tokens=5.0),  # not quiet: left out
+    ]
+    got = ev.missed_by_engine(wins, power_floor=13.0, engine_floor=20.0)
+    assert got == {"tensorfold": (2, 1, 1), "vllm": (1, 1, 0)}

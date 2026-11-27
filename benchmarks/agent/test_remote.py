@@ -1060,3 +1060,31 @@ def test_check_instance_refuses_a_restarted_inkling2():
     backends = {"b": {"engine": "exllamav3", "base_url": "http://srv:18100"}}
     with pytest.raises(SystemExit, match="restarted"):
         remote.check_instance(facts, backends, lambda url, timeout: INKLING2_HEALTH)
+
+
+# #1453 review: the watchdog's power sampler must return None on any failed
+# read. A cut body or a non-HTTP reply raises http.client.HTTPException, which
+# the old except tuple let out of the poll loop.
+_DCGM = b'DCGM_FI_DEV_POWER_USAGE{gpu="0"} 12.5\n'
+
+
+def _port(url: str) -> int:
+    return int(url.split(":")[2].split("/")[0])
+
+
+def test_gpu_watts_reads_a_real_exporter(raw_http, monkeypatch):
+    ok = b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s" % (len(_DCGM), _DCGM)
+    monkeypatch.setattr(remote, "DCGM_EXPORTER_PORT", _port(raw_http(ok)))
+    assert remote.gpu_watts("127.0.0.1") == 12.5
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n" + _DCGM,
+        b"SSH-2.0-OpenSSH_9.6\r\n",
+    ],
+)
+def test_gpu_watts_is_none_on_a_broken_reply(raw_http, monkeypatch, reply):
+    monkeypatch.setattr(remote, "DCGM_EXPORTER_PORT", _port(raw_http(reply)))
+    assert remote.gpu_watts("127.0.0.1", timeout=2.0) is None

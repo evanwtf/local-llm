@@ -5768,6 +5768,7 @@ def one_trial(
     idle_stall_secs=timeout_policy.DEFAULT_IDLE_STALL_SECS,
     idle_floor_watts=None,
     watts_sampler=None,
+    engine_sampler=None,
     ledger=None,
 ):
     # `ledger`: the results file this run writes, so the trial cannot read it
@@ -6082,6 +6083,42 @@ def one_trial(
                 floor_source,
                 idle_stall_secs,
             )
+            # #1453: where the engine says whether a request runs, a sample is
+            # idle only when it runs none AND the GPU is under the engine-rule
+            # floor. A failed engine read falls back to the power rule above.
+            engine_signal, rule_why = timeout_policy.engine_signal_for(backend)
+            engine_kw: dict[str, Any] = {"power_only_reason": rule_why}
+            if engine_signal is not None:
+                engine_floor, engine_source = timeout_policy.resolve_engine_idle_floor(
+                    idle_floor_watts, backend
+                )
+                result["idle_engine_floor_watts"] = engine_floor
+                metrics_url = timeout_policy.engine_metrics_url(backend)
+                # engine_signal_for gives a signal only with a URL to read.
+                assert metrics_url is not None
+                engine_kw = {
+                    "engine": engine_sampler
+                    or functools.partial(
+                        timeout_policy.fetch_engine_reading,
+                        metrics_url,
+                        engine_signal,
+                    ),
+                    "engine_floor_watts": engine_floor,
+                    "engine_floor_source": engine_source,
+                    "engine_name": f"{engine_signal.engine} ({engine_signal.running})",
+                }
+                logger.info(
+                    "%s: GPU-idle-stall %s at %s, below %g W (from %s); power "
+                    "rule below %g W when the engine cannot be read (#1453)",
+                    name,
+                    rule_why,
+                    metrics_url,
+                    engine_floor,
+                    engine_source,
+                    floor_watts,
+                )
+            else:
+                logger.info("%s: GPU-idle-stall %s", name, rule_why)
             watchdog = timeout_policy.IdleStallWatchdog(
                 watts_sampler
                 or (
@@ -6094,6 +6131,7 @@ def one_trial(
                 idle_floor_watts=floor_watts,
                 idle_floor_source=floor_source,
                 idle_stall_secs=idle_stall_secs,
+                **engine_kw,
             )
             proc = timeout_policy.run_client_with_watchdog(
                 argv,

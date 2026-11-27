@@ -183,7 +183,7 @@ def _resident_gib() -> float:
 def is_busy(sample: dict, idle_watts: float = IDLE_WATTS) -> bool:
     """Real work. **Power is the primary indicator, not occupancy.**
 
-    Measured on this GB10, and the numbers are unambiguous:
+    Measured on a GB10 with a heavy model:
 
         idle      9.4 W, 37 C, occupancy 0%
         loading  36 W,   58 C, occupancy 96%   <- occupancy lies here
@@ -195,8 +195,13 @@ def is_busy(sample: dict, idle_watts: float = IDLE_WATTS) -> bool:
     is running a tool or a test suite rather than decoding. It is the wrong
     primary signal in both directions.
 
-    Power separates the states cleanly: a ~4x gap between 9.4 W at rest and
-    35-81 W under any real work, with no overlap. Temperature corroborates
+    Power separates rest from heavy work: 9.4 W at rest against 35-81 W
+    serving. It does not separate them for a light model, and the bands
+    overlap there (#1450): with a two-node model resident and no request, the
+    cluster's worker draws 11.5-12.0 W on average (10-min peaks to 12.2 W),
+    and Inkling 2 Mini decodes at 15.8-17.3 W per GB10 (#1448). The default
+    `idle_watts` (20 W) calls that decode idle; the GB10 floor is 13 W
+    (`timeout_policy.TIER_IDLE_FLOOR_WATTS`). Temperature corroborates
     (37 C idle against 53-63 C busy) but lags by tens of seconds, so it is
     recorded and reported, never used to decide.
 

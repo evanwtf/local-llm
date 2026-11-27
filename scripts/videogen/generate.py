@@ -108,9 +108,10 @@ ENDPOINT = "/v1/videos/sync"
 TIMEOUT_S = 7200.0
 #: Seconds between GPU-power and memory samples.
 SAMPLE_S = 1.0
-#: At or below this GPU power a GB10 is idle (scripts/heartbeat.py). A
-#: request that starts above it shares the GPU, and its time and energy
-#: would measure two jobs.
+#: Below this GPU power a GB10 is idle (scripts/heartbeat.py, which takes it
+#: from the GPU-idle-stall watchdog: 13 W, #1450, #1454). A request that
+#: starts at or above it shares the GPU, and its time and energy would
+#: measure two jobs.
 IDLE_W = heartbeat.IDLE_FLOOR_W["gb10"]
 #: How long to wait for the GPU to fall to the idle floor before refusing.
 #: When one clip ends, batch.py starts the next in the same second, and the
@@ -873,7 +874,7 @@ def preflight(
 
 
 def wait_for_idle(host: str, role: str, deps: Deps) -> dict[str, Any]:
-    """Poll the GPU power once a second until it is at or below the idle
+    """Poll the GPU power once a second until it is below the idle
     floor, for at most SETTLE_MAX_S. Raise Refused if it never gets there.
 
     Returns `gpu_w_before` (the reading that passed, or None if the power
@@ -891,7 +892,7 @@ def wait_for_idle(host: str, role: str, deps: Deps) -> dict[str, Any]:
                 "could not read the GPU power on %s before the request", host
             )
             break
-        if watts <= IDLE_W:
+        if heartbeat.gpu_is_idle("gb10", watts):
             if elapsed > 0:
                 logger.info("the GPU settled to %.1f W in %.1f s", watts, elapsed)
             break

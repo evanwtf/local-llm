@@ -653,6 +653,35 @@ watchdog reads the busier node, so 12 W would miss most real stalls.
 `--idle-floor-watts` overrides both. Each watched row records the floor as
 `idle_floor_watts`.
 
+Power alone cannot tell a stuck client from a light decode, so the watchdog
+also asks the engine (#1453). For a vLLM, SGLang or llama.cpp backend it reads
+the engine's own `/metrics`: the running-request gauge
+(`vllm:num_requests_running`, `sglang:num_running_reqs`,
+`llamacpp:requests_processing`) and the generated-token counter. A sample is
+idle only when no request runs, the counter has not moved, and the GPU reads
+under 20 W. A running request is never called idle at any power. While the
+GPU reads at or above the floor, the watchdog skips the read: both rules call
+that sample busy. When the engine cannot be read (endpoint down, a cut or
+non-HTTP reply, no gauge in the body), that sample falls back to the power
+rule above. `--idle-floor-watts` and the backend's `idle_floor_watts` key set
+the engine-rule floor too. TensorFold, ds4, Ollama and the other engines keep
+the power rule; native TensorFold exports a running gauge and could join (see
+#1545). A hung engine whose gauge stays above 0 is never called idle (see
+#1546). The stall log line names the rule, with a sample count for each. A
+row whose watchdog was configured for the engine rule carries
+`idle_engine_floor_watts`, whether or not any read succeeded.
+
+The evidence is a replay of all 460 trials of 600 s or more on vLLM,
+llama.cpp and SGLang over 60 days (the #1453 review): the engine rule stops
+none, the 13 W power rule none, and the old 20 W power rule two. The engine
+rule catches a real stall on 2026-10-17 (no request, tokens flat for ten
+minutes, 15.6-16.2 W) that 13 W misses, and keeps the 2026-11-21 Inkling 2
+Mini decode (one request, tokens rising, 15.6-16.9 W). Counted in quiet
+10-minute windows, it misses 44 of 559 against 53 for power alone at 13 W;
+TensorFold holds 30 of the 44, and vLLM 9 and llama.cpp 5 still slip past.
+The windows it newly catches overlap no trial: they are idle hours with a
+model loaded.
+
 Rerun the evidence when the ledger grows:
 
     uv run python scripts/timeout_sizing.py --results hardware/<machine>/results.jsonl
