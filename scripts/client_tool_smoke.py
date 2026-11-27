@@ -121,6 +121,32 @@ def _output_has(needle: str, what: str) -> Callable[[pathlib.Path, str], str | N
     return check
 
 
+#: What a bare `mktemp` prints when the trial's TMPDIR is missing (#1541).
+MKTEMP_FAILED = "mktemp: "
+
+
+def _shell_marker(
+    marker: pathlib.Path, token: str
+) -> tuple[str, Callable[[pathlib.Path, str], str | None]]:
+    """The first shell step: a bare `mktemp`, then the marker file (#1541).
+
+    `mktemp` writes in `$TMPDIR`, the trial's own directory (#780). bwrap
+    must create it inside the private /tmp. OpenCode creates
+    `$TMPDIR/opencode` itself, so this probe passes on that alone; it still
+    catches a sandbox that refuses the directory, or a client that stops
+    making it.
+    """
+    command = f"mktemp && printf %s {token} > {marker}"
+
+    def check(_workdir: pathlib.Path, output: str) -> str | None:
+        if MKTEMP_FAILED in output:
+            line = next(ln for ln in output.splitlines() if MKTEMP_FAILED in ln)
+            return f"a bare mktemp failed under the trial's TMPDIR (#1541): {line}"
+        return _file_is(marker, token)
+
+    return command, check
+
+
 #: What the two harness probes must print: the kernel's refusal of the write,
 #: and git's discovery failure once the .git is hidden (#477). The discovery
 #: wording, not the bare "not a git repository": a worktree whose main .git
@@ -277,14 +303,12 @@ def steps(
     written = workdir / "written.txt"
     edited = workdir / "edit_me.txt"
     marker = workdir / "bash-wrote.txt"
+    command, wrote = _shell_marker(marker, token)
     return [
         Step(
             "bash",
-            {
-                "command": f"printf %s {token} > {marker}",
-                "description": "Write a marker file",
-            },
-            lambda _w, _o: _file_is(marker, token),
+            {"command": command, "description": "Make a temp file, write a marker"},
+            wrote,
         ),
         Step(
             "read",
@@ -388,12 +412,9 @@ def steps_2x(workdir: pathlib.Path, token: str, base_url: str) -> list[Step]:
     written = workdir / "written.txt"
     edited = workdir / "edit_me.txt"
     marker = workdir / "shell-wrote.txt"
+    command, wrote = _shell_marker(marker, token)
     return [
-        Step(
-            "shell",
-            {"command": f"printf %s {token} > {marker}"},
-            lambda _w, _o: _file_is(marker, token),
-        ),
+        Step("shell", {"command": command}, wrote),
         Step(
             "read",
             {"path": str(workdir / "needle.py")},

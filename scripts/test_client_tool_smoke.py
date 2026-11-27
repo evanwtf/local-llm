@@ -672,3 +672,33 @@ def test_a_probe_reads_its_output_and_its_error_together(workdir):
 def test_both_discovery_failures_pass_the_git_probe(tmp_path, refusal):
     _, git = _probe_steps(tmp_path)
     assert git.effect(tmp_path, refusal) is None
+
+
+# --- The trial's TMPDIR (#1541) -------------------------------------------------
+
+MKTEMP_ERROR = (
+    "mktemp: failed to create file via template "
+    "'/tmp/agent-bench/trial-tmp/wt/tmp.XXXXXXXXXX': No such file or directory"
+)
+
+
+@pytest.mark.parametrize("major", [1, 2])
+def test_the_first_shell_step_runs_a_bare_mktemp(tmp_path, major):
+    first = mod.steps(tmp_path, TOKEN, major=major)[0]
+    assert first.tool == ("shell" if major >= 2 else "bash")
+    assert first.args["command"].startswith("mktemp && ")
+
+
+def test_a_failed_mktemp_fails_and_names_the_tmpdir(workdir):
+    """The marker is never written, and the failure says why."""
+    script = mod.steps(workdir, TOKEN)
+    why = script[0].effect(workdir, MKTEMP_ERROR)
+    assert why is not None
+    assert "mktemp failed under the trial's TMPDIR (#1541)" in why
+    assert "No such file or directory" in why
+
+
+def test_a_working_mktemp_passes(workdir):
+    _apply_effects(workdir)
+    script = mod.steps(workdir, TOKEN)
+    assert script[0].effect(workdir, "/tmp/agent-bench/trial-tmp/wt/tmp.a1\n") is None
