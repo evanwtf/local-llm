@@ -1148,7 +1148,7 @@ _IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
 
 def container_settings_from(info: dict) -> dict:
-    """`server_env` and `server_cap_add` from one `docker inspect` record.
+    """`server_env`, `server_cap_add` and `autotune_cache` from one inspect.
 
     Only engine variables, with secrets dropped by name and IPv4 addresses
     masked, because rows are published (#680 findings 2 and 19). Empty keys
@@ -1168,7 +1168,43 @@ def container_settings_from(info: dict) -> dict:
     caps = (info.get("HostConfig") or {}).get("CapAdd") or []
     if caps:
         got["server_cap_add"] = ",".join(sorted(str(c) for c in caps))
+    if (
+        cache := autotune_cache_from((info.get("Config") or {}).get("Labels"))
+    ) is not None:
+        got["autotune_cache"] = cache
     return got
+
+
+#: The container labels scripts/vllm_two_node.py writes (#1514).
+AUTOTUNE_LABEL = "local-llm.autotune-cache"
+
+
+def autotune_cache_from(labels: Any) -> dict[str, str] | None:
+    """`env.autotune_cache` from a container's labels, or None (#1514).
+
+    `{"key", "rank0", "rank1"}` when the launcher kept FlashInfer's autotune
+    cache: the cache directory's key, and per node "found" (a finished
+    `*.json` existed before the start) or "new" (it did not). One key does not
+    prove one set of kernels: after a failed tune left a partial file, the
+    next start tunes the missing shapes, and a file on one node only makes
+    both nodes tune again. `{"mode": "off"}` when the cache was turned off,
+    so every start tuned afresh; `{"mode": "autotune-disabled"}` when the
+    serve arguments turned autotune off. None for a container from any other
+    launcher: unknown, never a guessed "off".
+    """
+    if not isinstance(labels, dict):
+        return None
+    mode = labels.get(AUTOTUNE_LABEL)
+    if mode in ("off", "autotune-disabled"):
+        return {"mode": str(mode)}
+    key = labels.get(f"{AUTOTUNE_LABEL}.key")
+    if not key:
+        return None
+    return {
+        "key": str(key),
+        "rank0": str(labels.get(f"{AUTOTUNE_LABEL}.rank0", "unknown")),
+        "rank1": str(labels.get(f"{AUTOTUNE_LABEL}.rank1", "unknown")),
+    }
 
 
 def container_settings(cid: str) -> dict:

@@ -226,6 +226,8 @@ CLIENT_ENGINE_KEYS = frozenset(
         "server_argv",
         "server_env",
         "server_cap_add",
+        # #1514: which FlashInfer autotune cache the server ran.
+        "autotune_cache",
         "ds4_head",
         "ds4_dirty",
         "ds4_server_mtime",

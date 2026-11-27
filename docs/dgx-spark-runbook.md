@@ -469,6 +469,67 @@ What remote mode changes (`benchmarks/agent/remote.py`):
   (`LOCAL_LLM_DGX_HEAD`, `LOCAL_LLM_DGX_WORKER`, or the hosts file above), ssh
   access to both nodes, and the agent identity variables.
 
+## FlashInfer's autotune cache is kept across starts (#1514)
+
+FlashInfer picks some kernels by timing them at engine start. The result
+stayed in the container, so every start paid the cost again, and two starts
+could pick different kernels. The #1503 smoke (2026-11-26) estimated HY4
+Flash's SM120 sparse-MLA autotune at about 10.5 minutes of an 803 s start.
+Measured on 2026-11-27, one start each, with the cache kept: engine init took
+306.41 s with an empty cache and 134.87 s with the cache, and the first
+completion came 433 s and 273 s after launch. The second start loaded the
+cache on both nodes and tuned nothing.
+
+`scripts/vllm_two_node.py start` keeps the result on each node:
+
+- The host directory is `~/.cache/local-llm/flashinfer-autotune/<key>`. The
+  container sees it at `/flashinfer-autotune`, and
+  `VLLM_FLASHINFER_AUTOTUNE_CACHE_DIR` points there.
+- The key is the served model name and a hash of the head's image ID, the
+  checkpoint, the `vllm serve` arguments and the `--env` pairs. A new image, a
+  rebuilt image under the same tag, or a changed flag gets a new directory and
+  tunes again.
+- Before the start, the launcher compares the image's layers on both nodes
+  (`docker image inspect --format '{{json .RootFS.Layers}}'`). It refuses when
+  they differ or the worker lacks the image. The image IDs cannot be compared:
+  the head's overlay2 store reports the config digest, and the worker's
+  containerd store reports the manifest digest. With different images, both
+  nodes re-tune at every start and the worker's sparse-MLA load fails silently.
+- The launcher then creates the directory on both nodes. It refuses a
+  directory that it cannot create or write, and an image that the head does
+  not have.
+- Both containers get labels with the key and, per node, `found` or `new`.
+  `found` means a finished `*.json` existed before the start. `server_facts.py`
+  reads the labels into `env.autotune_cache`, and every row carries it. One key
+  does not prove one set of kernels: after a failed tune leaves a partial
+  file, the next start tunes the missing shapes, and a file on one node only
+  makes both nodes tune again.
+- `--no-autotune-cache` turns the cache off (`env.autotune_cache` is
+  `{"mode": "off"}`), and autotune runs at every start, as before.
+- Serve arguments that turn autotune off (`--no-enable-flashinfer-autotune`,
+  `-O0`) get no cache, and `env.autotune_cache` is
+  `{"mode": "autotune-disabled"}`. Pass them only when the model card does, as
+  #1011's E192 card does. On an arm whose card leaves autotune on, do not use
+  them: they change the kernels from the card's.
+- `stop` gives the files back to your user before it removes the containers
+  (the containers write them as root). If a container is already dead,
+  `stop` does the chown in a throwaway container of the same image. If that
+  also fails, it logs an error, and you can run the same command by hand on
+  that node:
+
+  ```sh
+  docker run --rm --entrypoint chown \
+      -v ~/.cache/local-llm/flashinfer-autotune/<key>:/c <image> -R "$(id -u):$(id -g)" /c
+  ```
+
+  To force a new tune, stop the server and delete that key's directory on
+  both nodes.
+
+A cache key is not part of the pooling guard (`results.pool_compatible`).
+Autotune keeps the fastest tactic it measures, so two keys differ by about the
+timing noise. Rows from before #1514 have no key. Split by `env.autotune_cache`
+in an analysis that needs one kernel choice.
+
 ## NVMe interrupt coalescing is off (#884)
 
 NVIDIA's `nvidia-nvme-interrupt-coalescing.service` is **masked** on both
