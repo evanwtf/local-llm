@@ -76,7 +76,7 @@ def test_a_mismatched_peer_refuses(monkeypatch: pytest.MonkeyPatch) -> None:
         cluster_id, "local_fingerprint", lambda: "GB10\n120\nNVIDIA GB10"
     )
     monkeypatch.setattr(
-        cluster_id, "_ssh", lambda peer, cmd: "Ryzen 9 7900X\n31\nRTX 3080 Ti"
+        cluster_id, "ssh", lambda peer, cmd: "Ryzen 9 7900X\n31\nRTX 3080 Ti"
     )
 
     with pytest.raises(cluster_id.ClusterVerificationError, match="different hardware"):

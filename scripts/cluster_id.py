@@ -36,7 +36,23 @@ PROBE_TIMEOUT_SECONDS = 30
 
 
 class ClusterVerificationError(RuntimeError):
-    """A cluster identity was requested and the hardware does not support it."""
+    """A cluster identity was requested and the hardware does not support it.
+
+    `category` is a fixed phrase with no remote text in it ("ssh failed, exit
+    255", "no answer in 30 s"), safe for a public row. `returncode` is the
+    remote command's exit status, or None when ssh did not run it.
+    """
+
+    def __init__(
+        self, message: str, category: str = "", returncode: int | None = None
+    ) -> None:
+        super().__init__(message)
+        self.category = category or "the peer check failed"
+        self.returncode = returncode
+
+
+#: ssh's own exit status for a connection failure.
+SSH_FAILED = 255
 
 
 def cluster_directory(base_directory: str, nodes: int) -> str:
@@ -51,7 +67,7 @@ def cluster_directory(base_directory: str, nodes: int) -> str:
     return f"{base_directory}-x{nodes}"
 
 
-def _ssh(peer: str, command: str) -> str:
+def ssh(peer: str, command: str) -> str:
     """Run one command on the peer, or raise with the reason."""
     try:
         r = subprocess.run(
@@ -68,11 +84,22 @@ def _ssh(peer: str, command: str) -> str:
             timeout=PROBE_TIMEOUT_SECONDS,
             check=False,
         )
+    except subprocess.TimeoutExpired as exc:
+        raise ClusterVerificationError(
+            f"peer {peer!r} unreachable: {exc}",
+            f"no answer in {PROBE_TIMEOUT_SECONDS} s",
+        ) from exc
     except (OSError, subprocess.SubprocessError) as exc:
-        raise ClusterVerificationError(f"peer {peer!r} unreachable: {exc}") from exc
+        raise ClusterVerificationError(
+            f"peer {peer!r} unreachable: {exc}", "ssh could not start"
+        ) from exc
     if r.returncode != 0:
         raise ClusterVerificationError(
-            f"peer {peer!r} failed `{command}`: {r.stderr.strip() or r.returncode}"
+            f"peer {peer!r} failed `{command}`: {r.stderr.strip() or r.returncode}",
+            "ssh failed, exit 255"
+            if r.returncode == SSH_FAILED
+            else f"the command failed on the peer, exit {r.returncode}",
+            None if r.returncode == SSH_FAILED else r.returncode,
         )
     return r.stdout.strip()
 
@@ -84,7 +111,7 @@ def peer_lan_name(peer: str) -> str:
     reach. A remote client reads the worker's node_exporter by this name
     (#680 finding 9).
     """
-    return _ssh(peer, "hostname")
+    return ssh(peer, "hostname")
 
 
 PEER_FACTS_COMMAND = "nproc; grep MemTotal /proc/meminfo"
@@ -109,7 +136,7 @@ def parse_peer_facts(output: str) -> dict[str, float | int]:
 
 def peer_facts(peer: str) -> dict[str, float | int]:
     """The peer's CPU count and memory, read over ssh (#680 finding 3)."""
-    return parse_peer_facts(_ssh(peer, PEER_FACTS_COMMAND))
+    return parse_peer_facts(ssh(peer, PEER_FACTS_COMMAND))
 
 
 def active_rdma_links(rdma_output: str) -> list[str]:
@@ -170,7 +197,7 @@ def verify_and_name(peer: str, nodes: int = 2) -> str:
     local_base = hardware_id.directory_name(local_facts, local_platform)
 
     mine = local_fingerprint()
-    theirs = _ssh(peer, FINGERPRINT_COMMAND)
+    theirs = ssh(peer, FINGERPRINT_COMMAND)
     if not mine:
         raise ClusterVerificationError("could not fingerprint this node")
     if mine != theirs:
@@ -189,7 +216,7 @@ def verify_and_name(peer: str, nodes: int = 2) -> str:
         raise ClusterVerificationError(
             "no ACTIVE RDMA link on this node: the fabric is not up"
         )
-    peer_active = active_rdma_links(_ssh(peer, "rdma link show"))
+    peer_active = active_rdma_links(ssh(peer, "rdma link show"))
     if not peer_active:
         raise ClusterVerificationError(
             f"no ACTIVE RDMA link on peer {peer!r}: the fabric is not up"

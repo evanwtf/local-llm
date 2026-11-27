@@ -2646,6 +2646,28 @@ def test_container_settings_from_an_empty_inspect_is_empty():
     assert run.container_settings_from({"Config": {"Env": ["PATH=/x"]}}) == {}
 
 
+@pytest.mark.parametrize(
+    ("facts", "warns"),
+    [
+        ({"env": {}}, False),
+        ({"env": {"cluster": {"nodes": 2, "peer": {"cpu_count": 20}}}}, True),
+        ({"env": {"cluster": {"nodes": 2}}}, True),
+        ({"env": {"cluster": {"nodes": 2, "peer": {"server_env": {}}}}}, False),
+        (
+            {"env": {"cluster": {"nodes": 2, "peer": {"server_env_missing": "x"}}}},
+            False,
+        ),
+    ],
+)
+def test_two_node_facts_from_older_code_are_flagged(facts, warns):
+    """#680 finding 2 review L4: facts without the worker's env, or the reason
+    it is missing, came from older code; run.py warns."""
+    why = run.peer_env_unrecorded(facts)
+    assert bool(why) is warns
+    if warns:
+        assert why is not None and "--cluster-peer" in why
+
+
 def test_remote_rows_take_container_settings_from_the_server_only():
     import remote
 
@@ -4117,7 +4139,9 @@ def _two_nodes(monkeypatch, head, worker, worker_containers="default"):
 def test_a_two_node_server_records_each_nodes_image(monkeypatch):
     _two_nodes(monkeypatch, _image(), _image(image_id="sha256:bb"))
     got = run.serving_image("sha256:head", [*_TWO_NODE_CMD, "0"], {"hy4-flash-nvfp4"})
-    assert got is not None and set(got) == {"rank0", "rank1"}
+    assert got is not None and set(got) == {"rank0", "rank1", "rank1_container"}
+    # #680 finding 2: server_facts.py reads the env of this same container.
+    assert got["rank1_container"] == "w1"
     # The two stores give one image two IDs; the layer hash is the same.
     assert got["rank0"]["id"] == "sha256:aa" and got["rank1"]["id"] == "sha256:bb"
     assert got["rank0"]["layers_sha256"] == got["rank1"]["layers_sha256"]
@@ -4171,7 +4195,7 @@ def test_serving_vllm_container_carries_the_serving_image(monkeypatch):
     got = run.serving_vllm_container(
         {"hy4-flash-nvfp4"}, inspect_all=lambda: containers
     )
-    assert set(got["serving_image"]) == {"rank0", "rank1"}
+    assert set(got["serving_image"]) == {"rank0", "rank1", "rank1_container"}
 
 
 def _capture_two_node(monkeypatch, record, pin="6ca1feee4", reason=None):

@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import pathlib
 import sys
+from typing import Any
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts"))
@@ -25,10 +27,13 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 import cluster_id
 import currency
 import hardware_id
+import node_image
 import preflight
 
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
 import logs
+
+logger = logging.getLogger(__name__)
 
 
 def check_current(
@@ -88,6 +93,171 @@ def argv_gap(backend: str, engine: str, env: dict, reason: str | None) -> str | 
         "backend's model name, or pass --no-argv-reason TEXT to record why "
         "the rows carry none."
     )
+
+
+#: Where `run.capture_versions` records the tag of the head's serving
+#: container, per engine reader. A peer container must run the same image.
+HEAD_IMAGE_KEYS = ("vllm_image", "sglang_image", "tensorfold_image")
+#: The rank-1 markers seen in the two-node launchers: vLLM's `--node-rank 1`,
+#: a `--rank 1` flag, the TensorFold Zig worker's `follow` subcommand, and
+#: its `org.tensorfold.rank` label. They only break ties.
+RANK_FLAGS = ("--node-rank", "--rank")
+RANK_LABEL_SUFFIX = ".rank"
+
+
+def _rank(info: dict[str, Any]) -> str | None:
+    """The node rank a container declares, or None when it declares none."""
+    _, _, cmd = node_image.container_summary(info)
+    for flag in RANK_FLAGS:
+        if (value := node_image.flag_value(cmd, flag)) is not None:
+            return value
+    labels = (info.get("Config") or {}).get("Labels") or {}
+    if isinstance(labels, dict):
+        for key, value in labels.items():
+            if str(key).endswith(RANK_LABEL_SUFFIX):
+                return str(value)
+    if "follow" in " ".join(cmd).split():
+        return "1"
+    return None
+
+
+def _is_client(info: dict[str, Any]) -> bool:
+    """True for a benchmark client such as `vllm bench serve`: not a server."""
+    _, _, cmd = node_image.container_summary(info)
+    return "bench" in " ".join(cmd).split()
+
+
+def _other_model(info: dict[str, Any], models: set[str]) -> bool:
+    """True when the container names a served model that is not ours."""
+    _, _, cmd = node_image.container_summary(info)
+    name = node_image.flag_value(cmd, "--served-model-name")
+    return name is not None and name not in models
+
+
+def head_images(env: dict[str, Any], spec: dict[str, Any]) -> tuple[set[str], set[str]]:
+    """(image IDs in the peer's store, image tags) of the head's serving image.
+
+    The ID is the one `run.serving_image` read from the worker's rank-1
+    container (`env.serving_image.rank1.id`). The IDs of one image differ
+    between the two nodes' stores (`node_image`), so the head's own ID is no
+    use here; its tag is.
+    """
+    ids: set[str] = set()
+    record = env.get("serving_image")
+    rank1 = record.get("rank1") if isinstance(record, dict) else None
+    if isinstance(rank1, dict) and rank1.get("id"):
+        ids.add(str(rank1["id"]))
+    tags = {str(env[k]) for k in HEAD_IMAGE_KEYS if env.get(k)}
+    if spec.get("image"):
+        tags.add(str(spec["image"]))
+    return ids, tags
+
+
+def pick_peer_container(
+    infos: list[dict[str, Any]],
+    env: dict[str, Any],
+    spec: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str]:
+    """The peer's serving container, or None and what was observed.
+
+    One rule with `run.serving_image`: when it picked the worker's rank-1
+    container, that container is the answer. Otherwise the candidates are
+    the peer's containers that run the head's serving image. A client
+    (`vllm bench`), a container that names another served model, and a
+    rank-0 container are not candidates, even when alone. Rank-1 markers
+    break a tie; a tie they cannot break is unknown, never a guess.
+    """
+    listed = f"{len(infos)} containers listed"
+    record = env.get("serving_image")
+    chosen = record.get("rank1_container") if isinstance(record, dict) else None
+    if chosen:
+        for info in infos:
+            if str(info.get("Id", "")).startswith(str(chosen)):
+                return info, ""
+        return None, (
+            f"the rank-1 container that serving_image read ({chosen}) is not "
+            f"running on the peer ({listed})"
+        )
+    ids, tags = head_images(env, spec)
+    if not ids and not tags:
+        return None, (
+            "the head's serving image is not recorded, so no peer container "
+            f"can be matched to it ({listed})"
+        )
+    same = [
+        i
+        for i in infos
+        if str(i.get("Image", "")) in ids or node_image.container_summary(i)[1] in tags
+    ]
+    if not same:
+        return (
+            None,
+            f"no running container on the peer runs the head's image ({listed})",
+        )
+    models = {str(spec.get("model") or "")} - {""}
+    head_name = node_image.flag_value(
+        str(env.get("server_argv") or "").split(), "--served-model-name"
+    )
+    if head_name:
+        models.add(head_name)
+    fit = [
+        i
+        for i in same
+        if not _is_client(i) and not _other_model(i, models) and _rank(i) != "0"
+    ]
+    if len(fit) == 1:
+        return fit[0], ""
+    if not fit:
+        return None, (
+            f"{len(same)} containers on the peer run the head's image, and each "
+            f"is a client, rank 0, or serves another model ({listed})"
+        )
+    rank1 = [i for i in fit if _rank(i) == "1"]
+    if len(rank1) == 1:
+        return rank1[0], ""
+    return None, (
+        f"{len(fit)} containers on the peer run the head's image and "
+        f"{len(rank1)} carry a rank-1 marker: cannot tell which serves ({listed})"
+    )
+
+
+def peer_container_settings(
+    peer: str, env: dict[str, Any], spec: dict[str, Any]
+) -> dict[str, Any]:
+    """The worker's `server_env` and `server_cap_add`, read over ssh (#680).
+
+    Finding 2, worker half: a two-node treatment can live in the worker's
+    container env or CapAdd, so the head's inspect alone cannot show it. The
+    filter is the head's own (`run.engine_settings_from`): engine variables
+    only, secrets dropped by name, IPv4 masked. `server_env_image` names the
+    chosen container's image, so a reader can audit the pick. When no
+    container is picked, or ssh fails, `server_env_missing` says what was
+    observed. The row gets a fixed phrase only; ssh's own text, which can
+    name hosts and paths, goes to the log.
+    """
+    import run
+
+    try:
+        out = cluster_id.ssh(peer, node_image.PS_INSPECT)
+    except cluster_id.ClusterVerificationError as exc:
+        logger.warning("cannot read the peer's containers: %s", exc)
+        if exc.returncode == 3:
+            why = "docker ps failed on the peer, exit 3"
+        elif exc.returncode is not None:
+            why = f"the container listing failed on the peer, exit {exc.returncode}"
+        else:
+            why = exc.category
+        return {"server_env_missing": f"cannot read the peer's containers: {why}"}
+    info, why = pick_peer_container(node_image.parse_ps_inspect(out), env, spec)
+    if info is None:
+        return {"server_env_missing": why}
+    got: dict[str, Any] = run.engine_settings_from(info)
+    got["server_env_image"] = node_image.container_summary(info)[1]
+    if "server_env" not in got:
+        got["server_env_missing"] = (
+            "the peer's serving container has no variables with a recorded prefix"
+        )
+    return got
 
 
 def collect(
@@ -170,7 +340,12 @@ def collect(
         # #680 finding 3: `facts` (memory_gib, cpu_count) describe the head
         # alone and stay per node, so a cluster row compares with the rows
         # before it. This says the server had two nodes and what the other had.
-        env["cluster"] = {"nodes": 2, "peer": cluster_id.peer_facts(cluster_peer)}
+        # Finding 2: the worker's container env and CapAdd sit with its facts.
+        peer = {
+            **cluster_id.peer_facts(cluster_peer),
+            **peer_container_settings(cluster_peer, env, spec),
+        }
+        env["cluster"] = {"nodes": 2, "peer": peer}
     return {
         "instance": instance,
         "directory": directory,

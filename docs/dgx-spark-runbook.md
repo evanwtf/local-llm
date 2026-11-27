@@ -459,7 +459,16 @@ the server. The client's spec sheet is under `hardware/` (tier
 
    The facts carry the server's hardware and engine provenance (including
    `server_argv`), which the client cannot read. `--cluster-peer` checks the
-   worker and names the cluster, or refuses (#647).
+   worker and names the cluster, or refuses (#647). It also reads the
+   worker's serving container over ssh (#680 finding 2): the same container
+   `env.serving_image` read, or else the one that runs the head's serving
+   image. It records `env.cluster.peer.server_env` (engine variables only,
+   secret names dropped, IPv4 masked), `env.cluster.peer.server_cap_add`, and
+   `env.cluster.peer.server_env_image` (the image of the chosen container).
+   When no container is chosen, or ssh fails, `env.cluster.peer.server_env_missing`
+   says what was observed, for example "no running container on the peer
+   runs the head's image (6 containers listed)". A native engine such as
+   Hyperflare records that the head's serving image is not recorded.
 2. Copy the facts file to the client, and start the run there with
    `scripts/client_container.py --server <head> --facts <file> -- --backend <name> …`.
    The client's OpenCode config names the head; it never goes in this repo.
