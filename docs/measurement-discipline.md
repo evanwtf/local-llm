@@ -389,11 +389,16 @@ so `writes` and `memory` keep their meaning. No grouping key reads the row's
 after still pool. A row without `harness_checkout` predates the change. Its
 `denied_count` is higher, because the deny list now names every ledger.
 
-**The Linux `TMPDIR` (#1541) changes no value.** Before 2026-11-27 bwrap
-hid the trial's `TMPDIR` under the private `/tmp`, so a bare `mktemp` failed.
-OpenCode creates `$TMPDIR/opencode` itself, and a search of 3,300 two-node
-client logs found no trial that failed from it. So `tmp` stays `private`, and
-rows from before and after still pool.
+**The Linux `TMPDIR` (#1541) changes no value.** Before the #1541 change,
+bwrap hid the trial's `TMPDIR` under the private `/tmp`, so a bare `mktemp`
+failed unless the client had made the directory first. OpenCode makes
+`$TMPDIR/opencode` itself, so it did. A search of 3,300 two-node client logs
+found no trial that failed from it; the two trials that ran a bare `mktemp`
+succeeded. The search covered the two-node logs only. The 1,200 single-Spark
+bwrap rows from 2026-09-30 on were not searched, but every bwrap row in the
+three Linux ledgers is OpenCode, so the same client behavior covers them. A
+row is after the change when its `harness_head` contains #1541. `tmp` stays
+`private`, and rows from before and after still pool.
 
 **`home-allow-list` (#780):** a trial once read personal files in the
 operator's home directory, which the deny-list left open. The macOS profile

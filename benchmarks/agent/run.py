@@ -4708,10 +4708,12 @@ def confinement_record(mechanism, denied, memory_cap_gib, cgroup_gib=None):
     kernel's cgroup ceiling (#680) is recorded beside it as
     `memory_cgroup_gib`, a key of its own so `memory` keeps its meaning.
 
-    `tmp` and `network` are recorded as **unenforced** deliberately. Both are
-    currently reachable on both machines, and the two failures in #389 were a
-    write to `/tmp` that nothing refused. Writing "unenforced" is what keeps a
-    later row, taken under a stricter policy, from being pooled with this one.
+    `tmp` is `private` under bwrap, which gives the trial its own `/tmp`
+    and `/dev/shm` (#476), and under sandbox-exec, which gives it its own
+    TMPDIR (#780); it is `unenforced` only for an unconfined trial.
+    `network` is recorded as **unenforced** deliberately: it is reachable on
+    both machines. Writing "unenforced" is what keeps a later row, taken under
+    a stricter policy, from being pooled with this one.
     """
     return {
         "mechanism": mechanism,
