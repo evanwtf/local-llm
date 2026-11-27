@@ -362,7 +362,7 @@ What each mechanism enforces differs, and each row's `confinement` field
 | dimension | macOS (`sandbox-exec`) | Linux (`bwrap`) |
 |---|---|---|
 | `paths` | `home-allow-list` (#780; `deny-list` before) | `deny-list` |
-| `tmp` | `private`: its own `TMPDIR` | `private`: its own `/tmp` and `/dev/shm` |
+| `tmp` | `private`: its own `TMPDIR` | `private`: its own `/tmp` and `/dev/shm`, with its own `TMPDIR` made empty inside (#1541) |
 | `writes` | `allow-list` | `unenforced` |
 | `sockets` | `denied` | `denied` |
 | `network` | `unenforced` | `unenforced` |
@@ -388,6 +388,17 @@ so `writes` and `memory` keep their meaning. No grouping key reads the row's
 `env.client_machine.confinement`, the mechanism name), so rows from before and
 after still pool. A row without `harness_checkout` predates the change. Its
 `denied_count` is higher, because the deny list now names every ledger.
+
+**The Linux `TMPDIR` (#1541) changes no value.** Before the #1541 change,
+bwrap hid the trial's `TMPDIR` under the private `/tmp`, so a bare `mktemp`
+failed unless the client had made the directory first. OpenCode makes
+`$TMPDIR/opencode` itself, so it did. A search of 3,300 two-node client logs
+found no trial that failed from it; the two trials that ran a bare `mktemp`
+succeeded. The search covered the two-node logs only. The 1,200 single-Spark
+bwrap rows from 2026-09-30 on were not searched, but every bwrap row in the
+three Linux ledgers is OpenCode, so the same client behavior covers them. A
+row is after the change when its `harness_head` contains #1541. `tmp` stays
+`private`, and rows from before and after still pool.
 
 **`home-allow-list` (#780):** a trial once read personal files in the
 operator's home directory, which the deny-list left open. The macOS profile

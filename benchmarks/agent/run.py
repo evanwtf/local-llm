@@ -4516,7 +4516,35 @@ def container_daemon_sockets(candidates=CONTAINER_DAEMON_SOCKETS):
     return out
 
 
-def bwrap_argv(argv, worktree, repo, denied, harness_root=None):
+#: The mounts that `bwrap_argv` replaces with an empty tmpfs per trial (#476).
+#: A trial TMPDIR under one of them must be created inside (#1541).
+BWRAP_PRIVATE_TMPFS = ("/tmp", "/dev/shm")
+
+
+def private_tmpdir(trial_tmpdir):
+    """The path bwrap must create for the trial's TMPDIR, or None (#1541).
+
+    The lexical path first: it is the exact TMPDIR string the trial uses. A
+    host symlink below /tmp does not exist inside the fresh tmpfs, so the
+    resolved path would make the wrong directory. Only when the lexical path
+    is outside the private mounts does the resolved one count: a host link
+    from outside into /tmp still resolves inside, into the empty tmpfs, so
+    its target must be made there. None when neither path is private.
+    """
+    if trial_tmpdir is None:
+        return None
+
+    def private(path):
+        return any(pathlib.Path(path).is_relative_to(m) for m in BWRAP_PRIVATE_TMPFS)
+
+    lexical = os.path.normpath(os.path.abspath(trial_tmpdir))
+    if private(lexical):
+        return lexical
+    resolved = os.path.realpath(trial_tmpdir)
+    return resolved if private(resolved) else None
+
+
+def bwrap_argv(argv, worktree, repo, denied, harness_root=None, trial_tmpdir=None):
     """Wrap `argv` so the trial cannot see the answers, and gets its own /tmp.
 
     The Mac enforces the policy with `sandbox-exec`: allow by default, deny the
@@ -4565,6 +4593,12 @@ def bwrap_argv(argv, worktree, repo, denied, harness_root=None):
     (`harness_trees`). The binds come before the deny covers: a bind brings
     the host's view of everything below it, so a cover placed first would
     be undone.
+
+    **The trial's own TMPDIR exists inside** (#1541). `agent_env` points
+    TMPDIR at `trial_tmp(worktree)` (#780) and creates it on the host, but
+    the private `/tmp` hides it, so a bare `mktemp` failed. `trial_tmpdir`
+    names that directory; when it lies under a private tmpfs, bwrap creates
+    it there, empty. None adds nothing.
     """
     trees = harness_trees(harness_root)
     args = [
@@ -4582,13 +4616,11 @@ def bwrap_argv(argv, worktree, repo, denied, harness_root=None):
         # own PID namespace, bwrap's child is PID 1 inside, and when PID 1
         # dies the kernel kills the rest of the namespace.
         "--unshare-pid",
-        # Its own /tmp, and its own /dev/shm: vLLM's client libraries put
-        # POSIX segments there, and a leaked segment outlives the trial.
-        "--tmpfs",
-        "/tmp",
-        "--tmpfs",
-        "/dev/shm",
     ]
+    # Its own /tmp, and its own /dev/shm: vLLM's client libraries put
+    # POSIX segments there, and a leaked segment outlives the trial.
+    for mount in BWRAP_PRIVATE_TMPFS:
+        args += ["--tmpfs", mount]
     for tree in trees:
         if tree.is_dir():
             args += ["--ro-bind", str(tree), str(tree)]
@@ -4613,6 +4645,17 @@ def bwrap_argv(argv, worktree, repo, denied, harness_root=None):
             args += ["--tmpfs", path]
         else:
             args += ["--ro-bind", "/dev/null", path]
+    # #1541: the trial's TMPDIR, made empty inside the private /tmp. --dir,
+    # not a bind of the host directory: no harness code reads the trial's
+    # TMPDIR after the trial (`agent_env` empties it again before the session
+    # export), and #780 wants nothing one trial leaves to reach the next. A
+    # --dir mounts nothing, so it cannot undo a cover or open a path; it comes
+    # after the covers so a cover over a parent cannot hide it. Outside the
+    # private tmpfs the host directory already shows through the `/` bind,
+    # and a --dir there would write a missing directory through to the host.
+    tmpdir = private_tmpdir(trial_tmpdir)
+    if tmpdir is not None:
+        args += ["--dir", tmpdir]
     # The worktree is bound last so nothing above can shadow it: it is the one
     # place the trial must be able to write.
     args += [
@@ -4665,10 +4708,12 @@ def confinement_record(mechanism, denied, memory_cap_gib, cgroup_gib=None):
     kernel's cgroup ceiling (#680) is recorded beside it as
     `memory_cgroup_gib`, a key of its own so `memory` keeps its meaning.
 
-    `tmp` and `network` are recorded as **unenforced** deliberately. Both are
-    currently reachable on both machines, and the two failures in #389 were a
-    write to `/tmp` that nothing refused. Writing "unenforced" is what keeps a
-    later row, taken under a stricter policy, from being pooled with this one.
+    `tmp` is `private` under bwrap, which gives the trial its own `/tmp`
+    and `/dev/shm` (#476), and under sandbox-exec, which gives it its own
+    TMPDIR (#780); it is `unenforced` only for an unconfined trial.
+    `network` is recorded as **unenforced** deliberately: it is reachable on
+    both machines. Writing "unenforced" is what keeps a later row, taken under
+    a stricter policy, from being pooled with this one.
     """
     return {
         "mechanism": mechanism,
@@ -4767,7 +4812,11 @@ def sandboxed(argv, worktree, repo, tmpdir, ledger=None):
             *container_daemon_sockets(),
             *credential_paths(),
         ]
-        return bwrap_argv(argv, worktree, repo, denied_paths), denied_paths, "bwrap"
+        # #1541: agent_env sets TMPDIR to trial_tmp(worktree); make it exist.
+        wrapped = bwrap_argv(
+            argv, worktree, repo, denied_paths, trial_tmpdir=trial_tmp(worktree)
+        )
+        return wrapped, denied_paths, "bwrap"
     if BWRAP.exists():
         logger.warning(
             "bwrap is installed but cannot create a user namespace on this host "

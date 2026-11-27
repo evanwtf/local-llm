@@ -672,3 +672,69 @@ def test_a_probe_reads_its_output_and_its_error_together(workdir):
 def test_both_discovery_failures_pass_the_git_probe(tmp_path, refusal):
     _, git = _probe_steps(tmp_path)
     assert git.effect(tmp_path, refusal) is None
+
+
+# --- The trial's TMPDIR (#1541) -------------------------------------------------
+
+MKTEMP_ERROR = (
+    "mktemp: failed to create file via template "
+    "'/tmp/agent-bench/trial-tmp/wt/tmp.XXXXXXXXXX': No such file or directory"
+)
+
+
+@pytest.mark.parametrize("major", [1, 2])
+def test_the_first_shell_step_runs_a_bare_mktemp(tmp_path, major):
+    first = mod.steps(tmp_path, TOKEN, major=major)[0]
+    assert first.tool == ("shell" if major >= 2 else "bash")
+    assert first.args["command"].startswith("mktemp && ")
+
+
+def _mktemp_broken(text: str, status: str, where: str, major: int) -> str:
+    """The healthy transcript with the first shell part failed by mktemp."""
+    tool = "shell" if major >= 2 else "bash"
+    healthy = _event(tool, "completed", output="", n=0)
+    assert healthy in text
+    if status == "completed":
+        broken = _event(tool, "completed", output=MKTEMP_ERROR, n=0)
+    elif where == "error":
+        broken = _event(tool, "error", error=MKTEMP_ERROR, n=0)
+    else:
+        broken = _event(tool, "error", error="exit status 1", n=0).replace(
+            '"status": "error"',
+            f'"status": "error", "output": {json.dumps(MKTEMP_ERROR)}',
+        )
+    return text.replace(healthy, broken)
+
+
+@pytest.mark.parametrize("major", [1, 2])
+@pytest.mark.parametrize(
+    ("status", "where"),
+    [("completed", "output"), ("error", "error"), ("error", "output")],
+)
+def test_a_failed_mktemp_is_named_whatever_the_status(workdir, major, status, where):
+    """L4: the cause reads as itself whether the part ends `completed` or
+    `error`, and whether the message is in its output or its error."""
+    if major >= 2:
+        text = _healthy_2x(workdir)
+        (workdir / "shell-wrote.txt").unlink()
+    else:
+        _apply_effects(workdir)
+        (workdir / "bash-wrote.txt").unlink()
+        text = _transcript(workdir)
+    text = _mktemp_broken(text, status, where, major)
+    failures = mod.check(text, workdir, mod.steps(workdir, TOKEN, major=major))
+    assert len(failures) == 1, failures
+    tool = "shell" if major >= 2 else "bash"
+    assert failures[0].startswith(f"{tool}: {status}, a bare mktemp failed")
+    assert "(#1541)" in failures[0]
+    assert "No such file or directory" in failures[0]
+
+
+def test_a_working_mktemp_passes(workdir):
+    _apply_effects(workdir)
+    script = mod.steps(workdir, TOKEN)
+    text = _transcript(workdir).replace(
+        _event("bash", "completed", output="", n=0),
+        _event("bash", "completed", output="/tmp/agent-bench/trial-tmp/wt/tmp.a1", n=0),
+    )
+    assert mod.check(text, workdir, script) == []

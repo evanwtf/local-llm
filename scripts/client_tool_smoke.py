@@ -100,6 +100,10 @@ class Step:
     #: end either way, and its effect is what decides. A call that never
     #: finished still fails.
     expect: str | None = "completed"
+    #: (the part's output and error together) -> a named cause, or None.
+    #: Checked whatever the status, so a known failure reads as itself and
+    #: not as a generic status or missing-file message.
+    diagnose: Callable[[str], str | None] | None = None
 
 
 def _file_is(path: pathlib.Path, want: str) -> str | None:
@@ -119,6 +123,33 @@ def _output_has(needle: str, what: str) -> Callable[[pathlib.Path, str], str | N
         return f"its output does not contain {what} ({needle!r})"
 
     return check
+
+
+#: What a bare `mktemp` prints when the trial's TMPDIR is missing (#1541).
+MKTEMP_FAILED = "mktemp: "
+
+
+def _mktemp_failed(text: str) -> str | None:
+    """Name a failed bare `mktemp` in a shell part's output or error (#1541)."""
+    line = next((ln for ln in text.splitlines() if MKTEMP_FAILED in ln), None)
+    if line is None:
+        return None
+    return f"a bare mktemp failed under the trial's TMPDIR (#1541): {line}"
+
+
+def _shell_marker(
+    marker: pathlib.Path, token: str
+) -> tuple[str, Callable[[pathlib.Path, str], str | None]]:
+    """The first shell step: a bare `mktemp`, then the marker file (#1541).
+
+    `mktemp` writes in `$TMPDIR`, the trial's own directory (#780). The step
+    fails when the trial cannot write there. Today bwrap makes the directory
+    inside the private /tmp, and OpenCode also makes `$TMPDIR/opencode`
+    itself. So a lost `--dir` in `run.bwrap_argv` fails this step only if
+    the client also stops making the directory.
+    """
+    command = f"mktemp && printf %s {token} > {marker}"
+    return command, lambda _w, _o: _file_is(marker, token)
 
 
 #: What the two harness probes must print: the kernel's refusal of the write,
@@ -277,14 +308,13 @@ def steps(
     written = workdir / "written.txt"
     edited = workdir / "edit_me.txt"
     marker = workdir / "bash-wrote.txt"
+    command, wrote = _shell_marker(marker, token)
     return [
         Step(
             "bash",
-            {
-                "command": f"printf %s {token} > {marker}",
-                "description": "Write a marker file",
-            },
-            lambda _w, _o: _file_is(marker, token),
+            {"command": command, "description": "Make a temp file, write a marker"},
+            wrote,
+            diagnose=_mktemp_failed,
         ),
         Step(
             "read",
@@ -388,12 +418,9 @@ def steps_2x(workdir: pathlib.Path, token: str, base_url: str) -> list[Step]:
     written = workdir / "written.txt"
     edited = workdir / "edit_me.txt"
     marker = workdir / "shell-wrote.txt"
+    command, wrote = _shell_marker(marker, token)
     return [
-        Step(
-            "shell",
-            {"command": f"printf %s {token} > {marker}"},
-            lambda _w, _o: _file_is(marker, token),
-        ),
+        Step("shell", {"command": command}, wrote, diagnose=_mktemp_failed),
         Step(
             "read",
             {"path": str(workdir / "needle.py")},
@@ -709,6 +736,11 @@ def check(transcript: str, workdir: pathlib.Path, script: list[Step]) -> list[st
             failures.append(f"{step.tool}: never ran (no tool part in the transcript)")
             continue
         remaining.remove(part)
+        both = "\n".join(t for t in (part.output, part.error) if t)
+        cause = step.diagnose(both) if step.diagnose else None
+        if cause:
+            failures.append(f"{step.tool}: {part.status}, {cause}")
+            continue
         finished = ("completed", "error")
         if (
             part.status not in finished
@@ -727,7 +759,7 @@ def check(transcript: str, workdir: pathlib.Path, script: list[Step]) -> list[st
             if step.expect == "completed"
             else part.error
             if step.expect is not None
-            else "\n".join(t for t in (part.output, part.error) if t)
+            else both
         )
         why = step.effect(workdir, text)
         if why:
