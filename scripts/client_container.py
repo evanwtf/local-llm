@@ -164,6 +164,63 @@ def _port(url: str) -> int | None:
     return {"http": 80, "https": 443}.get(parsed.scheme)
 
 
+#: `client_effort` values a backend may declare (#1503). "unset": the server
+#: owns the reasoning effort (its `--default-chat-template-kwargs`), and the
+#: OpenCode entry must not send one. A client-side value overrides the
+#: server's default per request, so the rows would claim an effort the trials
+#: never ran -- and HY4 Flash's template raises on any value but no_think,
+#: high or max.
+CLIENT_EFFORT_VALUES = frozenset({"unset"})
+
+#: OpenCode settings that send a reasoning effort or template kwargs with each
+#: request, wherever they appear: on the model, in its `options`, or in the
+#: provider's `options`. `variants` lets a session pick an effort by name.
+EFFORT_KEYS = frozenset(
+    {
+        "reasoningEffort",
+        "reasoning_effort",
+        "chat_template_kwargs",
+        "chatTemplateKwargs",
+        "variants",
+    }
+)
+
+
+def _client_effort_refusal(
+    name: str,
+    backend: dict[str, Any],
+    provider: dict[str, Any],
+    entry: object,
+    model: str,
+) -> str | None:
+    """None unless the backend forbids a client effort and the entry sets one."""
+    if "client_effort" not in backend:
+        return None
+    value = backend["client_effort"]
+    if value not in CLIENT_EFFORT_VALUES:
+        return (
+            f"preflight: backend {name!r} declares client_effort {value!r}; "
+            f"the known values are {sorted(CLIENT_EFFORT_VALUES)} (#1503)"
+        )
+    places: list[tuple[str, object]] = [("model", entry)]
+    if isinstance(entry, dict):
+        places.append(("model options", entry.get("options")))
+    places.append(("provider options", provider.get("options")))
+    for where, block in places:
+        if not isinstance(block, dict):
+            continue
+        found = sorted(EFFORT_KEYS & set(block))
+        if found:
+            return (
+                f'preflight: backend {name!r} sets client_effort = "unset": the '
+                f"server owns the reasoning effort, but OpenCode model {model!r} "
+                f"sends {', '.join(found)} in its {where}. Remove it, or the "
+                "client overrides the server and the rows record an effort the "
+                "trials never ran (#1503)"
+            )
+    return None
+
+
 def check_opencode_provider(
     name: str,
     backend: dict[str, Any] | None,
@@ -206,6 +263,9 @@ def check_opencode_provider(
             f"preflight: OpenCode provider {provider_id!r} in {config_path} does "
             f"not declare model {model_id!r}, which backend {name!r} uses (#956)"
         )
+    refusal = _client_effort_refusal(name, backend, provider, models[model_id], model)
+    if refusal is not None:
+        return refusal
     # #1066: an output limit as large as the window leaves no room for the
     # prompt, and the server refuses the request mid-session.
     limit = (

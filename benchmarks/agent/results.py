@@ -792,6 +792,11 @@ GRAPH_VALUE_FLAGS: frozenset[str] = frozenset(
         "--speculative-config",
         "--reasoning-parser",
         "--tool-call-parser",
+        # #1503: the server-side reasoning effort (`{"reasoning_effort": ...}`,
+        # `enable_thinking`). A server started without it runs the template's
+        # default effort, which is a different workload, so it never pools
+        # with rows that set it.
+        "--default-chat-template-kwargs",
     }
 )
 
