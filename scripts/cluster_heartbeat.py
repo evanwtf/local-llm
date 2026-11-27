@@ -87,10 +87,19 @@ PROBE = (
     " echo roce_active=$(rdma link show 2>/dev/null | grep -c ACTIVE)"
 )
 
-#: At or below this many watts a GB10 is at its idle floor. Idle reads 9-14 W,
-#: work 35-83 W. The old line, 10 W, read the 10-14 W of the 2026-09-30 idle
-#: window as "working power".
+#: Below this many watts a GB10 is at its idle floor: the watchdog's GB10 tier
+#: floor, through heartbeat.IDLE_FLOOR_W (#1454). The bands overlap (#1450):
+#: the worker idles at up to 12.2 W with a two-node model resident, and a
+#: light model decodes at 15.8-17.3 W. The old 10 W line read the 10-14 W of
+#: the 2026-09-30 idle window as working power; the 20 W line after it read
+#: an Inkling 2 Mini decode as idle (2026-11-21).
 IDLE_W = hb.IDLE_FLOOR_W["gb10"]
+
+
+def _idle(watts: float) -> bool:
+    return hb.gpu_is_idle("gb10", watts)
+
+
 #: At or below this 30-min outlet peak a Spark is idle. Measured 2026-10-22: an
 #: idle Spark reads about 45 W, one with a model loaded but no requests peaks at
 #: 57-66 W, and one serving trials peaks at 147-197 W.
@@ -232,7 +241,7 @@ def power_reason(
     read = [p for p in powers if p is not None]
     if len(read) != len(powers):
         return "GPU power could not be read on every node."
-    low = [p <= IDLE_W for p in read]
+    low = [_idle(p) for p in read]
     if all(low):
         if idle:
             return "Both GPUs read the idle floor: no model is loaded."
@@ -265,7 +274,7 @@ def gpus_idle(head: Node, worker: Node) -> bool | None:
     read = [p for p in powers if p is not None]
     if len(read) != len(powers):
         return None
-    return all(p <= IDLE_W for p in read)
+    return all(_idle(p) for p in read)
 
 
 def pair_idle(outlet: dict, head: Node, worker: Node) -> bool | None:

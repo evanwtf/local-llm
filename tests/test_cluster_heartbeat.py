@@ -168,11 +168,19 @@ def test_render_opens_with_the_time_and_names_both_nodes():
     assert positions == sorted(positions)
 
 
-def test_the_2026_09_30_idle_pair_reads_as_idle():
-    """10 W and 14 W is the idle floor. The old 10 W line called it working."""
-    assert hb.gpus_idle(node(10), node(14)) is True
-    assert "idle floor" in hb.power_reason(node(10), node(14), "idle")
-    assert hb.gpus_idle(node(45), node(14)) is False
+def test_a_loaded_idle_pair_reads_as_idle():
+    """10.5 W and 12.2 W: the head and the worker with a two-node model resident
+    and no request (#1450). The old 10 W line called 10-14 W working."""
+    assert hb.gpus_idle(node(10.5), node(12.2)) is True
+    assert "idle floor" in hb.power_reason(node(10.5), node(12.2), "idle")
+    assert hb.gpus_idle(node(45), node(12.2)) is False
+
+
+def test_a_light_model_decode_reads_as_working():
+    """Inkling 2 Mini decodes at 15.8-17.3 W per GB10 (#1448). The 20 W floor
+    called it idle (#1454)."""
+    assert hb.gpus_idle(node(15.8), node(16.6)) is False
+    assert "working power" in hb.power_reason(node(15.8), node(16.6), "b")
 
 
 def test_render_reports_an_unreachable_worker():
@@ -332,5 +340,6 @@ def test_both_outlets_at_the_idle_line_are_idle():
 
 
 def test_a_missing_outlet_falls_back_to_gpu_power():
-    assert hb.pair_idle(outlet(None, 182.0), node(10), node(14)) is True
-    assert hb.pair_idle({}, node(45), node(14)) is False
+    # 12 W: the worker idles at up to 12.2 W with a model resident (#1450).
+    assert hb.pair_idle(outlet(None, 182.0), node(10), node(12)) is True
+    assert hb.pair_idle({}, node(45), node(12)) is False
