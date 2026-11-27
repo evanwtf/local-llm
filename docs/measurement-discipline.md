@@ -366,9 +366,22 @@ What each mechanism enforces differs, and each row's `confinement` field
 | `writes` | `allow-list` | `unenforced` |
 | `sockets` | `denied` | `denied` |
 | `network` | `unenforced` | `unenforced` |
-| `memory` | `harness:<cap>`, `run.py`'s memcap | `harness:<cap>`, `run.py`'s memcap |
+| `memory` | `harness:<cap>`, `run.py`'s memcap | `harness:<cap>`, `run.py`'s memcap; `none` in the client container, which turns the memcap off |
+| `memory_cgroup_gib` | `null` | the client container's kernel limit in GiB (#680), else `null` |
+| `harness` | `ro`: no writes under `$HOME` (#780), `.git` readable | `ro-nogit`: the checkout is bound read-only and its `.git` hidden |
 
 The stamp records what is enforced, not what could be.
+
+**`harness` and `memory_cgroup_gib` are new keys, not new values (#477).**
+On the two-node cluster the client container mounts the host's harness
+checkout read-write. Until 2026-11-27 a trial could write the live ledger and
+the harness's code, and `git show` could read `tasks.toml` from the checkout's
+`.git`. Now bwrap binds the checkout read-only and hides its `.git`, and the
+deny list names the ledger the run writes, not the client's own. These facts
+have keys of their own so `writes` and `memory` keep their meaning. No
+grouping key reads the row's `confinement` field (`results.CLIENT_KEYS` reads
+`env.client_machine.confinement`, the mechanism name), so rows from before and
+after still pool. A row without `harness` predates the change.
 
 **`home-allow-list` (#780):** a trial once read personal files in the
 operator's home directory, which the deny-list left open. The macOS profile
