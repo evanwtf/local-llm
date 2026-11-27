@@ -4194,7 +4194,13 @@ def socket_rule_paths(paths):
 
 
 def sandbox_profile(
-    worktree, repo, home=None, sockets=None, tmp_root=None, ledger=None
+    worktree,
+    repo,
+    home=None,
+    sockets=None,
+    tmp_root=None,
+    ledger=None,
+    harness_root=None,
 ):
     """A macOS sandbox profile that hides every other copy of the answer.
 
@@ -4291,14 +4297,20 @@ def sandbox_profile(
     # designated primary harness. Denying the two files rather than the tree
     # keeps OpenCode able to start while closing the leak.
     #
-    # #477: the ledger is the one THIS run writes. A remote run writes the
-    # server's ledger (`remote.results_path`), not `results.default_path()`,
-    # which names the client's own directory -- so the two-node rows denied a
-    # file nobody was writing and left the live one readable.
-    ledger = pathlib.Path(ledger) if ledger is not None else RESULTS
-    for leak_file in (HERE / "tasks.toml", ledger):
+    # #477: every ledger in every harness tree, not only the one this run
+    # writes. Each machine's ledger quotes failing checks ("Benchmarking" ->
+    # "gnikramhcneB" is in the single Spark's). And the live ledger is the one
+    # THIS run writes: a remote run writes the server's (`remote.results_path`),
+    # not `results.default_path()`, which names the client's own directory.
+    leaks = [
+        path for tree in harness_trees(harness_root) for path in harness_answers(tree)
+    ]
+    leaks.append(pathlib.Path(ledger) if ledger is not None else RESULTS)
+    for leak_file in leaks:
         leak = str(leak_file.resolve())
-        if not keep.startswith(leak) and leak not in denied:
+        if leak == keep or keep.startswith(leak + "/"):
+            continue  # never hide the tree the trial is supposed to edit
+        if leak not in denied:
             denied.append(leak)
 
     def kind(path):
@@ -4368,36 +4380,75 @@ BWRAP = pathlib.Path("/usr/bin/bwrap")
 #: The harness checkout: read-only inside a trial, with its .git hidden (#477).
 HARNESS_ROOT = HERE.resolve().parent.parent
 
+#: The files in a harness tree that quote answers, besides `tasks.toml`:
+#: every machine's ledger and screening-abort log (#477).
+LEDGER_GLOBS = ("hardware/*/results.jsonl", "hardware/*/screening-aborts.jsonl")
 
-def harness_git_covers(root):
-    """The bwrap arguments that hide `root`'s git history from a trial.
 
-    `tasks.toml` and the ledger are covered as files, but the object store
-    still holds them: `git show HEAD:benchmarks/agent/tasks.toml` reads every
-    prompt and every script task's checks. A normal checkout has a .git
-    directory, covered with an empty tmpfs. A `git worktree` has a .git FILE
-    pointing into the main checkout's .git, so the file gets /dev/null and the
-    main .git (the common dir that holds the objects) gets the tmpfs.
+def git_common_dir(root):
+    """The .git directory that holds `root`'s objects, or None.
+
+    A normal checkout: `root/.git`. A `git worktree`: `root/.git` is a FILE
+    (`gitdir: <main>/.git/worktrees/<name>`), and the objects live in
+    `<main>/.git`.
     """
     git = pathlib.Path(root) / ".git"
     if git.is_dir():
-        return ["--tmpfs", str(git)]
-    if not git.is_file():
-        return []
-    args = ["--ro-bind", "/dev/null", str(git)]
+        return git.resolve()
     try:
         line = git.read_text().strip()
     except OSError:
-        return args
+        return None
     if not line.startswith("gitdir:"):
-        return args
+        return None
     gitdir = pathlib.Path(line.removeprefix("gitdir:").strip())
     if not gitdir.is_absolute():
         gitdir = git.parent / gitdir
     gitdir = gitdir.resolve()
-    # <common>/.git/worktrees/<name>: the objects live in <common>/.git.
     common = gitdir.parent.parent if gitdir.parent.name == "worktrees" else gitdir
-    if common.is_dir():
+    return common if common.is_dir() else None
+
+
+def harness_trees(root=None):
+    """The checkouts a trial must see read-only, outermost first (#477).
+
+    `root` (default HARNESS_ROOT), and, when it is a `git worktree`, the main
+    working tree too: that tree holds the same tasks.toml, ledgers and
+    sandbox clones. The main tree comes first because the worktree may lie
+    inside it, and a later bind must not be shadowed by an earlier one.
+    """
+    root = pathlib.Path(root or HARNESS_ROOT).resolve()
+    common = git_common_dir(root)
+    if common is not None and common.name == ".git" and common.parent != root:
+        return [common.parent, root]
+    return [root]
+
+
+def harness_answers(tree):
+    """The paths in one harness tree that hold answers (#54, #146, #477)."""
+    tree = pathlib.Path(tree)
+    found = [p for pattern in LEDGER_GLOBS for p in sorted(tree.glob(pattern))]
+    return [tree / "sandbox", tree / "benchmarks" / "agent" / "tasks.toml", *found]
+
+
+def harness_git_covers(root):
+    """The bwrap arguments that hide `root`'s git history from a trial.
+
+    `tasks.toml` and the ledgers are covered as files, but the object store
+    still holds them: `git show HEAD:benchmarks/agent/tasks.toml` reads every
+    prompt and every script task's checks. A normal checkout's .git is a
+    directory, covered with an empty tmpfs. A `git worktree`'s .git is a FILE,
+    so the file gets /dev/null and the common dir that holds the objects gets
+    the tmpfs.
+    """
+    git = pathlib.Path(root) / ".git"
+    common = git_common_dir(root)
+    args = (
+        []
+        if git.is_dir() or not git.is_file()
+        else ["--ro-bind", "/dev/null", str(git)]
+    )
+    if common is not None:
         args += ["--tmpfs", str(common)]
     return args
 
@@ -4502,17 +4553,20 @@ def bwrap_argv(argv, worktree, repo, denied, harness_root=None):
     **The harness checkout is read-only, and its .git is hidden** (#477).
     `/` is bound read-write, so on a bare-metal Linux host a trial could
     write the live ledger and the harness's own code. In the two-node client
-    container the write was refused only by accident: the checkout is owned
-    by the host user, and the trial's mapped uid is not that user ("Permission
-    denied", measured 2026-11-27). Its .git was readable there with
-    `git -c safe.directory=*`, which printed tasks.toml. It stays readable: OpenCode 1.x `lstat`s `benchmarks/agent`,
-    and a read-only bind still allows that. Nothing a trial runs writes there
-    -- its cwd, TMPDIR, the client's state and the uv cache are elsewhere.
-    The bind comes before the deny covers: a bind of the root brings the
-    host's view of everything below it, so a cover placed first would be
-    undone.
+    container only file ownership refused the write: the checkout belongs to
+    the host user, and the trial's mapped uid does not ("Permission denied",
+    measured 2026-11-27). Its .git was readable there with
+    `git -c safe.directory=*`, which printed tasks.toml.
+
+    The checkout stays readable, not hidden: the trial still uses files in
+    it that are not answers. Nothing a trial runs writes there -- its cwd,
+    TMPDIR, the client's state and the uv cache are elsewhere. For a
+    `git worktree` the main working tree is bound read-only too
+    (`harness_trees`). The binds come before the deny covers: a bind brings
+    the host's view of everything below it, so a cover placed first would
+    be undone.
     """
-    root = pathlib.Path(harness_root or HARNESS_ROOT).resolve()
+    trees = harness_trees(harness_root)
     args = [
         str(BWRAP),
         "--dev-bind",
@@ -4535,8 +4589,11 @@ def bwrap_argv(argv, worktree, repo, denied, harness_root=None):
         "--tmpfs",
         "/dev/shm",
     ]
-    if root.is_dir():
-        args += ["--ro-bind", str(root), str(root), *harness_git_covers(root)]
+    for tree in trees:
+        if tree.is_dir():
+            args += ["--ro-bind", str(tree), str(tree)]
+    if trees[-1].is_dir():
+        args += harness_git_covers(trees[-1])
     for path in denied:
         target = pathlib.Path(path)
         # Only cover what exists. The host root is bind-mounted read-write, so
@@ -4549,7 +4606,8 @@ def bwrap_argv(argv, worktree, repo, denied, harness_root=None):
             continue
         # Only a directory can be covered by a tmpfs. Anything else -- a file
         # (tasks.toml, results.jsonl, #54) or a socket (the container daemons
-        # below) -- gets /dev/null bound over it: the agent reads an empty file,
+        # below) -- gets /dev/null bound over it. bwrap mounts a --ro-bind
+        # nodev, so a read gives "Permission denied" (measured 2026-11-27),
         # and a client that tries to connect finds no socket.
         if target.is_dir():
             args += ["--tmpfs", path]
@@ -4579,7 +4637,8 @@ def bwrap_argv(argv, worktree, repo, denied, harness_root=None):
 #:   tmp      -- whether /tmp outside the trial is reachable
 #:   network  -- whether anything but the model server's loopback port is
 #:   memory   -- whether the client dies at a cap, and who enforces it
-#:   harness  -- whether the harness checkout is writable and its git readable
+#:   harness_checkout -- whether the harness checkout is writable, and its
+#:                       git history readable
 CONFINEMENT_DIMENSIONS = (
     "paths",
     "tmp",
@@ -4587,17 +4646,24 @@ CONFINEMENT_DIMENSIONS = (
     "sockets",
     "network",
     "memory",
-    "harness",
+    "harness_checkout",
 )
+
+
+def _under_home(path) -> bool:
+    """Whether `path` lies under the user's home directory."""
+    home = pathlib.Path.home().resolve()
+    target = pathlib.Path(path).resolve()
+    return target == home or home in target.parents
 
 
 def confinement_record(mechanism, denied, memory_cap_gib, cgroup_gib=None):
     """What confined this trial, dimension by dimension.
 
-    `memory` is "harness" on every platform because `run.py`'s own memcap
-    polls and kills (#380); a Linux cgroup ceiling on top would read
-    "harness+cgroup", and that is a later step of #477 rather than something
-    to claim now.
+    `memory` names `run.py`'s own memcap (#380), which polls and kills, or
+    "none" when it is off. Inside the client container it is off, and the
+    kernel's cgroup ceiling (#680) is recorded beside it as
+    `memory_cgroup_gib`, a key of its own so `memory` keeps its meaning.
 
     `tmp` and `network` are recorded as **unenforced** deliberately. Both are
     currently reachable on both machines, and the two failures in #389 were a
@@ -4641,13 +4707,14 @@ def confinement_record(mechanism, denied, memory_cap_gib, cgroup_gib=None):
         ),
         # #477: the harness checkout. bwrap binds it read-only and hides its
         # .git (bwrap_argv). sandbox-exec denies writes under $HOME outside
-        # the worktree and the tool caches (#780), but lets the trial read the
-        # checkout and its .git. Its own key, so `writes` keeps its meaning.
-        "harness": (
+        # the worktree and the tool caches (#780), so the checkout is
+        # read-only only while it is under $HOME; its .git stays readable.
+        # Its own key, so `writes` keeps its meaning.
+        "harness_checkout": (
             "ro-nogit"
             if mechanism == "bwrap"
             else "ro"
-            if mechanism == "sandbox-exec"
+            if mechanism == "sandbox-exec" and _under_home(HARNESS_ROOT)
             else "unenforced"
         ),
         # #719: SwiftPM's own sandbox cannot nest inside sandbox-exec, so the

@@ -368,21 +368,26 @@ What each mechanism enforces differs, and each row's `confinement` field
 | `network` | `unenforced` | `unenforced` |
 | `memory` | `harness:<cap>`, `run.py`'s memcap | `harness:<cap>`, `run.py`'s memcap; `none` in the client container, which turns the memcap off |
 | `memory_cgroup_gib` | `null` | the client container's kernel limit in GiB (#680), else `null` |
-| `harness` | `ro`: no writes under `$HOME` (#780), `.git` readable | `ro-nogit`: the checkout is bound read-only and its `.git` hidden |
+| `harness_checkout` | `ro`: no writes under `$HOME` (#780), so only while the checkout is under `$HOME`; `.git` readable | `ro-nogit`: the checkout is bound read-only and its `.git` hidden; for a `git worktree`, the main working tree too |
 
 The stamp records what is enforced, not what could be.
 
-**`harness` and `memory_cgroup_gib` are new keys, not new values (#477).**
-On the two-node cluster the client container mounts the host's harness
-checkout read-write. Until 2026-11-27 a trial could read `tasks.toml` from the
-checkout's `.git` with `git -c safe.directory=* show`. A write into the
-checkout failed, but only because the trial's mapped uid did not own the
-files, not because of a policy; on a bare-metal Linux host it succeeded. Now bwrap binds the checkout read-only and hides its `.git`, and the
-deny list names the ledger the run writes, not the client's own. These facts
-have keys of their own so `writes` and `memory` keep their meaning. No
-grouping key reads the row's `confinement` field (`results.CLIENT_KEYS` reads
+**`harness_checkout` and `memory_cgroup_gib` are new keys, not new values
+(#477).** On the two-node cluster the client container mounts the host's
+harness checkout read-write. Until 2026-11-27 a trial could read `tasks.toml`
+from the checkout's `.git` with `git -c safe.directory=* show`. A write into
+the checkout failed, but only because the trial's mapped uid did not own the
+files, not because of a policy. On a bare-metal Linux host the write
+succeeded.
+
+Now bwrap binds the checkout read-only and hides its `.git`. The deny list
+names every ledger and screening-abort log under `hardware/`, and the ledger
+the run writes, not only the client's own. These facts have keys of their own
+so `writes` and `memory` keep their meaning. No grouping key reads the row's
+`confinement` field (`results.CLIENT_KEYS` reads
 `env.client_machine.confinement`, the mechanism name), so rows from before and
-after still pool. A row without `harness` predates the change.
+after still pool. A row without `harness_checkout` predates the change. Its
+`denied_count` is higher, because the deny list now names every ledger.
 
 **`home-allow-list` (#780):** a trial once read personal files in the
 operator's home directory, which the deny-list left open. The macOS profile

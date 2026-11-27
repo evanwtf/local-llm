@@ -189,6 +189,10 @@ EXPECTED_SKIPS = (
     # #1450: the idle-floor evidence test reads Prometheus through gcx on the
     # DGX; the CI runner has neither gcx nor the host names.
     r"needs gcx and the DGX host names",
+    # #477: the real-bwrap confinement tests. The CI runner has no bwrap and
+    # restricts unprivileged user namespaces
+    # (kernel.apparmor_restrict_unprivileged_userns=1). The DGX head runs them.
+    r"needs a bwrap that can make namespaces",
 )
 
 

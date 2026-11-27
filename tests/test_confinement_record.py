@@ -149,10 +149,28 @@ def _harness(tmp_path, git="dir"):
     if git == "dir":
         (root / ".git").mkdir()
     elif git == "file":
-        common = tmp_path / "main-checkout" / ".git"
+        main = tmp_path / "main-checkout"
+        common = main / ".git"
         (common / "worktrees" / "harness").mkdir(parents=True)
+        (main / "benchmarks" / "agent").mkdir(parents=True)
         (root / ".git").write_text(f"gitdir: {common / 'worktrees' / 'harness'}\n")
     return root
+
+
+def _answers(tree):
+    """A checkout's answer files, as `harness_answer_paths` should find them."""
+    tasks = tree / "benchmarks" / "agent" / "tasks.toml"
+    tasks.parent.mkdir(parents=True, exist_ok=True)
+    tasks.write_text("'Benchmarking' -> 'gnikramhcneB'\n")
+    out = [tasks]
+    for machine, name in (("a", "results.jsonl"), ("b", "screening-aborts.jsonl")):
+        f = tree / "hardware" / machine / name
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("{}\n")
+        out.append(f)
+    sandbox = tree / "sandbox"
+    sandbox.mkdir(exist_ok=True)
+    return [*out, sandbox]
 
 
 def test_the_harness_checkout_is_bound_read_only_with_its_git_hidden(tmp_path):
@@ -193,6 +211,25 @@ def test_a_worktree_checkout_hides_its_git_file_and_the_main_git_dir(tmp_path):
     assert ("--ro-bind", "/dev/null", str(root / ".git")) in triples
     common = (tmp_path / "main-checkout" / ".git").resolve()
     assert ("--tmpfs", str(common)) in list(itertools.pairwise(argv))
+
+
+def test_a_worktree_checkout_binds_the_main_working_tree_read_only_too(tmp_path):
+    """L1: the main working tree beside a worktree holds the same answers.
+    It is bound read-only first, since the worktree may lie inside it."""
+    root = _harness(tmp_path, git="file")
+    main = (tmp_path / "main-checkout").resolve()
+    assert run.harness_trees(root) == [main, root.resolve()]
+    argv = run.bwrap_argv(["true"], tmp_path / "wt", "/x/repo", [], harness_root=root)
+    triples = list(zip(argv, argv[1:], argv[2:], strict=False))
+    assert ("--ro-bind", str(main), str(main)) in triples
+    assert argv.index(str(main)) < argv.index(str(root.resolve()))
+    # Both binds come before the .git covers.
+    assert argv.index(str(root.resolve())) < argv.index(str(main / ".git"))
+
+
+def test_a_main_checkout_is_its_own_only_tree(tmp_path):
+    root = _harness(tmp_path)
+    assert run.harness_trees(root) == [root.resolve()]
 
 
 def test_the_worktree_stays_writable_when_it_lies_inside_the_harness(tmp_path):
@@ -254,12 +291,34 @@ def test_a_real_trial_cannot_write_the_harness_or_read_its_git(tmp_path):
 def test_the_profile_denies_the_ledger_it_is_given(tmp_path):
     """A remote run writes the server's ledger, not the client's. The deny
     list must name the file this run writes, not `results.default_path()`."""
-    ledger = tmp_path / "hardware" / "server" / "results.jsonl"
+    root = _harness(tmp_path)
+    ledger = tmp_path / "elsewhere" / "results.jsonl"
     ledger.parent.mkdir(parents=True)
     ledger.write_text("{}\n")
-    _, denied = run.sandbox_profile(tmp_path / "wt", "/x/repo", ledger=ledger)
+    _, denied = run.sandbox_profile(
+        tmp_path / "wt", "/x/repo", ledger=ledger, harness_root=root
+    )
     assert str(ledger.resolve()) in denied
     assert str(run.RESULTS.resolve()) not in denied
+
+
+def test_the_profile_denies_every_ledger_in_the_checkout(tmp_path):
+    """M2: every machine's ledger quotes failing checks, and every one is in
+    the readable checkout -- not only the ledger this run writes."""
+    root = _harness(tmp_path)
+    answers = _answers(root)
+    _, denied = run.sandbox_profile(tmp_path / "wt", "/x/repo", harness_root=root)
+    for path in answers:
+        assert str(path.resolve()) in denied, path
+
+
+def test_a_worktree_layout_denies_the_main_trees_answers_too(tmp_path):
+    """L1: the main working tree's tasks.toml, ledgers and sandbox clones."""
+    root = _harness(tmp_path, git="file")
+    main_answers = _answers(tmp_path / "main-checkout")
+    _, denied = run.sandbox_profile(tmp_path / "wt", "/x/repo", harness_root=root)
+    for path in main_answers:
+        assert str(path.resolve()) in denied, path
 
 
 def test_sandboxed_and_client_launch_pass_the_ledger_through(tmp_path, monkeypatch):
@@ -272,6 +331,10 @@ def test_sandboxed_and_client_launch_pass_the_ledger_through(tmp_path, monkeypat
         seen.append(kw.get("ledger"))
         return real(worktree, repo, *a, **kw)
 
+    # Hermetic (M1): without a working bwrap, sandboxed() returns before it
+    # builds a deny list, and the spy would see nothing.
+    monkeypatch.setattr(run, "BWRAP", ledger)
+    monkeypatch.setattr(run, "bwrap_works", lambda: True)
     monkeypatch.setattr(run, "sandbox_profile", spy)
     run.client_launch_argv(
         lambda task, backend, wt: ["true"],
@@ -287,10 +350,18 @@ def test_sandboxed_and_client_launch_pass_the_ledger_through(tmp_path, monkeypat
 # --- New facts go under new keys; pooled keys keep their values ---------------
 
 
-def test_the_row_records_the_harness_posture_under_its_own_key():
-    assert run.confinement_record("bwrap", ["/x"], None)["harness"] == "ro-nogit"
-    assert run.confinement_record("sandbox-exec", ["/x"], 24)["harness"] == "ro"
-    assert run.confinement_record("none", [], None)["harness"] == "unenforced"
+def test_the_row_records_the_harness_posture_under_its_own_key(monkeypatch):
+    def checkout(mechanism):
+        return run.confinement_record(mechanism, ["/x"], None)["harness_checkout"]
+
+    assert checkout("bwrap") == "ro-nogit"
+    assert checkout("none") == "unenforced"
+    # sandbox-exec refuses writes under $HOME only (#780), so `ro` holds only
+    # while the checkout is under $HOME.
+    monkeypatch.setattr(run, "HARNESS_ROOT", pathlib.Path.home() / "git" / "x")
+    assert checkout("sandbox-exec") == "ro"
+    monkeypatch.setattr(run, "HARNESS_ROOT", pathlib.Path("/opt/elsewhere/x"))
+    assert checkout("sandbox-exec") == "unenforced"
     # `writes` keeps its meaning: rows stay comparable with the leaders.
     assert run.confinement_record("bwrap", ["/x"], None)["writes"] == "unenforced"
 
@@ -302,3 +373,56 @@ def test_the_container_cgroup_limit_is_recorded_beside_memory():
     assert record["memory_cgroup_gib"] == 12.0
     assert record["memory"] == "none"
     assert run.confinement_record("bwrap", ["/x"], None)["memory_cgroup_gib"] is None
+
+
+@pytest.mark.skipif(not _BWRAP_RUNS, reason="needs a bwrap that can make namespaces")
+def test_a_real_worktree_trial_cannot_write_the_main_tree_or_read_its_git(tmp_path):
+    """L7: the worktree layout, under the kernel."""
+    root = _harness(tmp_path, git="file")
+    main = tmp_path / "main-checkout"
+    (main / "marker").write_text("main-visible\n")
+    (main / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    script = (
+        f"cat {main}/marker; "
+        f"printf x > {main}/PROBE; "
+        f"printf x > {root}/PROBE; "
+        f"ls -A {main}/.git; "
+        "echo end"
+    )
+    argv = run.bwrap_argv(["sh", "-c", script], wt, "/x/repo", [], harness_root=root)
+    got = subprocess.run(argv, capture_output=True, text=True, timeout=30, check=False)
+    assert got.returncode == 0, got.stderr
+    assert "main-visible" in got.stdout
+    assert got.stderr.count("Read-only file system") == 2, got.stderr
+    assert not (main / "PROBE").exists()
+    assert not (root / "PROBE").exists()
+    assert "HEAD" not in got.stdout
+
+
+@pytest.mark.skipif(not _BWRAP_RUNS, reason="needs a bwrap that can make namespaces")
+def test_a_real_deny_cover_inside_the_checkout_survives_the_read_only_bind(tmp_path):
+    """L7: the covers come after the bind, so the bind cannot undo them."""
+    root = _harness(tmp_path)
+    tasks, _ledger, _aborts, sandbox = _answers(root)
+    (sandbox / "clone-with-history").write_text("answer\n")
+    (root / "marker").write_text("harness-visible\n")
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    script = f"cat {root}/marker; cat {tasks}; ls -A {sandbox}; echo end"
+    argv = run.bwrap_argv(
+        ["sh", "-c", script],
+        wt,
+        "/x/repo",
+        [str(sandbox), str(tasks)],
+        harness_root=root,
+    )
+    got = subprocess.run(argv, capture_output=True, text=True, timeout=30, check=False)
+    assert "harness-visible" in got.stdout
+    assert "gnikramhcneB" not in got.stdout
+    # bwrap's --ro-bind mounts nodev, so the /dev/null cover reads as
+    # "Permission denied", not as an empty file.
+    assert "Permission denied" in got.stderr
+    assert "clone-with-history" not in got.stdout
+    assert "end" in got.stdout
