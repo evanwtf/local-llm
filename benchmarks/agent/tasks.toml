@@ -5849,10 +5849,14 @@ recipe_pin_reason = "upstream bdfa59f plus two local commits: SERVE_ARGS for --r
 #   uv run python scripts/ling31_two_node.py prepare --rank 0
 #   uv run python scripts/ling31_two_node.py prepare --rank 1
 #   uv run python scripts/ling31_two_node.py start --name ling31
+# Smoke, 2026-11-27 (no benchmark): ready 170 s after launch; the server logged "context: 262144"
+# and a startup estimate of 109.09 GiB within 109.26 GiB on the head (110.52 on the worker).
+# Ready to serve, MemAvailable 3.44 GiB on the head and 4.67 GiB on the worker; lowest during two
+# requests 2.95 and 3.87 GiB. The recipe's watchdog (1.5 GiB) did not fire.
 [backend.ling31f1019exl3tfbertnothinkdual2xrc]
 # Stage 0 (#762): 560B total, 25B active (the model card).
 active_params_b = 25
-description = "#1309: Ling-3.1-flash-1019 (inclusionAI, 560B, 25B active) EXL3 3.03 bpw (bertholomus/Ling-3.1-flash-1019-EXL3-3.03bpw @15d305cc66, 205.6 GiB, split into one rank folder per node) on bertholomus's TensorFold TP2 engine (bertholomus/TensorFold branch ling-3.1-tp2 @72f16e48: the bailing_v3 family on TensorFold v0.6.6's Python CUDA engine, extensions built on each node in nvcr.io/nvidia/pytorch:26.07-py3) via the recipe bertholomus/ling-3.1-tensorfold-tp2-2xgb10 v0.2.0 @6088f47241, launched by scripts/ling31_two_node.py: BOTH Sparks over RoCE (four fabric paths, GID index 3), the recipe's settings verbatim (262,144-token window, one request at a time, MTP drafting at adaptive depth (the engine default), latent 270 MB, shared scratch, split embedding, no cache for other conversations' prompts, max-tokens 4096, answer reserve 0.25 / 1024), sampling the checkpoint's generation config (temperature 1.0, top-k 20, top-p 0.95). THINKING OFF on the server (--no-thinking); the client sends no reasoning_effort. Served as ling-3.1-flash-1019 on :8888. REMOTE CLIENT"
+description = "#1309: Ling-3.1-flash-1019 (inclusionAI, 560B, 25B active) EXL3 3.03 bpw (bertholomus/Ling-3.1-flash-1019-EXL3-3.03bpw @15d305cc66, 205.6 GiB, split into one rank folder per node) on bertholomus's TensorFold TP2 engine (bertholomus/TensorFold branch ling-3.1-tp2 @72f16e48: the bailing_v3 family on TensorFold v0.6.6's Python CUDA engine, extensions built on each node in nvcr.io/nvidia/pytorch:26.07-py3) via the recipe bertholomus/ling-3.1-tensorfold-tp2-2xgb10 v0.2.0 @6088f47241, launched by scripts/ling31_two_node.py: BOTH Sparks over RoCE (four fabric paths, GID index 3), the recipe's settings verbatim (262,144-token window, one request at a time, MTP drafting at adaptive depth (the engine default), latent 270 MB, shared scratch, split embedding, no cache for other conversations' prompts, max-tokens 4096, answer reserve 0.25 / 1024), sampling the engine's CUDA defaults (temperature 1.0, top-k 20, top-p 0.95; the checkpoint ships no generation_config.json). THINKING OFF on the server (--no-thinking); the client sends no reasoning_effort. Served as ling-3.1-flash-1019 on :8888. REMOTE CLIENT"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
