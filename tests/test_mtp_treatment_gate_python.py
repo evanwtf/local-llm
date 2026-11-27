@@ -325,7 +325,7 @@ def test_an_unknown_stage_exits_two() -> None:
     assert caught.value.code == 2
 
 
-def test_the_counter_variable_is_exported(monkeypatch) -> None:
+def test_the_counter_variable_is_exported(monkeypatch, tmp_path) -> None:
     """#210 step 1: `counters_requested` reads this process's environment and
     `counters_on` reads the server's argv, so without this a row says
     `requested: false, on: true` -- and #210's own body reads a false there as
@@ -335,7 +335,8 @@ def test_the_counter_variable_is_exported(monkeypatch) -> None:
     monkeypatch.setattr(
         gate, "run_lock", lambda *a, **k: (_ for _ in ()).throw(gate.Refusal("stop"))
     )
-    gate.main(["treated"])
+    # --logdir keeps the driver out of the real ~/bench-logs.
+    gate.main(["treated", "--logdir", str(tmp_path / "logs")])
     assert gate.os.environ["DS4_MTP_TIMING"] == "1"
 
 
