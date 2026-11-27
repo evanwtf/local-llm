@@ -1082,6 +1082,27 @@ def test_the_stock_tensorfold_release_binary_is_a_server():
     assert [p.short for p in got] == ["tensorfold-native"]
 
 
+def test_the_hyperflare_server_binary_is_a_server():
+    """#1459: `flare run` is NVIDIA Hyperflare's native server, one rank per node.
+
+    On 2026-11-27 both ranks held GLM-5.3-Flash while `machine_state.py` said
+    "no model server is resident". A cargo build and the Debian package both
+    count; the systemd-run wrapper that launched it does not.
+    """
+    ps = (
+        "  PID    RSS  ELAPSED COMMAND\n"
+        "3834400 1500 05:10 systemd-run --user --unit=flare-rank0 "
+        "/opt/u/hyperflare-inference/flare-cli/target/release/flare run /m --rank 0\n"
+        "3834405 9000000 05:10 "
+        "/opt/u/hyperflare-inference/flare-cli/target/release/flare run /m.safetensors "
+        "--rank 0 --rendezvous 10.0.0.1:29800 --gpus 0 --port 8888\n"
+        "3834406 8800000 04:00 /usr/bin/flare run --rank 1 --rendezvous 10.0.0.1:29800\n"
+    )
+    got = preflight.parse_ps(ps)
+    assert [p.pid for p in got] == [3834405, 3834406]
+    assert [p.short for p in got] == ["flare", "flare"]
+
+
 def test_python_hosted_servers_are_found_by_module_or_script():
     got = preflight.parse_ps(PY_SERVERS_PS)
     assert [p.pid for p in got] == [51001, 51002, 51003, 51004]
