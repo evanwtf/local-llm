@@ -1,11 +1,13 @@
 # A vLLM nightly plus the Python files of one open vLLM PR (#1503: PR 68387,
 # HY4 Flash on sm_121 and ModelOpt NVFP4 experts). Build it with
 # `uv run python scripts/vllm_pr_overlay.py build`, which fetches the files at
-# the pinned sha, checks each sha256 against overlay.json, and passes BASE.
-# The PR changes no compiled code, so copying its files over the installed
-# package gives the same engine as a source build of the branch on that base.
-# The default is the pinned base; `build` passes the spec value explicitly.
-ARG BASE=vllm/vllm-openai:nightly-5aea30579ad672c3c35be43112b7a1f7b293a09e
+# the pinned sha, checks each sha256 against overlay.json, and passes BASE as
+# repo@digest. The PR changes no compiled code, so copying its files over the
+# installed package gives the same engine as a source build of the branch on
+# that base.
+# The default is the pinned base, by digest, so a bare `docker build` cannot
+# pick up a retagged nightly.
+ARG BASE=vllm/vllm-openai@sha256:d24e5fc73f0b859bd76c9d2f6f6fa4da3001afd7637f2610876420f3027ea6c7
 FROM ${BASE}
 COPY vllm/ /opt/pr-overlay/vllm/
 COPY SHA256SUMS /opt/pr-overlay/SHA256SUMS

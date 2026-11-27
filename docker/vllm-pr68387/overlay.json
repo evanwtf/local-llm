@@ -2,6 +2,7 @@
   "pr": 68387,
   "upstream": "vllm-project/vllm",
   "head_repo": "atakann/vllm",
+  "head_ref": "hy4-flash-capability12-nvfp4",
   "sha": "6ca1feee4ca275b3c6ddcb3b9fc323b5ffeda1f1",
   "merge_base": "4fd24951cc374300b8172debd2e550863ce7115b",
   "base_image": "vllm/vllm-openai:nightly-5aea30579ad672c3c35be43112b7a1f7b293a09e",

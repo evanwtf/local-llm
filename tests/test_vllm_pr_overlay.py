@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import pathlib
+import subprocess
 import sys
+import tomllib
 from typing import Any
 
 import pytest
@@ -53,7 +55,13 @@ def test_the_committed_spec_loads_and_names_the_pr_files() -> None:
 
 @pytest.mark.parametrize(
     "path",
-    ["tests/x.py", "/vllm/x.py", "vllm/../etc/x.py", "vllm/csrc/k.cu", "vllm/x.txt"],
+    [
+        "tests/x.py",  # outside the package
+        "vllmx/x.py",  # a sibling whose name only starts with vllm
+        "vllm/../etc/x.py",  # climbs out of the package
+        "vllm/csrc/k.cu",  # compiled code
+        "vllm/x.txt",  # not Python
+    ],
 )
 def test_a_path_outside_the_python_package_is_refused(path: str) -> None:
     with pytest.raises(o.OverlayError, match="not a .py file"):
@@ -130,3 +138,93 @@ def test_smoke_argv_runs_python_in_the_image_without_the_server() -> None:
         "docker", "run", "--rm", "--gpus", "all", "--entrypoint", "python3", "img"
     ]  # fmt: skip
     assert argv[-2:] == ["m1,m2", "vllm/a.py"]
+
+
+def test_a_name_with_two_dots_inside_the_package_is_legal() -> None:
+    o.check_path("vllm/a..b.py")
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "match"),
+    [
+        ("pr", 0, "positive PR number"),
+        ("pr", "68387", "positive PR number"),
+        ("pr", True, "positive PR number"),
+        ("upstream", "vllm", "owner/name"),
+        ("head_repo", "someone/vllm/extra", "owner/name"),
+        ("head_ref", "bad ref", "branch name"),
+        ("base_image", "vllm/vllm-openai", "repo:tag"),
+        ("base_image", "vllm/vllm-openai@sha256:" + "d" * 64, "repo:tag"),
+    ],
+)
+def test_a_malformed_spec_field_is_refused(
+    tmp_path: pathlib.Path, key: str, value: object, match: str
+) -> None:
+    with pytest.raises(o.OverlayError, match=match):
+        o.load_spec(_write(tmp_path, _spec(**{key: value})))
+
+
+def test_a_base_with_no_tag_has_no_image_tag() -> None:
+    with pytest.raises(o.OverlayError, match="has no tag"):
+        o.image_tag(_spec(base_image="localhost:5000/vllm"))
+
+
+def test_the_committed_spec_builds_the_backends_image() -> None:
+    """L1: the tag the script builds is the one the backend runs."""
+    spec = o.load_spec(o.DEFAULT_SPEC)
+    backends = tomllib.loads((ROOT / "benchmarks/agent/tasks.toml").read_text())
+    users = [
+        b for b in backends["backend"].values() if b.get("image") == o.image_tag(spec)
+    ]
+    assert users, f"no backend runs {o.image_tag(spec)}"
+    for b in users:
+        assert spec["sha"].startswith(str(b["recipe_pin"]))
+        assert b["image_source"] == "local"
+
+
+def test_the_dockerfile_default_base_is_the_pinned_digest() -> None:
+    spec = o.load_spec(o.DEFAULT_SPEC)
+    text = (o.DEFAULT_SPEC.parent / "Dockerfile").read_text()
+    assert f"ARG BASE={o.base_ref(spec)}\n" in text
+    assert o.base_ref(spec) == "vllm/vllm-openai@" + spec["base_digest"]
+
+
+def test_build_passes_the_base_by_digest_and_replaces_the_base_labels() -> None:
+    spec = _spec()
+    argv = o.build_argv(spec, "local/x:t", pathlib.Path("/ctx"))
+    assert argv[argv.index("--build-arg") + 1] == (
+        "BASE=vllm/vllm-openai@sha256:" + "d" * 64
+    )
+    labels = dict(
+        argv[i + 1].split("=", 1) for i, a in enumerate(argv) if a == "--label"
+    )
+    assert labels["ai.vllm.image.tag"] == "local/x:t"
+    assert labels["ai.vllm.build.commit"] == spec["sha"]
+    assert labels["org.opencontainers.image.version"] == "local/x:t"
+    assert labels["org.opencontainers.image.revision"] == spec["sha"]
+    assert labels["org.opencontainers.image.base.name"] == spec["base_image"]
+    assert labels["org.opencontainers.image.base.digest"] == spec["base_digest"]
+    assert labels["ai.vllm.build.url"].endswith("/vllm-project/vllm/pull/68387")
+    assert argv[-2:] == ["local/x:t", "/ctx"]
+
+
+def test_smoke_imports_every_overlaid_module() -> None:
+    spec = _spec(files={"vllm/a.py": "0" * 64, "vllm/sub/__init__.py": "1" * 64})
+    assert o.modules_of(spec) == ["vllm.a", "vllm.sub"]
+
+
+def test_a_missing_base_is_refused_not_a_traceback() -> None:
+    def fake(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(argv, 1, "", "No such image")
+
+    with pytest.raises(o.OverlayError, match="docker pull"):
+        o.repo_digests("vllm/vllm-openai:nope", run=fake)
+
+
+@pytest.mark.parametrize(
+    ("out", "match"),
+    [("SMOKE {not json", "not JSON"), ('SMOKE {"version": "x"}', "no files map")],
+)
+def test_a_bad_smoke_line_is_refused(out: str, match: str) -> None:
+    with pytest.raises(o.OverlayError, match=match):
+        o.parse_smoke(_spec(), out)
