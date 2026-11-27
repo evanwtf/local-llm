@@ -4556,6 +4556,102 @@ topology = "remote"
 smoke_protocol = "openai"
 image = "vllm/vllm-openai:v0.34.0"
 
+# #1503 (operator, 2026-11-26: P1, download approved to 300 GB free per node): Tencent HY4 Flash
+# (512 routed experts a layer, 16 active; sparse MLA with a learnable sink, sliding-window layers,
+# Engram hash tables, a built-in DFly drafter) as atakans' third-party ModelOpt NVFP4 export:
+# atakans/Hy4-flash-NVFP4 @5d9383f300a55d13933ce3038658453dd3b27015 (Tencent Hy License 1.0:
+# Apache-2.0 plus terms for large MaaS businesses only; 153.4 GiB), verified against the Hub on
+# both nodes (scripts/verify_hf_weights.py). NVFP4 MLPs, FP8 Engram rows, BF16 elsewhere.
+# Engine: vllm-project/vllm PR 68387 (open; HY4 Flash on capability 12 through FlashInfer's SM120
+# sparse MLA kernel, and ModelOpt NVFP4 expert loading) at head
+# 6ca1feee4ca275b3c6ddcb3b9fc323b5ffeda1f1. vLLM v0.34.0 has no hy_v4_flash package, so the image
+# is the nightly vllm/vllm-openai:nightly-5aea30579ad672c3c35be43112b7a1f7b293a09e (registry digest
+# sha256:d24e5fc73f0b859bd76c9d2f6f6fa4da3001afd7637f2610876420f3027ea6c7; 13 commits behind
+# the PR's merge base 4fd24951c, none touching the HY4 files) plus the five Python files under
+# vllm/ that the PR changes, built by scripts/vllm_pr_overlay.py from
+# docker/vllm-pr68387/overlay.json (FROM the base by digest):
+# local/vllm-openai:nightly-5aea30579-pr68387-6ca1feee4, image Id
+# sha256:f3ad459fbbd3b98e89f7e92d9e9345c88d5d931ee56a9fdb95d073514f7c0973 on the head (a local
+# image has no registry digest). The worker got both images by docker save | docker load over the
+# fabric; its containerd store reports other Ids (nightly dcee940d..., overlay bdb73125...), while
+# the layer diff IDs of each match the head's.
+# Rebuild from nothing (head; then copy the image to the worker):
+#   git clone --filter=blob:none --branch hy4-flash-capability12-nvfp4 \
+#     https://github.com/atakann/vllm.git ~/engines/vllm-pr68387
+#   git -C ~/engines/vllm-pr68387 remote set-head origin hy4-flash-capability12-nvfp4
+#   git -C ~/engines/vllm-pr68387 checkout --detach 6ca1feee4ca275b3c6ddcb3b9fc323b5ffeda1f1
+#   docker pull vllm/vllm-openai:nightly-5aea30579ad672c3c35be43112b7a1f7b293a09e
+#   uv run python scripts/vllm_pr_overlay.py build   # refuses a base with another digest
+#   docker save local/vllm-openai:nightly-5aea30579-pr68387-6ca1feee4 \
+#     | ssh -c aes128-gcm@openssh.com -o Compression=no 10.0.0.2 docker load
+# Flags: the PR's two-Spark command (also the model card's setup): expert parallel, dtype bf16,
+# 262,144-token window (the cluster standard; the model declares 1,048,576), max-num-seqs 4,
+# 8192-token chunks, a 6 GiB KV cache at GMU 0.85 (the author's lowest free memory: 12.5 GiB),
+# DFly with 5 draft tokens, set on the command line, so vLLM's default draft sampling ("greedy")
+# applies, not config.json's "probabilistic" (the card: about 15 tok/s without DFly),
+# parsers hy_v4 (tools and reasoning). The KV dtype is left to vLLM: on capability 12 it picks
+# fp8_ds_mla for this model. Repo additions: text only (the checkpoint is a VL model), prompt
+# token details. Prefix caching stays at vLLM's default, which is on for this model
+# (enable_prefix_caching=True in the 2026-11-26 smoke log).
+# Smoke, 2026-11-26 (both Sparks, with no_think; reasoning empty on every reply): first real
+# completion 803 s after launch. Weights load in 64 s
+# (49.67 GiB a GPU; half of each Engram table in host memory); FlashInfer's SM120 sparse MLA
+# autotune takes about 10.5 min of the 674 s engine init, and its cache lives in the container,
+# so every start pays it. All 42 layers on FLASHINFER_MLA_SPARSE_SM120 (fp8_ds_mla, learnable
+# sink on); KV pool 578,345 tokens. A 209,753-token prompt answered correctly in 196.7 s; lowest
+# MemAvailable 9.93 GiB (head) and 14.20 GiB (worker).
+# Prefix cache, 2026-11-26 (rebuilt image f3ad459f, second start; first completion 1,145 s after
+# launch, with the NAS archive job running on the head): scripts/vllm_prefix_hits.py --block 256
+# hit its ceiling at all 12 lengths from 256 to 1,152 tokens (every full 256-token block of a
+# repeated prompt reused; e.g. 1,025 tokens: 1,024 cached).
+# DFly feeds vLLM's spec-decode counters: one 200-token code reply moved spec_decode_num_drafts_total
+# by 60, draft tokens by 300 and accepted tokens by 141 (47% of drafts, 3.35 tokens a step).
+# Reasoning effort no_think (operator, 2026-11-26), set on the server. The chat template accepts
+# only no_think, high or max (default high) and raises on any other value, so there is no "low".
+# no_think is the mode the model card measured (GPQA Diamond, IFEval and every decode figure);
+# it emits empty think tags and drops earlier reasoning from the history. "nothink" in the id,
+# as the repo's other thinking-off arms.
+# OpenCode client entry (provider vllm8888, model hy4-flash-nvfp4). A client-side
+# reasoning_effort overrides the server default and "low" fails the template, so the entry
+# leaves reasoningEffort out:
+#   "hy4-flash-nvfp4": {"limit": {"context": 262144, "output": 32768}}
+# Launch (both nodes, worker first):
+#   uv run python scripts/vllm_two_node.py start \
+#     --model-dir ~/models/atakans--Hy4-flash-NVFP4-5d9383f300 \
+#     --image local/vllm-openai:nightly-5aea30579-pr68387-6ca1feee4 --name hy4flash -- \
+#     --served-model-name hy4-flash-nvfp4 --enable-expert-parallel --dtype bfloat16 \
+#     --max-model-len 262144 --max-num-seqs 4 --max-num-batched-tokens 8192 \
+#     --kv-cache-memory-bytes 6G --gpu-memory-utilization 0.85 \
+#     --speculative-config '{"method":"dfly","num_speculative_tokens":5}' \
+#     --limit-mm-per-prompt '{"image":0,"video":0}' \
+#     --reasoning-parser hy_v4 --enable-auto-tool-choice --tool-call-parser hy_v4 \
+#     --default-chat-template-kwargs '{"reasoning_effort":"no_think"}' \
+#     --enable-prompt-tokens-details
+[backend.hy4flashnvfp4vllmpr68387nothinkdual2xrc]
+description = "#1503: Tencent HY4 Flash NVFP4 (atakans/Hy4-flash-NVFP4 @5d9383f300, a third-party ModelOpt export: NVFP4 MLPs, FP8 Engram tables, 153.4 GiB) on BOTH Sparks, TP2 + expert parallel over the ConnectX fabric (scripts/vllm_two_node.py), on vLLM PR 68387 at 6ca1feee4 (open: HY4 Flash on sm_121 via FlashInfer's SM120 sparse MLA, ModelOpt NVFP4 experts). Image local/vllm-openai:nightly-5aea30579-pr68387-6ca1feee4: the nightly vllm/vllm-openai:nightly-5aea30579 (registry digest sha256:d24e5fc73f0b859bd76c9d2f6f6fa4da3001afd7637f2610876420f3027ea6c7) plus the five Python files under vllm/ that the PR changes (scripts/vllm_pr_overlay.py, docker/vllm-pr68387/overlay.json). The PR's two-Spark flags: bf16, 262K window, max-num-seqs 4, 8192-token chunks, 6 GiB KV at GMU 0.85, DFly 5 draft tokens, parsers hy_v4. Text only. Reasoning effort no_think on the server (thinking off; the template takes no_think, high or max only). OpenCode entry: no reasoningEffort, limit context 262144, output 32768. Served as hy4-flash-nvfp4 on :8888. REMOTE CLIENT"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "hy4-flash-nvfp4"
+aider_model = "openai/hy4-flash-nvfp4"
+opencode_model = "vllm8888/hy4-flash-nvfp4"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+# #1503: the server owns the reasoning effort (no_think, above). client_container.py refuses an
+# OpenCode entry that sends reasoningEffort, variants or chat_template_kwargs for this backend.
+client_effort = "unset"
+speculative = "DFly (the checkpoint's built-in drafter, 5 BF16 draft layers), 5 draft tokens, vLLM's default greedy draft sampling; it feeds vLLM's spec_decode counters"
+draft_engine = "vllm"
+image = "local/vllm-openai:nightly-5aea30579-pr68387-6ca1feee4"
+# A locally built image has no registry digest, so its currency is the PR checkout it is built
+# from: a blobless clone of the PR's head repo, origin/HEAD set to the PR branch.
+image_source = "local"
+recipe_dir = "~/engines/vllm-pr68387"
+recipe_pin = "6ca1feee4"
+recipe_pin_reason = "vLLM PR 68387's head when the image was built (#1503); the image is the pinned nightly 5aea30579 plus the five Python files under vllm/ that the PR changes, at this sha (docker/vllm-pr68387/overlay.json). A new PR head needs a new spec, image and arm"
+
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]
 description = "#1095: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the fast option's weights) across TWO DGX Sparks on STOCK TensorFold native 1.1.3 (ashhart/TensorFold release tensorfold-1.1.3-linux-aarch64, sha256 checked; no MiaAI patches), launched by scripts/tensorfold_native_two_node.py: TF_GLM_WORLD=2, NCCL on all four fabric paths, libnccl 2.29.7 from vllm/vllm-openai:v0.32.0. Serve flags chosen to match the leader glm53fexl3tfqmiaai20261010dual2xrc: --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768; drafts the engine default (on); sampling the engine default (temperature 1.0, top_p 0.95); reasoning_effort low sent by the client. REMOTE CLIENT"

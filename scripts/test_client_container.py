@@ -12,6 +12,7 @@ import json
 import os
 import pathlib
 import pwd
+import tomllib
 
 import client_container as mod
 import pytest
@@ -824,3 +825,82 @@ def test_an_ignored_sighup_stays_ignored():
             assert signal.getsignal(signal.SIGTERM) is not signal.SIG_IGN
     finally:
         signal.signal(signal.SIGHUP, before)
+
+
+# --- #1503: a backend whose server owns the reasoning effort ----------------
+
+_NOEFFORT = {
+    "base_url": "http://127.0.0.1:8888",
+    "opencode_model": "vllm8888/hy4",
+    "client_effort": "unset",
+}
+
+
+def _effort_config(model: dict, provider_options: dict | None = None) -> str:
+    options = {"baseURL": "http://head.example:8888/v1", **(provider_options or {})}
+    return json.dumps(
+        {"provider": {"vllm8888": {"options": options, "models": {"hy4": model}}}}
+    )
+
+
+def test_client_effort_unset_passes_a_plain_entry():
+    config = _effort_config({"limit": {"context": 262144, "output": 32768}})
+    assert mod.check_opencode_provider("b", _NOEFFORT, config, _PATH) is None
+
+
+@pytest.mark.parametrize(
+    ("model", "provider_options", "key", "where"),
+    [
+        (
+            {"options": {"reasoningEffort": "low"}},
+            None,
+            "reasoningEffort",
+            "model options",
+        ),
+        ({"reasoningEffort": "high"}, None, "reasoningEffort", "model"),
+        ({"variants": {"low": {"reasoningEffort": "low"}}}, None, "variants", "model"),
+        (
+            {"options": {"chat_template_kwargs": {"reasoning_effort": "max"}}},
+            None,
+            "chat_template_kwargs",
+            "model options",
+        ),
+        ({}, {"reasoningEffort": "low"}, "reasoningEffort", "provider options"),
+        (
+            {},
+            {"chatTemplateKwargs": {"x": 1}},
+            "chatTemplateKwargs",
+            "provider options",
+        ),
+    ],
+)
+def test_client_effort_unset_refuses_an_entry_that_sends_an_effort(
+    model, provider_options, key, where
+):
+    why = mod.check_opencode_provider(
+        "b", _NOEFFORT, _effort_config(model, provider_options), _PATH
+    )
+    assert why is not None
+    assert key in why and where in why and "client_effort" in why
+
+
+def test_an_unknown_client_effort_value_is_refused():
+    backend = dict(_NOEFFORT, client_effort="low")
+    why = mod.check_opencode_provider("b", backend, _effort_config({}), _PATH)
+    assert why is not None and "client_effort 'low'" in why
+
+
+def test_a_backend_without_client_effort_may_send_an_effort():
+    backend = {k: v for k, v in _NOEFFORT.items() if k != "client_effort"}
+    config = _effort_config({"options": {"reasoningEffort": "low"}})
+    assert mod.check_opencode_provider("b", backend, config, _PATH) is None
+
+
+def test_every_declared_client_effort_is_a_known_value():
+    backends = tomllib.loads(mod.TASKS_FILE.read_text())["backend"]
+    declared = {
+        n: b["client_effort"] for n, b in backends.items() if "client_effort" in b
+    }
+    assert declared, "the HY4 Flash backend declares client_effort (#1503)"
+    assert set(declared.values()) <= mod.CLIENT_EFFORT_VALUES
+    assert declared.get("hy4flashnvfp4vllmpr68387nothinkdual2xrc") == "unset"

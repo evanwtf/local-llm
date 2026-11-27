@@ -1,0 +1,17 @@
+{
+  "pr": 68387,
+  "upstream": "vllm-project/vllm",
+  "head_repo": "atakann/vllm",
+  "head_ref": "hy4-flash-capability12-nvfp4",
+  "sha": "6ca1feee4ca275b3c6ddcb3b9fc323b5ffeda1f1",
+  "merge_base": "4fd24951cc374300b8172debd2e550863ce7115b",
+  "base_image": "vllm/vllm-openai:nightly-5aea30579ad672c3c35be43112b7a1f7b293a09e",
+  "base_digest": "sha256:d24e5fc73f0b859bd76c9d2f6f6fa4da3001afd7637f2610876420f3027ea6c7",
+  "files": {
+    "vllm/models/hy_v4/dfly_config.py": "816d6a429696b8424c7a34b9b510535740511cb89e32fe4b64e2486f6d33b770",
+    "vllm/models/hy_v4/nvidia/attention.py": "a7013bcb86d393fa6952e423d5150dfd66285cfef7da9dc2566c6ad05f64c6c5",
+    "vllm/models/hy_v4_flash/common/model.py": "b131ce9d88a15ac095411f237748898c7436918a4e1010a8c0d921e7d102dfbb",
+    "vllm/models/hy_v4_flash/nvidia/attention.py": "0010cc673049d44c59f1295615fa39637fb9998d1abe8eb14dd94cf4a3da3458",
+    "vllm/models/hy_v4_flash/nvidia/sm120.py": "789aa8be5aa2a5431cc938c717b0326d2514e6ee122d47c5514c011079a838ae"
+  }
+}

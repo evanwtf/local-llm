@@ -780,6 +780,27 @@ def test_vllm_differing_speculative_config_does_not_pool():
     assert not server_argv_compatible(spec, plain)
 
 
+def test_vllm_server_side_reasoning_effort_is_a_graph_flag():
+    """#1503: a server without its effort default must not pool with one that sets it."""
+    kw = '{"reasoning_effort":"no_think"}'
+    set_ = {"env": {"server_argv": f"{_VLLM_BASE} --default-chat-template-kwargs {kw}"}}
+    unset = {"env": {"server_argv": _VLLM_BASE}}
+    high = {
+        "env": {
+            "server_argv": f"{_VLLM_BASE} --default-chat-template-kwargs "
+            '{"reasoning_effort":"high"}'
+        }
+    }
+    assert graph_flags(set_["env"]["server_argv"])[
+        "--default-chat-template-kwargs"
+    ] == (kw)
+    assert not server_argv_compatible(set_, unset)
+    assert not server_argv_compatible(set_, high)
+    assert server_argv_compatible(
+        set_, {"env": {"server_argv": set_["env"]["server_argv"] + " --port 9"}}
+    )
+
+
 # --- grouping by the machine that ran the trial (#562) ----------------------
 
 _I3 = {
