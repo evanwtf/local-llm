@@ -4581,9 +4581,11 @@ image = "vllm/vllm-openai:v0.34.0"
 # parsers hy_v4 (tools and reasoning). The KV dtype is left to vLLM: on capability 12 it picks
 # fp8_ds_mla for this model. Repo additions: text only (the checkpoint is a VL model), prompt
 # token details. Prefix caching stays at vLLM's default; the smoke log records whether it is on.
-# Reasoning effort: the chat template accepts only no_think, high or max (default high) and
-# raises on any other value, so there is no "low". EFFORT_PENDING below is a placeholder; the
-# operator chooses before the smoke test, and the server sets it.
+# Reasoning effort no_think (operator, 2026-11-26), set on the server. The chat template accepts
+# only no_think, high or max (default high) and raises on any other value, so there is no "low".
+# no_think is the mode the model card measured (GPQA Diamond, IFEval and every decode figure);
+# it emits empty think tags and drops earlier reasoning from the history. "nothink" in the id,
+# as the repo's other thinking-off arms.
 # OpenCode client entry (provider vllm8888, model hy4-flash-nvfp4). A client-side
 # reasoning_effort overrides the server default and "low" fails the template, so the entry
 # leaves reasoningEffort out:
@@ -4598,10 +4600,10 @@ image = "vllm/vllm-openai:v0.34.0"
 #     --speculative-config '{"method":"dfly","num_speculative_tokens":5}' \
 #     --limit-mm-per-prompt '{"image":0,"video":0}' \
 #     --reasoning-parser hy_v4 --enable-auto-tool-choice --tool-call-parser hy_v4 \
-#     --default-chat-template-kwargs '{"reasoning_effort":"EFFORT_PENDING"}' \
+#     --default-chat-template-kwargs '{"reasoning_effort":"no_think"}' \
 #     --enable-prompt-tokens-details
-[backend.hy4flashnvfp4vllmpr68387dual2xrc]
-description = "#1503: Tencent HY4 Flash NVFP4 (atakans/Hy4-flash-NVFP4 @5d9383f300, a third-party ModelOpt export: NVFP4 MLPs, FP8 Engram tables, 153.4 GiB) on BOTH Sparks, TP2 + expert parallel over the ConnectX fabric (scripts/vllm_two_node.py), on vLLM PR 68387 at 6ca1feee4 (open: HY4 Flash on sm_121 via FlashInfer's SM120 sparse MLA, ModelOpt NVFP4 experts). Image local/vllm-openai:nightly-5aea30579-pr68387-6ca1feee4: the nightly vllm/vllm-openai:nightly-5aea30579 (registry digest sha256:d24e5fc73f0b859bd76c9d2f6f6fa4da3001afd7637f2610876420f3027ea6c7) plus the PR's five Python files (scripts/vllm_pr_overlay.py, docker/vllm-pr68387/overlay.json). The PR's two-Spark flags: bf16, 262K window, max-num-seqs 4, 8192-token chunks, 6 GiB KV at GMU 0.85, DFly 5 draft tokens, parsers hy_v4. Text only. Reasoning effort EFFORT_PENDING on the server (the template takes no_think, high or max only). OpenCode entry: no reasoningEffort, limit context 262144, output 32768. Served as hy4-flash-nvfp4 on :8888. REMOTE CLIENT"
+[backend.hy4flashnvfp4vllmpr68387nothinkdual2xrc]
+description = "#1503: Tencent HY4 Flash NVFP4 (atakans/Hy4-flash-NVFP4 @5d9383f300, a third-party ModelOpt export: NVFP4 MLPs, FP8 Engram tables, 153.4 GiB) on BOTH Sparks, TP2 + expert parallel over the ConnectX fabric (scripts/vllm_two_node.py), on vLLM PR 68387 at 6ca1feee4 (open: HY4 Flash on sm_121 via FlashInfer's SM120 sparse MLA, ModelOpt NVFP4 experts). Image local/vllm-openai:nightly-5aea30579-pr68387-6ca1feee4: the nightly vllm/vllm-openai:nightly-5aea30579 (registry digest sha256:d24e5fc73f0b859bd76c9d2f6f6fa4da3001afd7637f2610876420f3027ea6c7) plus the PR's five Python files (scripts/vllm_pr_overlay.py, docker/vllm-pr68387/overlay.json). The PR's two-Spark flags: bf16, 262K window, max-num-seqs 4, 8192-token chunks, 6 GiB KV at GMU 0.85, DFly 5 draft tokens, parsers hy_v4. Text only. Reasoning effort no_think on the server (thinking off; the template takes no_think, high or max only). OpenCode entry: no reasoningEffort, limit context 262144, output 32768. Served as hy4-flash-nvfp4 on :8888. REMOTE CLIENT"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
