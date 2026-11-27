@@ -77,6 +77,14 @@ RUNTIMES: dict[str, dict[Host, Runtime]] = {
             "a pinned overlay checkout, built in the NGC image", "source"
         ),
     },
+    # #1459: NVIDIA Hyperflare's `flare` CLI, a cargo build of a tagged
+    # checkout plus the repo's patch (hardware/Cortex-X925-128GB-GB10-x2/hyperflare/).
+    "hyperflare": {
+        DARWIN_ARM64: _rt(_NO_METAL),
+        LINUX_AARCH64: _rt(
+            "built from a tagged hyperflare-inference checkout", "source"
+        ),
+    },
     "llama.cpp": {
         DARWIN_ARM64: _rt("built from a llama.cpp checkout (Metal)", "source"),
         LINUX_AARCH64: _rt("built from a tagged llama.cpp checkout (CUDA)", "source"),

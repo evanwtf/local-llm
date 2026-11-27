@@ -1,0 +1,24 @@
+diff --git a/helios/src/runtime_core/mod.rs b/helios/src/runtime_core/mod.rs
+index 09b598da..b378b43c 100644
+--- a/helios/src/runtime_core/mod.rs
++++ b/helios/src/runtime_core/mod.rs
+@@ -979,6 +979,10 @@ impl NativeResources {
+                                     value.as_mut_ptr().cast(),
+                                     64,
+                                 );
++                                // #1459 diagnostic: driver 580 rejects a zero preferred cluster dimension.
++                                if attribute.id == 11 && value.iter().all(|v| *v == 0) {
++                                    continue;
++                                }
+                                 let mut status = (driver.graph_attribute)(
+                                     result,
+                                     attribute.id,
+@@ -999,7 +1003,7 @@ impl NativeResources {
+                                         value.as_ptr().cast(),
+                                     );
+                                 }
+-                                driver.check("cuGraphKernelNodeSetAttribute", status)?;
++                                driver.check(&format!("cuGraphKernelNodeSetAttribute id={} value={:?} graph={}", attribute.id, &value[..2], graph.name), status)?;
+                             }
+                         }
+                         Node::Memset {
