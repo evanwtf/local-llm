@@ -57,10 +57,17 @@ UNKNOWN = "unknown"
 #: The word for a pair the table lists with no runtime. A gated run never
 #: writes it (the gate refuses first); only the suite's escape reaches it.
 NONE = "none"
-#: The tag prefix of an image this project builds on the host itself
-#: (`scripts/vllm_pr_overlay.py`, `scripts/vllm_two_node.py`). Such an image is
-#: a source build, whatever the engine's usual way on that host.
-LOCAL_IMAGE_PREFIX = "local/"
+#: What a backend may declare as `engine_runtime` in tasks.toml. The question
+#: is the arch one: was native code compiled on the serving host (`source`), or
+#: did it arrive built (`prebuilt`)? Patched Python on a pulled image is still
+#: `prebuilt`; the recipe pin records the patches. `unknown` is the honest
+#: answer when the recipe cannot show which.
+DECLARED = frozenset({"prebuilt", "source", UNKNOWN})
+#: Image repositories that are the engine vendor's own releases. A backend on
+#: one of these, with no recipe, needs no declaration: the table's one way is
+#: the truth. Anything else (a recipe, a third-party or local image) can build
+#: the engine differently, so it must declare (#324 review).
+VENDOR_IMAGES = ("vllm/vllm-openai:", "lmsysorg/sglang:", "ollama/ollama:")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -166,22 +173,35 @@ def lookup(engine: str, h: Host | None = None) -> Runtime | None:
     return RUNTIMES.get(engine.lower(), {}).get(h or host())
 
 
+def needs_declaration(backend: Mapping[str, object]) -> bool:
+    """True when a backend must declare `engine_runtime` in tasks.toml.
+
+    A recipe, or an image that is not a vendor release, decides how the engine
+    was built, and the engine's table entry cannot know that.
+    """
+    if backend.get("recipe_dir"):
+        return True
+    image = str(backend.get("image") or "")
+    return bool(image) and not image.startswith(VENDOR_IMAGES)
+
+
 def kind(engine: str, h: Host, backend: Mapping[str, object] | None = None) -> str:
     """How `engine` is obtained on `h`: `prebuilt`, `source`, `unknown` or `none`.
 
-    A backend whose `image` this project built locally (`local/...`) is a
-    source build. Without that, the table's entry decides; an engine with
-    both ways in the table records both, joined by `+`.
+    These four are the only values. `none` means the table lists no runtime
+    there. Otherwise the backend's declared `engine_runtime` wins. Without a
+    declaration, the table answers only when it lists one way on `h`; a guess
+    between two ways would be worse than `unknown`.
     """
     rt = lookup(engine, h)
-    if rt is None:
-        return UNKNOWN
-    if not rt.ways:
+    if rt is not None and not rt.ways:
         return NONE
-    image = str((backend or {}).get("image") or "")
-    if image.startswith(LOCAL_IMAGE_PREFIX):
-        return "source"
-    return "+".join(sorted(rt.ways))
+    declared = str((backend or {}).get("engine_runtime") or "")
+    if declared:
+        return declared
+    if rt is None or len(rt.ways) != 1:
+        return UNKNOWN
+    return next(iter(rt.ways))
 
 
 def server_host(facts: Mapping[str, object]) -> tuple[Host | None, str | None]:
@@ -299,6 +319,10 @@ def stamp(
     host, so the rows get no field rather than a guess. Old rows lack the
     field; nothing backfills it.
     """
+    # Only this function writes the field: a value the client's env or the
+    # server facts carried in is dropped, so a skip leaves no stale answer.
+    for env in env_for.values():
+        env.pop(ROW_KEY, None)
     remote = server_facts is not None
     if remote:
         where, why = server_host(server_facts or {})

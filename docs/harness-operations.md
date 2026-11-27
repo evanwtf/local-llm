@@ -67,14 +67,29 @@ machine, but the engine runs on the aarch64 Sparks.
   why, and goes on. Write the facts again on the server.
 - **The suite:** `LOCAL_LLM_ANY_PLATFORM=1` skips the check; its engines are fakes.
 
-Each new row records the answer as **`env.engine_runtime`**: `prebuilt`,
-`source`, or `unknown` (`none` only when the suite's escape let a gap through).
-A backend whose `image` starts with `local/` was built on the host
-(`scripts/vllm_pr_overlay.py`, `scripts/vllm_two_node.py`), so its rows say
-`source`, whatever the engine's usual way is. Otherwise the value is the
-table's entry for the engine, not a check of that backend's recipe. Facts
-with no `arch` give no field, never a guess. Rows from before 2026-11-27 have
-no field, and nothing backfills it.
+Each new row records how its backend's engine was obtained on the serving host
+as **`env.engine_runtime`**. The value is one of four words:
+
+- `source`: native code was compiled on the host (a source build, or an image
+  built there that compiles the engine or its kernels).
+- `prebuilt`: the engine arrived built (a release archive, a wheel, a pulled
+  image). Patched Python on a pulled image is still `prebuilt`; the recipe pin
+  records the patches.
+- `unknown`: nobody can say. That is better than a guess.
+- `none`: the table lists no runtime there. Only the suite's escape gets a row
+  that far.
+
+**The backend's own declaration decides.** A backend with a `recipe_dir`, or
+with an `image` that is not a vendor release (`vllm/vllm-openai`,
+`lmsysorg/sglang`, `ollama/ollama`), must set `engine_runtime = "prebuilt"`,
+`"source"` or `"unknown"` in `tasks.toml`. Put a comment above it that cites
+the recipe line that shows it. A test fails when a live backend lacks one.
+Without a declaration, the row takes the table's way only when the table lists
+one way for the engine on that host. Otherwise the row says `unknown`.
+
+Facts with no `arch` give the rows no field: `run.py` does not fall back to
+the client's host. Rows written before this change merged have no field, and
+nothing backfills it.
 
 ## Retire a backend, do not delete it
 

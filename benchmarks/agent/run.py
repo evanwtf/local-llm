@@ -6810,6 +6810,22 @@ def versions_per_backend(versions, names, argv_by_backend):
     return out
 
 
+def row_envs(versions, backends, argv_by_backend, server_facts, clients):
+    """The batch env and each backend's row env, as the rows will carry them.
+
+    A remote run re-describes the env as the server's (`remote.stamp`). Then
+    each backend's env gets #324's `engine_runtime` for its serving host: set
+    last, per backend, so neither the client's env nor the server facts can
+    replace it.
+    """
+    if server_facts is not None:
+        versions = remote.stamp(versions, server_facts)
+    versions["client"] = ",".join(clients)
+    env_for = versions_per_backend(versions, backends, argv_by_backend)
+    runtimes.stamp(env_for, backends, server_facts)
+    return versions, env_for
+
+
 class CellStops:
     """Which (backend, client) cells a batch has stopped scheduling.
 
@@ -7328,13 +7344,9 @@ def main():
         argv_by_backend=argv_by_backend,
         no_image_check_reason=args.no_image_check_reason,
     )
-    if server_facts is not None:
-        versions = remote.stamp(versions, server_facts)
-    versions["client"] = ",".join(clients)
-    env_for = versions_per_backend(versions, backends, argv_by_backend)
-    # #324: how each backend's engine was obtained on its serving host. Set
-    # after remote.stamp, per backend, so the server facts cannot replace it.
-    runtimes.stamp(env_for, backends, server_facts)
+    versions, env_for = row_envs(
+        versions, backends, argv_by_backend, server_facts, clients
+    )
     # #213: a row carries the server's launch argv or says why it has none. A
     # dry run writes its rows elsewhere, so it warns instead of refusing.
     if gaps := argv_gaps(env_for, backends, args.no_argv_reason):

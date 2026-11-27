@@ -123,7 +123,7 @@ def test_a_runtime_that_exists_names_how_it_is_obtained() -> None:
             assert rt.note, (engine, host)
 
 
-def test_the_suite_escape_and_a_remote_run_skip_the_refusal(
+def test_the_suite_escape_and_a_remote_run_without_facts_skip_the_refusal(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     backends = {"b": _local("mlx-serve")}
@@ -213,19 +213,77 @@ def test_facts_without_arch_or_os_give_no_host_and_a_reason(facts: dict) -> None
         ("ds4", X86, {}, "unknown"),
         ("mtplx", MAC, {}, "unknown"),
         ("mlx-serve", DGX, {}, "none"),
-        # An image this project built here (scripts/vllm_pr_overlay.py and
-        # scripts/vllm_two_node.py tag them `local/...`) is a source build,
-        # whatever the engine's usual way on that host.
-        ("vllm", DGX, {"image": "local/vllm-openai:main-abc123"}, "source"),
-        ("vllm", DGX, {"image": "vllm/vllm-openai:v0.34.0"}, "prebuilt"),
-        # A local image does not make an untried pair known.
-        ("ds4", X86, {"image": "local/ds4:x"}, "unknown"),
+        # A declaration wins over the table: a recipe that compiles vLLM.
+        ("vllm", DGX, {"engine_runtime": "source"}, "source"),
+        ("tensorfold", DGX, {"engine_runtime": "unknown"}, "unknown"),
+        # A `local/` tag says nothing by itself: no declaration, the table.
+        ("vllm", DGX, {"image": "local/vllm-openai:main-abc123"}, "prebuilt"),
+        # A declaration does not hide a pair with no runtime.
+        ("mlx-serve", DGX, {"engine_runtime": "source"}, "none"),
     ],
 )
 def test_the_runtime_kind_is_a_fixed_word(
     engine: str, host: tuple, backend: dict, want: str
 ) -> None:
     assert runtimes.kind(engine, host, backend) == want
+
+
+def test_an_undeclared_engine_with_two_ways_is_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The table cannot say which of two ways a backend took."""
+    both = runtimes.Runtime(frozenset({"prebuilt", "source"}), "either")
+    monkeypatch.setitem(runtimes.RUNTIMES, "twoway", {DGX: both})
+    assert runtimes.kind("twoway", DGX, {}) == "unknown"
+    assert runtimes.kind("twoway", DGX, {"engine_runtime": "source"}) == "source"
+
+
+@pytest.mark.parametrize(
+    "backend, want",
+    [
+        ({"engine": "vllm", "image": "vllm/vllm-openai:v0.34.0"}, False),
+        ({"engine": "sglang", "image": "lmsysorg/sglang:nightly-x"}, False),
+        ({"engine": "vllm"}, False),
+        ({"engine": "vllm", "recipe_dir": "~/recipe"}, True),
+        ({"engine": "vllm", "image": "vllm/vllm-openai:x", "recipe_dir": "~/r"}, True),
+        ({"engine": "vllm", "image": "local/vllm-openai:x"}, True),
+        ({"engine": "vllm", "image": "someone/their-vllm:v1"}, True),
+    ],
+)
+def test_a_recipe_or_a_non_vendor_image_needs_a_declaration(
+    backend: dict, want: bool
+) -> None:
+    assert runtimes.needs_declaration(backend) is want
+
+
+def _live_backends() -> dict[str, dict]:
+    with (HERE / "tasks.toml").open("rb") as fh:
+        backends = tomllib.load(fh)["backend"]
+    return {n: b for n, b in backends.items() if not b.get("retired")}
+
+
+def test_every_live_backend_that_needs_it_declares_its_engine_runtime() -> None:
+    """A recipe can build the engine from source or pull it, and the table
+    cannot tell which: 33 two-node rows would have said `prebuilt` wrongly.
+    Declare `prebuilt`, `source` or `unknown`, with a comment that cites the
+    recipe line that shows it."""
+    missing = sorted(
+        n
+        for n, b in _live_backends().items()
+        if runtimes.needs_declaration(b) and "engine_runtime" not in b
+    )
+    assert not missing, f"declare engine_runtime in tasks.toml for: {missing}"
+
+
+def test_every_declared_engine_runtime_is_an_allowed_word() -> None:
+    with (HERE / "tasks.toml").open("rb") as fh:
+        backends = tomllib.load(fh)["backend"]
+    bad = {
+        n: b["engine_runtime"]
+        for n, b in backends.items()
+        if "engine_runtime" in b and b["engine_runtime"] not in runtimes.DECLARED
+    }
+    assert not bad, bad
 
 
 def test_a_local_row_records_the_kind_on_this_host() -> None:
@@ -336,14 +394,23 @@ def _two_node_backends() -> dict[str, dict]:
 def test_every_two_node_backend_passes_the_gate_on_the_spark(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """#324 item 4: each live two-node backend has a known runtime on Linux
-    aarch64, so a two-node screen neither refuses nor logs an unknown pair."""
+    """Each live two-node backend's engine has a runtime on Linux aarch64, so
+    a two-node screen is not refused. Its row value is the backend's own
+    declaration, or else the table's single way for an engine that needs no
+    declaration; never a value nobody stated."""
     backends = _two_node_backends()
     assert backends, "no two-node backends in tasks.toml"
     monkeypatch.setenv("LOCAL_LLM_SERVER_HOST", "server.example.invalid")
     for name, b in backends.items():
+        engine = str(b["engine"])
         assert runtimes.refusal({name: b}, server_facts=_facts()) is None, name
-        assert runtimes.kind(str(b["engine"]), DGX, b) in {"prebuilt", "source"}, name
+        got = runtimes.kind(engine, DGX, b)
+        if "engine_runtime" in b:
+            assert got == b["engine_runtime"], name
+        else:
+            assert not runtimes.needs_declaration(b), name
+            rt = runtimes.lookup(engine, DGX)
+            assert rt is not None and rt.ways == {got}, name
 
 
 def test_hyperflare_two_node_is_a_source_build() -> None:
@@ -352,13 +419,3 @@ def test_hyperflare_two_node_is_a_source_build() -> None:
     assert hf
     for b in hf.values():
         assert runtimes.kind("hyperflare", DGX, b) == "source"
-
-
-def test_run_py_stamps_the_kind_on_each_backends_row_env() -> None:
-    """The field is set on the per-backend env, after the remote stamp, so the
-    server facts cannot overwrite it."""
-    text = (HERE / "run.py").read_text()
-    split = text.index("env_for = versions_per_backend(")
-    mark = text.index("runtimes.stamp(env_for, backends, server_facts")
-    assert split < mark
-    assert text.index("versions = remote.stamp(versions, server_facts)") < mark
