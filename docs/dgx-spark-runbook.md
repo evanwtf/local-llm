@@ -112,6 +112,7 @@ into the fork first, then build the fork.
 | 8030 | single-node vLLM; metrics on the API port |
 | 8043 | the video-gen gallery on the head: read-only, LAN only (`scripts/videogen/gallery_serve.py`, #1413) |
 | 8888 | the two-Spark recipes |
+| 5560 | sparkDash on the head, `127.0.0.1` only on purpose: it can power off and delete ([below](#sparkdash-a-second-view-loopback-only-1206)) |
 
 **Bind `0.0.0.0`.** Loopback binding silently broke monitoring for weeks:
 Prometheus targets sat at `up=0` because nothing they pointed at was
@@ -590,6 +591,102 @@ all use it.
   then carries `env.serving_image_unchecked`: the reason and each refusal.
 
 Rows from before #1516 have no `env.serving_image`.
+
+## sparkDash: a second view, loopback only (#1206)
+
+[sparkDash](https://github.com/MiaAI-Lab/sparkDash) (Apache-2.0) is a web
+dashboard for DGX Sparks. It runs on the head only. Use it as a second view.
+Do not take a published number from it.
+
+- **Version:** `main` at
+  [`e6bf136b`](https://github.com/MiaAI-Lab/sparkDash/commit/e6bf136b69355cac47b0cf086351d0574b8c33d6)
+  (2.91.0, 2026-11-26). The published image stops at v2.32.0, so the head
+  builds `main` from source.
+- **Where:** a clone in the operator's git directory, container `sparkDash`,
+  started with the upstream production path, `docker compose up --build -d`.
+  A local `docker-compose.override.yml` (untracked; Compose loads it by
+  itself) sets the values below. `config/sparks.json` holds one unit: the
+  head, read locally (`isLocal: true`), with no SSH.
+- **Bind:** `127.0.0.1:5560` only. The `dcgm` container already publishes
+  5555, the upstream default. `SPARKDASH_ALLOW_OPEN_REMOTE=0` makes a LAN bind
+  without a token refuse to start. Open it from a laptop with a tunnel:
+
+  ```sh
+  ssh -N -L 5560:127.0.0.1:5560 <user>@<head-host>
+  # then browse to http://127.0.0.1:5560
+  ```
+
+- **Trust:** anyone who can reach the port is an administrator. The container
+  is `privileged`, uses the host PID and network namespaces, and mounts `/`
+  read-only. Its power, storage-delete and GPU-clock actions run as root on
+  the head. Loopback limits this to accounts on the head.
+
+### One LLM port: 8888
+
+The unit probes `127.0.0.1:8888` and no other port. Our own metrics exporter
+once connected to every TCP listener on the head, and one stray connection
+aborted a two-node flare start
+([evanwtf/llm-metrics-exporter#25](https://github.com/evanwtf/llm-metrics-exporter/issues/25)).
+The sparkDash source (2026-11-27) has no listener scan: it reads only
+`/proc/net/dev` and `/proc/net/route`, and probes only the configured
+`llmPorts`. One exception: when the port answers as llama-swap, it follows
+llama-swap's loopback engine port. Do not add a preset port (1234, 11434) or
+a second LLM port without the same check.
+
+Checked on 2026-11-27 with `strace -f -e trace=connect` on the server for
+150 s: 450 `connect()` calls, all to `127.0.0.1:8888`, and no other. With no
+server on 8888, the probe connects about 3 times a second and gets refused.
+
+### Left off
+
+Each of these is off by default. Keep it off.
+
+| feature | state |
+|---|---|
+| ComfyUI, Hermes, Tailnet, spark-attic monitoring | off in `sparks.json` |
+| spark-attic install, Hermes update | never clicked |
+| metrics history, Prometheus `/metrics`, alerts, MQTT, price catalog | off (Settings) |
+| decode, prefill, quality and Tool Eval benchmarks, Prompt Showcase | never started: they load the GPU and void a run |
+| shutdown, storage delete, Docker image removal, GPU clock cap, power limit | never clicked. No `spark-shutdown` helper is installed |
+| SSH to the worker | no key is mounted and no remote unit exists |
+
+These actions have no off switch in sparkDash. A loopback bind and "never
+click" are the controls.
+
+### Overhead
+
+Measured 2026-11-27, `docker stats --no-stream` every 15 s for 5 minutes,
+with no LLM server on 8888 (20 samples): CPU median 3.4% of one core, mean
+9.0%, peak 57% (a periodic collection burst). The machine has 20 cores.
+Memory: 84 MiB anonymous (cgroup `memory.stat`). `docker stats` showed
+99 MiB rising to 172 MiB, but the growth was page cache (`active_file`),
+which the kernel can reclaim.
+
+### Stop and remove it
+
+```sh
+cd <sparkDash clone>
+docker compose down                   # stops and removes the container
+docker image rm sparkdash-sparkdash   # removes the local image
+sudo rm -rf <sparkDash clone>         # root owns the files it wrote in config/
+```
+
+The container uses `restart: always`, so a plain `docker stop` does not
+survive a reboot. Use `docker compose down`.
+
+### Adding the worker later
+
+This needs an SSH credential, so the operator does it:
+
+1. Make a dedicated key for sparkDash (not the operator's main key), store
+   it in 1Password, and authorize it on the worker.
+2. Mount it in the override file as
+   `<key path>:/root/.ssh/id_ed25519:ro` (mode 600), then
+   `docker compose up -d`.
+3. In the UI, add the worker as a remote unit with role Worker over the
+   fabric address, and set the head's role to Head. A worker gets no LLM
+   probe. SSH uses `StrictHostKeyChecking=accept-new`, so check the host key
+   first.
 
 ## Packages added beyond the base image
 
