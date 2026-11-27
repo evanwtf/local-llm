@@ -157,7 +157,10 @@ def gpu_watts(server: str, timeout: float = 5.0) -> float | None:
     try:
         with urllib.request.urlopen(url, timeout=timeout) as r:
             return parse_dcgm_watts(r.read().decode("utf-8", "replace"))
-    except (urllib.error.URLError, OSError, ValueError):
+    except Exception:  # noqa: BLE001 -- a raise here ends the poll loop
+        # Any failure is None. A cut body or a non-HTTP reply raises
+        # http.client.HTTPException, which would escape the watchdog's poll
+        # loop (#1453 review).
         return None
 
 

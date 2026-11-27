@@ -26,6 +26,17 @@ Then, for each floor:
   under the floor is a **kill**: the watchdog would read a working stretch
   as idle. The light-model column is the generating windows of `--light`.
 
+The **rule** line counts the watchdog's #1453 rule: a window whose resident
+engine exports a running-request signal (vLLM, SGLang, llama.cpp) is judged
+at the engine-rule floor (20 W), because the engine says when a request runs;
+every other window is judged by power alone at the GB10 tier floor (13 W).
+Its killed columns count power-rule windows only: an engine window that
+generated cannot count as killed, by construction, so those columns say
+nothing about whether the engine rule is safe. The evidence for that is a
+replay of the trials themselves (the #1453 review). Of the quiet windows the
+rule newly catches, none overlaps a trial: they are idle hours with a model
+loaded.
+
 Windows are back to back, not sliding, so the counts are a lower bound on
 what a sliding 600 s watchdog sees; the ratios between floors are the point.
 
@@ -52,9 +63,14 @@ from dataclasses import dataclass
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+# timeout_policy owns the floors and the engine table (#1453).
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
 
 import dgx_hosts
 import dgx_metrics
+import timeout_policy
 
 import logs
 
@@ -80,8 +96,10 @@ SERIES: tuple[tuple[str, str], ...] = (
     ("tokens", f"sum(increase(llme_tokens_total[{W}]))"),
     ("requests", f"sum(increase(llme_requests_total[{W}]))"),
 )  # fmt: skip
-#: Per model: 1 while its engine is up in the window.
-RESIDENT = f"max by (model) (max_over_time(llme_engine_up[{W}])) == 1"
+#: Per engine and model: 1 while that engine is up in the window.
+RESIDENT = f"max by (engine, model) (max_over_time(llme_engine_up[{W}])) == 1"
+#: The exporter's `engine` label, as tasks.toml writes the engine.
+EXPORTER_ENGINE = {"llamacpp": "llama.cpp"}
 
 
 @dataclass(frozen=True)
@@ -95,6 +113,9 @@ class Window:
     running_min: float | None
     tokens: float | None
     requests: float | None
+    #: The exporter's engine labels up in the window. Empty in --save files
+    #: written before #1453.
+    engines: tuple[str, ...] = ()
 
     @property
     def resident(self) -> bool:
@@ -164,9 +185,28 @@ def resident_models(gcx_json: str) -> dict[int, tuple[str, ...]]:
     return {ts: tuple(sorted(m)) for ts, m in got.items()}
 
 
+def resident_engines(gcx_json: str) -> dict[int, tuple[str, ...]]:
+    """The exporter engine labels up at each timestamp, sorted."""
+    got: dict[int, set[str]] = {}
+    for labels, points in matrix_series(gcx_json):
+        engine = labels.get("engine", "unknown")
+        for ts, value in points:
+            if value >= 1:
+                got.setdefault(ts, set()).add(engine)
+    return {ts: tuple(sorted(e)) for ts, e in got.items()}
+
+
+def has_engine_signal(engines: Sequence[str]) -> bool:
+    """Would the watchdog read a running-request signal from these engines?"""
+    return any(
+        EXPORTER_ENGINE.get(e, e) in timeout_policy.ENGINE_SIGNALS for e in engines
+    )
+
+
 def windows(
     series: Mapping[str, Mapping[int, float]],
     models: Mapping[int, tuple[str, ...]],
+    engines: Mapping[int, tuple[str, ...]] | None = None,
 ) -> list[Window]:
     """Join the series on timestamp into windows that have a power reading."""
     head = series.get("head_peak_w", {})
@@ -183,6 +223,7 @@ def windows(
                 running_min=series.get("running_min", {}).get(ts),
                 tokens=series.get("tokens", {}).get(ts),
                 requests=series.get("requests", {}).get(ts),
+                engines=(engines or {}).get(ts, ()),
             )
         )
     return out
@@ -237,6 +278,76 @@ def count(
         )
         for f in floors
     ]
+
+
+def count_rule(
+    wins: Sequence[Window],
+    power_floor: float,
+    engine_floor: float,
+    light: str = "inkling",
+) -> FloorRow:
+    """The #1453 rule's verdict on the history, as one row.
+
+    A window whose engine has a running-request signal is judged at
+    `engine_floor`, and only a quiet one can read as idle there. So the
+    killed counts hold power-rule windows only, by construction: they cannot
+    show the engine rule killing anything. Every other window is judged by
+    power alone at `power_floor`. `floor_w` holds the engine floor.
+    """
+    have = [w for w in wins if w.peak_w is not None]
+    quiet = [w for w in have if w.quiet]
+    gen = [w for w in have if w.generating]
+    live = [w for w in have if w.live]
+    lite = [w for w in gen if any(light in m.lower() for m in w.models)]
+
+    def floor(w: Window) -> float:
+        return engine_floor if has_engine_signal(w.engines) else power_floor
+
+    def missed(ws: Sequence[Window]) -> int:
+        return sum(1 for w in ws if w.peak_w is not None and w.peak_w >= floor(w))
+
+    def killed(ws: Sequence[Window]) -> int:
+        return sum(
+            1
+            for w in ws
+            if not has_engine_signal(w.engines)
+            and w.peak_w is not None
+            and w.peak_w < power_floor
+        )
+
+    return FloorRow(
+        floor_w=engine_floor,
+        quiet=len(quiet),
+        missed=missed(quiet),
+        generating=len(gen),
+        gen_killed=killed(gen),
+        live=len(live),
+        live_killed=killed(live),
+        light=len(lite),
+        light_killed=killed(lite),
+    )
+
+
+def missed_by_engine(
+    wins: Sequence[Window], power_floor: float, engine_floor: float
+) -> dict[str, tuple[int, int, int]]:
+    """Per resident engine set: (quiet windows, missed by power, missed by rule).
+
+    Shows where the rule's gain comes from, and what stays on the power rule.
+    """
+    out: dict[str, tuple[int, int, int]] = {}
+    for w in wins:
+        if w.peak_w is None or not w.quiet:
+            continue
+        key = "+".join(w.engines) or "unknown"
+        floor = engine_floor if has_engine_signal(w.engines) else power_floor
+        q, old, new = out.get(key, (0, 0, 0))
+        out[key] = (
+            q + 1,
+            old + (w.peak_w >= power_floor),
+            new + (w.peak_w >= floor),
+        )
+    return dict(sorted(out.items()))
 
 
 def _cell(n: int, d: int) -> str:
@@ -322,9 +433,12 @@ def fetch(
         series[name] = got
         logger.info("%s: %d windows", name, len(got))
     models: dict[int, tuple[str, ...]] = {}
+    engines: dict[int, tuple[str, ...]] = {}
     for a, b in cuts:
-        models.update(resident_models(prom(RESIDENT, a, b, WINDOW_S)))
-    return windows(series, models)
+        raw = prom(RESIDENT, a, b, WINDOW_S)
+        models.update(resident_models(raw))
+        engines.update(resident_engines(raw))
+    return windows(series, models, engines)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -350,7 +464,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     logs.configure()
     if args.load:
         wins = [
-            Window(**{**w, "models": tuple(w["models"])})
+            Window(
+                **{
+                    **w,
+                    "models": tuple(w["models"]),
+                    "engines": tuple(w.get("engines", ())),
+                }
+            )
             for w in json.loads(args.load.read_text())
         ]
     else:
@@ -366,6 +486,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
     for line in table(count(wins, args.floors, args.light), args.light):
         logger.info("%s", line)
+    power = timeout_policy.TIER_IDLE_FLOOR_WATTS["gb10-spark-x2"]
+    engine = timeout_policy.ENGINE_IDLE_FLOOR_WATTS
+    rule = count_rule(wins, power, engine, args.light)
+    engine_wins = sum(1 for w in wins if w.quiet and has_engine_signal(w.engines))
+    logger.info(
+        "#1453 rule: engine windows at %g W, the rest by power at %g W"
+        " (%d of %d quiet windows have an engine signal)",
+        engine,
+        power,
+        engine_wins,
+        rule.quiet,
+    )
+    for line in table([rule], args.light)[2:]:
+        logger.info("rule %s", line)
+    logger.info("rule: the killed columns count power-rule windows only")
+    for key, (q, old, new) in missed_by_engine(wins, power, engine).items():
+        logger.info(
+            "quiet windows of %s: %d; missed at %g W by power %d, by the rule %d",
+            key,
+            q,
+            power,
+            old,
+            new,
+        )
     return 0
 
 

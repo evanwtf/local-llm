@@ -483,3 +483,34 @@ def test_a_pr_with_a_url_renders_as_a_link() -> None:
     assert hb.format_prs([pr]) == (
         "[#1167](https://github.com/evanwtf/local-llm/pull/1167) results [CLEAN]"
     )
+
+
+# #1454: one number defines GB10 idle. The heartbeat read GB10 power against
+# its own 20 W floor, so it called a live Inkling 2 Mini decode (15.8-17.3 W
+# per GPU, #1448) "GPU idle". It now takes the floor the GPU-idle-stall
+# watchdog uses for the GB10 tiers (13 W after #1450).
+
+
+def test_gb10_floor_is_the_watchdog_tier_floor() -> None:
+    sys.path.insert(
+        0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+    )
+    import timeout_policy
+
+    tiers = timeout_policy.TIER_IDLE_FLOOR_WATTS
+    assert hb.IDLE_FLOOR_W["gb10"] == tiers["gb10-spark"] == tiers["gb10-spark-x2"]
+
+
+def test_gb10_light_decode_is_busy_and_loaded_idle_is_idle() -> None:
+    # 16 W: Inkling 2 Mini decoding (#1448). 10 W: a GB10 with a model
+    # resident and no request (#1450).
+    assert hb.gpu_is_idle("gb10", 16.0) is False
+    assert hb.gpu_is_idle("gb10", 10.0) is True
+
+
+def test_gb10_idle_matches_the_watchdog_at_the_floor() -> None:
+    # The watchdog counts a reading at the floor as work (watts >= floor);
+    # the heartbeat must not call the same reading idle.
+    floor = hb.IDLE_FLOOR_W["gb10"]
+    assert hb.gpu_is_idle("gb10", floor) is False
+    assert hb.gpu_is_idle("gb10", floor - 0.1) is True

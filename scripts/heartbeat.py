@@ -111,6 +111,12 @@ from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+# timeout_policy owns the GB10 idle floor (#1454); it lives in benchmarks/agent.
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
+
+import timeout_policy
 
 import logs
 
@@ -132,10 +138,30 @@ SEND_EVERY_MIN = 29
 #: A Claude Code recurring job expires after 7 days; warn a day before.
 LOOP_WARN_DAYS = 6
 
-#: GPU power at or below this is the idle floor (W). The M5 Max SoC rail reads
-#: 2.4 W idle; the RTX 3080 Ti reads ~20 W idle; a GB10 reads 9-14 W idle and
-#: 35-83 W working (memory: gpu-idle-is-power-not-utilization).
-IDLE_FLOOR_W = {"mac": 5.0, "nvidia": 30.0, "gb10": 20.0}
+#: GPU power below this is idle (W); at or above it is work. The M5 Max SoC
+#: rail reads 2.4 W idle; the RTX 3080 Ti reads ~20 W idle.
+#:
+#: GB10 takes the GPU-idle-stall watchdog's tier floor, so one number defines
+#: GB10 idle (#1454). The idle and working bands overlap on GB10 (#1450): with
+#: a two-node model resident and no request, the worker draws 11.5-12.0 W on
+#: average (head 10.5-10.8 W), and Inkling 2 Mini decodes at 15.8-17.3 W per
+#: GPU (#1448). Heavier models work at 35-83 W. The old 20 W floor called that
+#: light decode "GPU idle" (two heartbeats on 2026-11-21).
+IDLE_FLOOR_W = {
+    "mac": 5.0,
+    "nvidia": 30.0,
+    "gb10": timeout_policy.TIER_IDLE_FLOOR_WATTS["gb10-spark-x2"],
+}
+
+
+def gpu_is_idle(kind: str, watts: float) -> bool:
+    """True when `watts` is below the idle floor for `kind`.
+
+    The same rule as the watchdog (timeout_policy.IdleStallWatchdog): a
+    reading at the floor is work, not idle.
+    """
+    return watts < IDLE_FLOOR_W[kind]
+
 
 MACHINE_NAMES = {"mac": "M5 Max", "nvidia": "Ryzen / RTX 3080 Ti"}
 
@@ -701,7 +727,7 @@ def gather(
 ) -> tuple[str, dict[str, Any]]:
     """Read the machine; return the body and the bookkeeping to record."""
     s = read_mac() if kind == "mac" else read_nvidia()
-    gpu_idle = None if s.gpu_w is None else s.gpu_w <= IDLE_FLOOR_W[kind]
+    gpu_idle = None if s.gpu_w is None else gpu_is_idle(kind, s.gpu_w)
     book = idle_power_updates(state, gpu_idle, now)
     merged = state | book
     where = disk_path(kind)

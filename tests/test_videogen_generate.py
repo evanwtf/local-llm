@@ -664,7 +664,7 @@ def test_a_gpu_that_stays_busy_for_the_whole_window_is_refused(
     assert server.forms == []
     assert not (tmp_path / "o").exists()
     assert gpu.calls == 121  # one read a second, from 0 s to 120 s
-    assert "still draws 40.0 W after 120 s, above the 20 W idle floor" in caplog.text
+    assert "still draws 40.0 W after 120 s, above the 13 W idle floor" in caplog.text
 
 
 def test_the_run_waits_for_the_gpu_to_settle(
@@ -673,29 +673,30 @@ def test_the_run_waits_for_the_gpu_to_settle(
     # batch.py starts the next clip in the second the last one ends, while
     # the GPU still reads its working draw (00:18:11 on 2026-11-18).
     server = FakeServer(ok_reply())
-    gpu = Gpu(before=[40.0, 38.0, 30.0, 15.0])
+    gpu = Gpu(before=[40.0, 38.0, 30.0, 12.0])
     rc = go(make("h3-t2v", first_frame), tmp_path / "o", server, gpu=gpu)
     assert rc == 0
     assert len(server.forms) == 1
     seen = read_run(tmp_path / "o")["server"]
-    assert seen["gpu_w_before"] == 15.0
+    assert seen["gpu_w_before"] == 12.0
     assert seen["settle_s"] == 3.0
     assert seen["settle_readings"] == [
         [0.0, 40.0],
         [1.0, 38.0],
         [2.0, 30.0],
-        [3.0, 15.0],
+        [3.0, 12.0],
     ]
 
 
 def test_wait_for_idle_polls_once_a_second() -> None:
     clock = FakeClock()
     deps = generate.Deps(
-        gpu=Gpu(before=[40.0, 21.0, 20.0]), sleep=clock.sleep, clock=clock.now
+        gpu=Gpu(before=[40.0, 13.0, 12.9]), sleep=clock.sleep, clock=clock.now
     )
     got = generate.wait_for_idle("h", "head", deps)
     assert clock.slept == [1.0, 1.0]
-    assert got["gpu_w_before"] == 20.0  # at the floor counts as idle
+    # At the floor is work (the watchdog's rule, #1454); just below is idle.
+    assert got["gpu_w_before"] == 12.9
     assert got["settle_s"] == 2.0
 
 
@@ -716,7 +717,7 @@ def test_an_unreadable_gpu_proceeds_with_a_warning(
 
 
 def test_the_idle_floor_is_the_heartbeat_gb10_floor() -> None:
-    assert generate.IDLE_W == 20.0
+    assert generate.IDLE_W == generate.heartbeat.IDLE_FLOOR_W["gb10"] == 13.0
 
 
 def test_an_output_inside_a_repo_is_refused(first_frame: pathlib.Path) -> None:

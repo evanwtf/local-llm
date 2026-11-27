@@ -12,6 +12,9 @@ commit.
 from __future__ import annotations
 
 import pathlib
+import socket
+import threading
+from collections.abc import Callable, Iterator
 
 import provenance
 import pytest
@@ -86,3 +89,47 @@ def _keep_the_stash_inside_the_test(request, tmp_path, monkeypatch):
     # reads the real one validates against whatever the last sync left there;
     # a test that syncs into it writes into the operator's working tree.
     monkeypatch.setattr(run, "SANDBOX_ROOT", tmp_path / "sandbox", raising=False)
+
+
+@pytest.fixture
+def raw_http() -> Iterator[Callable[..., str]]:
+    """Serve scripted raw bytes on loopback, for HTTP failure tests (#1453).
+
+    ``serve(reply, delay=0.0)`` returns ``http://127.0.0.1:<port>/metrics``.
+    Each connection reads the request, waits ``delay`` seconds, writes
+    ``reply`` as is, and closes. A reply can be a short body, a cut chunked
+    body, or no HTTP at all: the replies ``http.server`` cannot send.
+    """
+    socks: list[socket.socket] = []
+    stop = threading.Event()
+
+    def serve(reply: bytes, delay: float = 0.0) -> str:
+        sock = socket.socket()
+        sock.bind(("127.0.0.1", 0))
+        sock.listen()
+        sock.settimeout(0.2)
+        socks.append(sock)
+
+        def loop() -> None:
+            while not stop.is_set():
+                try:
+                    conn, _ = sock.accept()
+                except OSError:
+                    continue
+                with conn:
+                    conn.settimeout(2.0)
+                    try:
+                        conn.recv(65536)
+                        if stop.wait(delay):
+                            return
+                        conn.sendall(reply)
+                    except OSError:
+                        pass
+
+        threading.Thread(target=loop, daemon=True).start()
+        return f"http://127.0.0.1:{sock.getsockname()[1]}/metrics"
+
+    yield serve
+    stop.set()
+    for sock in socks:
+        sock.close()
