@@ -5857,7 +5857,7 @@ tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
 engine = "tensorfold"
-# engine_runtime (#324): scripts/ling31_two_node.py:244: prepare runs the recipe's serve/prebuild.py, which JIT-compiles the engine's CUDA extensions from the checkout on each node.
+# engine_runtime (#324): scripts/ling31_two_node.py:246: prepare runs the recipe's serve/prebuild.py, which JIT-compiles the engine's CUDA extensions from the checkout on each node.
 engine_runtime = "source"
 model = "ling-3.1-flash-1019"
 aider_model = "openai/ling-3.1-flash-1019"

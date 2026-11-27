@@ -278,3 +278,37 @@ def test_the_script_runs_its_arguments_as_the_server(tmp_path: pathlib.Path) -> 
     )
     assert r.returncode == 7 and "served" in r.stdout
     assert (tmp_path / "stop").exists()
+
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
+BACKEND = "ling31f1019exl3tfbertnothinkdual2xrc"
+
+
+def _backend() -> dict[str, object]:
+    import tomllib
+
+    text = (REPO / "benchmarks" / "agent" / "tasks.toml").read_text()
+    backend: dict[str, object] = tomllib.loads(text)["backend"][BACKEND]
+    return backend
+
+
+def test_the_backend_matches_what_the_launcher_serves() -> None:
+    b = _backend()
+    assert b["model"] == k.SERVED_NAME
+    assert b["base_url"] == f"http://127.0.0.1:{k.PORT}"
+    assert b["context_tokens"] == int(_after(list(k.SERVE_ARGS), "--context"))
+    assert b["client_effort"] == "unset"
+    assert b["recipe_dir"] == f"~/{k.RECIPE_TREE}"
+    assert "nothink" in BACKEND
+
+
+def test_the_reference_opencode_entry_sends_no_effort() -> None:
+    # A client effort turns thinking back on in this engine (#1309).
+    sys.path.insert(0, str(REPO / "scripts"))
+    import client_container
+
+    path = REPO / "config" / "opencode.json"
+    why = client_container.check_opencode_provider(
+        BACKEND, _backend(), path.read_text(), path
+    )
+    assert why is None, why
