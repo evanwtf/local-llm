@@ -1,0 +1,42 @@
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] 2026-11-27T00:53:55Z (19:53:55 EST) | harness d6920f7
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement bwrap
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] Hugging Face sweep since 2026-11-26T19:53:55Z (5h)
+
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] == Qwen3.8-Flash-Next -- our fastest stack (llama.cpp Q3, and the 112 GB MLX build)
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? thetechpanda/Swift-1.5-Qwen3.8-Flash-Next-DS4              2026-11-26T22:38         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] == DeepSeek-V4-Flash -- our only independent lineage; ds4 serves it
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? AI-SecurityAgent/DeepSeek-V4.1-Flash-1017-FP16             2026-11-27T00:51         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? wenzhouwu/YoungAi-DeepSeek-V4.1-Flash-1017                 2026-11-26T23:29         dl=934
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? mkkelso1/DeepSeek-V4-Flash-Base                            2026-11-26T22:21         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]     mxxm-t/DeepSeek-V4.1-Flash-DFly2-GGUF                      2026-11-26T19:56         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] == GLM-5.3-Flash -- the other non-Qwen on ds4
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? aexol/GLM-5.3-Flash-HYPERFLARE-TP4                         2026-11-26T22:27         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? d3vilbug/GLM-5.3-Flash-TFQ3-4bpw                           2026-11-26T21:57         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]     mxxm-t/GLM-5.3-Flash-DFly2-GGUF                            2026-11-26T20:56         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] == gemma-4-26b -- the MLX Fast leaderboard model; measured 11/11
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? McSlyver/gemma-4-26B-A4B-it-FuxMul                         2026-11-26T22:46         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? oxpuppy635/gemma-4-26B-A4B-it-qat-q4_0-unquantized-uncenso 2026-11-26T21:02         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? radiosilent/mbe-gemma4-26b-sysml                           2026-11-26T20:15         dl=124
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] == gemma-4-31b -- the Google-lineage backend, measured 12/12
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? khazic/gemma4_31b_sea8_2ep_sft                             2026-11-26T22:31         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? cbrigance/google-gemma-4-31B-it-heretic-v2                 2026-11-26T21:19         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]     ND911/Gemma-4-31B-Vellum-Unbound-GGUF                      2026-11-26T20:11         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] == Nemotron -- NVIDIA's Nemotron lineage; NVFP4/FP8 for Blackwell
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1                 2026-11-27T00:11         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2             2026-11-27T00:11         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1             2026-11-27T00:11         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1               2026-11-27T00:11         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st                   2026-11-27T00:11         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? KurniaKadir/nemotron-3-super                               2026-11-26T23:43         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]   ? yeahyeahyeahyeah123123/Nemotron-3-nano-4b-gsm8k            2026-11-26T21:03         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a]     yeahyeahyeahyeah123123/Nemotron-3-nano-4b-gsm8k-gguf       2026-11-26T20:47         dl=0
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] 
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] 2 result(s) hidden as unloadable on gb10 (mlx, rocm, exl2). Re-run with --all to see them.
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] 
+Legend:  (blank) loads here   ? unclassified, check it   x hidden
+2026-11-26T19:53:55-0500 INFO [d6920f7@Cortex-X925-GB10 none pld=n/a] log: /home/evan/git/local-llm/logs/sweeps/hf-sweep-Cortex-X925-GB10-20261127T005355Z.log
