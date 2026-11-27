@@ -85,6 +85,15 @@ worker = "<worker host name>"
 Engine counters are per server and reset to zero on restart. Use
 `rate()`/`increase()`, not raw deltas.
 
+**The llm-metrics-exporter discovers port 8888 only.** Since 2026-11-27,
+both nodes run it with
+`LLM_EXPORTER_DISCOVERY_ENDPOINTS=http://127.0.0.1:8888` (evanwtf/llm-metrics-exporter#25).
+Its default discovery probed every listening port, and one probe of
+Hyperflare's loopback core source aborted the core distribution (#1459). It no
+longer finds servers on other ports, such as Atlas on :8893 or Inkling on
+:18100. An arm on another port needs that list extended in
+`~/git/llm-metrics-exporter/.env` on both nodes.
+
 ### Build llama.cpp from the evanwtf fork
 
 Build llama.cpp on a Spark from

@@ -48,6 +48,7 @@ result row stamps the exact sha it ran on.
 | `~/git/mlx-serve` | `ddalcu/mlx-serve` | mlx-serve | `main` | the MLX serving engine (Apple Silicon) |
 | `~/git/mlx-serve-main` | `ddalcu/mlx-serve` | mlx-serve | `3a9181f` | main with the Responses content-parts fix (`92d1c1a`), before a release; the `qwen38fnmlxservenopld-main` tree (#707) |
 | `~/git/mlx-serve-6dea4241` | `ddalcu/mlx-serve` | mlx-serve | `6dea4241` | main with Prism Bonsai 2 support (`89eeb249`), before a release; the `bonsai2mlxserve` tree (#479) |
+| `~/git/hyperflare-inference-1459` | `NVIDIA/hyperflare-inference` | hyperflare | `v0.3.2` (`c0c4f798`) plus local commit `d4a30dc0` | a worktree of `~/git/hyperflare-inference` on branch `local/1459`, on both Sparks; the local commit is `hardware/Cortex-X925-128GB-GB10-x2/hyperflare/1459-skip-zero-preferred-cluster.patch`; `flare-cli/target/release/flare` serves the `glm53ffp4hyperflaredual2xrc` arm (#1459) |
 | `~/git/sushi` | `beamivalice/sushi` | sushi | `v1.0.2` (`1a5332d`) | a detached mlx-serve fork for Qwen3.8-Flash-Next EXL3 packs, built with the repo's pinned Zig 0.17 nightly and MLX submodules; the `qwen38fnsushi4` tree (#749) |
 | `~/venvs/vllm` | pip (`vllm`) | vllm | release | the vLLM engine on the DGX Spark: a virtualenv, **not a git checkout** |
 | `~/venvs/vllm-0.32.0` | pip (`vllm==0.32.0`) | vllm | `0.32.0` | vLLM 0.32.0 on the worker Spark (#1088), on a uv-managed Python 3.12: the worker has no `python3-dev`, and Triton compiles against `Python.h` |

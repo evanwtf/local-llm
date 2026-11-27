@@ -10,6 +10,12 @@ cluster at any of three pins (see "Problems hit"), and #1207 closed on
 close GLM's hidden-test gap. A new issue is worth filing when an upstream
 release says two-Spark GLM works.
 
+**Update, 2026-11-27 (#1459):** Flare, renamed Hyperflare, now serves two-Spark
+GLM-5.3-Flash on this cluster: hiroshiya's prepared TP2 package on Hyperflare
+v0.3.2 with one local commit. That path serves a prepared package and skips the
+export steps below. The build, launch and smoke record are in the
+`glm53ffp4hyperflaredual2xrc` backend in `benchmarks/agent/tasks.toml`.
+
 Flare is not NVIDIA FLARE, the federated-learning SDK at
 https://developer.nvidia.com/flare. The two share a name only.
 
