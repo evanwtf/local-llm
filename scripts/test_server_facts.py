@@ -610,8 +610,8 @@ def test_a_container_without_recorded_prefixes_records_why(monkeypatch):
 # log. Driven through the real cluster_id.ssh with a fake subprocess.run.
 
 _LEAKY_STDERR = (
-    "ssh: connect to host spark-b.lan (192.0.2.7, fe80::1ce:2ff:fe33:4455) "
-    "port 22 as evan@spark-b.lan: /home/evan/.ssh/config line 4: bad"
+    "ssh: connect to host node2.example.invalid (192.0.2.7, fe80::1ce:2ff:fe33:4455) "
+    "port 22 as operator9@node2.example.invalid: /home/operator9/.ssh/config line 4: bad"
 )
 
 
@@ -619,7 +619,9 @@ _LEAKY_STDERR = (
     ("result", "expected"),
     [
         (
-            subprocess.TimeoutExpired(["ssh", "spark-b.lan", "docker ps"], 30),
+            subprocess.TimeoutExpired(
+                ["ssh", "node2.example.invalid", "docker ps"], 30
+            ),
             "cannot read the peer's containers: no answer in 30 s",
         ),
         (
@@ -647,9 +649,11 @@ def test_an_ssh_failure_records_a_fixed_phrase(monkeypatch, caplog, result, expe
 
     monkeypatch.setattr(server_facts.cluster_id.subprocess, "run", fake_run)
     with caplog.at_level("WARNING", logger="server_facts"):
-        got = server_facts.peer_container_settings("spark-b.lan", _HEAD, _SPEC)
+        got = server_facts.peer_container_settings(
+            "node2.example.invalid", _HEAD, _SPEC
+        )
     assert got == {"server_env_missing": expected}
-    for leak in ("spark-b", "evan", "fe80", "192.0.2.7", "/home", ".ssh"):
+    for leak in ("node2", "operator9", "fe80", "192.0.2.7", "/home", ".ssh"):
         assert leak not in got["server_env_missing"]
     # The operator still gets the whole text.
-    assert "spark-b.lan" in caplog.text
+    assert "node2.example.invalid" in caplog.text
