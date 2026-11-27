@@ -45,6 +45,12 @@ import urllib.request
 from typing import Any, ClassVar
 from urllib.parse import urlparse
 
+# node_image lives in scripts/, which is not on the default import path
+# (#1516); timeout_policy.py reaches gpu_utilization the same way.
+_SCRIPTS = pathlib.Path(__file__).resolve().parents[2] / "scripts"
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+
 import dirfix
 import ds4_route
 import engine_identity
@@ -55,6 +61,7 @@ import machine_header
 import memcap
 import mtp_timing
 import mtplx_trace
+import node_image
 import opencode_config
 import plausibility
 import prefill_failures
@@ -1207,12 +1214,8 @@ def autotune_cache_from(labels: Any) -> dict[str, str] | None:
     }
 
 
-def container_settings(cid: str) -> dict:
-    """`container_settings_from` for a running container, or {} if unreadable.
-
-    The head's container only: a worker rank runs its own container, and
-    nothing here reads it yet (#680, finding 2).
-    """
+def container_inspect(cid: str) -> dict | None:
+    """`docker inspect` of one container on the head, or None if unreadable."""
     try:
         out = subprocess.run(
             ["docker", "inspect", "--format", "{{json .}}", cid],
@@ -1224,8 +1227,18 @@ def container_settings(cid: str) -> dict:
         ).stdout
         info = json.loads(out)
     except (OSError, subprocess.SubprocessError, ValueError):
-        return {}
-    return container_settings_from(info) if isinstance(info, dict) else {}
+        return None
+    return info if isinstance(info, dict) else None
+
+
+def container_settings(cid: str) -> dict:
+    """`container_settings_from` for a running container, or {} if unreadable.
+
+    The head's container only: a worker rank runs its own container, and
+    nothing here reads it yet (#680, finding 2).
+    """
+    info = container_inspect(cid)
+    return container_settings_from(info) if info is not None else {}
 
 
 def serving_sglang(models, inspect_all=_docker_inspect_all):
@@ -1290,7 +1303,9 @@ def _vllm_container(models, inspect_all, fallback_single=False):
     return None
 
 
-def serving_vllm_container(models, inspect_all=_docker_inspect_all):
+def serving_vllm_container(
+    models, inspect_all=_docker_inspect_all, fallback_single=True
+):
     """The image, vLLM build and launch argv of the serving container (#904).
 
     A backend that declares `image` runs vLLM in a container, so the build is
@@ -1301,7 +1316,7 @@ def serving_vllm_container(models, inspect_all=_docker_inspect_all):
     `vllm` key when the version cannot be read, so the row says unknown
     (`engine_provenance`) rather than carrying the venv's guess.
     """
-    hit = _vllm_container(models, inspect_all(), fallback_single=True)
+    hit = _vllm_container(models, inspect_all(), fallback_single=fallback_single)
     if hit is None:
         return {}
     cid, image, cmd = hit
@@ -1332,8 +1347,82 @@ def serving_vllm_container(models, inspect_all=_docker_inspect_all):
     for key, value in zip(("vllm", "vllm_torch", "vllm_torch_cuda"), parts):
         if value:
             got[key] = value
-    got.update(container_settings(cid))
+    # One inspect feeds both the settings and the head's image ID.
+    info = container_inspect(cid)
+    if info is not None:
+        got.update(container_settings_from(info))
+    head_id = (info or {}).get("Image")
+    record = serving_image(
+        head_id if isinstance(head_id, str) else None,
+        cmd,
+        models,
+        fallback_single=fallback_single,
+    )
+    if record is not None:
+        got["serving_image"] = record
     return got
+
+
+def serving_image(
+    head_id: str | None, cmd: list[str], models, fallback_single: bool = True
+) -> dict | None:
+    """`env.serving_image`: the image each node serves, or None (#1516).
+
+    The tag (`vllm_image`) and `vllm.__version__` cannot tell a local overlay
+    from its base nightly, nor an image rebuilt under the same tag, nor a
+    stale image on the worker. So a row records, per node, the image ID, the
+    `org.local-llm.*` labels (the overlay's PR sha) and a hash of the layer
+    list. The IDs differ between the two nodes' image stores; the layers do
+    not (`node_image`). `head_id` is the head container's `.Image`. A
+    two-node server (`--nnodes 2`) also reads the worker's rank-1 container
+    over the fabric; a rank it cannot read is None, with the cause under
+    `errors`, and `capture_versions` refuses the run.
+    """
+    two_node = node_image.is_two_node(cmd)
+    errors: dict[str, str] = {}
+    head = None
+    try:
+        head = node_image.inspect_image(0, head_id) if head_id else None
+    except node_image.NodeUnreachable as exc:
+        errors["rank0"] = str(exc)
+    if head is None and "rank0" not in errors:
+        errors["rank0"] = "docker inspect of the head's container or image failed"
+    worker = None
+    if two_node:
+        names = set(models)
+        if served := node_image.flag_value(cmd, "--served-model-name"):
+            names.add(served)
+        try:
+            listed = node_image.running_containers(1)
+            if listed is None:
+                errors["rank1"] = "docker ps failed on the worker"
+            else:
+                rank1 = [
+                    c
+                    for c in listed
+                    if node_image.flag_value(c[2], "--node-rank") == "1"
+                ]
+                hit = _vllm_container(names, rank1, fallback_single=fallback_single)
+                if hit is None:
+                    errors["rank1"] = (
+                        "no rank-1 vLLM container serving "
+                        f"{', '.join(sorted(map(str, names)))} on the worker"
+                    )
+                else:
+                    worker_id = node_image.container_image_id(1, hit[0])
+                    worker = (
+                        node_image.inspect_image(1, worker_id) if worker_id else None
+                    )
+                    if worker is None:
+                        errors["rank1"] = (
+                            f"docker inspect of container {hit[0][:12]} or its "
+                            "image failed on the worker"
+                        )
+        except node_image.NodeUnreachable as exc:
+            errors["rank1"] = str(exc)
+    if not two_node:
+        errors.pop("rank0", None)
+    return node_image.serving_record(head, worker, two_node, errors)
 
 
 def serving_tensorfold(models, inspect_all=_docker_inspect_all):
@@ -1701,7 +1790,13 @@ def metal_ceiling_mb():
         return None
 
 
-def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None):
+def capture_versions(
+    cfg,
+    backends,
+    allow_unstamped=False,
+    argv_by_backend=None,
+    no_image_check_reason=None,
+):
     """Record the software stack, once, into every row of this run.
 
     Without this, results.jsonl is undated evidence: six months on there is no
@@ -1717,6 +1812,11 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
     argv. `server_argv` here is one value for the whole batch, and a batch
     with two servers stamped one of them on every row; the caller gives each
     backend's rows their own with `versions_per_backend`.
+
+    Refuses (SystemExit) a vLLM container whose two nodes serve different
+    images, or whose PR-sha label contradicts `recipe_pin` (#1516), unless
+    `no_image_check_reason` says why; the rows then carry the reason and the
+    refusal under `serving_image_unchecked`.
     """
     if argv_by_backend is None:
         argv_by_backend = {}
@@ -1941,16 +2041,48 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
     if image_models:
         got = serving_vllm_container(image_models)
         env.update(got)
+        unchecked: list[str] = []
         for name, b in backends.items():
             if (b.get("engine") or "").lower() != "vllm" or not b.get("image"):
                 continue
+            # With two image models, each backend reads only the container
+            # serving its own model: never the lone container by default, so
+            # one backend's pin is not checked against another's image.
             own = (
                 got
                 if len(image_models) == 1
-                else serving_vllm_container({b.get("model")})
+                else serving_vllm_container({b.get("model")}, fallback_single=False)
             )
             if own.get("server_argv"):
                 argv_by_backend[name] = own["server_argv"]
+            record = own.get("serving_image")
+            if node_image.two_node_backend(b) and not (
+                isinstance(record, dict) and "rank1" in record
+            ):
+                logger.warning(
+                    "backend %r: tier %s but no two-node serving_image record: "
+                    "the head found no `--nnodes 2` vLLM container for it, so "
+                    "the worker's image is not checked (#1516)",
+                    name,
+                    b.get("tier"),
+                )
+            # #1516: a worker on other layers, or an image whose PR-sha label
+            # contradicts the pin, would make rows that name the wrong code.
+            if why := node_image.serving_refusal(record, b.get("recipe_pin")):
+                reason = (no_image_check_reason or "").strip()
+                if not reason:
+                    raise SystemExit(
+                        f"backend {name!r}: {why} (#1516). Fix it, or pass "
+                        "--no-image-check-reason TEXT to run anyway and record "
+                        "why on every row."
+                    )
+                logger.warning("backend %r: %s; run anyway: %s", name, why, reason)
+                unchecked.append(f"backend {name!r}: {why}")
+        if unchecked:
+            env["serving_image_unchecked"] = {
+                "reason": no_image_check_reason.strip(),
+                "refusals": unchecked,
+            }
 
     # TensorFold from the recipe's container (#213, #647): its build and its
     # launch, which carries the tensor split.
@@ -6338,6 +6470,14 @@ def build_parser():
         "read, because a row without argv pools as unknown.",
     )
     p.add_argument(
+        "--no-image-check-reason",
+        metavar="TEXT",
+        help="run although the serving image check refuses (#1516): the two "
+        "nodes' image layers or labels differ, a node's image cannot be read, "
+        "or the PR-sha label is off recipe_pin. Every row records TEXT and the "
+        "refusal as env.serving_image_unchecked.",
+    )
+    p.add_argument(
         "--targets",
         choices=("legacy", "sandbox"),
         default="sandbox",
@@ -7185,6 +7325,7 @@ def main():
         backends,
         allow_unstamped=args.allow_unstamped,
         argv_by_backend=argv_by_backend,
+        no_image_check_reason=args.no_image_check_reason,
     )
     if server_facts is not None:
         versions = remote.stamp(versions, server_facts)

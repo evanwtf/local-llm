@@ -228,6 +228,9 @@ CLIENT_ENGINE_KEYS = frozenset(
         "server_cap_add",
         # #1514: which FlashInfer autotune cache the server ran.
         "autotune_cache",
+        # #1516: the image ID, labels and layer hash each node served.
+        "serving_image",
+        "serving_image_unchecked",
         "ds4_head",
         "ds4_dirty",
         "ds4_server_mtime",

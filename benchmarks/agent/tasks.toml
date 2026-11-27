@@ -5740,6 +5740,7 @@ recipe_pin_reason = "the approved recipe commit 7ff046b8 plus two local commits:
 # vllm-project/vllm PR #65745. The no-draft arm; DFlash2 is its own arm.
 [backend.ripple65bnvfp4vllmprdual2x]
 description = "#1357: Ricursive Ripple-65B Preview NVFP4 (ricursiveAI/Ripple-65B-Preview-NVFP4 @99eea4477a: ModelOpt NVFP4 MLPs, BF16 attention) on BOTH Sparks: tensor parallel 2 over the ConnectX fabric (scripts/vllm_two_node.py: mp executor, --nnodes 2, NCCL on all four fabric paths). Image vllm-ripple:pr65745-d53dfbc2c7, built locally: vllm/vllm-openai:nightly-a2bcb5657a (arm64) with the Python tree of vllm-project/vllm PR #65745 at d53dfbc2c7 copied over the package (the only non-Python changes between the two are the DeepGEMM pin and a zentorch extra, neither used on GB10). The PR recipe's parsers: --reasoning-parser ripple, --enable-auto-tool-choice --tool-call-parser ripple; --max-model-len 262144, GMU 0.8, otherwise vLLM defaults; no speculative decoding. reasoning_effort low sent per request by the client; REMOTE CLIENT"
+retired = "#1357 closed 2026-11-05 (screened out: 6 to 13 times the GLM pick's time); the image vllm-ripple:pr65745-d53dfbc2c7 and the weights are on neither node (2026-11-27, #1515)"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
@@ -5761,6 +5762,7 @@ recipe_dir = "~/vllm-pr65745/src"
 # Ricursive's DFlash2 drafter with the PR recipe's speculative config.
 [backend.ripple65bnvfp4dflash2vllmprdual2x]
 description = "#1357: Ricursive Ripple-65B Preview NVFP4 (@99eea4477a) + Ricursive's DFlash2 drafter (ricursiveAI/Ripple-65B-Preview-DFlash2 @35609b3be3, 4.04B BF16, 7 speculative tokens: the PR recipe's --speculative-config method dflash) on BOTH Sparks, tensor parallel 2 (scripts/vllm_two_node.py). Image vllm-ripple:pr65745-d53dfbc2c7 (nightly a2bcb5657a + PR #65745's Python tree at d53dfbc2c7), built locally. Otherwise the no-draft arm's settings: ripple reasoning and tool parsers, --max-model-len 262144, GMU 0.8. reasoning_effort low sent per request by the client; REMOTE CLIENT"
+retired = "#1357 closed 2026-11-05 (screened out: 6 to 13 times the GLM pick's time); the image vllm-ripple:pr65745-d53dfbc2c7 and the weights are on neither node (2026-11-27, #1515)"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"

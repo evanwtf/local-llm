@@ -12,6 +12,12 @@ It checks what this machine can see: every recipe checkout and serving image
 declared in tasks.toml that exists here, and the client image if it is built
 here. It exits 1 if anything is behind or unknown, and prints the fixes.
 
+A locally built image (`image_source = "local"`) has no registry. It is
+checked on the nodes instead (#1515, `node_image.local_image_check`): it
+exists on each node, holds the same layers on both nodes of a two-node
+backend, and its `org.local-llm.vllm-pr-sha` label, where it has one, starts
+with the backend's `recipe_pin`.
+
     uv run python scripts/preflight_daily.py
 
 Installed as a systemd --user timer from `systemd/local-llm-preflight.*`.
@@ -20,6 +26,7 @@ Installed as a systemd --user timer from `systemd/local-llm-preflight.*`.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import logging
 import pathlib
 import shutil
@@ -34,6 +41,7 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 import build_client_image
 import client_container
 import currency
+import node_image
 
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
 import logs
@@ -52,11 +60,70 @@ def targets(cfg: dict) -> tuple[set[pathlib.Path], set[str]]:
         if not raw or spec.get("retired"):
             continue
         path = pathlib.Path(raw).expanduser()
+        # A locally built image has no registry: `local_images` checks it on
+        # the nodes instead (#1515).
         if path.is_dir():
             recipes.add(path)
-            if spec.get("image"):
+            if spec.get("image") and spec.get("image_source") != "local":
                 images.add(spec["image"])
     return recipes, images
+
+
+@dataclasses.dataclass
+class LocalImage:
+    """A locally built image, as the live backends that serve it declare it."""
+
+    two_node: bool = False
+    pins: set[str] = dataclasses.field(default_factory=set)
+
+
+def local_images(cfg: dict) -> dict[str, LocalImage]:
+    """Each `image_source = "local"` image whose checkout is here (#1515).
+
+    Such an image has no registry, so asking one for its digest refused every
+    local backend each day ("could not read ... from its registry"), and a
+    check that always refuses hides a real refusal. Its checkout is the
+    recipe check above; this adds the image itself, on each node it serves
+    from. One image can serve several backends: it is two-node if any of them
+    is, and it must match every pin they declare.
+    """
+    found: dict[str, LocalImage] = {}
+    for spec in cfg.get("backend", {}).values():
+        raw, ref = spec.get("recipe_dir"), spec.get("image")
+        if spec.get("retired") or spec.get("image_source") != "local" or not ref:
+            continue
+        if not raw or not pathlib.Path(raw).expanduser().is_dir():
+            continue
+        entry = found.setdefault(str(ref), LocalImage())
+        entry.two_node = entry.two_node or node_image.two_node_backend(spec)
+        if spec.get("recipe_pin"):
+            entry.pins.add(str(spec["recipe_pin"]))
+    return found
+
+
+def local_image_refusals(
+    images: dict[str, LocalImage],
+    inspect: Callable[[int, str], node_image.ImageFacts | None] | None = None,
+) -> list[str]:
+    """The refusal for each local image that is absent, split, or off its pin."""
+    inspect = inspect or node_image.inspect_image
+    refusals = []
+    for ref, entry in sorted(images.items()):
+        check = node_image.local_image_check(
+            ref, two_node=entry.two_node, pins=entry.pins, inspect=inspect
+        )
+        # An unlabeled image is not a pass on its pin: say so loudly (#1515).
+        for warning in check.warnings:
+            logger.warning("preflight: %s", warning)
+        if check.refusals:
+            refusals.append("preflight: " + "\n  ".join(check.refusals))
+        else:
+            logger.info(
+                "preflight: local image %s: present on %s",
+                ref,
+                "both nodes, same layers" if entry.two_node else "the head",
+            )
+    return refusals
 
 
 def recipe_pins(cfg: dict) -> dict[pathlib.Path, set[str]]:
@@ -145,6 +212,8 @@ def main(argv: list[str] | None = None) -> int:
         why = currency.gate(f"image:{ref}", items)
         if why:
             refusals.append(why)
+    local = local_images(cfg)
+    refusals.extend(local_image_refusals(local))
     tag = f"local-llm-client:{build_client_image.PINS['opencode']}"
     others = client_images()
     if others is None:
@@ -163,14 +232,16 @@ def main(argv: list[str] | None = None) -> int:
             f"preflight: this client holds {', '.join(sorted(others))} but not {tag}; "
             "build it with `uv run python scripts/build_client_image.py`"
         )
-    if not (recipes or images):
+    if not (recipes or images or local):
         logger.info("preflight: no recipe or serving image declared on this machine")
     for why in refusals:
         logger.error("%s", why)
     logger.info(
-        "preflight daily: %d recipe(s), %d image(s) checked, %d refusal(s)",
+        "preflight daily: %d recipe(s), %d image(s), %d local image(s) checked, "
+        "%d refusal(s)",
         len(recipes),
         len(images),
+        len(local),
         len(refusals),
     )
     return 1 if refusals else 0

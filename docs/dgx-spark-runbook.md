@@ -538,6 +538,59 @@ nodes, and NVMe feature 0x08 reads 0. With it on, a single 4K read takes
 non-zero. The test and how to reverse it:
 [`dgx-spark-nvme-coalescing.md`](dgx-spark-nvme-coalescing.md).
 
+## A locally built image is checked on both nodes (#1515, #1516)
+
+A backend with `image_source = "local"` serves an image built on the head,
+such as a nightly plus one PR's files (`scripts/vllm_pr_overlay.py`). No
+registry has it, and `vllm.__version__` reads the same as the base nightly's.
+So the image itself is checked, on each node. `scripts/node_image.py` holds
+the shared reader and the rules; the launcher, the daily gate and `run.py`
+all use it.
+
+- **The daily gate** (`scripts/preflight_daily.py`) no longer asks a registry
+  about a local image. Before #1515 it refused every local backend every day.
+  Now it checks that the image exists on the head, and on the worker for a
+  `gb10-spark-x2` backend. It checks that both nodes hold the same
+  `RootFS.Layers`. Where the image has the label `org.local-llm.vllm-pr-sha`
+  (the overlay writes it) and a backend that uses the image declares
+  `recipe_pin`, the label must start with the pin. An image without the label
+  (the inkling2 image) cannot be checked against its pin: the gate logs
+  `unlabeled: pin <pin> not checked` as a WARNING, and does not refuse. A
+  worker that ssh cannot reach is reported as unreachable, not as a missing
+  image. A registry image keeps the registry check.
+- **A vLLM container row carries `env.serving_image`** when the head finds the
+  serving vLLM container (`docker ps` on the head, matched on the served model
+  name). It comes from the server only (`remote.CLIENT_ENGINE_KEYS`):
+
+  ```json
+  {"rank0": {"id": "sha256:...", "layer_count": 42, "layers_sha256": "...",
+             "labels": {"org.local-llm.vllm-pr-sha": "6ca1fee..."}},
+   "rank1": {...}}
+  ```
+
+  `id` is the node's own image ID. The two stores give one image two IDs, so
+  compare `layers_sha256` (a sha256 of the ordered layer list) across nodes.
+  `labels` holds only the `org.local-llm.*` labels. A one-node server carries
+  `rank0` only. When the head's command has `--nnodes 2`, `run.py` also reads
+  the worker's rank-1 container over the fabric.
+- **Some launchers give no record.** A server that the head cannot see as a
+  vLLM container (a `bash /start.sh` launcher whose container command hides
+  `vllm serve`, or a server started with `docker exec`) gets no
+  `serving_image`, so nothing is checked. When a `gb10-spark-x2` backend has
+  no record with `rank1`, `run.py` logs a WARNING that says so.
+- **`run.py` refuses the run** (and `server_facts.py` refuses to write
+  facts) when:
+  - a node's image cannot be read. The refusal names the cause: ssh to the
+    worker failed, no rank-1 vLLM container, or a failed `docker inspect`;
+  - the two nodes' layers or `org.local-llm.*` labels differ;
+  - a node's PR-sha label does not start with the backend's `recipe_pin`.
+
+  Restart the server from the right image on both nodes. To run anyway, pass
+  `--no-image-check-reason TEXT` (to `run.py` or `server_facts.py`). Every row
+  then carries `env.serving_image_unchecked`: the reason and each refusal.
+
+Rows from before #1516 have no `env.serving_image`.
+
 ## Packages added beyond the base image
 
 | what | how | version | for |
