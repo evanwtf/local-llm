@@ -792,6 +792,18 @@ def test_tensorfold_thinking_off_does_not_pool_with_thinking_on():
     )
 
 
+def test_tensorfold_thinking_on_and_context_are_graph_flags():
+    """#1309 review: an explicit --thinking or another --context never pools."""
+    base = "python3 -m tensorfold serve /model --context 262144 --no-thinking"
+    row = {"env": {"server_argv": base}}
+    flipped = {"env": {"server_argv": base + " --thinking"}}
+    smaller = {"env": {"server_argv": base.replace("262144", "131072")}}
+    assert graph_flags(base)["--context"] == "262144"
+    assert graph_flags(base + " --thinking")["--thinking"] == "1"
+    assert not server_argv_compatible(row, flipped)
+    assert not server_argv_compatible(row, smaller)
+
+
 def test_vllm_server_side_reasoning_effort_is_a_graph_flag():
     """#1503: a server without its effort default must not pool with one that sets it."""
     kw = '{"reasoning_effort":"no_think"}'

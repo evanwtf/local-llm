@@ -797,6 +797,9 @@ GRAPH_VALUE_FLAGS: frozenset[str] = frozenset(
         # default effort, which is a different workload, so it never pools
         # with rows that set it.
         "--default-chat-template-kwargs",
+        # #1309: TensorFold's prompt-plus-reply window. A row served with a
+        # different window ran a different arm, so the two never pool.
+        "--context",
     }
 )
 
@@ -819,6 +822,8 @@ GRAPH_BOOLEAN_PREFIXES: tuple[str, ...] = (
     # it runs thinking off, a different workload from the template's default,
     # so those rows never pool with rows that left thinking on.
     "--no-thinking",
+    # The explicit opposite. A prefix, so `--thinking-budget` is caught too.
+    "--thinking",
 )
 
 
