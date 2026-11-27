@@ -85,6 +85,7 @@ NVIDIA = frozenset(
         "gpu_utilization.py",
         "memory_gate.py",
         "vllm_load.py",
+        "vllm_pr_overlay.py",
     }
 )
 
