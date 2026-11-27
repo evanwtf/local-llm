@@ -7,6 +7,7 @@ facts refuse a backend whose tier does not belong to the machine they name.
 
 from __future__ import annotations
 
+import json
 import pathlib
 
 import pytest
@@ -75,6 +76,7 @@ def tasks(tmp_path, monkeypatch) -> pathlib.Path:
     monkeypatch.setattr(server_facts.cluster_id, "verify_and_name", lambda p: CLUSTER)
     monkeypatch.setattr(server_facts.cluster_id, "peer_lan_name", lambda p: "w.lan")
     monkeypatch.setattr(server_facts.cluster_id, "peer_facts", lambda p: {})
+    monkeypatch.setattr(server_facts, "peer_container_settings", lambda *a: {})
     monkeypatch.setattr(server_facts.preflight, "machine_facts", dict)
     monkeypatch.setattr(run, "capture_versions", lambda *a, **k: {"server_argv": ARGV})
     path = tmp_path / "tasks.toml"
@@ -170,8 +172,21 @@ def test_cluster_facts_describe_every_node(tasks, monkeypatch):
         "peer_facts",
         lambda p: {"cpu_count": 20, "memory_gib": 121.7},
     )
+    monkeypatch.setattr(
+        server_facts,
+        "peer_container_settings",
+        lambda peer, engine, models: {"server_cap_add": f"{peer}:{engine}:{models}"},
+    )
     got = server_facts.collect("pair", tasks, cluster_peer="peer")["env"]["cluster"]
-    assert got == {"nodes": 2, "peer": {"cpu_count": 20, "memory_gib": 121.7}}
+    # #680 finding 2: the worker's container settings sit with its facts.
+    assert got == {
+        "nodes": 2,
+        "peer": {
+            "cpu_count": 20,
+            "memory_gib": 121.7,
+            "server_cap_add": "peer:ds4:{'m'}",
+        },
+    }
     assert "cluster" not in server_facts.collect("single", tasks)["env"]
 
 
@@ -307,3 +322,156 @@ def test_the_image_check_reason_reaches_capture_versions(tasks, monkeypatch):
     assert seen["no_image_check_reason"] == "rebuilding"
     server_facts.collect("pair", tasks, cluster_peer="peer")
     assert seen["no_image_check_reason"] is None
+
+
+# #680 finding 2, worker half: a treatment can live in the worker's container
+# env or CapAdd. The peer's container is read over ssh, with the head's filter.
+
+
+def _peer_inspect(cmd: list[str], env: list[str], caps: list[str] | None = None):
+    return json.dumps(
+        {
+            "Id": "abc123",
+            "Config": {"Cmd": cmd, "Env": env},
+            "HostConfig": {"CapAdd": caps},
+        }
+    )
+
+
+_WORKER_CMD = [
+    "vllm",
+    "serve",
+    "/models/m",
+    "--served-model-name",
+    "m",
+    "--nnodes",
+    "2",
+    "--node-rank",
+    "1",
+    "--headless",
+]
+_WORKER_ENV = [
+    "PATH=/usr/bin",
+    "VLLM_HOST_IP=10.0.0.2",
+    "NCCL_SOCKET_IFNAME=enp1s0f1np1",
+    "HF_TOKEN=hf_secret",
+    "VLLM_API_KEY=local-key",
+    "NCCL_IB_PASSWORD=pw",
+    "UCX_CREDENTIAL_FILE=/c",
+    "VLLM_SECRET_SAUCE=s",
+    "VLLM_NVFP4_GEMM_BACKEND=marlin",
+]
+
+
+def _fake_ssh(monkeypatch, answer):
+    seen: list[tuple[str, str]] = []
+
+    def ssh(peer: str, command: str) -> str:
+        seen.append((peer, command))
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(server_facts.cluster_id, "_ssh", ssh)
+    return seen
+
+
+def test_peer_settings_parse_the_workers_inspect_with_the_heads_filter(monkeypatch):
+    """Secrets are dropped by name and IPv4 addresses masked, as on the head."""
+    other = _peer_inspect(["node_exporter"], ["NCCL_X=1"])
+    seen = _fake_ssh(
+        monkeypatch,
+        other
+        + "\n"
+        + _peer_inspect(_WORKER_CMD, _WORKER_ENV, ["SYS_NICE", "IPC_LOCK"])
+        + "\n",
+    )
+    got = server_facts.peer_container_settings("spark-b", "vllm", {"m"})
+    assert seen[0][0] == "spark-b"
+    assert got == {
+        "server_env": {
+            "NCCL_SOCKET_IFNAME": "enp1s0f1np1",
+            "VLLM_HOST_IP": "<ipv4>",
+            "VLLM_NVFP4_GEMM_BACKEND": "marlin",
+        },
+        "server_cap_add": "IPC_LOCK,SYS_NICE",
+    }
+    text = json.dumps(got)
+    for word in ("TOKEN", "KEY", "SECRET", "PASS", "CREDENTIAL", "10.0.0.2"):
+        assert word not in text
+
+
+def test_peer_settings_use_the_heads_filter_function(monkeypatch):
+    """Reuse, not a copy: a change to the head's filter reaches the peer."""
+    import run
+
+    _fake_ssh(monkeypatch, _peer_inspect(_WORKER_CMD, _WORKER_ENV))
+    monkeypatch.setattr(run, "engine_settings_from", lambda info: {"server_env": {}})
+    got = server_facts.peer_container_settings("p", "vllm", {"m"})
+    assert got["server_env"] == {}
+
+
+def test_a_native_engine_on_the_peer_records_why(monkeypatch):
+    """hyperflare serves outside docker: no container, and the row says so."""
+    _fake_ssh(monkeypatch, _peer_inspect(["node_exporter"], ["NCCL_X=1"]))
+    got = server_facts.peer_container_settings("p", "hyperflare", {"m"})
+    assert set(got) == {"server_env_missing"}
+    assert "no running hyperflare container" in got["server_env_missing"]
+
+
+def test_a_peer_with_no_containers_records_why(monkeypatch):
+    _fake_ssh(monkeypatch, "")
+    got = server_facts.peer_container_settings("p", "vllm", {"m"})
+    assert "no running vllm container" in got["server_env_missing"]
+
+
+def test_two_candidates_pick_the_one_serving_the_model(monkeypatch):
+    other = [*_WORKER_CMD[:4], "other", *_WORKER_CMD[5:]]
+    _fake_ssh(
+        monkeypatch,
+        _peer_inspect(other, ["VLLM_A=other"])
+        + "\n"
+        + _peer_inspect(_WORKER_CMD, ["VLLM_A=mine"]),
+    )
+    got = server_facts.peer_container_settings("p", "vllm", {"m"})
+    assert got == {"server_env": {"VLLM_A": "mine"}}
+
+
+def test_two_candidates_for_the_model_are_unknown_not_a_guess(monkeypatch):
+    _fake_ssh(
+        monkeypatch,
+        _peer_inspect(_WORKER_CMD, ["VLLM_A=1"])
+        + "\n"
+        + _peer_inspect(_WORKER_CMD, ["VLLM_A=2"]),
+    )
+    got = server_facts.peer_container_settings("p", "vllm", {"m"})
+    assert set(got) == {"server_env_missing"}
+    assert "2 running vllm containers" in got["server_env_missing"]
+
+
+def test_a_container_without_engine_variables_records_why(monkeypatch):
+    _fake_ssh(monkeypatch, _peer_inspect(_WORKER_CMD, ["PATH=/x"]))
+    got = server_facts.peer_container_settings("p", "vllm", {"m"})
+    assert "server_env" not in got
+    assert "no engine variables" in got["server_env_missing"]
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        server_facts.cluster_id.ClusterVerificationError(
+            "peer 'p' unreachable: timed out after 30 seconds"
+        ),
+        server_facts.cluster_id.ClusterVerificationError(
+            "peer 'p' failed `x`: ssh: connect to host 203.0.113.9 port 22"
+        ),
+    ],
+)
+def test_an_ssh_failure_or_timeout_records_why(monkeypatch, error):
+    """The facts are still written: a missing peer env is a recorded unknown.
+    An address in ssh's message is masked, because rows are public."""
+    _fake_ssh(monkeypatch, error)
+    got = server_facts.peer_container_settings("p", "vllm", {"m"})
+    assert set(got) == {"server_env_missing"}
+    assert "cannot read the peer's containers" in got["server_env_missing"]
+    assert "203.0.113.9" not in got["server_env_missing"]

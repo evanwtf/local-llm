@@ -1157,9 +1157,29 @@ _IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 def container_settings_from(info: dict) -> dict:
     """`server_env`, `server_cap_add` and `autotune_cache` from one inspect.
 
+    The env and capabilities come from `engine_settings_from`. Empty keys are
+    left out, so a row says unknown rather than "none".
+    """
+    got = engine_settings_from(info)
+    if (
+        cache := autotune_cache_from((info.get("Config") or {}).get("Labels"))
+    ) is not None:
+        got["autotune_cache"] = cache
+    return got
+
+
+def mask_ipv4(text: str) -> str:
+    """`text` with every IPv4 address replaced by `<ipv4>` (#680 finding 19)."""
+    return _IPV4.sub("<ipv4>", text)
+
+
+def engine_settings_from(info: dict) -> dict:
+    """`server_env` and `server_cap_add` from one container's inspect.
+
     Only engine variables, with secrets dropped by name and IPv4 addresses
-    masked, because rows are published (#680 findings 2 and 19). Empty keys
-    are left out, so a row says unknown rather than "none".
+    masked, because rows are published (#680 findings 2 and 19). The one
+    filter for the head's container and the worker's (`server_facts.py
+    --cluster-peer`). Empty keys are left out.
     """
     got: dict[str, Any] = {}
     # A mapping, not a joined string: values such as TORCH_CUDA_ARCH_LIST
@@ -1169,16 +1189,12 @@ def container_settings_from(info: dict) -> dict:
         name, _, value = str(item).partition("=")
         if not name.startswith(_ENGINE_ENV_PREFIXES) or _SECRET_NAME.search(name):
             continue
-        env[name] = _IPV4.sub("<ipv4>", value)
+        env[name] = mask_ipv4(value)
     if env:
         got["server_env"] = dict(sorted(env.items()))
     caps = (info.get("HostConfig") or {}).get("CapAdd") or []
     if caps:
         got["server_cap_add"] = ",".join(sorted(str(c) for c in caps))
-    if (
-        cache := autotune_cache_from((info.get("Config") or {}).get("Labels"))
-    ) is not None:
-        got["autotune_cache"] = cache
     return got
 
 
@@ -1234,8 +1250,8 @@ def container_inspect(cid: str) -> dict | None:
 def container_settings(cid: str) -> dict:
     """`container_settings_from` for a running container, or {} if unreadable.
 
-    The head's container only: a worker rank runs its own container, and
-    nothing here reads it yet (#680, finding 2).
+    The head's container only. `server_facts.py --cluster-peer` reads the
+    worker's container into `env.cluster.peer` (#680, finding 2).
     """
     info = container_inspect(cid)
     return container_settings_from(info) if info is not None else {}

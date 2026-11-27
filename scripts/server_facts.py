@@ -17,6 +17,7 @@ import argparse
 import json
 import pathlib
 import sys
+from typing import Any
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts"))
@@ -25,6 +26,7 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 import cluster_id
 import currency
 import hardware_id
+import node_image
 import preflight
 
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
@@ -88,6 +90,92 @@ def argv_gap(backend: str, engine: str, env: dict, reason: str | None) -> str | 
         "backend's model name, or pass --no-argv-reason TEXT to record why "
         "the rows carry none."
     )
+
+
+def parse_containers(output: str) -> list[dict[str, Any]]:
+    """Each `docker inspect` JSON line in `output`, as a dict."""
+    found = []
+    for line in output.splitlines():
+        try:
+            info = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(info, dict):
+            found.append(info)
+    return found
+
+
+def _command(info: dict[str, Any]) -> list[str]:
+    cfg = info.get("Config") or {}
+    return [str(x) for x in (*(cfg.get("Entrypoint") or []), *(cfg.get("Cmd") or []))]
+
+
+def _serves(info: dict[str, Any], models: set[str]) -> bool:
+    """True if the container's command names one of `models`."""
+    cmd = _command(info)
+    if node_image.flag_value(cmd, "--served-model-name") in models:
+        return True
+    return any(m in " ".join(cmd).split() for m in models)
+
+
+def serving_container(
+    infos: list[dict[str, Any]], engine: str, models: set[str]
+) -> tuple[dict[str, Any] | None, str]:
+    """The peer's container that serves `engine`, or None and the reason.
+
+    A container is a candidate when its command names the engine. With two
+    or more, the one whose command names the model wins; two or more that
+    name it are unknown, never a guess.
+    """
+    hits = [i for i in infos if engine in " ".join(_command(i)).lower()]
+    if len(hits) > 1:
+        named = [i for i in hits if _serves(i, models)]
+        if len(named) == 1:
+            return named[0], ""
+        return None, (
+            f"{len(hits)} running {engine} containers on the peer, "
+            f"{len(named)} name {', '.join(sorted(models))}: cannot tell which serves"
+        )
+    if not hits:
+        return None, (
+            f"no running {engine} container on the peer "
+            "(a native engine serves outside docker)"
+        )
+    return hits[0], ""
+
+
+def peer_container_settings(peer: str, engine: str, models: set[str]) -> dict:
+    """The worker's `server_env` and `server_cap_add`, read over ssh (#680).
+
+    Finding 2, worker half: a two-node treatment can live in the worker's
+    container env or CapAdd, so the head's inspect alone cannot show it. The
+    filter is the head's own (`run.engine_settings_from`): engine variables
+    only, secrets dropped by name, IPv4 masked. When no container serves, or
+    ssh fails, the reason goes under `server_env_missing`, so a row never
+    lacks the worker's env silently.
+    """
+    import run
+
+    try:
+        out = cluster_id._ssh(peer, node_image.PS_INSPECT)
+    except cluster_id.ClusterVerificationError as exc:
+        # The message quotes the whole script; name it instead. ssh's own
+        # message can carry an address, and rows are public.
+        detail = str(exc).replace(node_image.PS_INSPECT, "docker ps; docker inspect")
+        return {
+            "server_env_missing": run.mask_ipv4(
+                f"cannot read the peer's containers: {detail}"
+            )[:300]
+        }
+    info, why = serving_container(parse_containers(out), engine.lower(), models)
+    if info is None:
+        return {"server_env_missing": why}
+    got: dict[str, Any] = run.engine_settings_from(info)
+    if "server_env" not in got:
+        got["server_env_missing"] = (
+            "the peer's serving container sets no engine variables"
+        )
+    return got
 
 
 def collect(
@@ -170,7 +258,14 @@ def collect(
         # #680 finding 3: `facts` (memory_gib, cpu_count) describe the head
         # alone and stay per node, so a cluster row compares with the rows
         # before it. This says the server had two nodes and what the other had.
-        env["cluster"] = {"nodes": 2, "peer": cluster_id.peer_facts(cluster_peer)}
+        # Finding 2: the worker's container env and CapAdd sit with its facts.
+        peer = {
+            **cluster_id.peer_facts(cluster_peer),
+            **peer_container_settings(
+                cluster_peer, engine, {str(spec.get("model", ""))}
+            ),
+        }
+        env["cluster"] = {"nodes": 2, "peer": peer}
     return {
         "instance": instance,
         "directory": directory,
