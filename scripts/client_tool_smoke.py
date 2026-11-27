@@ -17,7 +17,9 @@ answers with a fixed script of tool calls, one per tool, then runs the real
 * **in the image**, through `client_container.container_argv`: the trial's
   user, privileges, mounts and memory limit;
 * **under the trial's sandbox**, through `run.client_launch_argv` and
-  `run.agent_env`: the same bwrap wrapper, deny list and environment;
+  `run.agent_env`: the same bwrap wrapper, deny list and environment. The
+  deny list covers every ledger in the checkout (#477), so the self-test
+  needs no run ledger of its own;
 * **in a throwaway repo** under the trials' own scratch root.
 
 Then it reads the transcript. Every tool part must be `completed`, and its
@@ -120,9 +122,12 @@ def _output_has(needle: str, what: str) -> Callable[[pathlib.Path, str], str | N
 
 
 #: What the two harness probes must print: the kernel's refusal of the write,
-#: and git finding no repository once the .git is hidden (#477).
+#: and git's discovery failure once the .git is hidden (#477). The discovery
+#: wording, not the bare "not a git repository": a worktree whose main .git
+#: is not mounted prints "not a git repository: <path>" with or without the
+#: fix, and would pass without testing anything.
 READ_ONLY = "Read-only file system"
-NOT_A_REPO = "not a git repository"
+NOT_A_REPO = "not a git repository (or any of the parent directories)"
 
 
 def _harness_probe(
@@ -153,6 +158,12 @@ def _git_probe(harness_root: pathlib.Path) -> Callable[[pathlib.Path, str], str 
     tasks = harness_root / "benchmarks" / "agent" / "tasks.toml"
 
     def check(_workdir: pathlib.Path, output: str) -> str | None:
+        if (harness_root / ".git").is_file():
+            return (
+                f"{harness_root} is a git worktree; its main .git is not in the "
+                "container, so the probe cannot test the hidden history. Run the "
+                "self-test from a main checkout"
+            )
         try:
             lines = [ln for ln in tasks.read_text().splitlines() if len(ln) >= 20]
         except OSError as exc:
@@ -238,7 +249,7 @@ def steps(
     token: str,
     base_url: str = "http://127.0.0.1:1/v1",
     major: int = 1,
-    harness_root: pathlib.Path = REPO,
+    harness_root: pathlib.Path | None = None,
 ) -> list[Step]:
     """One call per tool the trials use, in the order the stub sends them.
 
@@ -252,6 +263,9 @@ def steps(
     cannot pass for this one. `base_url` is the stub's, which serves the
     page `webfetch` reads.
     """
+    # Read at call time, not bound as a default, so a test can point it at a
+    # fake checkout: the real one may be a worktree, where the probe refuses.
+    harness_root = harness_root or REPO
     if major >= 2:
         return [
             *steps_2x(workdir, token, base_url),
@@ -710,7 +724,7 @@ def check(transcript: str, workdir: pathlib.Path, script: list[Step]) -> list[st
             if step.expect == "completed"
             else part.error
             if step.expect is not None
-            else part.output or part.error
+            else "\n".join(t for t in (part.output, part.error) if t)
         )
         why = step.effect(workdir, text)
         if why:
