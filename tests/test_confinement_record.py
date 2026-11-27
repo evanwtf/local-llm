@@ -137,9 +137,9 @@ def test_the_apparmor_profile_is_in_the_repo():
 
 # --- The harness checkout is read-only inside a trial, its .git hidden --------
 #
-# On the two-node cluster the client container mounts the host's harness
-# checkout read-write, and bwrap bound `/` read-write. So a trial could write
-# the live ledger and the harness's own code, and `git show HEAD:<path>` read
+# bwrap bound `/` read-write. On a bare-metal host a trial could write the
+# live ledger and the harness's code; in the two-node client container only
+# file ownership stopped the write. In both, `git show HEAD:<path>` read
 # `tasks.toml` past the /dev/null cover on the working file (#477).
 
 

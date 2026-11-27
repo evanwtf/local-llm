@@ -374,9 +374,10 @@ The stamp records what is enforced, not what could be.
 
 **`harness` and `memory_cgroup_gib` are new keys, not new values (#477).**
 On the two-node cluster the client container mounts the host's harness
-checkout read-write. Until 2026-11-27 a trial could write the live ledger and
-the harness's code, and `git show` could read `tasks.toml` from the checkout's
-`.git`. Now bwrap binds the checkout read-only and hides its `.git`, and the
+checkout read-write. Until 2026-11-27 a trial could read `tasks.toml` from the
+checkout's `.git` with `git -c safe.directory=* show`. A write into the
+checkout failed, but only because the trial's mapped uid did not own the
+files, not because of a policy; on a bare-metal Linux host it succeeded. Now bwrap binds the checkout read-only and hides its `.git`, and the
 deny list names the ledger the run writes, not the client's own. These facts
 have keys of their own so `writes` and `memory` keep their meaning. No
 grouping key reads the row's `confinement` field (`results.CLIENT_KEYS` reads

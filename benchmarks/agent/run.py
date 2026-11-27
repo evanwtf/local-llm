@@ -4500,9 +4500,12 @@ def bwrap_argv(argv, worktree, repo, denied, harness_root=None):
     toolchain whose exact paths are not ours to enumerate.
 
     **The harness checkout is read-only, and its .git is hidden** (#477).
-    The two-node client container mounts the host's checkout read-write, so
-    `/` bound read-write let a trial write the live ledger and the harness's
-    own code. It stays readable: OpenCode 1.x `lstat`s `benchmarks/agent`,
+    `/` is bound read-write, so on a bare-metal Linux host a trial could
+    write the live ledger and the harness's own code. In the two-node client
+    container the write was refused only by accident: the checkout is owned
+    by the host user, and the trial's mapped uid is not that user ("Permission
+    denied", measured 2026-11-27). Its .git was readable there with
+    `git -c safe.directory=*`, which printed tasks.toml. It stays readable: OpenCode 1.x `lstat`s `benchmarks/agent`,
     and a read-only bind still allows that. Nothing a trial runs writes there
     -- its cwd, TMPDIR, the client's state and the uv cache are elsewhere.
     The bind comes before the deny covers: a bind of the root brings the
