@@ -230,6 +230,8 @@ def main(argv: list[str] | None = None) -> int:
                 "directory": data["directory"],
                 "backend": data["backend"],
                 "server_argv": bool(data["env"].get("server_argv")),
+                # #1514: which FlashInfer autotune cache the rows will name.
+                "autotune_cache": data["env"].get("autotune_cache"),
             }
         )
     )

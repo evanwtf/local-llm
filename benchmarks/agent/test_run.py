@@ -2652,6 +2652,57 @@ def test_remote_rows_take_container_settings_from_the_server_only():
     assert {"server_env", "server_cap_add"} <= remote.CLIENT_ENGINE_KEYS
 
 
+def test_container_settings_record_the_autotune_cache_from_the_labels():
+    """#1514: a row says which FlashInfer autotune cache its server ran, and
+    whether each node found one at start or wrote a new one."""
+    info = {
+        "Config": {
+            "Labels": {
+                "local-llm.autotune-cache.key": "hy4-flash-nvfp4-0123456789abcdef",
+                "local-llm.autotune-cache.rank0": "found",
+                "local-llm.autotune-cache.rank1": "new",
+                "maintainer": "someone",
+            }
+        }
+    }
+    assert run.container_settings_from(info)["autotune_cache"] == {
+        "key": "hy4-flash-nvfp4-0123456789abcdef",
+        "rank0": "found",
+        "rank1": "new",
+    }
+
+
+def test_container_settings_record_an_autotune_cache_turned_off():
+    info = {"Config": {"Labels": {"local-llm.autotune-cache": "off"}}}
+    assert run.container_settings_from(info)["autotune_cache"] == {"mode": "off"}
+
+
+def test_container_settings_record_autotune_turned_off_by_the_serve_args():
+    info = {"Config": {"Labels": {"local-llm.autotune-cache": "autotune-disabled"}}}
+    assert run.container_settings_from(info)["autotune_cache"] == {
+        "mode": "autotune-disabled"
+    }
+
+
+def test_a_container_from_another_launcher_records_no_autotune_cache():
+    """Unknown stays unknown: no key at all, not an invented "off"."""
+    info = {"Config": {"Labels": {"maintainer": "someone"}}}
+    assert "autotune_cache" not in run.container_settings_from(info)
+    assert "autotune_cache" not in run.container_settings_from({"Config": {}})
+
+
+def test_remote_rows_take_the_autotune_cache_from_the_server_only():
+    import remote
+
+    assert "autotune_cache" in remote.CLIENT_ENGINE_KEYS
+    cache = {"key": "k-0123", "rank0": "found", "rank1": "found"}
+    out = remote.stamp(
+        {"autotune_cache": {"key": "client-guess"}},
+        {"directory": "d", "facts": {}, "env": {"autotune_cache": cache}},
+    )
+    assert out["autotune_cache"] == cache
+
+
 def test_serving_vllm_container_records_no_version_it_could_not_read(monkeypatch):
     monkeypatch.setattr(
         run.subprocess,
