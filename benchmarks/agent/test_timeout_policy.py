@@ -649,8 +649,10 @@ def test_the_engine_floor_resolves_flag_then_backend_then_engine_default() -> No
 
 def test_the_engine_floor_is_above_light_decode_power() -> None:
     """With the engine signal the floor no longer has to sit under a light
-    decode: the engine says when a request runs. 20 W is above every GB10
-    loaded-idle reading in #1450, so it no longer misses a stuck client."""
+    decode: the engine says when a request runs. 20 W is above the GB10
+    loaded-idle readings in #1450, and it catches the 2026-10-17 stall
+    (15.6-16.2 W) that 13 W misses. It still misses quiet windows that peak
+    at 20 W or more: 9 on vLLM and 5 on llama.cpp in 60 days."""
     assert tp.ENGINE_IDLE_FLOOR_WATTS == IDLE_FLOOR_WATTS == 20.0
 
 
@@ -850,3 +852,174 @@ def test_fetch_engine_reading_is_none_when_the_endpoint_is_down() -> None:
         "http://127.0.0.1:9/metrics", tp.ENGINE_SIGNALS["vllm"], timeout=1.0
     )
     assert got is None
+
+
+# --- #1453 review M1/L8: every failed engine read is None, never a raise ----
+
+_BODY = b'vllm:num_requests_running{engine="0"} 1.0\nvllm:generation_tokens_total{engine="0"} 7.0\n'
+HTTP_OK = b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s" % (len(_BODY), _BODY)
+#: Content-Length promises more than arrives: http.client.IncompleteRead.
+HTTP_SHORT = b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n" + _BODY
+#: A chunked body cut inside a chunk: IncompleteRead too.
+HTTP_CUT_CHUNK = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n400\r\n" + _BODY
+#: Not HTTP at all, as from a wrong port: http.client.BadStatusLine.
+NOT_HTTP = b"SSH-2.0-OpenSSH_9.6\r\n"
+
+
+def test_fetch_engine_reading_reads_a_real_server(raw_http) -> None:
+    got = tp.fetch_engine_reading(raw_http(HTTP_OK), tp.ENGINE_SIGNALS["vllm"])
+    assert got == tp.EngineReading(1.0, 7.0)
+
+
+@pytest.mark.parametrize("reply", [HTTP_SHORT, HTTP_CUT_CHUNK, NOT_HTTP])
+def test_fetch_engine_reading_is_none_on_a_broken_reply(raw_http, reply) -> None:
+    url = raw_http(reply)
+    assert tp.fetch_engine_reading(url, tp.ENGINE_SIGNALS["vllm"], timeout=2.0) is None
+
+
+def test_fetch_engine_reading_is_none_on_a_timeout(raw_http) -> None:
+    url = raw_http(HTTP_OK, delay=3.0)
+    assert tp.fetch_engine_reading(url, tp.ENGINE_SIGNALS["vllm"], timeout=0.3) is None
+
+
+def test_a_sampler_that_raises_still_kills_the_client_group(tmp_path) -> None:
+    """Any exception out of the poll loop must take the client group with it:
+    it was started in its own session, so it would outlive run.py's cleanup
+    and keep working in a deleted worktree."""
+    pidfile = tmp_path / "pid"
+
+    def boom() -> float | None:
+        raise RuntimeError("sampler blew up")
+
+    wd = IdleStallWatchdog(boom, idle_stall_secs=600.0)
+    child = (
+        "import os, time, pathlib; "
+        f"pathlib.Path({str(pidfile)!r}).write_text(str(os.getpid())); "
+        "time.sleep(60)"
+    )
+    with pytest.raises(RuntimeError, match="sampler blew up"):
+        run_client_with_watchdog(
+            [sys.executable, "-c", child],
+            cwd=None,
+            env=None,
+            timeout=30.0,
+            watchdog=wd,
+            poll_secs=0.5,
+            grace_secs=2.0,
+        )
+    import os
+    import time
+
+    deadline = time.monotonic() + 5.0
+    while not pidfile.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    pid = int(pidfile.read_text())
+    gone = False
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            gone = True
+            break
+        time.sleep(0.05)
+    assert gone, f"client {pid} outlived the watchdog's exception"
+
+
+def test_the_memory_cap_is_checked_before_the_engine_read() -> None:
+    """A slow engine read must not delay the memory kill (#1453 review L3)."""
+    order: list[str] = []
+
+    def watts() -> float | None:
+        order.append("watts")
+        return 5.0
+
+    def rss(_pid: int) -> float:
+        order.append("rss")
+        return 2.0
+
+    wd = IdleStallWatchdog(watts, idle_stall_secs=600.0)
+    res = run_client_with_watchdog(
+        [sys.executable, "-c", "import time; time.sleep(5)"],
+        cwd=None,
+        env=None,
+        timeout=30.0,
+        watchdog=wd,
+        poll_secs=0.05,
+        grace_secs=2.0,
+        memory_cap_gib=1.0,
+        rss_sampler=rss,
+    )
+    assert res.memory_killed is True
+    assert order[0] == "rss"
+    assert "watts" not in order
+
+
+# --- #1453 review L3: no engine read while power alone says busy -----------
+
+
+def test_no_engine_read_at_or_above_the_engine_floor() -> None:
+    clock = _Now()
+    reads: list[int] = []
+
+    def engine() -> tp.EngineReading | None:
+        reads.append(1)
+        return IDLE
+
+    wd = IdleStallWatchdog(
+        _Sampler([40.0, 40.0, 20.0]),
+        idle_floor_watts=13.0,
+        engine=engine,
+        engine_floor_watts=20.0,
+        monotonic=clock,
+    )
+    _run(wd, clock, 3)
+    assert reads == []
+    assert wd.idle_seconds() == 0.0
+
+
+def test_a_skipped_read_leaves_one_sample_of_doubt() -> None:
+    """After a busy stretch with no reads, the first read compares against an
+    old counter value, counts as work, and the next read starts the stretch."""
+    clock = _Now()
+    wd = IdleStallWatchdog(
+        _Sampler([5.0, 40.0, 5.0, 5.0, 5.0]),
+        idle_floor_watts=13.0,
+        engine=_Engine([tp.EngineReading(0.0, 10.0), tp.EngineReading(0.0, 90.0)]),
+        engine_floor_watts=20.0,
+        monotonic=clock,
+    )
+    _run(wd, clock, 5)  # t = 0, 15 (40 W, no read), 30 (moved), 45, 60
+    assert wd.idle_seconds() == 15.0
+
+
+# --- #1453 review L7/L8: the stall line for a mixed or blind stretch -------
+
+
+def _mixed(engine: list[tp.EngineReading | None], n: int) -> IdleStallWatchdog:
+    clock = _Now()
+    wd = IdleStallWatchdog(
+        _Sampler([10.0]),
+        idle_floor_watts=13.0,
+        idle_floor_source="tier",
+        engine=_Engine(engine),
+        engine_floor_watts=20.0,
+        engine_name="vllm (vllm:num_requests_running)",
+        monotonic=clock,
+    )
+    _run(wd, clock, n)
+    return wd
+
+
+def test_a_mixed_stretch_counts_both_rules() -> None:
+    wd = _mixed([IDLE, IDLE, None, IDLE, None], 5)
+    assert wd.idle_seconds() == 60.0  # every sample idle under its rule
+    text = wd.rule_summary()
+    assert "engine rule" in text and "for 3 samples" in text
+    assert "power rule: below 13 W (tier) for 2 samples" in text
+
+
+def test_a_blind_stretch_says_the_engine_was_never_read() -> None:
+    text = _mixed([None], 5).rule_summary()
+    assert "for 0 samples" not in text
+    assert text.startswith("power rule: below 13 W (tier)")
+    assert "could not be read" in text and "vllm" in text

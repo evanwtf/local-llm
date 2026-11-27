@@ -3359,30 +3359,45 @@ def test_a_watched_trial_stamps_the_floor_it_used(
 # --- #1453: a backend with an engine signal stamps the engine-rule floor -----
 
 
-def test_a_vllm_trial_stamps_the_engine_rule_floor(tmp_path, monkeypatch):
-    def engine():
-        return timeout_policy.EngineReading(1.0, 10.0)
+VLLM_BACKEND = {
+    "model": "stub",
+    "context_tokens": 1,
+    "tier": "gb10-spark-x2",
+    "engine": "vllm",
+    "base_url": "http://127.0.0.1:9",
+    "auth_token": "stub",
+}
 
-    row = _agent_trial(
+
+def _engine_trial(tmp_path, monkeypatch, reading):
+    """A vLLM trial at 5 W, under every floor, with a zero stall window: the
+    power rule alone would stop it at the first poll, so the engine decides.
+    The 2 s poll of a memory cap keeps the client's 5 s to two or three polls."""
+    monkeypatch.setattr(run, "CLIENT_MEM_CAP_GIB", 1000.0)
+    return _agent_trial(
         tmp_path,
         monkeypatch,
-        SOLVE,
-        backend={
-            "model": "stub",
-            "context_tokens": 1,
-            "tier": "gb10-spark-x2",
-            "engine": "vllm",
-            "base_url": "http://127.0.0.1:9",
-            "auth_token": "stub",
-        },
+        "sleep 5; " + SOLVE,
+        backend=VLLM_BACKEND,
         idle_watchdog=True,
-        watts_sampler=lambda: 999.0,
-        engine_sampler=engine,
+        idle_stall_secs=0.0,
+        watts_sampler=lambda: 5.0,
+        engine_sampler=lambda: reading,
     )
+
+
+def test_a_vllm_trial_with_a_running_request_is_kept(tmp_path, monkeypatch):
+    row = _engine_trial(tmp_path, monkeypatch, timeout_policy.EngineReading(1.0, 10.0))
     assert results.verdict(row) is True, row["pytest"]
+    assert "timeout_reason" not in row or row["timeout_reason"] is None
     assert row["idle_floor_watts"] == 13.0  # the power rule, for a failed read
     assert row["idle_engine_floor_watts"] == 20.0
     assert not [e for e in results.validate(row) if "idle_engine" in e]
+
+
+def test_a_vllm_trial_with_an_idle_engine_is_stopped(tmp_path, monkeypatch):
+    row = _engine_trial(tmp_path, monkeypatch, timeout_policy.EngineReading(0.0, 10.0))
+    assert row["timeout_reason"] == "gpu-idle-stall"
 
 
 def test_a_tensorfold_trial_keeps_the_power_rule(tmp_path, monkeypatch):

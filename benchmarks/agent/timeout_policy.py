@@ -94,10 +94,19 @@ IdleFloorSource = Literal["flag", "backend", "tier", "default", "engine"]
 #: The power floor of the engine rule (#1453). With the engine's word that no
 #: request runs, the floor no longer has to sit under a light decode, so the
 #: GB10 tier exception (13 W) is not needed and the global floor applies.
-#: scripts/idle_floor_evidence.py, 60 days to 2026-11-27, back-to-back 10-min
-#: windows: power alone at 13 W misses 53 of 559 quiet windows; this rule
-#: misses 44 (vLLM 15 -> 9, llama.cpp 8 -> 5; TensorFold stays at 30 of 309).
-#: It kills no window where the engine generated.
+#:
+#: Evidence (the #1453 review, 2026-11-27): a replay of all 460 trials of
+#: 600 s or more on vLLM, llama.cpp and SGLang over 60 days. The engine rule
+#: stops none of them, the 13 W power rule none, and the old 20 W power rule
+#: two (the two vLLM gpu-idle-stall rows). The engine rule catches the real
+#: stall of 2026-10-17 (0 running, tokens flat 07:52-08:02 UTC, 15.6-16.2 W),
+#: which 13 W misses, and keeps the 2026-11-21 Inkling decode (1 running,
+#: tokens rising, 15.6-16.9 W). scripts/idle_floor_evidence.py counts quiet
+#: 10-min windows: 53 of 559 missed at 13 W, 44 under this rule (vLLM 15 -> 9,
+#: llama.cpp 8 -> 5, TensorFold 30 -> 30). The 9 it newly catches overlap no
+#: trial; they are idle hours with a model loaded. It still misses 9 vLLM and
+#: 5 llama.cpp quiet windows. Its "killed" counts cannot show an engine
+#: window by construction, so they are not evidence for this floor.
 ENGINE_IDLE_FLOOR_WATTS: float = IDLE_FLOOR_WATTS
 
 
@@ -116,15 +125,15 @@ class EngineSignal:
 
 
 #: The engines whose ``/metrics`` the watchdog reads, by tasks.toml ``engine``
-#: (#1453). Each name was checked against real output: vLLM's in Prometheus
+#: (#1453). A hung engine whose gauge stays above 0 is never called idle;
+#: see #1546. Each name was checked against real output: vLLM's in Prometheus
 #: (stored from a vLLM server; ``engine="0"``, ``model_name=...``), llama.cpp's
 #: in Prometheus and in a live capture (b10809), SGLang's in a live capture
 #: (nightly 2026-09-21; the exporter's llme_requests_running for SGLang is
 #: mapped from it). Every other engine keeps the power rule:
 #:
-#: * TensorFold, by decision in #1453. Its v0.3.4 patch-0150 exposition has
-#:   no running gauge, and its token counter moves only when a completion
-#:   finishes, so a long decode reads as "no progress".
+#: * TensorFold, by decision in #1453. Native TensorFold exports
+#:   tensorfold:requests_running, so it can join; see #1545.
 #: * ds4, Ollama, mlx-serve and the rest export no such signal.
 ENGINE_SIGNALS: dict[str, EngineSignal] = {
     "vllm": EngineSignal(
@@ -151,7 +160,9 @@ class EngineReading:
 #: scrape gap, a body without the running gauge).
 EngineSampler = Callable[[], "EngineReading | None"]
 
-#: How long one engine read may take. The poll is every 15 s.
+#: How long one engine read may take. The watchdog polls every 15 s, or
+#: every 2 s when a client memory cap is on (DEFAULT_MEM_POLL_SECS), as on a
+#: bare host.
 ENGINE_TIMEOUT_SECS: float = 5.0
 
 #: A continuous idle stretch this long (seconds) means the trial has stalled.
@@ -297,11 +308,16 @@ def parse_engine_metrics(text: str, signal: EngineSignal) -> EngineReading | Non
 def fetch_engine_reading(
     url: str, signal: EngineSignal, timeout: float = ENGINE_TIMEOUT_SECS
 ) -> EngineReading | None:
-    """One read-only GET of the engine's /metrics; None on any failure."""
+    """One read-only GET of the engine's /metrics; None on any failure.
+
+    Any failure, not a list of them: a cut body or a non-HTTP reply raises
+    http.client.HTTPException, which is neither URLError nor OSError, and an
+    exception here would end the poll loop (#1453 review).
+    """
     try:
         with urllib.request.urlopen(url, timeout=timeout) as r:
             body = r.read().decode("utf-8", "replace")
-    except (urllib.error.URLError, OSError, ValueError):
+    except Exception:  # noqa: BLE001 -- a raise here ends the poll loop
         return None
     return parse_engine_metrics(body, signal)
 
@@ -386,7 +402,17 @@ class IdleStallWatchdog:
             # erase one that had begun.
             self._idle_at = None
             return None
-        working = self._engine_working()
+        # Power at or above both floors is work under either rule, so skip the
+        # engine read. That spares /metrics during decode: each llama.cpp read
+        # resets the buckets behind its tokens-per-second gauges (#1453
+        # review). The counter baseline then goes stale, so the first read
+        # after it counts as work, and the stretch starts one sample later.
+        if self._engine is not None and watts >= max(
+            self.engine_floor_watts, self.idle_floor_watts
+        ):
+            working: bool | None = True
+        else:
+            working = self._engine_working()
         if working is None:
             rule, idle = "power", watts < self.idle_floor_watts
         else:
@@ -441,9 +467,12 @@ class IdleStallWatchdog:
         n_engine, n_power = self._judged["engine"], self._judged["power"]
         if not n_power:
             return engine
+        blind = f"{self.engine_name or 'the engine'} could not be read"
+        if not n_engine:
+            return f"power rule: {power} for {n_power} samples: {blind}"
         return (
             f"{engine} for {n_engine} samples; power rule: {power} for "
-            f"{n_power} samples, while the engine could not be read"
+            f"{n_power} samples, while {blind}"
         )
 
     def idle_seconds(self) -> float:
@@ -566,54 +595,65 @@ def run_client_with_watchdog(
     # With a memory cap on, wake often enough to catch a fast runaway before it
     # overshoots far past the cap; otherwise keep the coarse power-poll cadence.
     wait_secs = min(poll_secs, DEFAULT_MEM_POLL_SECS) if memory_cap_gib else poll_secs
-    while True:
-        # Never wait past the deadline. A child that exited inside a poll
-        # window after its deadline returned as a clean run, so the watched
-        # path gave up to `wait_secs` more than the plain path (review of
-        # 2026-10-05). At the deadline the wait times out and the check below
-        # ends the run.
-        wait = wait_secs
-        if timeout is not None:
-            wait = max(0.0, min(wait_secs, timeout - (time.monotonic() - start)))
-        try:
-            # communicate() drains the pipes while it waits, so the child never
-            # blocks on a full buffer; retrying after a timeout keeps the output
-            # already read. On a clean exit this returns and we are done.
-            stdout, stderr = proc.communicate(timeout=wait)
-            break
-        except subprocess.TimeoutExpired:
-            pass
-        watchdog.sample()
-        if memory_cap_gib:
-            # The agent phase gets the ceiling the oracle already has (#82/#379).
-            # The runaway grows in a descendant of the client (model-written code
-            # the agent executed), so sample the whole tree, not just the client.
-            peak_rss_gib = max(peak_rss_gib, rss_sampler(proc.pid))
-            if peak_rss_gib > memory_cap_gib:
-                memory_killed = True
+    # Any exception out of the loop (a sampler that raises, an interrupt)
+    # must take the client group with it. The client leads its own session,
+    # so nothing else stops it, and the caller then deletes the worktree it
+    # works in (#1453 review).
+    try:
+        while True:
+            # Never wait past the deadline. A child that exited inside a poll
+            # window after its deadline returned as a clean run, so the watched
+            # path gave up to `wait_secs` more than the plain path (review of
+            # 2026-10-05). At the deadline the wait times out and the check below
+            # ends the run.
+            wait = wait_secs
+            if timeout is not None:
+                wait = max(0.0, min(wait_secs, timeout - (time.monotonic() - start)))
+            try:
+                # communicate() drains the pipes while it waits, so the child never
+                # blocks on a full buffer; retrying after a timeout keeps the output
+                # already read. On a clean exit this returns and we are done.
+                stdout, stderr = proc.communicate(timeout=wait)
+                break
+            except subprocess.TimeoutExpired:
+                pass
+            if memory_cap_gib:
+                # The agent phase gets the ceiling the oracle already has (#82/#379).
+                # The runaway grows in a descendant of the client (model-written code
+                # the agent executed), so sample the whole tree, not just the client.
+                peak_rss_gib = max(peak_rss_gib, rss_sampler(proc.pid))
+                if peak_rss_gib > memory_cap_gib:
+                    memory_killed = True
+                    log.error(
+                        "client memory cap: process tree reached %.1f GiB, cap is "
+                        "%.1f GiB -- killing the group before it OOMs the box (#379)",
+                        peak_rss_gib,
+                        memory_cap_gib,
+                    )
+                    break
+            # After the memory check: an engine read can take up to its timeout
+            # (#1453), and a runaway must not wait on it.
+            watchdog.sample()
+            if watchdog.stalled():
+                idle_stalled = True
                 log.error(
-                    "client memory cap: process tree reached %.1f GiB, cap is "
-                    "%.1f GiB -- killing the group before it OOMs the box (#379)",
-                    peak_rss_gib,
-                    memory_cap_gib,
+                    "client GPU-idle-stall: %s, for >= %.0fs -- killing "
+                    "the process group (was riding a %s timeout doing nothing)",
+                    watchdog.rule_summary(),
+                    watchdog.idle_stall_secs,
+                    "None" if timeout is None else f"{timeout:.0f}s",
                 )
                 break
-        if watchdog.stalled():
-            idle_stalled = True
-            log.error(
-                "client GPU-idle-stall: %s, for >= %.0fs -- killing "
-                "the process group (was riding a %s timeout doing nothing)",
-                watchdog.rule_summary(),
-                watchdog.idle_stall_secs,
-                "None" if timeout is None else f"{timeout:.0f}s",
-            )
-            break
-        if timeout is not None and (time.monotonic() - start) >= timeout:
-            timed_out = True
-            log.error(
-                "client wall-clock timeout after %.0fs -- killing the group", timeout
-            )
-            break
+            if timeout is not None and (time.monotonic() - start) >= timeout:
+                timed_out = True
+                log.error(
+                    "client wall-clock timeout after %.0fs -- killing the group",
+                    timeout,
+                )
+                break
+    except BaseException:
+        _terminate_group(proc, grace_secs, log)
+        raise
 
     if idle_stalled or timed_out or memory_killed:
         _terminate_group(proc, grace_secs, log)

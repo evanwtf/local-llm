@@ -69,3 +69,25 @@ def test_a_missing_side_records_nothing():
 def test_scrape_without_a_base_url_is_none():
     assert et.scrape(None) is None
     assert et.scrape("") is None
+
+
+# #1453 review: a cut body or a non-HTTP reply raises http.client.HTTPException,
+# which the old except tuple let through. "None on any failure" must hold.
+_TTFT = (
+    b'vllm:time_to_first_token_seconds_sum{engine="0"} 0.5\n'
+    b'vllm:time_to_first_token_seconds_count{engine="0"} 2.0\n'
+)
+
+
+def test_scrape_reads_a_real_server(raw_http):
+    ok = b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s" % (len(_TTFT), _TTFT)
+    base = raw_http(ok).removesuffix("/metrics")
+    got = et.scrape(base)
+    assert got is not None and (got.total_s, got.count) == (0.5, 2)
+
+
+def test_scrape_is_none_on_a_cut_body_or_a_non_http_reply(raw_http):
+    short = b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n" + _TTFT
+    for reply in (short, b"SSH-2.0-OpenSSH_9.6\r\n"):
+        base = raw_http(reply).removesuffix("/metrics")
+        assert et.scrape(base, timeout=2.0) is None

@@ -30,7 +30,12 @@ The **rule** line counts the watchdog's #1453 rule: a window whose resident
 engine exports a running-request signal (vLLM, SGLang, llama.cpp) is judged
 at the engine-rule floor (20 W), because the engine says when a request runs;
 every other window is judged by power alone at the GB10 tier floor (13 W).
-A generating window under the engine rule is never killed.
+Its killed columns count power-rule windows only: an engine window that
+generated cannot count as killed, by construction, so those columns say
+nothing about whether the engine rule is safe. The evidence for that is a
+replay of the trials themselves (the #1453 review). Of the quiet windows the
+rule newly catches, none overlaps a trial: they are idle hours with a model
+loaded.
 
 Windows are back to back, not sliding, so the counts are a lower bound on
 what a sliding 600 s watchdog sees; the ratios between floors are the point.
@@ -284,9 +289,10 @@ def count_rule(
     """The #1453 rule's verdict on the history, as one row.
 
     A window whose engine has a running-request signal is judged at
-    `engine_floor`, and only a quiet one can read as idle there: a working
-    engine is never killed. Every other window is judged by power alone at
-    `power_floor`. `floor_w` holds the engine floor.
+    `engine_floor`, and only a quiet one can read as idle there. So the
+    killed counts hold power-rule windows only, by construction: they cannot
+    show the engine rule killing anything. Every other window is judged by
+    power alone at `power_floor`. `floor_w` holds the engine floor.
     """
     have = [w for w in wins if w.peak_w is not None]
     quiet = [w for w in have if w.quiet]
@@ -494,6 +500,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     for line in table([rule], args.light)[2:]:
         logger.info("rule %s", line)
+    logger.info("rule: the killed columns count power-rule windows only")
     for key, (q, old, new) in missed_by_engine(wins, power, engine).items():
         logger.info(
             "quiet windows of %s: %d; missed at %g W by power %d, by the rule %d",

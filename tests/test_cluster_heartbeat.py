@@ -176,6 +176,17 @@ def test_a_loaded_idle_pair_reads_as_idle():
     assert hb.gpus_idle(node(45), node(12.2)) is False
 
 
+def test_the_2026_09_30_idle_pair_now_reads_as_working():
+    """The #1454 trade. The measured 2026-09-30 idle pair (10 W and 14 W) now
+    reads as working: one 13 W floor for the watchdog and the heartbeat puts
+    14 W on the working side. A floor high enough to call 14 W idle would
+    call a light decode idle too (15.8-17.3 W, #1448). Since 2026-10-23, 8 of
+    49 quiet windows peaked between 13 and 20 W, so the heartbeat can miss an
+    idle stretch like this one."""
+    assert hb.gpus_idle(node(10), node(14)) is False
+    assert "Asymmetric" in hb.power_reason(node(10), node(14), "b")
+
+
 def test_a_light_model_decode_reads_as_working():
     """Inkling 2 Mini decodes at 15.8-17.3 W per GB10 (#1448). The 20 W floor
     called it idle (#1454)."""

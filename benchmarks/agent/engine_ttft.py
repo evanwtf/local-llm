@@ -30,7 +30,6 @@ from __future__ import annotations
 import dataclasses
 import logging
 import re
-import urllib.error
 import urllib.request
 
 logger = logging.getLogger("agent-bench")
@@ -80,7 +79,9 @@ def scrape(base_url: str | None, timeout: float = 5.0) -> Snapshot | None:
     try:
         with urllib.request.urlopen(url, timeout=timeout) as resp:
             return parse(resp.read().decode("utf-8", "replace"))
-    except (urllib.error.URLError, OSError, ValueError) as exc:
+    except Exception as exc:  # noqa: BLE001 -- the docstring promises None
+        # Any failure, as the docstring says: a cut body or a non-HTTP reply
+        # raises http.client.HTTPException (#1453 review).
         logger.debug("engine TTFT scrape of %s failed: %s", url, exc)
         return None
 
