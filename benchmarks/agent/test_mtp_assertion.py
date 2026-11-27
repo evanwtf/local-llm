@@ -242,6 +242,8 @@ def test_the_mtp_arms_declare_themselves():
         "glm53ffp4localdual2xrc": "vllm",
         # #1208: DeepSeek-1017 SAGE-EXL3 1.62 bpw on one Spark, DSpark k=5.
         "dsv41f1017sage162exl3rcdgx": "vllm",
+        # #1503: HY4 Flash with its DFly drafter; feeds vLLM's spec-decode counters.
+        "hy4flashnvfp4vllmpr68387nothinkdual2xrc": "vllm",
     }
 
 
