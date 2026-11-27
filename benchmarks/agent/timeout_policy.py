@@ -11,6 +11,9 @@ reads 96% while weights merely load and 0% mid-trial during a tool phase, so it
 lies in both directions. ``scripts/gpu_utilization.py`` already encodes the
 power rule (``IDLE_WATTS``, ``is_busy``), and this module reuses it as the
 global floor; ``TIER_IDLE_FLOOR_WATTS`` overrides it per hardware tier.
+Power alone cannot tell a stuck client from a light decode on GB10 (#1450), so
+where the engine exports a running-request gauge (``ENGINE_SIGNALS``) a sample
+is idle only when the engine is idle too (#1453).
 
 (A) ``IdleStallWatchdog`` + ``run_client_with_watchdog`` kill a single trial
 whose GPU has been idle for a continuous window, well before its wall-clock
@@ -36,6 +39,9 @@ import signal
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -81,8 +87,72 @@ TIER_IDLE_FLOOR_WATTS: dict[str, float] = {
     "gb10-spark-x2": 13.0,  # same GPU; one floor for both tiers
 }
 
-#: Where a resolved idle floor came from, in precedence order.
-IdleFloorSource = Literal["flag", "backend", "tier", "default"]
+#: Where a resolved idle floor came from, in precedence order. "engine" is
+#: the engine-rule floor (#1453), which replaces "tier" and "default" there.
+IdleFloorSource = Literal["flag", "backend", "tier", "default", "engine"]
+
+#: The power floor of the engine rule (#1453). With the engine's word that no
+#: request runs, the floor no longer has to sit under a light decode, so the
+#: GB10 tier exception (13 W) is not needed and the global floor applies.
+#: scripts/idle_floor_evidence.py, 60 days to 2026-11-27, back-to-back 10-min
+#: windows: power alone at 13 W misses 53 of 559 quiet windows; this rule
+#: misses 44 (vLLM 15 -> 9, llama.cpp 8 -> 5; TensorFold stays at 30 of 309).
+#: It kills no window where the engine generated.
+ENGINE_IDLE_FLOOR_WATTS: float = IDLE_FLOOR_WATTS
+
+
+@dataclass(frozen=True)
+class EngineSignal:
+    """The families of an engine's own ``/metrics`` that say it is working.
+
+    ``running`` is a gauge of the requests in progress now. ``progress`` is a
+    counter of generated tokens: the gauge is a snapshot, and a short request
+    between two samples shows only in the counter.
+    """
+
+    engine: str
+    running: str
+    progress: str
+
+
+#: The engines whose ``/metrics`` the watchdog reads, by tasks.toml ``engine``
+#: (#1453). Each name was checked against real output: vLLM's in Prometheus
+#: (stored from a vLLM server; ``engine="0"``, ``model_name=...``), llama.cpp's
+#: in Prometheus and in a live capture (b10809), SGLang's in a live capture
+#: (nightly 2026-09-21; the exporter's llme_requests_running for SGLang is
+#: mapped from it). Every other engine keeps the power rule:
+#:
+#: * TensorFold, by decision in #1453. Its v0.3.4 patch-0150 exposition has
+#:   no running gauge, and its token counter moves only when a completion
+#:   finishes, so a long decode reads as "no progress".
+#: * ds4, Ollama, mlx-serve and the rest export no such signal.
+ENGINE_SIGNALS: dict[str, EngineSignal] = {
+    "vllm": EngineSignal(
+        "vllm", "vllm:num_requests_running", "vllm:generation_tokens_total"
+    ),
+    "sglang": EngineSignal(
+        "sglang", "sglang:num_running_reqs", "sglang:generation_tokens_total"
+    ),
+    "llama.cpp": EngineSignal(
+        "llama.cpp", "llamacpp:requests_processing", "llamacpp:tokens_predicted_total"
+    ),
+}
+
+
+@dataclass(frozen=True)
+class EngineReading:
+    """One read of an engine: requests running now, and its token counter."""
+
+    running: float
+    progress: float | None
+
+
+#: One engine read, or None when the engine cannot be read (endpoint down, a
+#: scrape gap, a body without the running gauge).
+EngineSampler = Callable[[], "EngineReading | None"]
+
+#: How long one engine read may take. The poll is every 15 s.
+ENGINE_TIMEOUT_SECS: float = 5.0
 
 #: A continuous idle stretch this long (seconds) means the trial has stalled.
 #: An agent trial alternates decode with tool and test phases, so a short
@@ -143,6 +213,99 @@ def resolve_idle_floor(
     return IDLE_FLOOR_WATTS, "default"
 
 
+def resolve_engine_idle_floor(
+    flag: float | None, backend: Mapping[str, object]
+) -> tuple[float, IdleFloorSource]:
+    """The power floor of the engine rule (#1453), and where it came from.
+
+    An explicit flag or backend key wins, as in :func:`resolve_idle_floor`.
+    Otherwise :data:`ENGINE_IDLE_FLOOR_WATTS`, not the tier floor.
+    """
+    floor, source = resolve_idle_floor(flag, backend)
+    if source in ("flag", "backend"):
+        return floor, source
+    return ENGINE_IDLE_FLOOR_WATTS, "engine"
+
+
+def engine_metrics_url(backend: Mapping[str, object]) -> str | None:
+    """The ``/metrics`` URL of the backend's engine, or None without a URL.
+
+    ``engine_url`` names the engine behind a shim; else ``base_url``. In
+    remote mode both already name the server (``remote.rewrite``).
+    """
+    url = backend.get("engine_url") or backend.get("base_url")
+    if not isinstance(url, str) or not url:
+        return None
+    parts = urllib.parse.urlsplit(url)
+    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, "/metrics", "", ""))
+
+
+def engine_signal_for(
+    backend: Mapping[str, object],
+) -> tuple[EngineSignal | None, str]:
+    """The engine signal for a backend, or None for the power rule, and why."""
+    engine = str(backend.get("engine") or "")
+    signal = ENGINE_SIGNALS.get(engine)
+    if signal is None:
+        return None, (
+            f"power rule: engine {engine or '(none)'} has no running-request "
+            "signal the watchdog reads (#1453)"
+        )
+    if engine_metrics_url(backend) is None:
+        return None, f"power rule: engine {engine} but no base_url to read"
+    return signal, f"engine rule: {engine} {signal.running}"
+
+
+def _family_sum(text: str, name: str) -> float | None:
+    """The sum of every sample of one family in a /metrics body, or None."""
+    total: float | None = None
+    for line in text.splitlines():
+        if not line.startswith(name):
+            continue
+        rest = line[len(name) :]
+        if rest[:1] == "{":
+            end = rest.find("}")
+            if end < 0:
+                continue
+            rest = rest[end + 1 :]
+        elif rest[:1] not in (" ", "\t"):
+            continue  # a longer name: vllm:generation_tokens_created
+        fields = rest.split()
+        if not fields:
+            continue
+        try:
+            value = float(fields[0])
+        except ValueError:
+            continue
+        if math.isfinite(value):
+            total = (total or 0.0) + value
+    return total
+
+
+def parse_engine_metrics(text: str, signal: EngineSignal) -> EngineReading | None:
+    """The engine's reading from its /metrics body; None without the gauge.
+
+    A body with no running gauge is unreadable, never "0 running": a
+    llama-server without ``--metrics`` or a shim must not read as idle.
+    """
+    running = _family_sum(text, signal.running)
+    if running is None:
+        return None
+    return EngineReading(running, _family_sum(text, signal.progress))
+
+
+def fetch_engine_reading(
+    url: str, signal: EngineSignal, timeout: float = ENGINE_TIMEOUT_SECS
+) -> EngineReading | None:
+    """One read-only GET of the engine's /metrics; None on any failure."""
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            body = r.read().decode("utf-8", "replace")
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+    return parse_engine_metrics(body, signal)
+
+
 class IdleStallWatchdog:
     """Track the current continuous GPU-idle stretch. Pure and threadless.
 
@@ -173,8 +336,28 @@ class IdleStallWatchdog:
         idle_stall_secs: float = DEFAULT_IDLE_STALL_SECS,
         poll_secs: float = DEFAULT_POLL_SECS,
         monotonic: Callable[[], float] = time.monotonic,
+        engine: EngineSampler | None = None,
+        engine_floor_watts: float = ENGINE_IDLE_FLOOR_WATTS,
+        engine_floor_source: IdleFloorSource = "engine",
+        engine_name: str = "",
+        power_only_reason: str = "",
     ) -> None:
         self._watts = watts
+        #: #1453: the engine's running-request signal, or None for the power
+        #: rule. With it, a sample is idle only when the engine reports no
+        #: running request and no new tokens AND the GPU reads under
+        #: ``engine_floor_watts``. A sample whose engine read fails is judged
+        #: by the power rule against ``idle_floor_watts``, as before #1453.
+        self._engine = engine
+        self.engine_floor_watts = engine_floor_watts
+        self.engine_floor_source = engine_floor_source
+        self.engine_name = engine_name
+        #: Why this watchdog has no engine signal, for the stall log line.
+        self.power_only_reason = power_only_reason
+        #: The engine's token counter at its last successful read.
+        self._progress: float | None = None
+        #: Idle samples in the open stretch, by the rule that judged them.
+        self._judged = {"engine": 0, "power": 0}
         self.idle_floor_watts = idle_floor_watts
         #: Where the floor came from (#1450), for the stall log line. Not
         #: given: "default" for the global floor, else "caller", so a floor
@@ -203,17 +386,65 @@ class IdleStallWatchdog:
             # erase one that had begun.
             self._idle_at = None
             return None
+        working = self._engine_working()
+        if working is None:
+            rule, idle = "power", watts < self.idle_floor_watts
+        else:
+            rule, idle = "engine", not working and watts < self.engine_floor_watts
         now = self._monotonic()
-        if watts >= self.idle_floor_watts:
+        if not idle:
             self._idle = False
             self._idle_secs = 0.0
             self._idle_at = None
+            self._judged = {"engine": 0, "power": 0}
             return watts
         if self._idle and self._idle_at is not None:
             self._idle_secs += now - self._idle_at
         self._idle = True
         self._idle_at = now
+        self._judged[rule] += 1
         return watts
+
+    def _engine_working(self) -> bool | None:
+        """Did the engine work? None: no engine signal, or it was unreadable.
+
+        Working means a request runs now, or the token counter moved since
+        the last read. A counter that went down (a restart) moved too. A
+        failed read keeps the last counter value, so tokens made across the
+        gap still count as work at the next read.
+        """
+        if self._engine is None:
+            return None
+        reading = self._engine()
+        if reading is None:
+            return None
+        moved = (
+            reading.progress is not None
+            and self._progress is not None
+            and reading.progress != self._progress
+        )
+        if reading.progress is not None:
+            self._progress = reading.progress
+        return reading.running > 0 or moved
+
+    def rule_summary(self) -> str:
+        """Which rule judged the open idle stretch, for the stall log line."""
+        power = f"below {self.idle_floor_watts:g} W ({self.idle_floor_source})"
+        if self._engine is None:
+            why = f"; {self.power_only_reason}" if self.power_only_reason else ""
+            return f"power rule: {power}{why}"
+        engine = (
+            f"engine rule: {self.engine_name or 'engine'} reported no running "
+            "request and no new tokens, and the GPU read below "
+            f"{self.engine_floor_watts:g} W ({self.engine_floor_source})"
+        )
+        n_engine, n_power = self._judged["engine"], self._judged["power"]
+        if not n_power:
+            return engine
+        return (
+            f"{engine} for {n_engine} samples; power rule: {power} for "
+            f"{n_power} samples, while the engine could not be read"
+        )
 
     def idle_seconds(self) -> float:
         """Idle seconds in the current stretch, as of the last readable sample."""
@@ -370,10 +601,9 @@ def run_client_with_watchdog(
         if watchdog.stalled():
             idle_stalled = True
             log.error(
-                "client GPU-idle-stall: below %g W (%s) for >= %.0fs -- killing "
+                "client GPU-idle-stall: %s, for >= %.0fs -- killing "
                 "the process group (was riding a %s timeout doing nothing)",
-                watchdog.idle_floor_watts,
-                watchdog.idle_floor_source,
+                watchdog.rule_summary(),
                 watchdog.idle_stall_secs,
                 "None" if timeout is None else f"{timeout:.0f}s",
             )

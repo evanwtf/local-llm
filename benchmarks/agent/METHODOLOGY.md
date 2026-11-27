@@ -653,6 +653,20 @@ watchdog reads the busier node, so 12 W would miss most real stalls.
 `--idle-floor-watts` overrides both. Each watched row records the floor as
 `idle_floor_watts`.
 
+Power alone cannot tell a stuck client from a light decode, so the watchdog
+also asks the engine (#1453). For a vLLM, SGLang or llama.cpp backend it reads
+the engine's own `/metrics` each poll: the running-request gauge
+(`vllm:num_requests_running`, `sglang:num_running_reqs`,
+`llamacpp:requests_processing`) and the generated-token counter. A sample is
+idle only when no request runs, the counter has not moved, and the GPU reads
+under 20 W. A running request is never killed at any power. When the engine
+cannot be read (endpoint down, no gauge in the body), that sample falls back to
+the power rule above. TensorFold, ds4, Ollama and the other engines keep the
+power rule. The stall log line names the rule that judged the stretch, and a
+row judged by the engine rule also carries `idle_engine_floor_watts`. Over 60
+days the rule misses 44 of 559 quiet 10-minute windows, against 53 for power
+alone at 13 W; TensorFold holds 30 of the 44.
+
 Rerun the evidence when the ledger grows:
 
     uv run python scripts/timeout_sizing.py --results hardware/<machine>/results.jsonl

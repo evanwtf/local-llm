@@ -15,6 +15,7 @@ import tomllib
 
 import pytest
 import results
+import timeout_policy as tp
 from timeout_policy import (
     IDLE_FLOOR_WATTS,
     TIER_IDLE_FLOOR_WATTS,
@@ -524,3 +525,328 @@ def test_sample_watts_shows_the_tier_floor(monkeypatch, caplog) -> None:
     with caplog.at_level(logging.INFO):
         timeout_policy._sample_watts(None)
     assert "idle floor 20 W, from default" in caplog.text
+
+
+# --- #1453: the engine's running-request signal ----------------------------
+#
+# The power floor alone cannot tell a stuck client from a light decode on
+# GB10: the worker idles with a two-node model resident at 11.5-12.0 W, and
+# Inkling 2 Mini decodes at 15.8-17.3 W (#1450). Where the engine says whether
+# it serves a request, a sample is idle only when the engine is idle AND the
+# GPU reads under the engine-rule floor (20 W). Elsewhere the power rule stays.
+
+# Lines in the engines' own /metrics format. The vLLM names and labels match
+# what Prometheus stored from a vLLM server (engine="0", model_name=...); the
+# llama.cpp and SGLang lines are from live /metrics captures (llama.cpp b10809,
+# SGLang nightly 2026-09-21).
+VLLM_BUSY = """\
+# HELP vllm:num_requests_running Number of requests in model execution batches.
+# TYPE vllm:num_requests_running gauge
+vllm:num_requests_running{engine="0",model_name="inkling-2-mini"} 1.0
+# TYPE vllm:generation_tokens_total counter
+vllm:generation_tokens_total{engine="0",model_name="inkling-2-mini"} 111129.0
+vllm:generation_tokens_created{engine="0",model_name="inkling-2-mini"} 1.7e9
+"""
+VLLM_IDLE = VLLM_BUSY.replace("} 1.0\n", "} 0.0\n", 1)
+LLAMACPP = """\
+# HELP llamacpp:tokens_predicted_total Number of generation tokens processed
+# TYPE llamacpp:tokens_predicted_total counter
+llamacpp:tokens_predicted_total 224
+# HELP llamacpp:requests_processing Number of requests processing
+# TYPE llamacpp:requests_processing gauge
+llamacpp:requests_processing 0
+"""
+SGLANG = """\
+# TYPE sglang:generation_tokens_total counter
+sglang:generation_tokens_total{engine_type="unified",is_streaming="false",model_name="MiMo-v2.6-Flash"} 792.0
+sglang:generation_tokens_total{engine_type="unified",is_streaming="true",model_name="MiMo-v2.6-Flash"} 146347.0
+# TYPE sglang:num_running_reqs gauge
+sglang:num_running_reqs{engine_type="unified",model_name="MiMo-v2.6-Flash",moe_ep_rank="0",pp_rank="0",tp_rank="0"} 1.0
+"""
+
+
+def test_parse_reads_the_vllm_gauge_and_counter() -> None:
+    sig = tp.ENGINE_SIGNALS["vllm"]
+    assert tp.parse_engine_metrics(VLLM_BUSY, sig) == tp.EngineReading(1.0, 111129.0)
+    assert tp.parse_engine_metrics(VLLM_IDLE, sig) == tp.EngineReading(0.0, 111129.0)
+
+
+def test_parse_reads_llamacpp_and_sglang() -> None:
+    got = tp.parse_engine_metrics(LLAMACPP, tp.ENGINE_SIGNALS["llama.cpp"])
+    assert got == tp.EngineReading(0.0, 224.0)
+    got = tp.parse_engine_metrics(SGLANG, tp.ENGINE_SIGNALS["sglang"])
+    assert got == tp.EngineReading(1.0, 792.0 + 146347.0)
+
+
+def test_a_body_without_the_gauge_is_unreadable() -> None:
+    # A llama-server without --metrics, a shim, or another engine's body: no
+    # running gauge means no engine verdict, never "0 running".
+    assert tp.parse_engine_metrics(LLAMACPP, tp.ENGINE_SIGNALS["vllm"]) is None
+    assert tp.parse_engine_metrics("", tp.ENGINE_SIGNALS["vllm"]) is None
+
+
+def test_a_body_without_the_counter_still_reads_the_gauge() -> None:
+    body = 'vllm:num_requests_running{engine="0"} 0.0\n'
+    got = tp.parse_engine_metrics(body, tp.ENGINE_SIGNALS["vllm"])
+    assert got == tp.EngineReading(0.0, None)
+
+
+def test_the_metrics_url_is_the_engine_root() -> None:
+    assert (
+        tp.engine_metrics_url({"base_url": "http://srv:8888/v1"})
+        == "http://srv:8888/metrics"
+    )
+    # A shim-fronted backend: the engine's own port, not the shim's.
+    backend = {"base_url": "http://srv:8100", "engine_url": "http://srv:8000"}
+    assert tp.engine_metrics_url(backend) == "http://srv:8000/metrics"
+    assert tp.engine_metrics_url({}) is None
+
+
+@pytest.mark.parametrize("engine", ["vllm", "sglang", "llama.cpp"])
+def test_an_engine_with_a_running_gauge_gets_the_engine_rule(engine: str) -> None:
+    backend = {"engine": engine, "base_url": "http://srv:8888"}
+    signal, why = tp.engine_signal_for(backend)
+    assert signal is tp.ENGINE_SIGNALS[engine]
+    assert engine in why
+
+
+@pytest.mark.parametrize("engine", ["tensorfold", "ds4", "ollama", "mlx-serve", ""])
+def test_other_engines_keep_the_power_rule(engine: str) -> None:
+    signal, why = tp.engine_signal_for({"engine": engine, "base_url": "http://s:1"})
+    assert signal is None
+    assert "power" in why
+
+
+def test_tensorfold_keeps_the_power_rule_and_says_why() -> None:
+    signal, why = tp.engine_signal_for(
+        {"engine": "tensorfold", "base_url": "http://srv:8888"}
+    )
+    assert signal is None
+    assert "tensorfold" in why
+
+
+def test_a_backend_with_no_url_keeps_the_power_rule() -> None:
+    signal, why = tp.engine_signal_for({"engine": "vllm"})
+    assert signal is None
+    assert "no base_url" in why
+
+
+def test_every_backend_in_tasks_toml_gets_a_rule() -> None:
+    cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
+    rules = {tp.engine_signal_for(b)[0] is not None for b in cfg["backend"].values()}
+    assert rules == {True, False}, "both kinds of backend exist in tasks.toml"
+
+
+def test_the_engine_floor_resolves_flag_then_backend_then_engine_default() -> None:
+    b = {"tier": "gb10-spark-x2"}
+    assert tp.resolve_engine_idle_floor(None, b) == (20.0, "engine")
+    assert tp.resolve_engine_idle_floor(None, {**b, "idle_floor_watts": 14}) == (
+        14.0,
+        "backend",
+    )
+    assert tp.resolve_engine_idle_floor(12.0, b) == (12.0, "flag")
+
+
+def test_the_engine_floor_is_above_light_decode_power() -> None:
+    """With the engine signal the floor no longer has to sit under a light
+    decode: the engine says when a request runs. 20 W is above every GB10
+    loaded-idle reading in #1450, so it no longer misses a stuck client."""
+    assert tp.ENGINE_IDLE_FLOOR_WATTS == IDLE_FLOOR_WATTS == 20.0
+
+
+class _Engine:
+    """An engine sampler that yields a scripted sequence, holding at the last."""
+
+    def __init__(self, values: list[tp.EngineReading | None]) -> None:
+        self._values = values
+        self._i = 0
+
+    def __call__(self) -> tp.EngineReading | None:
+        v = self._values[min(self._i, len(self._values) - 1)]
+        self._i += 1
+        return v
+
+
+def _engine_watchdog(
+    watts: list[float | None], engine: list[tp.EngineReading | None], clock: _Now
+) -> IdleStallWatchdog:
+    return IdleStallWatchdog(
+        _Sampler(watts),
+        idle_floor_watts=13.0,
+        idle_floor_source="tier",
+        engine=_Engine(engine),
+        engine_floor_watts=20.0,
+        engine_floor_source="engine",
+        engine_name="vllm",
+        idle_stall_secs=600.0,
+        monotonic=clock,
+    )
+
+
+def _run(wd: IdleStallWatchdog, clock: _Now, steps: int, every: float = 15.0) -> None:
+    for i in range(steps):
+        clock.t = i * every
+        wd.sample()
+
+
+IDLE = tp.EngineReading(0.0, 500.0)
+
+
+def test_engine_rule_catches_a_stuck_client_the_power_floor_misses() -> None:
+    """The #1453 case: no request runs and the counters stand still, but the
+    worker reads 14 W, above the 13 W tier floor. The power rule never sees
+    idle; the engine rule stops the trial at 600 s."""
+    clock = _Now()
+    wd = _engine_watchdog([14.0], [IDLE], clock)
+    _run(wd, clock, 41)  # 0..600 s
+    assert wd.stalled() is True
+
+    power_only = IdleStallWatchdog(
+        _Sampler([14.0]), idle_floor_watts=13.0, monotonic=(c := _Now())
+    )
+    _run(power_only, c, 41)
+    assert power_only.stalled() is False
+
+
+def test_engine_rule_never_kills_a_running_request_at_low_power() -> None:
+    """A light decode at 5-16 W with one request running is work (#1450)."""
+    clock = _Now()
+    wd = _engine_watchdog([5.0], [tp.EngineReading(1.0, 500.0)], clock)
+    _run(wd, clock, 200)
+    assert wd.stalled() is False
+    assert wd.idle_seconds() == 0.0
+
+
+def test_moving_tokens_with_no_running_request_is_work() -> None:
+    """The gauge is a snapshot: vLLM read 0 running at 07:27 on 2026-10-14
+    while its token counter rose 11960 -> 12571 in the next minute. A counter
+    that moved between two samples means the engine worked."""
+    clock = _Now()
+    readings = [tp.EngineReading(0.0, float(n)) for n in range(100)]
+    wd = _engine_watchdog([5.0], readings, clock)  # type: ignore[arg-type]
+    _run(wd, clock, 100)
+    assert wd.stalled() is False
+
+
+def test_a_counter_reset_is_work() -> None:
+    """llama.cpp's token counter fell 36158 -> 359 between two minutes on
+    2026-10-15 (a server restart). A counter that went down moved."""
+    clock = _Now()
+    wd = _engine_watchdog(
+        [5.0], [tp.EngineReading(0.0, 36158.0), tp.EngineReading(0.0, 359.0)], clock
+    )
+    clock.t = 0.0
+    wd.sample()
+    clock.t = 15.0
+    wd.sample()
+    assert wd.idle_seconds() == 0.0
+
+
+def test_engine_rule_at_or_above_its_floor_is_work() -> None:
+    clock = _Now()
+    wd = _engine_watchdog([20.0], [IDLE], clock)
+    _run(wd, clock, 100)
+    assert wd.stalled() is False
+
+
+def test_an_unreadable_engine_falls_back_to_the_power_rule() -> None:
+    """Endpoint down or a scrape gap: the sample is judged as before #1453,
+    against the power-rule floor (13 W). 14 W is then work, so a light decode
+    is never killed on a blind engine signal."""
+    clock = _Now()
+    wd = _engine_watchdog([14.0], [None], clock)
+    _run(wd, clock, 100)
+    assert wd.stalled() is False
+
+    clock = _Now()
+    wd = _engine_watchdog([10.0], [None], clock)
+    _run(wd, clock, 41)
+    assert wd.stalled() is True  # under 13 W: the #366 watchdog still works
+
+
+def test_an_unreadable_engine_does_not_reset_the_counter_baseline() -> None:
+    """Tokens that moved across a gap still count as work at the next read."""
+    clock = _Now()
+    wd = _engine_watchdog(
+        [5.0],
+        [tp.EngineReading(0.0, 100.0), None, tp.EngineReading(0.0, 900.0)],
+        clock,
+    )
+    for t in (0.0, 15.0, 30.0):
+        clock.t = t
+        wd.sample()
+    assert wd.idle_seconds() == 0.0
+
+
+def test_unreadable_power_still_holds_with_an_engine() -> None:
+    clock = _Now()
+    wd = _engine_watchdog([None], [IDLE], clock)
+    _run(wd, clock, 100)
+    assert wd.stalled() is False
+
+
+def test_the_stall_log_names_the_engine_rule(caplog) -> None:
+    clock = _Now()
+    wd = IdleStallWatchdog(
+        _Sampler([14.0]),
+        idle_floor_watts=13.0,
+        idle_floor_source="tier",
+        engine=_Engine([IDLE]),
+        engine_floor_watts=20.0,
+        engine_floor_source="engine",
+        engine_name="vllm",
+        idle_stall_secs=0.0,
+        monotonic=clock,
+    )
+    log = logging.getLogger("test_engine_rule_log")
+    with caplog.at_level(logging.ERROR, logger="test_engine_rule_log"):
+        result = run_client_with_watchdog(
+            [sys.executable, "-c", "import time; time.sleep(5.0)"],
+            cwd=None,
+            env=None,
+            timeout=30.0,
+            watchdog=wd,
+            poll_secs=0.01,
+            grace_secs=2.0,
+            log=log,
+        )
+    assert result.idle_stalled is True
+    assert "engine rule" in caplog.text
+    assert "vllm" in caplog.text
+    assert "20 W (engine)" in caplog.text
+
+
+def test_the_stall_log_says_power_rule_and_why(caplog) -> None:
+    clock = _Now()
+    _, why = tp.engine_signal_for({"engine": "tensorfold", "base_url": "http://s:1"})
+    wd = IdleStallWatchdog(
+        _Sampler([5.0]),
+        idle_floor_watts=13.0,
+        idle_floor_source="tier",
+        power_only_reason=why,
+        idle_stall_secs=0.0,
+        monotonic=clock,
+    )
+    log = logging.getLogger("test_power_rule_log")
+    with caplog.at_level(logging.ERROR, logger="test_power_rule_log"):
+        run_client_with_watchdog(
+            [sys.executable, "-c", "import time; time.sleep(5.0)"],
+            cwd=None,
+            env=None,
+            timeout=30.0,
+            watchdog=wd,
+            poll_secs=0.01,
+            grace_secs=2.0,
+            log=log,
+        )
+    assert "power rule" in caplog.text
+    assert "13 W (tier)" in caplog.text
+    assert "tensorfold" in caplog.text
+
+
+def test_fetch_engine_reading_is_none_when_the_endpoint_is_down() -> None:
+    # Port 9 (discard) on loopback: nothing listens, so the GET fails fast.
+    got = tp.fetch_engine_reading(
+        "http://127.0.0.1:9/metrics", tp.ENGINE_SIGNALS["vllm"], timeout=1.0
+    )
+    assert got is None

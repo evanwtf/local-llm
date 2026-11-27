@@ -25,6 +25,7 @@ from typing import Any
 import pytest
 import results
 import run
+import timeout_policy
 
 HERE = pathlib.Path(__file__).resolve().parent
 
@@ -3353,6 +3354,56 @@ def test_a_watched_trial_stamps_the_floor_it_used(
     )
     assert results.verdict(row) is True, row["pytest"]
     assert row["idle_floor_watts"] == want
+
+
+# --- #1453: a backend with an engine signal stamps the engine-rule floor -----
+
+
+def test_a_vllm_trial_stamps_the_engine_rule_floor(tmp_path, monkeypatch):
+    def engine():
+        return timeout_policy.EngineReading(1.0, 10.0)
+
+    row = _agent_trial(
+        tmp_path,
+        monkeypatch,
+        SOLVE,
+        backend={
+            "model": "stub",
+            "context_tokens": 1,
+            "tier": "gb10-spark-x2",
+            "engine": "vllm",
+            "base_url": "http://127.0.0.1:9",
+            "auth_token": "stub",
+        },
+        idle_watchdog=True,
+        watts_sampler=lambda: 999.0,
+        engine_sampler=engine,
+    )
+    assert results.verdict(row) is True, row["pytest"]
+    assert row["idle_floor_watts"] == 13.0  # the power rule, for a failed read
+    assert row["idle_engine_floor_watts"] == 20.0
+    assert not [e for e in results.validate(row) if "idle_engine" in e]
+
+
+def test_a_tensorfold_trial_keeps_the_power_rule(tmp_path, monkeypatch):
+    row = _agent_trial(
+        tmp_path,
+        monkeypatch,
+        SOLVE,
+        backend={
+            "model": "stub",
+            "context_tokens": 1,
+            "tier": "gb10-spark-x2",
+            "engine": "tensorfold",
+            "base_url": "http://127.0.0.1:9",
+            "auth_token": "stub",
+        },
+        idle_watchdog=True,
+        watts_sampler=lambda: 999.0,
+    )
+    assert results.verdict(row) is True, row["pytest"]
+    assert row["idle_floor_watts"] == 13.0
+    assert "idle_engine_floor_watts" not in row
 
 
 def test_an_unwatched_trial_has_no_idle_floor(tmp_path, monkeypatch):

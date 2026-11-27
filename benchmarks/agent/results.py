@@ -92,6 +92,12 @@ OPTIONAL: dict[str, type | tuple[type, ...]] = {
     # default. Absent when the watchdog was off, on a dry run, on a trial that
     # stopped before the client phase, and on every row before it.
     "idle_floor_watts": (int, float),
+    # #1453. The power floor of the engine rule, in watts: set only when the
+    # watchdog read the engine's running-request signal (vLLM, SGLang,
+    # llama.cpp). Its presence says the engine rule judged the trial; the
+    # power rule (`idle_floor_watts`) judged any sample whose engine read
+    # failed. Absent on a power-rule trial and on every row before it.
+    "idle_engine_floor_watts": (int, float),
     # #714. Set only on a replay task's row: "replay", and what reproduces it
     # -- `replay.commit` and `replay.parent` (full shas), `replay.reverted`
     # (each path and whether it was restored from the parent or deleted),
