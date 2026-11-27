@@ -12,8 +12,10 @@ from __future__ import annotations
 import itertools
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
+import tempfile
 
 import pytest
 
@@ -40,7 +42,7 @@ def _covers(argv):
     """The paths that a deny cover mounts over, in argv order."""
     out = []
     for i, arg in enumerate(argv[:-2]):
-        if arg == "--tmpfs" and argv[i + 1] not in ("/tmp", "/dev/shm"):
+        if arg == "--tmpfs" and argv[i + 1] not in run.BWRAP_PRIVATE_TMPFS:
             out.append(i + 1)
         elif arg == "--ro-bind" and argv[i + 1] == "/dev/null":
             out.append(i + 2)
@@ -102,10 +104,57 @@ def test_a_trial_tmpdir_outside_the_private_tmp_adds_nothing(tmp_path, where):
     assert where not in argv
 
 
+def test_a_symlinked_path_is_made_as_the_trial_names_it(tmp_path):
+    """L1: the trial sees TMPDIR as written. A host symlink below /tmp does
+    not exist inside the fresh tmpfs, so --dir must name the lexical path."""
+    (tmp_path / "real").mkdir()
+    (tmp_path / "link").symlink_to(tmp_path / "real")
+    private = str(tmp_path / "link" / "agent-bench" / "trial-tmp" / "wt")
+    argv = run.bwrap_argv(
+        ["true"], tmp_path / "wt", "/x/repo", [], trial_tmpdir=private
+    )
+    assert ("--dir", private) in list(itertools.pairwise(argv))
+    assert str(tmp_path / "real") not in " ".join(argv)
+
+
+def test_a_link_from_outside_into_the_private_tmp_makes_its_target(
+    tmp_path, monkeypatch
+):
+    """A TMPDIR outside the private mounts whose host link points into one:
+    inside, the link still resolves into the fresh tmpfs, so make the target."""
+    private_mount = tmp_path / "private"
+    (private_mount / "t").mkdir(parents=True)
+    (tmp_path / "outside").symlink_to(private_mount / "t")
+    monkeypatch.setattr(run, "BWRAP_PRIVATE_TMPFS", (str(private_mount),))
+    argv = run.bwrap_argv(
+        ["true"], tmp_path / "wt", "/x/repo", [], trial_tmpdir=tmp_path / "outside"
+    )
+    assert ("--dir", str(private_mount / "t")) in list(itertools.pairwise(argv))
+
+
+@pytest.fixture(params=["plain", "symlinked"])
+def root_in_tmp(request, monkeypatch):
+    """A TRIAL_TMP_ROOT under /tmp, so the tests below always take the --dir
+    branch. The session root may be elsewhere when the host's TMPDIR is (L3).
+    "symlinked" puts a host-only symlink in the path (L1)."""
+    base = pathlib.Path(tempfile.mkdtemp(prefix="bwrap-1541-", dir="/tmp"))
+    top = base
+    if request.param == "symlinked":
+        (base / "real").mkdir()
+        (base / "link").symlink_to(base / "real")
+        top = base / "link"
+    root = top / "agent-bench" / "trial-tmp"
+    monkeypatch.setattr(run, "TRIAL_TMP_ROOT", root)
+    yield root
+    shutil.rmtree(base, ignore_errors=True)
+
+
 @pytest.mark.skipif(
     _HAS_SANDBOX_EXEC, reason="sandbox-exec present; this targets the Linux bwrap path"
 )
-def test_sandboxed_creates_the_tmpdir_that_agent_env_names(tmp_path, monkeypatch):
+def test_sandboxed_creates_the_tmpdir_that_agent_env_names(
+    tmp_path, monkeypatch, root_in_tmp
+):
     """One path, from both sides: what `agent_env` sets is what bwrap makes."""
     wt = tmp_path / "wt"
     wt.mkdir()
@@ -116,14 +165,12 @@ def test_sandboxed_creates_the_tmpdir_that_agent_env_names(tmp_path, monkeypatch
     wrapped, _denied, mechanism = run.sandboxed(["true"], wt, "/x/repo", tmp_path)
     assert mechanism == "bwrap"
     tmpdir = run.agent_env(_BACKEND, wt)["TMPDIR"]
-    if pathlib.Path(tmpdir).is_relative_to("/tmp"):
-        assert ("--dir", tmpdir) in list(itertools.pairwise(wrapped))
-    else:
-        assert "--dir" not in wrapped
+    assert tmpdir == str(root_in_tmp / "wt")
+    assert ("--dir", tmpdir) in list(itertools.pairwise(wrapped))
 
 
 @pytest.mark.skipif(not _BWRAP_RUNS, reason="needs a bwrap that can make namespaces")
-def test_a_real_trial_can_mktemp_in_its_own_tmpdir(tmp_path):
+def test_a_real_trial_can_mktemp_in_its_own_tmpdir(tmp_path, root_in_tmp):
     """The kernel, not the argv: a bare `mktemp` under the trial env."""
     wt = tmp_path / "wt"
     wt.mkdir()
@@ -133,6 +180,7 @@ def test_a_real_trial_can_mktemp_in_its_own_tmpdir(tmp_path):
     )
     assert mechanism == "bwrap"
     env = run.agent_env(_BACKEND, wt)
+    assert env["TMPDIR"] == str(root_in_tmp / "wt")
     got = subprocess.run(
         argv, env=env, capture_output=True, text=True, timeout=30, check=False
     )
@@ -140,6 +188,5 @@ def test_a_real_trial_can_mktemp_in_its_own_tmpdir(tmp_path):
     lines = dict(line.split("=", 1) for line in got.stdout.splitlines())
     assert lines["tmpdir"] == env["TMPDIR"]
     assert os.path.dirname(lines["made"]) == env["TMPDIR"]
-    if pathlib.Path(env["TMPDIR"]).is_relative_to("/tmp"):
-        # Created inside the private /tmp, so the file died with it.
-        assert list(pathlib.Path(env["TMPDIR"]).iterdir()) == []
+    # Created inside the private /tmp, so the file died with it.
+    assert list(pathlib.Path(env["TMPDIR"]).iterdir()) == []

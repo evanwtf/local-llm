@@ -4521,6 +4521,29 @@ def container_daemon_sockets(candidates=CONTAINER_DAEMON_SOCKETS):
 BWRAP_PRIVATE_TMPFS = ("/tmp", "/dev/shm")
 
 
+def private_tmpdir(trial_tmpdir):
+    """The path bwrap must create for the trial's TMPDIR, or None (#1541).
+
+    The lexical path first: it is the exact TMPDIR string the trial uses. A
+    host symlink below /tmp does not exist inside the fresh tmpfs, so the
+    resolved path would make the wrong directory. Only when the lexical path
+    is outside the private mounts does the resolved one count: a host link
+    from outside into /tmp still resolves inside, into the empty tmpfs, so
+    its target must be made there. None when neither path is private.
+    """
+    if trial_tmpdir is None:
+        return None
+
+    def private(path):
+        return any(pathlib.Path(path).is_relative_to(m) for m in BWRAP_PRIVATE_TMPFS)
+
+    lexical = os.path.normpath(os.path.abspath(trial_tmpdir))
+    if private(lexical):
+        return lexical
+    resolved = os.path.realpath(trial_tmpdir)
+    return resolved if private(resolved) else None
+
+
 def bwrap_argv(argv, worktree, repo, denied, harness_root=None, trial_tmpdir=None):
     """Wrap `argv` so the trial cannot see the answers, and gets its own /tmp.
 
@@ -4593,14 +4616,11 @@ def bwrap_argv(argv, worktree, repo, denied, harness_root=None, trial_tmpdir=Non
         # own PID namespace, bwrap's child is PID 1 inside, and when PID 1
         # dies the kernel kills the rest of the namespace.
         "--unshare-pid",
-        # Its own /tmp, and its own /dev/shm: vLLM's client libraries put
-        # POSIX segments there, and a leaked segment outlives the trial.
-        # Keep in step with BWRAP_PRIVATE_TMPFS.
-        "--tmpfs",
-        "/tmp",
-        "--tmpfs",
-        "/dev/shm",
     ]
+    # Its own /tmp, and its own /dev/shm: vLLM's client libraries put
+    # POSIX segments there, and a leaked segment outlives the trial.
+    for mount in BWRAP_PRIVATE_TMPFS:
+        args += ["--tmpfs", mount]
     for tree in trees:
         if tree.is_dir():
             args += ["--ro-bind", str(tree), str(tree)]
@@ -4633,10 +4653,9 @@ def bwrap_argv(argv, worktree, repo, denied, harness_root=None, trial_tmpdir=Non
     # after the covers so a cover over a parent cannot hide it. Outside the
     # private tmpfs the host directory already shows through the `/` bind,
     # and a --dir there would write a missing directory through to the host.
-    if trial_tmpdir is not None:
-        tmpdir = pathlib.Path(os.path.realpath(trial_tmpdir))
-        if any(tmpdir.is_relative_to(m) for m in BWRAP_PRIVATE_TMPFS):
-            args += ["--dir", str(tmpdir)]
+    tmpdir = private_tmpdir(trial_tmpdir)
+    if tmpdir is not None:
+        args += ["--dir", tmpdir]
     # The worktree is bound last so nothing above can shadow it: it is the one
     # place the trial must be able to write.
     args += [
