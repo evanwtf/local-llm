@@ -7154,9 +7154,10 @@ def main():
     if _not_empty:
         logger.warning("%s (proceeding: --allow-contended)", _not_empty)
 
-    # #324: an engine with no runtime on this (OS, arch) refuses now, not after
-    # a server that never comes up. Not bypassed by --allow-contended.
-    _no_runtime = runtimes.refusal(backends)
+    # #324: an engine with no runtime on its serving host refuses now, not
+    # after a server that never comes up. On a remote run the serving host is
+    # the server, read from its facts. Not bypassed by --allow-contended.
+    _no_runtime = runtimes.refusal(backends, server_facts=server_facts)
     if _no_runtime:
         raise SystemExit(_no_runtime)
 
@@ -7331,6 +7332,9 @@ def main():
         versions = remote.stamp(versions, server_facts)
     versions["client"] = ",".join(clients)
     env_for = versions_per_backend(versions, backends, argv_by_backend)
+    # #324: how each backend's engine was obtained on its serving host. Set
+    # after remote.stamp, per backend, so the server facts cannot replace it.
+    runtimes.stamp(env_for, backends, server_facts)
     # #213: a row carries the server's launch argv or says why it has none. A
     # dry run writes its rows elsewhere, so it warns instead of refusing.
     if gaps := argv_gaps(env_for, backends, args.no_argv_reason):

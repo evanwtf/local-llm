@@ -51,10 +51,30 @@ A test fails when a live backend in `tasks.toml` is missing from it.
 [`benchmarks/agent/runtimes.py`](../benchmarks/agent/runtimes.py) records,
 per engine, whether the M5 Max (Darwin arm64), the DGX Spark (Linux aarch64)
 and the 3080 Ti desktop (Linux x86_64) get it `prebuilt` or build it from
-`source`, or have no runtime at all. `run.py` refuses a local backend whose
-engine has no runtime on the host, before it claims the machine. `preflight.py`
-logs the table for the host. A pair nobody has tried is unknown and does not
-refuse. A new engine in `tasks.toml` fails a test until it has a row.
+`source`, or have no runtime at all. `preflight.py` logs the table for the
+host. A new engine in `tasks.toml` fails a test until it has a row.
+
+The table is checked against the **serving host**. On a local run that is the
+machine that runs `run.py`. On a remote run it is the server: `run.py` reads its
+OS and arch from the facts file (`facts.os`, `facts.arch`, written by
+`scripts/server_facts.py`). A two-node screen runs its client on an x86_64
+machine, but the engine runs on the aarch64 Sparks.
+
+- **No runtime on the serving host:** `run.py` refuses before it claims the
+  machine, and gives the table's reason.
+- **Unknown pair (nobody has tried it):** `run.py` logs a warning and goes on.
+- **Facts with no `arch` or `os`:** `run.py` logs that it skipped the check and
+  why, and goes on. Write the facts again on the server.
+- **The suite:** `LOCAL_LLM_ANY_PLATFORM=1` skips the check; its engines are fakes.
+
+Each new row records the answer as **`env.engine_runtime`**: `prebuilt`,
+`source`, or `unknown` (`none` only when the suite's escape let a gap through).
+A backend whose `image` starts with `local/` was built on the host
+(`scripts/vllm_pr_overlay.py`, `scripts/vllm_two_node.py`), so its rows say
+`source`, whatever the engine's usual way is. Otherwise the value is the
+table's entry for the engine, not a check of that backend's recipe. Facts
+with no `arch` give no field, never a guess. Rows from before 2026-11-27 have
+no field, and nothing backfills it.
 
 ## Retire a backend, do not delete it
 

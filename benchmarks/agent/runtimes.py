@@ -22,6 +22,12 @@ has no runtime there, and `note` says why. A host that is not listed is
 instead of a server that never comes up an hour in. Every engine `tasks.toml`
 names must have a row here (`test_runtimes.py`), so a new engine is placed in
 the table on purpose.
+
+The host that matters is the one that serves the engine. On a local run that
+is this machine. On a remote run (#562) it is the server, and its (OS, arch)
+comes from the server facts file (`scripts/server_facts.py`): a two-node
+screen runs its client on an x86_64 laptop against the aarch64 Sparks.
+`stamp()` records the answer on each row as `env.engine_runtime`.
 """
 
 from __future__ import annotations
@@ -43,6 +49,18 @@ LINUX_X86_64: Host = ("Linux", "x86_64")
 
 #: The loopback names a local backend's `base_url` uses (as in remote.py).
 LOOPBACK = {"127.0.0.1", "localhost", "0.0.0.0", "::1"}
+
+#: The row field: how the backend's engine is obtained on the serving host.
+ROW_KEY = "engine_runtime"
+#: The word for a pair the table does not list: nobody has tried it.
+UNKNOWN = "unknown"
+#: The word for a pair the table lists with no runtime. A gated run never
+#: writes it (the gate refuses first); only the suite's escape reaches it.
+NONE = "none"
+#: The tag prefix of an image this project builds on the host itself
+#: (`scripts/vllm_pr_overlay.py`, `scripts/vllm_two_node.py`). Such an image is
+#: a source build, whatever the engine's usual way on that host.
+LOCAL_IMAGE_PREFIX = "local/"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -148,35 +166,116 @@ def lookup(engine: str, h: Host | None = None) -> Runtime | None:
     return RUNTIMES.get(engine.lower(), {}).get(h or host())
 
 
+def kind(engine: str, h: Host, backend: Mapping[str, object] | None = None) -> str:
+    """How `engine` is obtained on `h`: `prebuilt`, `source`, `unknown` or `none`.
+
+    A backend whose `image` this project built locally (`local/...`) is a
+    source build. Without that, the table's entry decides; an engine with
+    both ways in the table records both, joined by `+`.
+    """
+    rt = lookup(engine, h)
+    if rt is None:
+        return UNKNOWN
+    if not rt.ways:
+        return NONE
+    image = str((backend or {}).get("image") or "")
+    if image.startswith(LOCAL_IMAGE_PREFIX):
+        return "source"
+    return "+".join(sorted(rt.ways))
+
+
+def server_host(facts: Mapping[str, object]) -> tuple[Host | None, str | None]:
+    """The server's (OS, arch) from a server facts file, or None and the reason.
+
+    `scripts/server_facts.py` writes `preflight.machine_facts()` under `facts`:
+    `arch` is `platform.machine()` and `os` is `"<system> <release>"`. A file
+    without either names no host, and the caller must not guess one.
+    """
+    machine = facts.get("facts")
+    if not isinstance(machine, Mapping):
+        return None, "the server facts carry no machine facts"
+    arch = str(machine.get("arch") or "").strip()
+    system = str(machine.get("os") or "").strip().split(" ")[0]
+    if not arch:
+        return None, "the server facts carry no arch"
+    if not system:
+        return None, "the server facts carry no os"
+    return host(system, arch), None
+
+
 def _is_local(backend: Mapping[str, object]) -> bool:
     url = str(backend.get("engine_url") or backend.get("base_url") or "")
     return bool(url) and urllib.parse.urlsplit(url).hostname in LOOPBACK
 
 
-def refusal(
-    backends: Mapping[str, Mapping[str, object]], where: Host | None = None
-) -> str | None:
-    """Refuse when a backend served on this host names an engine with no runtime.
+def _remote(server_facts: Mapping[str, object] | None) -> bool:
+    return server_facts is not None or bool(
+        os.environ.get("LOCAL_LLM_SERVER_HOST", "").strip()
+    )
 
-    Only a local backend is this host's question. A remote run (#562) serves
-    the engine on another machine, and a hosted backend has no engine at all.
-    The test suite's `LOCAL_LLM_ANY_PLATFORM=1` also skips it: its engines are
-    fakes.
+
+def _served(
+    backends: Mapping[str, Mapping[str, object]], remote: bool
+) -> dict[str, str]:
+    """name -> engine, for each backend whose engine the serving host runs.
+
+    On a local run that is a backend on loopback. On a remote run every URL
+    already names the server (`remote.rewrite`), so it is every backend with
+    an engine. A hosted backend has no engine at all.
     """
-    if os.environ.get("LOCAL_LLM_SERVER_HOST", "").strip():
-        return None
+    out = {}
+    for name, backend in backends.items():
+        engine = str(backend.get("engine") or "").lower()
+        if engine and (remote or _is_local(backend)):
+            out[name] = engine
+    return out
+
+
+def refusal(
+    backends: Mapping[str, Mapping[str, object]],
+    where: Host | None = None,
+    server_facts: Mapping[str, object] | None = None,
+) -> str | None:
+    """Refuse when a backend names an engine with no runtime on its serving host.
+
+    A local run checks the local backends against this host (`where`, for
+    tests). A remote run (#562: `LOCAL_LLM_SERVER_HOST`, or `server_facts`
+    given) checks every backend against the server's host from the facts. A
+    facts file without the server's arch skips the check and logs why; a
+    remote run without facts is refused elsewhere in run.py. An unknown pair
+    logs and passes. The test suite's `LOCAL_LLM_ANY_PLATFORM=1` skips it:
+    its engines are fakes.
+    """
     # The suite fakes every engine and sets this for the whole session
     # (`scripts/platform_guard.py`, #325). Nothing else should set it.
     if os.environ.get("LOCAL_LLM_ANY_PLATFORM") == "1":
         return None
-    here = where or host()
+    remote = _remote(server_facts)
+    if remote:
+        if server_facts is None:
+            return None
+        here, why = server_host(server_facts)
+        if here is None:
+            logger.warning(
+                "runtime check skipped for the server: %s; run "
+                "scripts/server_facts.py on the server again (#324)",
+                why,
+            )
+            return None
+    else:
+        here = where or host()
     gaps = []
-    for name, backend in backends.items():
-        engine = str(backend.get("engine") or "").lower()
-        if not engine or not _is_local(backend):
-            continue
+    for name, engine in _served(backends, remote).items():
         rt = lookup(engine, here)
-        if rt is not None and not rt.ways:
+        if rt is None:
+            logger.warning(
+                "runtime for %s (%s) on %s is unknown: nobody has tried it; "
+                "not refused (#324)",
+                name,
+                engine,
+                label(here),
+            )
+        elif not rt.ways:
             gaps.append(f"{name} ({engine}: {rt.note})")
     if not gaps:
         return None
@@ -185,6 +284,31 @@ def refusal(
         "Run it on a machine that has one, or record a new runtime in "
         "benchmarks/agent/runtimes.py (#324)."
     )
+
+
+def stamp(
+    env_for: Mapping[str, dict[str, object]],
+    backends: Mapping[str, Mapping[str, object]],
+    server_facts: Mapping[str, object] | None,
+    here: Host | None = None,
+) -> None:
+    """Set `env.engine_runtime` on each backend's row env, from the serving host.
+
+    A local run takes this host (`here`, for tests); a remote run takes the
+    server's host from the facts. Facts without the server's arch name no
+    host, so the rows get no field rather than a guess. Old rows lack the
+    field; nothing backfills it.
+    """
+    remote = server_facts is not None
+    if remote:
+        where, why = server_host(server_facts or {})
+        if where is None:
+            logger.warning("no %s on the rows: %s (#324)", ROW_KEY, why)
+            return
+    else:
+        where = here or host()
+    for name, engine in _served(backends, remote).items():
+        env_for[name][ROW_KEY] = kind(engine, where, backends[name])
 
 
 def describe(h: Host | None = None) -> list[str]:
