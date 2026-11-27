@@ -476,6 +476,13 @@
             "context": 262144,
             "output": 32768
           }
+        },
+        "ling-3.1-flash-1019": {
+          "name": "Ling-3.1-flash-1019 EXL3 3.03 bpw (TensorFold TP2, thinking off, two Sparks, #1309)",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
         }
       }
     }

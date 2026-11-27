@@ -77,6 +77,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `inkling2_two_node.py` | any | Serve Inkling 2 Small EXL3 on both DGX Sparks with the inkling2-exl3 engine. |
 | `kv_prefix_audit.py` | mac | Measure how much prefill a stalled KV prefix costs (#64, #50). |
 | `kv_prefix_reuse.py` | mac | Measure how much of a prompt ds4 reuses from its prefix cache (#190). |
+| `ling31_two_node.py` | any | Serve Ling-3.1-flash-1019 EXL3 on both DGX Sparks with bertholomus's TensorFold TP2. |
 | `load_matrix.py` | mac | Load each of a set of gguf files with the PLE sidecar, serially, and |
 | `local_agent.py` | any | Start a recommended local stack and drop into a coding agent. #235 |
 | `mac_dash.py` | any | M5 Max GPU / thermal / power snapshot from the local exporter; history via gcx. |

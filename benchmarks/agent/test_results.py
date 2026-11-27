@@ -780,6 +780,30 @@ def test_vllm_differing_speculative_config_does_not_pool():
     assert not server_argv_compatible(spec, plain)
 
 
+def test_tensorfold_thinking_off_does_not_pool_with_thinking_on():
+    """#1309: `tensorfold serve --no-thinking` is a different workload."""
+    base = "python3 -m tensorfold serve /model --context 262144 --name ling"
+    off = {"env": {"server_argv": f"{base} --no-thinking"}}
+    on = {"env": {"server_argv": base}}
+    assert graph_flags(off["env"]["server_argv"])["--no-thinking"] == "1"
+    assert not server_argv_compatible(off, on)
+    assert server_argv_compatible(
+        off, {"env": {"server_argv": off["env"]["server_argv"] + " --port 9"}}
+    )
+
+
+def test_tensorfold_thinking_on_and_context_are_graph_flags():
+    """#1309 review: an explicit --thinking or another --context never pools."""
+    base = "python3 -m tensorfold serve /model --context 262144 --no-thinking"
+    row = {"env": {"server_argv": base}}
+    flipped = {"env": {"server_argv": base + " --thinking"}}
+    smaller = {"env": {"server_argv": base.replace("262144", "131072")}}
+    assert graph_flags(base)["--context"] == "262144"
+    assert graph_flags(base + " --thinking")["--thinking"] == "1"
+    assert not server_argv_compatible(row, flipped)
+    assert not server_argv_compatible(row, smaller)
+
+
 def test_vllm_server_side_reasoning_effort_is_a_graph_flag():
     """#1503: a server without its effort default must not pool with one that sets it."""
     kw = '{"reasoning_effort":"no_think"}'
