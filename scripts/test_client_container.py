@@ -904,3 +904,30 @@ def test_every_declared_client_effort_is_a_known_value():
     assert declared, "the HY4 Flash backend declares client_effort (#1503)"
     assert set(declared.values()) <= mod.CLIENT_EFFORT_VALUES
     assert declared.get("hy4flashnvfp4vllmpr68387nothinkdual2xrc") == "unset"
+
+
+def test_ling32air_refuses_a_client_that_switches_thinking_off():
+    """#1505: the template default (enable_thinking true) owns thinking on
+    Ling-3.2-air, and the server sets no chat-template kwargs. A stray
+    enable_thinking false in the client's provider options would turn thinking
+    off unseen while the rows still say on, so the real entry must refuse it."""
+    name = "ling32airfp8vllmdual2xrc"
+    backend = tomllib.loads(mod.TASKS_FILE.read_text())["backend"][name]
+    assert backend["client_effort"] == "unset"
+    provider_id, _, model_id = backend["opencode_model"].partition("/")
+    plain = {"limit": {"context": 262144, "output": 32768}}
+    options = {
+        "baseURL": "http://head.example:8888/v1",
+        "chat_template_kwargs": {"enable_thinking": False},
+    }
+    config = json.dumps(
+        {"provider": {provider_id: {"options": options, "models": {model_id: plain}}}}
+    )
+    why = mod.check_opencode_provider(name, backend, config, _PATH)
+    assert why is not None
+    assert "chat_template_kwargs" in why and "provider options" in why
+    options.pop("chat_template_kwargs")
+    config = json.dumps(
+        {"provider": {provider_id: {"options": options, "models": {model_id: plain}}}}
+    )
+    assert mod.check_opencode_provider(name, backend, config, _PATH) is None

@@ -4652,6 +4652,76 @@ recipe_dir = "~/engines/vllm-pr68387"
 recipe_pin = "6ca1feee4"
 recipe_pin_reason = "vLLM PR 68387's head when the image was built (#1503); the image is the pinned nightly 5aea30579 plus the five Python files under vllm/ that the PR changes, at this sha (docker/vllm-pr68387/overlay.json). A new PR head needs a new spec, image and arm"
 
+# #1505 (lead from the DGX source sweep, 2026-11-26; download approved to 300 GB free per node):
+# inclusionAI's Ling-3.2-air, a hybrid-linear MoE VLM (35 KDA + 7 gated MLA layers, 512 routed
+# experts, 8 active; 124B total, 5.5B active), as the lab's own FP8 (e4m3, 128x128 blocks):
+# inclusionAI/Ling-3.2-air @ff099487f6f57165e6fa9386ad61fddfafc78b76 (MIT, not gated; 120.4 GiB),
+# verified against the Hub on both nodes (scripts/verify_hf_weights.py: 29 files match).
+# Engine: the official nightly vllm/vllm-openai:nightly-5aea30579ad672c3c35be43112b7a1f7b293a09e
+# (registry digest sha256:d24e5fc73f0b859bd76c9d2f6f6fa4da3001afd7637f2610876420f3027ea6c7, the
+# head's pull; the worker's copy came by docker save | docker load, and its containerd store reports
+# Id dcee940d..., with the same 39 layer diff IDs). Stock v0.34.0 does not load this checkpoint: its
+# BailingMoeV3VLConfig defaults the top-level M-RoPE split to [12, 10, 10] and refuses the
+# checkpoint's text_config mrope_section [8, 12, 12] ("conflicting M-RoPE sections"). vllm#65848
+# (5c08d2c72a, merged 2026-11-11, after the v0.34.0 branch) reads the split from the text config;
+# the nightly contains it. The card's own vLLM path is a fork (inclusionAI/vllm-ling-v3); this arm
+# runs upstream code only.
+# Flags: no --trust-remote-code (vLLM ships the model, config and ling3 parsers; the tokenizer is
+# PreTrainedTokenizerFast; text only, so the repo's remote image processor is never loaded).
+# 262,144-token window (the model's max_position_embeddings), GMU 0.79 (as the #1011 arm), max-num-
+# seqs 4, 8192-token chunks, prefix caching on, block 1,024, chosen by vLLM so the attention page is
+# at least the KDA/Mamba state page (--block-size 1024 states it, a no-op on this build, so the
+# server argv carries it), KV dtype auto (bf16), parsers ling3 (tools and reasoning), prompt token
+# details. No MTP: the checkpoint has one NextN layer, left off for this first arm. Sampling: the
+# checkpoint's generation_config (temperature 1.0, top_k 20, top_p 0.95) is vLLM's default.
+# Reasoning: the chat template has no effort levels, only enable_thinking (default true; false puts
+# "detailed thinking off" in the system turn and an empty think block). Thinking is on, the card's
+# default, as for this family's first arm (operator decision #752, ling30fdual2xrc). A thinking-off
+# arm would be a separate one-change "nothink" arm (--default-chat-template-kwargs
+# '{"enable_thinking":false}').
+# Smoke, 2026-11-27 (both Sparks, thinking on, nothing else on either node): first real completion
+# 344 s after launch (API up at 335 s). Weights load in 38.9 s (59.08 GiB a GPU); torch.compile
+# 43.4 s; engine init 223.1 s. KV pool 3,839,297 tokens (3,969 blocks of 1,024; 30.53 GiB
+# committed; 14.65 × 262,144). smoke.py 3/3 correct (1.8 s,
+# 2.8 s, 7.8 s). A read_file tool call parsed through ling3, plain and streamed (finish_reason
+# tool_calls). scripts/vllm_prefix_hits.py --block 1024: the ceiling at all 12 lengths from 1,024 to
+# 4,608 tokens. run.py --dry-run: 8 of 8 controls fail as they should; the 2 script
+# tasks have none. A 247,936-token needle
+# prompt answered correctly in 126.2 s (96 completion tokens); lowest MemAvailable 9.12 GiB (head)
+# and 12.43 GiB (worker), the same as at rest with the model resident. Decode on a 400-token code
+# reply (streamed, after the first token): 38.1, 40.2 and 43.5 tok/s thinking on; 39.9 and 42.3
+# tok/s thinking off.
+# OpenCode client entry (provider vllm8888, model ling-3.2-air); the template reads no
+# reasoning_effort, so the entry leaves it out:
+#   "ling-3.2-air": {"limit": {"context": 262144, "output": 32768}}
+# Launch (both nodes, worker first):
+#   uv run python scripts/vllm_two_node.py start \
+#     --model-dir ~/models/inclusionAI--Ling-3.2-air-ff099487f6 \
+#     --image vllm/vllm-openai:nightly-5aea30579ad672c3c35be43112b7a1f7b293a09e --name ling32air -- \
+#     --served-model-name ling-3.2-air --max-model-len 262144 --gpu-memory-utilization 0.79 \
+#     --max-num-seqs 4 --max-num-batched-tokens 8192 --enable-prefix-caching --block-size 1024 \
+#     --limit-mm-per-prompt '{"image":0,"video":0}' \
+#     --reasoning-parser ling3 --enable-auto-tool-choice --tool-call-parser ling3 \
+#     --enable-prompt-tokens-details
+[backend.ling32airfp8vllmdual2xrc]
+description = "#1505: Ling-3.2-air (inclusionAI/Ling-3.2-air @ff099487f6, the lab's FP8, 124B total / 5.5B active hybrid-linear MoE, 120.4 GiB) on BOTH Sparks, TP2 over the ConnectX fabric (scripts/vllm_two_node.py), on the official nightly vllm/vllm-openai:nightly-5aea30579 (registry digest sha256:d24e5fc73f0b859bd76c9d2f6f6fa4da3001afd7637f2610876420f3027ea6c7; stock v0.34.0 refuses the checkpoint's M-RoPE config, fixed by vllm#65848), unpatched, no trust-remote-code. 262K window, GMU 0.79, max-num-seqs 4, 8192-token chunks, prefix caching (block 1024), text only, parsers ling3, no MTP. Thinking on (the template default, as #752 chose for this family; it has no effort levels). OpenCode entry: no reasoningEffort, limit context 262144, output 32768. Served as ling-3.2-air on :8888. REMOTE CLIENT"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "ling-3.2-air"
+active_params_b = 5.5
+aider_model = "openai/ling-3.2-air"
+opencode_model = "vllm8888/ling-3.2-air"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+# #1505: the template default (enable_thinking true) owns thinking, and the server sets no
+# chat-template kwargs. client_container.py refuses an OpenCode entry that sends reasoningEffort,
+# variants or chat_template_kwargs for this backend.
+client_effort = "unset"
+image = "vllm/vllm-openai:nightly-5aea30579ad672c3c35be43112b7a1f7b293a09e"
+
 # #1095: the fast option's own weights on stock TensorFold native 1.1.3 (an engine bump, so its own arm).
 [backend.glm53fexl3tfnative113dual2x]
 description = "#1095: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the fast option's weights) across TWO DGX Sparks on STOCK TensorFold native 1.1.3 (ashhart/TensorFold release tensorfold-1.1.3-linux-aarch64, sha256 checked; no MiaAI patches), launched by scripts/tensorfold_native_two_node.py: TF_GLM_WORLD=2, NCCL on all four fabric paths, libnccl 2.29.7 from vllm/vllm-openai:v0.32.0. Serve flags chosen to match the leader glm53fexl3tfqmiaai20261010dual2xrc: --context 262144 --parallel 4 --kv-cache fp8 --max-tokens 32768; drafts the engine default (on); sampling the engine default (temperature 1.0, top_p 0.95); reasoning_effort low sent by the client. REMOTE CLIENT"
