@@ -5840,11 +5840,19 @@ recipe_pin_reason = "upstream bdfa59f plus two local commits: SERVE_ARGS for --r
 # Thinking OFF on the server (--no-thinking), the author's only clean setting: with thinking on,
 # long thinking hung the serve (the recipe has no commit after v0.2.0, so no fix). "nothink" in
 # the id keeps a later thinking-on arm from pooling with these rows.
-# The engine reads a request's reasoning_effort (not "none") or chat_template_kwargs
-# enable_thinking as a switch that turns thinking back on
-# (src/tensorfold/server/request_options.py, thinking_fields, at 72f16e48), so the OpenCode
-# entry sends neither (client_effort = "unset"):
+# Four request fields turn thinking back on for that request: reasoning_effort and
+# chat_template_kwargs.reasoning_effort (other than "none"), chat_template_kwargs.enable_thinking,
+# and chat_template_kwargs.thinking (src/tensorfold/server/request_options.py, thinking_fields,
+# at 72f16e48). So the OpenCode entry sends none of them (client_effort = "unset"), and
+# `scripts/ling31_two_node.py check-thinking` must pass before stage 1 is accepted: no request
+# with thinking=True in the rank-0 log, and reasoning_tokens == 0 on every row.
 #   "ling-3.1-flash-1019": {"limit": {"context": 262144, "output": 32768}}
+# Sampling: temperature 1.0, top-k 20, top-p 0.95, named on the server so the row's argv
+# records it (#84). It is the base card's recommendation (inclusionAI/Ling-3.1-flash-1019
+# README at 2109a6863f, which also recommends thinking on; the operator chose off) and the
+# engine's own default; the checkpoint ships no generation_config.json.
+# `--max-tokens 4096` is only the reply limit of a request that names none (OpenCode sends
+# 32,768). The answer reserve acts only on a reply that thinks, so it does nothing here.
 # Prepare once per node, then launch (rank 0 first; both nodes drop the page cache):
 #   uv run python scripts/ling31_two_node.py prepare --rank 0
 #   uv run python scripts/ling31_two_node.py prepare --rank 1
@@ -5856,12 +5864,12 @@ recipe_pin_reason = "upstream bdfa59f plus two local commits: SERVE_ARGS for --r
 [backend.ling31f1019exl3tfbertnothinkdual2xrc]
 # Stage 0 (#762): 560B total, 25B active (the model card).
 active_params_b = 25
-description = "#1309: Ling-3.1-flash-1019 (inclusionAI, 560B, 25B active) EXL3 3.03 bpw (bertholomus/Ling-3.1-flash-1019-EXL3-3.03bpw @15d305cc66, 205.6 GiB, split into one rank folder per node) on bertholomus's TensorFold TP2 engine (bertholomus/TensorFold branch ling-3.1-tp2 @72f16e48: the bailing_v3 family on TensorFold v0.6.6's Python CUDA engine, extensions built on each node in nvcr.io/nvidia/pytorch:26.07-py3) via the recipe bertholomus/ling-3.1-tensorfold-tp2-2xgb10 v0.2.0 @6088f47241, launched by scripts/ling31_two_node.py: BOTH Sparks over RoCE (four fabric paths, GID index 3), the recipe's settings verbatim (262,144-token window, one request at a time, MTP drafting at adaptive depth (the engine default), latent 270 MB, shared scratch, split embedding, no cache for other conversations' prompts, max-tokens 4096, answer reserve 0.25 / 1024), sampling the engine's CUDA defaults (temperature 1.0, top-k 20, top-p 0.95; the checkpoint ships no generation_config.json). THINKING OFF on the server (--no-thinking); the client sends no reasoning_effort. Served as ling-3.1-flash-1019 on :8888. REMOTE CLIENT"
+description = "#1309: Ling-3.1-flash-1019 (inclusionAI, 560B, 25B active) EXL3 3.03 bpw (bertholomus/Ling-3.1-flash-1019-EXL3-3.03bpw @15d305cc66, 205.6 GiB, split into one rank folder per node) on bertholomus's TensorFold TP2 engine (bertholomus/TensorFold branch ling-3.1-tp2 @72f16e48: the bailing_v3 family on TensorFold v0.6.6's Python CUDA engine, extensions built on each node in nvcr.io/nvidia/pytorch:26.07-py3) via the recipe bertholomus/ling-3.1-tensorfold-tp2-2xgb10 v0.2.0 @6088f47241, launched by scripts/ling31_two_node.py: BOTH Sparks over RoCE (four fabric paths, GID index 3), the recipe's settings verbatim (262,144-token window, one request at a time, MTP drafting at adaptive depth (the engine default), latent 270 MB, shared scratch, split embedding, no cache for other conversations' prompts, max-tokens 4096 for a request that names no limit (OpenCode sends 32,768), answer reserve 0.25 / 1024, which acts only on a reply that thinks), sampling temperature 1.0, top-k 20, top-p 0.95 named on the server (the inclusionAI/Ling-3.1-flash-1019 card's recommendation, and the engine default; the checkpoint ships no generation_config.json). THINKING OFF on the server (--no-thinking); the client sends no reasoning_effort. Served as ling-3.1-flash-1019 on :8888. REMOTE CLIENT"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
 engine = "tensorfold"
-# engine_runtime (#324): scripts/ling31_two_node.py:246: prepare runs the recipe's serve/prebuild.py, which JIT-compiles the engine's CUDA extensions from the checkout on each node.
+# engine_runtime (#324): scripts/ling31_two_node.py:287: prepare runs the recipe's serve/prebuild.py, which JIT-compiles the engine's CUDA extensions from the checkout on each node.
 engine_runtime = "source"
 model = "ling-3.1-flash-1019"
 aider_model = "openai/ling-3.1-flash-1019"
@@ -5873,6 +5881,8 @@ smoke_protocol = "openai"
 # The server owns thinking (off); preflight refuses an OpenCode entry that sends an effort (#1503).
 client_effort = "unset"
 recipe_dir = "~/ling31-tf-recipe"
+recipe_pin = "6088f47"
+recipe_pin_reason = "v0.2.0, the approved recipe (2026-10-29) and the tip on 2026-11-27; later commits are not approved, and a hang fix would be a new arm"
 
 
 # #1160 (operator 2026-10-18 20:40: approved, build locally): the same
