@@ -72,6 +72,10 @@ ENGINES: dict[str, dict[str, str]] = {
     # row records the overlay's sha. The built extension sits outside the tree
     # (~/engines/inkling2-exl3-<sha8>), so there is no binary mtime to record.
     "exllamav3": {},
+    # NVIDIA Hyperflare (#1459): a cargo build of a git checkout (`engine_tree`),
+    # so a row records the checkout's sha, whether it is dirty, and the
+    # binary's mtime. `flare --version` prints 0.0.0, so the sha is the version.
+    "hyperflare": {"binary_rel": "flare-cli/target/release/flare"},
 }
 
 

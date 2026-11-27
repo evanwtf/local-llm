@@ -53,6 +53,25 @@ def test_an_engine_with_an_empty_entry_still_reports_its_git_sha(tmp_path):
     assert "engine_built" not in got
 
 
+def test_hyperflare_is_a_tree_built_engine_with_a_binary(tmp_path):
+    """#1459: Hyperflare is a cargo build in a git checkout. A row carries the
+    checkout's sha and the mtime of `flare-cli/target/release/flare`."""
+    tree = _git_tree(tmp_path)
+    # cargo's target directory is ignored, as in the upstream checkout.
+    (tree / ".gitignore").write_text("target/\n")
+    subprocess.run(["git", "add", ".gitignore"], cwd=tree, check=True)
+    subprocess.run(["git", "commit", "-qm", "ignore"], cwd=tree, check=True)
+    binary = tree / "flare-cli" / "target" / "release" / "flare"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("")
+    got = engine_identity.identity("hyperflare", tree=str(tree))
+    assert got["engine_name"] == "hyperflare"
+    assert got["engine_version"], "a git tree must report a sha"
+    assert got["engine_tree"] == str(tree)
+    assert "engine_dirty" not in got, "a clean tree is not dirty"
+    assert got["engine_built"], "the built binary's mtime must be recorded"
+
+
 def test_a_dirty_git_tree_is_marked_dirty(tmp_path):
     tree = _git_tree(tmp_path, dirty=True)
     got = engine_identity.identity("ds4", tree=str(tree))

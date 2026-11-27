@@ -71,6 +71,10 @@ logger = logging.getLogger(__name__)
 # `scripts/tensorfold_native_two_node.py` runs on both ranks (#1095, #1469).
 # It was missing for a month: on 2026-11-22 it held 95,538 MiB while
 # machine_state said "Currently on GPU: idle" (#1481).
+# `flare` is NVIDIA Hyperflare's native server (`flare run`), one rank per node
+# (#1459); a cargo build names it `flare-cli/target/release/flare`, the Debian
+# package `/usr/bin/flare`. On 2026-11-27 both ranks held a GLM model while
+# machine_state said "no model server is resident".
 INFERENCE = (
     "llama-server",
     "ollama",
@@ -81,6 +85,7 @@ INFERENCE = (
     "tensorfold-dsv41",
     "tf-dsv41-m1",
     "tensorfold-native",
+    "flare",
 )
 
 # Engines that run as a Python program. Their executable is `python3`, so the

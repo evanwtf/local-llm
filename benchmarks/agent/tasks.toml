@@ -4656,6 +4656,89 @@ recipe_dir = "~/engines/vllm-pr68387"
 recipe_pin = "6ca1feee4"
 recipe_pin_reason = "vLLM PR 68387's head when the image was built (#1503); the image is the pinned nightly 5aea30579 plus the five Python files under vllm/ that the PR changes, at this sha (docker/vllm-pr68387/overlay.json). A new PR head needs a new spec, image and arm"
 
+# #1459 (operator, 2026-11-26: P1, download approved; publisher trust approved 2026-11-27):
+# GLM-5.3-Flash FP4 as a prepared NVIDIA Hyperflare runtime package for two GB10s, from a third
+# party: hiroshiya/GLM-5.3-Flash-HYPERFLARE-GB10-TP2 @0f14c1c5e49bfdef8f6b0eb6c3d6a400f9bcfc76
+# (one packed .safetensors, 167.5 GiB; NVIDIA Open Model Agreement), exported by its author with
+# Hyperflare 1a53275 from nvidia/GLM-5.3-Flash-FP4-Local @76348ddb. Signed by publisher hiroshiya,
+# key fingerprint 91dec7fbab9ccdd4f3b6c5f3431cdf5360f40d0f72f83927f81fdddeee98858b; flare's
+# trust store holds the acceptance on both nodes. Fixed at export: TP2 over RoCE (no NCCL),
+# sm_121, 1,048,576-token context, 4,096-token prefill chunks, 4 requests, MTP up to 5 drafts,
+# vision graphs included. verify_hf_weights.py on the head: 6 files match. The worker gets the
+# core from rank 0 over the CX7 rails (flare run with no core path; flare verifies it against the
+# signed core) and caches it under ~/.cache/flare/cores as model.safetensors. That file is the
+# whole package, not rank 1's half: 179,881,398,364 bytes, fully allocated, and its sha256
+# equals the Hub's LFS hash (b46986d3bd50958a0adf3ce4a18ead987d7cc35292d619292a11fa925e3b8b26).
+# Engine: NVIDIA/hyperflare-inference v0.3.2 (c0c4f7982ab2f04adc1743d37f75f24fdbc6cfb7, which has
+# the strict-tools fix 0b09434d79) plus one local commit, d4a30dc0da8f1bc96557b72f4c51e8c0f3c21460
+# ("local: skip an all-zero preferred-cluster launch attribute (evanwtf/local-llm#1459)"), whose
+# diff is hardware/Cortex-X925-128GB-GB10-x2/hyperflare/1459-skip-zero-preferred-cluster.patch.
+# Stock v0.3.2, and the package's own build 1a53275, both stop at "Prepare execution" on driver
+# 580.178.04 (CUDA 13.0): cuGraphKernelNodeSetAttribute CUDA_ERROR_INVALID_VALUE for launch
+# attribute 11 with value 0 in graph vision32768. The patch skips that attribute when its value is
+# all zero, and names the attribute in the error otherwise. The commit was made on the head
+# (branch local/1459) and fetched into the worker's tree over the fabric, so both trees are at the
+# same sha with a clean status. Build on each node, at exactly this path:
+#   git -C ~/git/hyperflare-inference worktree add -b local/1459 ~/git/hyperflare-inference-1459 v0.3.2
+#   git -C ~/git/hyperflare-inference-1459 apply <this repo>/hardware/Cortex-X925-128GB-GB10-x2/hyperflare/1459-skip-zero-preferred-cluster.patch
+#   git -C ~/git/hyperflare-inference-1459 commit -am "local: skip an all-zero preferred-cluster launch attribute (evanwtf/local-llm#1459)"
+#   cargo build --release --locked --manifest-path ~/git/hyperflare-inference-1459/flare-cli/Cargo.toml
+# A new commit gets a new sha (author and time differ), so the second node fetches the first
+# node's commit (git fetch <first node>:git/hyperflare-inference-1459 local/1459) instead.
+# Built 2026-11-27 after `cargo clean`, on both nodes: sha256
+# 523f9c827d175b7d4ad733898b7a8c466b9c986bc7edcca7937c72691028c970, the same on each. The hash is
+# reproducible only for the same build path and $CARGO_HOME (unset here, so ~/.cargo): the binary
+# embeds the tree's source paths and the cargo registry paths, and helios/build.rs runs protoc and
+# the system C compiler. Tools on both nodes: rustc 1.99.1 (58cf8f9c3), cargo 1.99.1 (5f94df478),
+# libprotoc 3.21.12, gcc 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04.1). `flare --version` prints 0.0.0,
+# so the commit is the version; rows read it from engine_tree.
+# The head's llm-metrics-exporter must not scan ports during the launch: its probe of flare's
+# loopback core source counts as an extra data channel, and the distribution aborts ("failed to
+# fill whole buffer"). Both nodes set LLM_EXPORTER_DISCOVERY_ENDPOINTS=http://127.0.0.1:8888.
+# Launch (each a systemd-run --user unit with KillMode=process; worker first, no core path, so it
+# uses its cached rank or receives it):
+#   worker: ~/git/hyperflare-inference-1459/flare-cli/target/release/flare run --rank 1 \
+#             --rendezvous 10.0.0.1:29800 --gpus 0
+#   head:   ~/git/hyperflare-inference-1459/flare-cli/target/release/flare run \
+#             ~/models/hiroshiya--GLM-5.3-Flash-HYPERFLARE-GB10-TP2-0f14c1c5e4/glm-5.3-flash-hyperflare-gb10-tp2.safetensors \
+#             --rank 0 --rendezvous 10.0.0.1:29800 --gpus 0 --host 0.0.0.0 --port 8888 \
+#             --served-model-name glm-5.3-flash-hyperflare
+# Every serving default is the core's: KV limited by memory, no host prefix cache, MTP at the
+# core's 5 drafts, sampling temperature 1, top_p 0.95 (the core clamps temperature to [0.95, 1]).
+# Reasoning effort: no server default exists (flare run has no flag for it). The client sends
+# reasoning_effort low per request through chat_template_kwargs, as the other two-Spark GLM arms.
+# The template honors it: one arithmetic prompt, 3 seeds each, gave 24/25/24 reasoning tokens at
+# low, 31/30/27 at high, and 121/97/105 with the field omitted (none gave the omitted counts).
+# Smoke, 2026-11-27 (both Sparks, low): first real completion 126 s after launch (API up at 120 s;
+# rank 1 re-verifies its cached core on each start, 98 s; load 8 s; graphs 1 s). KV pool
+# 4,773,888 tokens per GPU (15.4 GiB); RoCE 2 rails, direct cable. Three checked answers (391,
+# Canberra, s[::-1]) in 0.56-0.68 s; one tool call, plain and "strict": true, both finish
+# tool_calls with {"city":"Paris"}. A 212,640-token prompt answered correctly in 106.9 s (about
+# 1,989 tok/s prefill); lowest MemAvailable 8.69 GiB (head) and 10.38 GiB (worker). Decode on a
+# 400-token code reply: 37.8, 41.8 and 42.8 tok/s. That smoke ran an earlier build of the same
+# source (an uncommitted patch in another path); the rebuilt binary above was checked on both
+# Sparks on 2026-11-27: API up 116 s after launch, first real completion at 117 s, 391 correct.
+# OpenCode client entry: provider flare8888 (OpenAI-compatible, base URL the head's :8888/v1),
+#   "glm-5.3-flash-hyperflare": {"options": {"chat_template_kwargs": {"reasoning_effort": "low"}},
+#                                "limit": {"context": 262144, "output": 32768}}
+[backend.glm53ffp4hyperflaredual2xrc]
+description = "#1459: GLM-5.3-Flash FP4 as hiroshiya's prepared NVIDIA Hyperflare package for two GB10s (hiroshiya/GLM-5.3-Flash-HYPERFLARE-GB10-TP2 @0f14c1c5e4, exported with Hyperflare 1a53275 from nvidia/GLM-5.3-Flash-FP4-Local @76348ddb; 167.5 GiB, signed by hiroshiya) on Hyperflare v0.3.2 (c0c4f798) plus one local commit d4a30dc0 (skip an all-zero launch attribute 11 that driver 580 rejects), TP2 over RoCE without NCCL, both Sparks. The package fixes 4 requests, 1,048,576-token context, 4,096-token prefill chunks and MTP with up to 5 drafts; serving uses the core's defaults (KV by memory, no host prefix cache, temperature 1, top_p 0.95). reasoning_effort low sent per request by the client (no server default). Served as glm-5.3-flash-hyperflare on :8888. REMOTE CLIENT; OpenCode context 262,144 and output 32,768, as the other cluster arms"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "hyperflare"
+model = "glm-5.3-flash-hyperflare"
+active_params_b = 18
+aider_model = "openai/glm-5.3-flash-hyperflare"
+opencode_model = "flare8888/glm-5.3-flash-hyperflare"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+engine_tree = "~/git/hyperflare-inference-1459"
+recipe_dir = "~/git/hyperflare-inference-1459"
+recipe_pin = "d4a30dc0"
+recipe_pin_reason = "Hyperflare v0.3.2 (c0c4f798), the release #1459 names (RoCE and strict-tools fixes), plus one local commit of hardware/Cortex-X925-128GB-GB10-x2/hyperflare/1459-skip-zero-preferred-cluster.patch (driver 580 rejects an all-zero launch attribute 11); a later release is a new arm"
+
 # #1505 (lead from the DGX source sweep, 2026-11-26; download approved to 300 GB free per node):
 # inclusionAI's Ling-3.2-air, a hybrid-linear MoE VLM (35 KDA + 7 gated MLA layers, 512 routed
 # experts, 8 active; 124B total, 5.5B active), as the lab's own FP8 (e4m3, 128x128 blocks):

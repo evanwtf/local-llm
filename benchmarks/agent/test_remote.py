@@ -729,6 +729,57 @@ def test_check_instance_refuses_a_restarted_atlas():
         remote.check_instance(facts, backends, lambda url, timeout: ATLAS_METRICS)
 
 
+#: Hyperflare v0.3.2 (c0c4f798) /metrics lines around its request counter, as
+#: the two-Spark GLM server printed them on 2026-11-27 (#1459).
+HYPERFLARE_METRICS = """\
+# TYPE flare_history_drafts_enabled gauge
+flare_history_drafts_enabled 0
+# HELP flare_http_requests_total HTTP generation or token-count requests by API, before request validation.
+# TYPE flare_http_requests_total counter
+flare_http_requests_total{api="chat"} 23
+flare_http_requests_total{api="completions"} 0
+flare_http_requests_total{api="messages"} 4
+flare_http_requests_total{api="responses"} 0
+flare_http_requests_total{api="count_tokens"} 0
+# TYPE flare_sampling_graph_launches_total counter
+flare_sampling_graph_launches_total{kind="prefill",mode="general"} 91
+flare_uptime_seconds 228
+"""
+
+
+def test_hyperflare_sums_its_request_counter_across_apis():
+    asked = []
+
+    def fetch(url, timeout):
+        asked.append(url)
+        return HYPERFLARE_METRICS
+
+    got = remote.read_instance("http://srv:8888/v1", "hyperflare", fetch)
+    assert asked == ["http://srv:8888/metrics"]
+    # 23 chat + 4 messages; the graph-launch counter and uptime gauge are not requests.
+    assert got == {"engine": "hyperflare", "kind": "counter", "value": 27}
+
+
+def test_a_fresh_hyperflare_server_reads_as_zero_requests():
+    """Hyperflare prints every API's series from launch, so a new server's
+    page carries the counter at 0 rather than no counter at all."""
+    page = "\n".join(
+        f'flare_http_requests_total{{api="{api}"}} 0'
+        for api in ("chat", "completions", "messages", "responses", "count_tokens")
+    )
+    assert remote.parse_instance("counter", page) == 0
+
+
+def test_check_instance_refuses_a_restarted_hyperflare():
+    facts = {
+        "backend": "b",
+        "instance": {"engine": "hyperflare", "kind": "counter", "value": 900},
+    }
+    backends = {"b": {"engine": "hyperflare", "base_url": "http://srv:8888"}}
+    with pytest.raises(SystemExit, match="restarted"):
+        remote.check_instance(facts, backends, lambda url, timeout: HYPERFLARE_METRICS)
+
+
 def test_check_instance_refuses_a_restarted_tensorfold():
     facts = {"backend": "b", "instance": _inst(2304)}
     backends = {"b": {"engine": "tensorfold", "base_url": "http://srv:8888"}}

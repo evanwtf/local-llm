@@ -359,6 +359,12 @@ INSTANCE_PROBES: dict[str, tuple[str, str]] = {
     # `dec_steps` start at 0 at launch and only grow; every request prefills
     # or decodes at least once, so their sum serves as the counter.
     "exllamav3": ("counter", "/health"),
+    # #1459: NVIDIA Hyperflare v0.3.2 (c0c4f798). /metrics prints
+    # `flare_http_requests_total{api=...}` for every API from launch, zeros
+    # included, and counts each generation or token-count request; the sum
+    # only grows while one server runs. `flare_uptime_seconds` is a gauge, not
+    # a start time. /metrics is always routed; no flag is needed.
+    "hyperflare": ("counter", "/metrics"),
 }
 
 #: Engines checked and found to publish no instance marker over HTTP (#948).
@@ -430,6 +436,7 @@ _COUNTER_NAMES = frozenset(
         "llamacpp:n_decode_total",
         "sglang:num_requests_total",
         "atlas_requests_total",
+        "flare_http_requests_total",
     }
 )
 
