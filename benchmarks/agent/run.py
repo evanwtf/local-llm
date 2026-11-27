@@ -6857,6 +6857,22 @@ def versions_per_backend(versions, names, argv_by_backend):
     return out
 
 
+def row_envs(versions, backends, argv_by_backend, server_facts, clients):
+    """The batch env and each backend's row env, as the rows will carry them.
+
+    A remote run re-describes the env as the server's (`remote.stamp`). Then
+    each backend's env gets #324's `engine_runtime` for its serving host: set
+    last, per backend, so neither the client's env nor the server facts can
+    replace it.
+    """
+    if server_facts is not None:
+        versions = remote.stamp(versions, server_facts)
+    versions["client"] = ",".join(clients)
+    env_for = versions_per_backend(versions, backends, argv_by_backend)
+    runtimes.stamp(env_for, backends, server_facts)
+    return versions, env_for
+
+
 class CellStops:
     """Which (backend, client) cells a batch has stopped scheduling.
 
@@ -7203,9 +7219,10 @@ def main():
     if _not_empty:
         logger.warning("%s (proceeding: --allow-contended)", _not_empty)
 
-    # #324: an engine with no runtime on this (OS, arch) refuses now, not after
-    # a server that never comes up. Not bypassed by --allow-contended.
-    _no_runtime = runtimes.refusal(backends)
+    # #324: an engine with no runtime on its serving host refuses now, not
+    # after a server that never comes up. On a remote run the serving host is
+    # the server, read from its facts. Not bypassed by --allow-contended.
+    _no_runtime = runtimes.refusal(backends, server_facts=server_facts)
     if _no_runtime:
         raise SystemExit(_no_runtime)
 
@@ -7376,10 +7393,9 @@ def main():
         argv_by_backend=argv_by_backend,
         no_image_check_reason=args.no_image_check_reason,
     )
-    if server_facts is not None:
-        versions = remote.stamp(versions, server_facts)
-    versions["client"] = ",".join(clients)
-    env_for = versions_per_backend(versions, backends, argv_by_backend)
+    versions, env_for = row_envs(
+        versions, backends, argv_by_backend, server_facts, clients
+    )
     # #213: a row carries the server's launch argv or says why it has none. A
     # dry run writes its rows elsewhere, so it warns instead of refusing.
     if gaps := argv_gaps(env_for, backends, args.no_argv_reason):

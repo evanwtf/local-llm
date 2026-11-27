@@ -51,10 +51,45 @@ A test fails when a live backend in `tasks.toml` is missing from it.
 [`benchmarks/agent/runtimes.py`](../benchmarks/agent/runtimes.py) records,
 per engine, whether the M5 Max (Darwin arm64), the DGX Spark (Linux aarch64)
 and the 3080 Ti desktop (Linux x86_64) get it `prebuilt` or build it from
-`source`, or have no runtime at all. `run.py` refuses a local backend whose
-engine has no runtime on the host, before it claims the machine. `preflight.py`
-logs the table for the host. A pair nobody has tried is unknown and does not
-refuse. A new engine in `tasks.toml` fails a test until it has a row.
+`source`, or have no runtime at all. `preflight.py` logs the table for the
+host. A new engine in `tasks.toml` fails a test until it has a row.
+
+The table is checked against the **serving host**. On a local run that is the
+machine that runs `run.py`. On a remote run it is the server: `run.py` reads its
+OS and arch from the facts file (`facts.os`, `facts.arch`, written by
+`scripts/server_facts.py`). A two-node screen runs its client on an x86_64
+machine, but the engine runs on the aarch64 Sparks.
+
+- **No runtime on the serving host:** `run.py` refuses before it claims the
+  machine, and gives the table's reason.
+- **Unknown pair (nobody has tried it):** `run.py` logs a warning and goes on.
+- **Facts with no `arch` or `os`:** `run.py` logs that it skipped the check and
+  why, and goes on. Write the facts again on the server.
+- **The suite:** `LOCAL_LLM_ANY_PLATFORM=1` skips the check; its engines are fakes.
+
+Each new row records how its backend's engine was obtained on the serving host
+as **`env.engine_runtime`**. The value is one of four words:
+
+- `source`: native code was compiled on the host (a source build, or an image
+  built there that compiles the engine or its kernels).
+- `prebuilt`: the engine arrived built (a release archive, a wheel, a pulled
+  image). Patched Python on a pulled image is still `prebuilt`; the recipe pin
+  records the patches.
+- `unknown`: nobody can say. That is better than a guess.
+- `none`: the table lists no runtime there. Only the suite's escape gets a row
+  that far.
+
+**The backend's own declaration decides.** A backend with a `recipe_dir`, or
+with an `image` that is not a vendor release (`vllm/vllm-openai`,
+`lmsysorg/sglang`, `ollama/ollama`), must set `engine_runtime = "prebuilt"`,
+`"source"` or `"unknown"` in `tasks.toml`. Put a comment above it that cites
+the recipe line that shows it. A test fails when a live backend lacks one.
+Without a declaration, the row takes the table's way only when the table lists
+one way for the engine on that host. Otherwise the row says `unknown`.
+
+Facts with no `arch` give the rows no field: `run.py` does not fall back to
+the client's host. Rows written before this change merged have no field, and
+nothing backfills it.
 
 ## Retire a backend, do not delete it
 
