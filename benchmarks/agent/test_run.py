@@ -4331,3 +4331,53 @@ def test_with_two_image_models_each_backend_reads_only_its_own(monkeypatch):
     run.capture_versions({"base_commit": "abc"}, backends, allow_unstamped=True)
     per_backend = [c for c in calls if len(c[0]) == 1]
     assert per_backend and all(fallback is False for _, fallback in per_backend)
+
+
+# --- #324: each row's engine_runtime comes from the serving host -------------
+
+
+def _remote_backend(engine, **extra):
+    return {
+        "engine": engine,
+        "topology": "remote",
+        "base_url": "http://server.example.invalid:8000/v1",
+        **extra,
+    }
+
+
+def test_row_envs_take_engine_runtime_from_the_servers_host(monkeypatch):
+    """The real wiring: an x86_64 client env with a bogus value, server facts
+    for an aarch64 Spark. The row says what the server's host has."""
+    monkeypatch.setenv("LOCAL_LLM_SERVER_HOST", "server.example.invalid")
+    client_env = {"arch": "x86_64", "os": "Linux 6.8.0", "engine_runtime": "bogus"}
+    facts = {
+        "directory": "Cortex-X925-128GB-GB10-x2",
+        "facts": {"arch": "aarch64", "os": "Linux 6.17.0-nvidia"},
+        # Even a server facts file that carried the field does not decide it.
+        "env": {"engine_runtime": "also-bogus"},
+    }
+    backends = {
+        "hf": _remote_backend("hyperflare"),
+        "vl": _remote_backend("vllm", recipe_dir="~/r", engine_runtime="source"),
+    }
+    versions, env_for = run.row_envs(client_env, backends, {}, facts, ["opencode"])
+    assert versions["arch"] == "aarch64"
+    assert versions["client_machine"]["arch"] == "x86_64"
+    # hyperflare: undeclared, one way on Linux aarch64 (source).
+    assert env_for["hf"]["engine_runtime"] == "source"
+    # vllm on the Spark: the table says prebuilt; the declaration wins.
+    assert env_for["vl"]["engine_runtime"] == "source"
+
+
+def test_row_envs_on_facts_without_arch_record_no_engine_runtime(monkeypatch):
+    monkeypatch.setenv("LOCAL_LLM_SERVER_HOST", "server.example.invalid")
+    facts = {"directory": "d", "facts": {"os": "Linux 6.17.0"}, "env": {}}
+    _versions, env_for = run.row_envs(
+        {"arch": "x86_64", "engine_runtime": "bogus"},
+        {"hf": _remote_backend("hyperflare")},
+        {},
+        facts,
+        ["opencode"],
+    )
+    # No host, so no field: not the client's bogus value, and not a guess.
+    assert "engine_runtime" not in env_for["hf"]
