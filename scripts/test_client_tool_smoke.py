@@ -545,7 +545,7 @@ def test_both_majors_end_with_the_two_harness_probes(tmp_path, major):
     root = tmp_path / "harness"
     assert f"> {root}/PROBE-{TOKEN}" in probes[0].args["command"]
     assert probes[1].args["command"] == (
-        f"git -C {root} show HEAD:benchmarks/agent/tasks.toml"
+        f"git -c safe.directory='*' -C {root} show HEAD:benchmarks/agent/tasks.toml"
     )
     assert all(s.expect is None for s in probes)
 

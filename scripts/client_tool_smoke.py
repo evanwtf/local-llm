@@ -174,6 +174,11 @@ def harness_probes(
     The client container mounts the host's harness checkout read-write. bwrap
     binds it read-only and hides its .git, so a write there fails, and so does
     `git show` of `tasks.toml`, the file that holds every prompt and check.
+
+    The git probe passes `safe.directory=*` as an agent could. Without the
+    hidden .git, git in the trial refuses the host-owned checkout only for
+    "dubious ownership" (the trial env drops the container's safe.directory),
+    and one flag gets past that: measured on the client, 2026-11-27.
     """
     root = str(harness_root)
 
@@ -192,7 +197,8 @@ def harness_probes(
         Step(
             tool,
             call(
-                f"git -C {root} show HEAD:benchmarks/agent/tasks.toml",
+                f"git -c safe.directory='*' -C {root} "
+                "show HEAD:benchmarks/agent/tasks.toml",
                 "Probe the git history",
             ),
             _git_probe(harness_root),
