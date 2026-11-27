@@ -157,7 +157,9 @@ def _git_probe(harness_root: pathlib.Path) -> Callable[[pathlib.Path, str], str 
             lines = [ln for ln in tasks.read_text().splitlines() if len(ln) >= 20]
         except OSError as exc:
             return f"cannot read {tasks} to compare: {exc}"
-        if any(ln in output for ln in lines[:20]):
+        # Every line: OpenCode trims a long output, and the part it keeps
+        # need not be the start of the file (measured 2026-11-27).
+        if any(ln in output for ln in lines):
             return "`git show` read tasks.toml from the harness's .git"
         if NOT_A_REPO not in output:
             return f"its output does not show the refusal ({NOT_A_REPO!r})"

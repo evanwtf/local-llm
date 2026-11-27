@@ -596,3 +596,14 @@ def test_a_refusal_reported_as_an_error_passes(workdir):
         _event("bash", "error", error=PROBE_OUTPUTS[0], n=n),
     )
     assert mod.check(text, workdir, script) == []
+
+
+def test_a_leak_from_deep_in_tasks_toml_is_caught(tmp_path):
+    """OpenCode trims a long output; the kept part may start mid-file."""
+    steps = _probe_steps(tmp_path)
+    tasks = tmp_path / "harness" / "benchmarks" / "agent" / "tasks.toml"
+    body = "".join(f'name = "task-number-{n:04d}-padding"\n' for n in range(500))
+    tasks.write_text(body)
+    tail = body.splitlines()[-3]
+    why = steps[1].effect(tmp_path, f"...trimmed...\n{tail}\n")
+    assert why is not None and "read tasks.toml" in why
