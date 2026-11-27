@@ -1230,6 +1230,30 @@ def autotune_cache_from(labels: Any) -> dict[str, str] | None:
     }
 
 
+def peer_env_unrecorded(facts: dict) -> str | None:
+    """The warning for two-node facts that say nothing of the worker's env.
+
+    `server_facts.py --cluster-peer` records `env.cluster.peer.server_env` or
+    the reason it has none (`server_env_missing`, #680 finding 2). A facts
+    file with neither came from older code, and its rows cannot show a
+    treatment that lives on the worker.
+    """
+    env = facts.get("env")
+    cluster = env.get("cluster") if isinstance(env, dict) else None
+    if not isinstance(cluster, dict) or cluster.get("nodes") != 2:
+        return None
+    peer = cluster.get("peer")
+    if isinstance(peer, dict) and (
+        "server_env" in peer or "server_env_missing" in peer
+    ):
+        return None
+    return (
+        "the server facts describe two nodes but record neither the worker's "
+        "container env nor why it is missing (#680 finding 2): rerun "
+        "scripts/server_facts.py --cluster-peer on the head to record it"
+    )
+
+
 def container_inspect(cid: str) -> dict | None:
     """`docker inspect` of one container on the head, or None if unreadable."""
     try:
@@ -1404,6 +1428,7 @@ def serving_image(
     if head is None and "rank0" not in errors:
         errors["rank0"] = "docker inspect of the head's container or image failed"
     worker = None
+    worker_container = None
     if two_node:
         names = set(models)
         if served := node_image.flag_value(cmd, "--served-model-name"):
@@ -1425,6 +1450,7 @@ def serving_image(
                         f"{', '.join(sorted(map(str, names)))} on the worker"
                     )
                 else:
+                    worker_container = hit[0][:12]
                     worker_id = node_image.container_image_id(1, hit[0])
                     worker = (
                         node_image.inspect_image(1, worker_id) if worker_id else None
@@ -1438,7 +1464,12 @@ def serving_image(
             errors["rank1"] = str(exc)
     if not two_node:
         errors.pop("rank0", None)
-    return node_image.serving_record(head, worker, two_node, errors)
+    record = node_image.serving_record(head, worker, two_node, errors)
+    if record is not None and worker is not None and worker_container:
+        # #680 finding 2: server_facts.py reads this container's env, so the
+        # image and the env in a row describe the same worker container.
+        record["rank1_container"] = worker_container
+    return record
 
 
 def serving_tensorfold(models, inspect_all=_docker_inspect_all):
@@ -7011,6 +7042,8 @@ def main():
                 "server can report. Run scripts/server_facts.py there and point "
                 f"{remote.ENV_FACTS} at its output."
             )
+        if why := peer_env_unrecorded(server_facts):
+            logger.warning("%s", why)
         if set(backends) != {server_facts.get("backend")}:
             raise SystemExit(
                 f"the server facts describe backend {server_facts.get('backend')!r}, "

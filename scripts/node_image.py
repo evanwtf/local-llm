@@ -184,18 +184,27 @@ def running_containers(
     got = probe(rank, PS_INSPECT, timeout)
     if got.returncode != 0:
         return None
+    return [container_summary(info) for info in parse_ps_inspect(got.stdout)]
+
+
+def parse_ps_inspect(text: str) -> list[dict[str, Any]]:
+    """Each container's full `docker inspect` from `PS_INSPECT`'s output."""
     found = []
-    for line in got.stdout.splitlines():
+    for line in text.splitlines():
         try:
             info = json.loads(line)
         except ValueError:
             continue
-        if not isinstance(info, dict):
-            continue
-        cfg = info.get("Config") or {}
-        cmd = [*(cfg.get("Entrypoint") or []), *(cfg.get("Cmd") or [])]
-        found.append((str(info.get("Id", "")), str(cfg.get("Image", "")), cmd))
+        if isinstance(info, dict):
+            found.append(info)
     return found
+
+
+def container_summary(info: Mapping[str, Any]) -> tuple[str, str, list[str]]:
+    """(id, image, command) of one container's `docker inspect`."""
+    cfg = info.get("Config") or {}
+    cmd = [str(x) for x in (*(cfg.get("Entrypoint") or []), *(cfg.get("Cmd") or []))]
+    return str(info.get("Id", "")), str(cfg.get("Image", "")), cmd
 
 
 def flag_value(cmd: Iterable[str], flag: str) -> str | None:

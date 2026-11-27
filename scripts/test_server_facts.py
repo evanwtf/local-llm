@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 
 import pytest
 import server_facts
@@ -175,7 +176,7 @@ def test_cluster_facts_describe_every_node(tasks, monkeypatch):
     monkeypatch.setattr(
         server_facts,
         "peer_container_settings",
-        lambda peer, engine, models: {"server_cap_add": f"{peer}:{engine}:{models}"},
+        lambda peer, env, spec: {"server_cap_add": f"{peer}:{spec['model']}"},
     )
     got = server_facts.collect("pair", tasks, cluster_peer="peer")["env"]["cluster"]
     # #680 finding 2: the worker's container settings sit with its facts.
@@ -184,7 +185,7 @@ def test_cluster_facts_describe_every_node(tasks, monkeypatch):
         "peer": {
             "cpu_count": 20,
             "memory_gib": 121.7,
-            "server_cap_add": "peer:ds4:{'m'}",
+            "server_cap_add": "peer:m",
         },
     }
     assert "cluster" not in server_facts.collect("single", tasks)["env"]
@@ -325,31 +326,75 @@ def test_the_image_check_reason_reaches_capture_versions(tasks, monkeypatch):
 
 
 # #680 finding 2, worker half: a treatment can live in the worker's container
-# env or CapAdd. The peer's container is read over ssh, with the head's filter.
+# env or CapAdd. The peer's container is read over ssh, picked by the image the
+# head serves, and filtered by the head's own function.
 
 
-def _peer_inspect(cmd: list[str], env: list[str], caps: list[str] | None = None):
-    return json.dumps(
-        {
-            "Id": "abc123",
-            "Config": {"Cmd": cmd, "Env": env},
-            "HostConfig": {"CapAdd": caps},
-        }
+VLLM_TAG = "local/vllm-openai:inkling2-c32251b5d"
+TF_TAG = "local/tensorfold-dsv41:zig"
+KINDLING_TAG = "kindling/glm53:local"
+_VLLM_SERVE = ["vllm", "serve", "/models/m", "--served-model-name", "m"]
+_VLLM_RANK = ["--nnodes", "2", "--node-rank"]
+
+
+def _info(
+    cid: str,
+    image: str,
+    cmd: list[str] | None = None,
+    env: list[str] | None = None,
+    *,
+    entrypoint: list[str] | None = None,
+    labels: dict[str, str] | None = None,
+    caps: list[str] | None = None,
+    image_id: str = "",
+) -> dict:
+    return {
+        "Id": cid + "0" * 52,
+        "Image": image_id or f"sha256:{image}",
+        "Config": {
+            "Image": image,
+            "Entrypoint": entrypoint,
+            "Cmd": cmd,
+            "Env": env or ["VLLM_A=1"],
+            "Labels": labels,
+        },
+        "HostConfig": {"CapAdd": caps},
+    }
+
+
+def _vllm_worker(cid: str = "w1", rank: str = "1", **kw) -> dict:
+    return _info(cid, VLLM_TAG, [*_VLLM_SERVE, *_VLLM_RANK, rank, "--headless"], **kw)
+
+
+_EXPORTER = _info("ne", "prom/node-exporter:latest", ["/bin/node_exporter"])
+_SPEC = {"model": "m", "engine": "vllm"}
+_HEAD = {"vllm_image": VLLM_TAG, "server_argv": " ".join([*_VLLM_SERVE, "0"])}
+
+
+def _listing(*infos: dict) -> str:
+    return "\n".join(json.dumps(i) for i in infos) + "\n"
+
+
+def _fake_ssh(monkeypatch, answer):
+    seen: list[tuple[str, str]] = []
+
+    def ssh(peer: str, command: str) -> str:
+        seen.append((peer, command))
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(server_facts.cluster_id, "ssh", ssh)
+    return seen
+
+
+def _peer(monkeypatch, *infos, env=None, spec=None):
+    _fake_ssh(monkeypatch, _listing(*infos))
+    return server_facts.peer_container_settings(
+        "spark-b", _HEAD if env is None else env, spec or _SPEC
     )
 
 
-_WORKER_CMD = [
-    "vllm",
-    "serve",
-    "/models/m",
-    "--served-model-name",
-    "m",
-    "--nnodes",
-    "2",
-    "--node-rank",
-    "1",
-    "--headless",
-]
 _WORKER_ENV = [
     "PATH=/usr/bin",
     "VLLM_HOST_IP=10.0.0.2",
@@ -363,31 +408,14 @@ _WORKER_ENV = [
 ]
 
 
-def _fake_ssh(monkeypatch, answer):
-    seen: list[tuple[str, str]] = []
-
-    def ssh(peer: str, command: str) -> str:
-        seen.append((peer, command))
-        if isinstance(answer, Exception):
-            raise answer
-        return answer
-
-    monkeypatch.setattr(server_facts.cluster_id, "_ssh", ssh)
-    return seen
-
-
-def test_peer_settings_parse_the_workers_inspect_with_the_heads_filter(monkeypatch):
-    """Secrets are dropped by name and IPv4 addresses masked, as on the head."""
-    other = _peer_inspect(["node_exporter"], ["NCCL_X=1"])
-    seen = _fake_ssh(
+def test_peer_settings_filter_the_workers_env_like_the_heads(monkeypatch):
+    """Secrets are dropped by name and IPv4 addresses masked, as on the head,
+    and the chosen container's image is recorded for audit."""
+    got = _peer(
         monkeypatch,
-        other
-        + "\n"
-        + _peer_inspect(_WORKER_CMD, _WORKER_ENV, ["SYS_NICE", "IPC_LOCK"])
-        + "\n",
+        _EXPORTER,
+        _vllm_worker(env=_WORKER_ENV, caps=["SYS_NICE", "IPC_LOCK"]),
     )
-    got = server_facts.peer_container_settings("spark-b", "vllm", {"m"})
-    assert seen[0][0] == "spark-b"
     assert got == {
         "server_env": {
             "NCCL_SOCKET_IFNAME": "enp1s0f1np1",
@@ -395,6 +423,7 @@ def test_peer_settings_parse_the_workers_inspect_with_the_heads_filter(monkeypat
             "VLLM_NVFP4_GEMM_BACKEND": "marlin",
         },
         "server_cap_add": "IPC_LOCK,SYS_NICE",
+        "server_env_image": VLLM_TAG,
     }
     text = json.dumps(got)
     for word in ("TOKEN", "KEY", "SECRET", "PASS", "CREDENTIAL", "10.0.0.2"):
@@ -405,73 +434,222 @@ def test_peer_settings_use_the_heads_filter_function(monkeypatch):
     """Reuse, not a copy: a change to the head's filter reaches the peer."""
     import run
 
-    _fake_ssh(monkeypatch, _peer_inspect(_WORKER_CMD, _WORKER_ENV))
     monkeypatch.setattr(run, "engine_settings_from", lambda info: {"server_env": {}})
-    got = server_facts.peer_container_settings("p", "vllm", {"m"})
-    assert got["server_env"] == {}
+    assert _peer(monkeypatch, _vllm_worker())["server_env"] == {}
 
 
-def test_a_native_engine_on_the_peer_records_why(monkeypatch):
-    """hyperflare serves outside docker: no container, and the row says so."""
-    _fake_ssh(monkeypatch, _peer_inspect(["node_exporter"], ["NCCL_X=1"]))
-    got = server_facts.peer_container_settings("p", "hyperflare", {"m"})
-    assert set(got) == {"server_env_missing"}
-    assert "no running hyperflare container" in got["server_env_missing"]
-
-
-def test_a_peer_with_no_containers_records_why(monkeypatch):
-    _fake_ssh(monkeypatch, "")
-    got = server_facts.peer_container_settings("p", "vllm", {"m"})
-    assert "no running vllm container" in got["server_env_missing"]
-
-
-def test_two_candidates_pick_the_one_serving_the_model(monkeypatch):
-    other = [*_WORKER_CMD[:4], "other", *_WORKER_CMD[5:]]
-    _fake_ssh(
+def test_the_container_serving_image_read_is_reused(monkeypatch):
+    """One rule with run.serving_image: its rank-1 container wins, even over
+    another container that also looks like a rank-1 worker."""
+    env = {
+        **_HEAD,
+        "serving_image": {"rank1": {"id": "sha256:x"}, "rank1_container": "w2"},
+    }
+    got = _peer(
         monkeypatch,
-        _peer_inspect(other, ["VLLM_A=other"])
-        + "\n"
-        + _peer_inspect(_WORKER_CMD, ["VLLM_A=mine"]),
+        _vllm_worker("w1", env=["VLLM_A=other"]),
+        _vllm_worker("w2", env=["VLLM_A=chosen"]),
+        env=env,
     )
-    got = server_facts.peer_container_settings("p", "vllm", {"m"})
-    assert got == {"server_env": {"VLLM_A": "mine"}}
+    assert got["server_env"] == {"VLLM_A": "chosen"}
 
 
-def test_two_candidates_for_the_model_are_unknown_not_a_guess(monkeypatch):
-    _fake_ssh(
+def test_a_reused_container_that_has_gone_records_what_was_seen(monkeypatch):
+    env = {**_HEAD, "serving_image": {"rank1_container": "w9"}}
+    got = _peer(monkeypatch, _vllm_worker("w1"), _EXPORTER, env=env)
+    assert got == {
+        "server_env_missing": "the rank-1 container that serving_image read "
+        "(w9) is not running on the peer (2 containers listed)"
+    }
+
+
+def test_the_worker_image_id_from_serving_image_matches_without_a_tag(monkeypatch):
+    env = {"serving_image": {"rank1": {"id": "sha256:wid"}}}
+    got = _peer(monkeypatch, _vllm_worker(image_id="sha256:wid"), env=env)
+    assert got["server_env_image"] == VLLM_TAG
+
+
+def test_the_tensorfold_zig_follow_worker_is_found(monkeypatch):
+    """The Zig worker runs `tf-dsv41 follow /model /assets`, no entrypoint
+    (deepseek-v41-tensorfold-spark scripts/run-zig.sh). The word "tensorfold"
+    is not in its command."""
+    worker = _info(
+        "z1",
+        TF_TAG,
+        ["tf-dsv41", "follow", "/model", "/assets"],
+        ["CUDA_VISIBLE_DEVICES=0"],
+        labels={"org.tensorfold.rank": "1", "org.tensorfold.revision": "abc"},
+    )
+    got = _peer(
         monkeypatch,
-        _peer_inspect(_WORKER_CMD, ["VLLM_A=1"])
-        + "\n"
-        + _peer_inspect(_WORKER_CMD, ["VLLM_A=2"]),
+        _EXPORTER,
+        worker,
+        env={"tensorfold_image": TF_TAG},
+        spec={"model": "DeepSeek-V4.1-Flash-TF", "engine": "tensorfold"},
     )
-    got = server_facts.peer_container_settings("p", "vllm", {"m"})
-    assert set(got) == {"server_env_missing"}
-    assert "2 running vllm containers" in got["server_env_missing"]
+    assert got["server_env_image"] == TF_TAG
+    assert got["server_env"] == {"CUDA_VISIBLE_DEVICES": "0"}
 
 
-def test_a_container_without_engine_variables_records_why(monkeypatch):
-    _fake_ssh(monkeypatch, _peer_inspect(_WORKER_CMD, ["PATH=/x"]))
-    got = server_facts.peer_container_settings("p", "vllm", {"m"})
+def test_the_zig_rank0_and_rank1_on_one_peer_pick_the_follower(monkeypatch):
+    rank0 = _info(
+        "z0",
+        TF_TAG,
+        ["tensorfold-dsv41", "serve", "/model", "--name", "D"],
+        ["CUDA_A=rank0"],
+        labels={"org.tensorfold.rank": "0"},
+    )
+    rank1 = _info(
+        "z1", TF_TAG, ["tf-dsv41", "follow", "/model", "/assets"], ["CUDA_A=rank1"]
+    )
+    got = _peer(
+        monkeypatch, rank0, rank1, env={"tensorfold_image": TF_TAG}, spec={"model": "D"}
+    )
+    assert got["server_env"] == {"CUDA_A": "rank1"}
+
+
+def test_the_kindling_entrypoint_container_is_found(monkeypatch):
+    """glm-5.3-flash-gx10: ENTRYPOINT ["/entrypoint.sh"] and no CMD, so the
+    command names neither the engine, the model nor a rank."""
+    worker = _info(
+        "k1", KINDLING_TAG, None, ["VLLM_A=kindling"], entrypoint=["/entrypoint.sh"]
+    )
+    got = _peer(
+        monkeypatch,
+        _EXPORTER,
+        worker,
+        env={"vllm_image": KINDLING_TAG},
+        spec={"model": "glm53"},
+    )
+    assert got == {
+        "server_env": {"VLLM_A": "kindling"},
+        "server_env_image": KINDLING_TAG,
+    }
+
+
+def test_a_bench_container_beside_the_rank1_worker_does_not_win(monkeypatch):
+    bench = _info("b1", VLLM_TAG, ["vllm", "bench", "serve", "--model", "m"])
+    got = _peer(monkeypatch, bench, _vllm_worker(env=["VLLM_A=worker"]))
+    assert got["server_env"] == {"VLLM_A": "worker"}
+
+
+def test_a_lone_bench_container_is_not_the_server(monkeypatch):
+    bench = _info("b1", VLLM_TAG, ["vllm", "bench", "serve", "--model", "m"])
+    got = _peer(monkeypatch, bench)
+    assert got == {
+        "server_env_missing": "1 containers on the peer run the head's image, "
+        "and each is a client, rank 0, or serves another model (1 containers listed)"
+    }
+
+
+def test_rank0_and_rank1_of_one_model_on_one_peer_pick_rank1(monkeypatch):
+    got = _peer(
+        monkeypatch,
+        _vllm_worker("r0", "0", env=["VLLM_A=r0"]),
+        _vllm_worker("r1", "1", env=["VLLM_A=r1"]),
+    )
+    assert got["server_env"] == {"VLLM_A": "r1"}
+
+
+def test_a_lone_container_for_another_model_is_refused(monkeypatch):
+    """The single-hit case gets the same checks: same image, other model."""
+    other = _info(
+        "o1",
+        VLLM_TAG,
+        ["vllm", "serve", "/models/o", "--served-model-name", "other"],
+    )
+    got = _peer(monkeypatch, other)
+    assert (
+        "each is a client, rank 0, or serves another model"
+        in (got["server_env_missing"])
+    )
+
+
+def test_a_lone_container_on_another_image_is_refused(monkeypatch):
+    other = _info("o1", "vllm/vllm-openai:v0.32.0", [*_VLLM_SERVE, *_VLLM_RANK, "1"])
+    got = _peer(monkeypatch, other, _EXPORTER)
+    assert got == {
+        "server_env_missing": "no running container on the peer runs the head's "
+        "image (2 containers listed)"
+    }
+
+
+def test_hyperflare_records_that_the_head_has_no_serving_image(monkeypatch):
+    """Hyperflare serves outside docker on both nodes. The head recorded no
+    serving image either, so there is nothing to match: the reason says so."""
+    got = _peer(
+        monkeypatch,
+        _EXPORTER,
+        env={"server_argv": "hyperflare serve x"},
+        spec={"model": "glm-5.3-flash-hyperflare", "engine": "hyperflare"},
+    )
+    assert got == {
+        "server_env_missing": "the head's serving image is not recorded, so no "
+        "peer container can be matched to it (1 containers listed)"
+    }
+
+
+def test_two_rank1_workers_for_one_model_are_unknown_not_a_guess(monkeypatch):
+    got = _peer(monkeypatch, _vllm_worker("a"), _vllm_worker("b"))
+    assert got == {
+        "server_env_missing": "2 containers on the peer run the head's image and "
+        "2 carry a rank-1 marker: cannot tell which serves (2 containers listed)"
+    }
+
+
+def test_a_container_without_recorded_prefixes_records_why(monkeypatch):
+    got = _peer(monkeypatch, _vllm_worker(env=["PATH=/x"]))
     assert "server_env" not in got
-    assert "no engine variables" in got["server_env_missing"]
+    assert got["server_env_image"] == VLLM_TAG
+    assert got["server_env_missing"] == (
+        "the peer's serving container has no variables with a recorded prefix"
+    )
+
+
+# M3: an ssh failure puts a fixed phrase in the row and the full text in the
+# log. Driven through the real cluster_id.ssh with a fake subprocess.run.
+
+_LEAKY_STDERR = (
+    "ssh: connect to host spark-b.lan (192.0.2.7, fe80::1ce:2ff:fe33:4455) "
+    "port 22 as evan@spark-b.lan: /home/evan/.ssh/config line 4: bad"
+)
 
 
 @pytest.mark.parametrize(
-    "error",
+    ("result", "expected"),
     [
-        server_facts.cluster_id.ClusterVerificationError(
-            "peer 'p' unreachable: timed out after 30 seconds"
+        (
+            subprocess.TimeoutExpired(["ssh", "spark-b.lan", "docker ps"], 30),
+            "cannot read the peer's containers: no answer in 30 s",
         ),
-        server_facts.cluster_id.ClusterVerificationError(
-            "peer 'p' failed `x`: ssh: connect to host 203.0.113.9 port 22"
+        (
+            subprocess.CompletedProcess([], 255, "", _LEAKY_STDERR),
+            "cannot read the peer's containers: ssh failed, exit 255",
+        ),
+        (
+            subprocess.CompletedProcess([], 3, "", _LEAKY_STDERR),
+            "cannot read the peer's containers: docker ps failed on the peer, exit 3",
+        ),
+        (
+            subprocess.CompletedProcess([], 1, "", _LEAKY_STDERR),
+            (
+                "cannot read the peer's containers: the container listing failed "
+                "on the peer, exit 1"
+            ),
         ),
     ],
 )
-def test_an_ssh_failure_or_timeout_records_why(monkeypatch, error):
-    """The facts are still written: a missing peer env is a recorded unknown.
-    An address in ssh's message is masked, because rows are public."""
-    _fake_ssh(monkeypatch, error)
-    got = server_facts.peer_container_settings("p", "vllm", {"m"})
-    assert set(got) == {"server_env_missing"}
-    assert "cannot read the peer's containers" in got["server_env_missing"]
-    assert "203.0.113.9" not in got["server_env_missing"]
+def test_an_ssh_failure_records_a_fixed_phrase(monkeypatch, caplog, result, expected):
+    def fake_run(*a, **k):
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    monkeypatch.setattr(server_facts.cluster_id.subprocess, "run", fake_run)
+    with caplog.at_level("WARNING", logger="server_facts"):
+        got = server_facts.peer_container_settings("spark-b.lan", _HEAD, _SPEC)
+    assert got == {"server_env_missing": expected}
+    for leak in ("spark-b", "evan", "fe80", "192.0.2.7", "/home", ".ssh"):
+        assert leak not in got["server_env_missing"]
+    # The operator still gets the whole text.
+    assert "spark-b.lan" in caplog.text
