@@ -4580,7 +4580,14 @@ image = "vllm/vllm-openai:v0.34.0"
 # DFly with 5 draft tokens (config.json's own speculative_config; about 15 tok/s without it),
 # parsers hy_v4 (tools and reasoning). The KV dtype is left to vLLM: on capability 12 it picks
 # fp8_ds_mla for this model. Repo additions: text only (the checkpoint is a VL model), prompt
-# token details. Prefix caching stays at vLLM's default; the smoke log records whether it is on.
+# token details. Prefix caching stays at vLLM's default, which is on for this model
+# (enable_prefix_caching=True in the 2026-11-26 smoke log).
+# Smoke, 2026-11-26 (both Sparks): first real completion 803 s after launch. Weights load in 64 s
+# (49.67 GiB a GPU; half of each Engram table in host memory); FlashInfer's SM120 sparse MLA
+# autotune takes about 10.5 min of the 674 s engine init, and its cache lives in the container,
+# so every start pays it. All 42 layers on FLASHINFER_MLA_SPARSE_SM120 (fp8_ds_mla, learnable
+# sink on); KV pool 578,345 tokens. A 209,753-token prompt answered correctly in 196.7 s; lowest
+# MemAvailable 9.93 GiB (head) and 14.20 GiB (worker).
 # Reasoning effort no_think (operator, 2026-11-26), set on the server. The chat template accepts
 # only no_think, high or max (default high) and raises on any other value, so there is no "low".
 # no_think is the mode the model card measured (GPQA Diamond, IFEval and every decode figure);
