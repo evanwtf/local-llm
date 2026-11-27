@@ -95,6 +95,7 @@ def collect(
     tasks_file: pathlib.Path,
     cluster_peer: str | None = None,
     no_argv_reason: str | None = None,
+    no_image_check_reason: str | None = None,
 ) -> dict:
     """The server's hardware facts and the engine provenance for `backend`.
 
@@ -151,8 +152,12 @@ def collect(
             f"from {spec.get('base_url')}; start the server first (#948)."
             + remote.metrics_hint(instance["engine"])
         )
+    # #1516: refuses a split or off-pin serving image unless the reason is given.
     env = run.capture_versions(
-        cfg, {backend: cfg["backend"][backend]}, allow_unstamped=True
+        cfg,
+        {backend: cfg["backend"][backend]},
+        allow_unstamped=True,
+        no_image_check_reason=no_image_check_reason,
     )
     engine = str(spec.get("engine", "")).lower()
     if why := argv_gap(backend, engine, env, no_argv_reason):
@@ -196,6 +201,13 @@ def main(argv: list[str] | None = None) -> int:
         "single-node name (#647)",
     )
     p.add_argument(
+        "--no-image-check-reason",
+        metavar="TEXT",
+        help="write the facts although the serving image check refuses (#1516), "
+        "and record TEXT and the refusal on every row as "
+        "env.serving_image_unchecked",
+    )
+    p.add_argument(
         "--no-argv-reason",
         metavar="TEXT",
         help="write the facts although the launch argv could not be read, and "
@@ -213,7 +225,11 @@ def main(argv: list[str] | None = None) -> int:
         print(why, file=sys.stderr)
         return 2
     data = collect(
-        args.backend, args.tasks_file, args.cluster_peer, args.no_argv_reason
+        args.backend,
+        args.tasks_file,
+        args.cluster_peer,
+        args.no_argv_reason,
+        args.no_image_check_reason,
     )
     # Checked by client_container.py before every client batch, so a facts
     # file reused from an earlier batch cannot skip this server's gate.
@@ -232,6 +248,8 @@ def main(argv: list[str] | None = None) -> int:
                 "server_argv": bool(data["env"].get("server_argv")),
                 # #1514: which FlashInfer autotune cache the rows will name.
                 "autotune_cache": data["env"].get("autotune_cache"),
+                # #1516: the image each node serves.
+                "serving_image": data["env"].get("serving_image"),
             }
         )
     )

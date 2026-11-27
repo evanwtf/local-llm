@@ -138,3 +138,39 @@ def test_a_row_naming_its_own_server_machine_holds(tmp_path):
     row = _row()
     row["env"]["server_machine"] = DGX_DIR
     assert vl.validate_ledger(_write(tmp_path, [row]), AFTER, set()) == []
+
+
+def test_rows_with_and_without_the_serving_image_hold(tmp_path):
+    """#1516 adds `env.serving_image`; older rows lack it. A complete row
+    passes the validator and the write-time schema with and without it."""
+    sys.path.insert(
+        0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+    )
+    import results
+
+    node = {
+        "id": "sha256:aa",
+        "layer_count": 42,
+        "layers_sha256": "0" * 64,
+        "labels": {"org.local-llm.vllm-pr-sha": "6ca1feee4" + "0" * 31},
+    }
+    complete = {
+        "schema_version": results.SCHEMA_VERSION,
+        "finished": "2026-09-14T00:10:00",
+        "model": "m",
+        "context_tokens": 262144,
+        "excluded": False,
+        "exclusion_reason": None,
+        "passed": True,
+        "wall_seconds": 12.5,
+        "pytest": "1 passed",
+        "touched_tests": False,
+        "source_repo_intact": True,
+    }
+    new = _row(started="2026-09-14T00:00:01", **complete)
+    new["env"] = {**new["env"], "serving_image": {"rank0": node, "rank1": node}}
+    old = _row(started="2026-09-14T00:00:02", **complete)
+    p = _write(tmp_path, [new, old])
+    assert vl.validate_ledger(p, AFTER, set()) == []
+    assert results.validate(new) == []
+    assert results.validate(old) == []

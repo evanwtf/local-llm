@@ -98,6 +98,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `mtp_recovery_attribution.py` | mac | Attribute the #39 recovery-failed events to trials, one row per trial (#39). |
 | `mtp_replay_probe.py` | mac | Replay a captured agent request and bisect what switches ds4's MTP off (#151). |
 | `mtp_treatment_gate.py` | mac | Prove the MTP refusal fires, then take rows that carry the treatment (#210). |
+| `node_image.py` | any | Read and compare a serving image on both DGX Sparks (#1515, #1516). |
 | `nvme_coalescing_ab.py` | any | A/B NVMe interrupt coalescing on a DGX Spark with fio (#884). |
 | `oom_watchdog.py` | any | Notice an OOM kill and put the box's reachability back. #459 |
 | `opencode_step_caps.py` | any | Count OpenCode steps that ran to the client's output-token cap. #672 |

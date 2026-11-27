@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import re
@@ -351,9 +352,12 @@ class _Cluster:
         def done(ok: bool, out: str = "") -> subprocess.CompletedProcess[str]:
             return subprocess.CompletedProcess(argv, 0 if ok else 1, out, "boom")
 
-        if "RootFS.Layers" in script:
+        if "docker image inspect" in script and "--format" not in script:
             layers = _LAYERS if head else self.worker_layers
-            return done(layers is not None, layers or "")
+            if layers is None:
+                return done(False, "[]")
+            image = {"Id": "sha256:x", "RootFS": {"Layers": json.loads(layers)}}
+            return done(True, json.dumps([image]))
         if "docker image inspect" in script:
             return done(bool(self.image_id), self.image_id)
         if "mkdir -p" in script:
@@ -485,7 +489,8 @@ def test_matching_layers_pass_although_the_two_ids_differ(
     fake = _Cluster()
     monkeypatch.setattr(v.subprocess, "run", fake)
     assert v.main(_START) == 0
-    assert [c[0] for c in fake.calls if "RootFS.Layers" in c[-1]] == ["bash", "ssh"]
+    inspects = [c for c in fake.calls if "docker image inspect" in c[-1]]
+    assert [c[0] for c in inspects if "--format" not in c[-1]] == ["bash", "ssh"]
     # Only the head's ID is read, for the key.
     assert [c[0] for c in fake.calls if "{{.Id}}" in c[-1]] == ["bash"]
 
@@ -505,7 +510,7 @@ def test_serve_args_that_turn_autotune_off_get_no_cache(
     fake = _Cluster()
     monkeypatch.setattr(v.subprocess, "run", fake)
     assert v.main([*_START, "--", "--max-num-seqs", "4", *off]) == 0
-    assert fake.scripts("mkdir -p") == [] and fake.scripts("RootFS") == []
+    assert fake.scripts("mkdir -p") == [] and fake.scripts("docker image inspect") == []
     for node in fake.runs():
         assert "local-llm.autotune-cache=autotune-disabled" in node
         assert not any("flashinfer-autotune:" in a for a in node)
@@ -589,3 +594,20 @@ def test_a_tilde_path_in_the_serve_args_stays_quoted() -> None:
     assert "'~/x/t.jinja'" in line
     assert "'~/evil:/e'" in line
     assert " -v ~/models:/models:ro " in line
+
+
+def test_start_refuses_an_unreachable_worker_as_unreachable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1516 review L1: ssh exit 255 is not "the worker has no image"."""
+    fake = _Cluster()
+
+    def run(argv: list[str], **kw: object) -> subprocess.CompletedProcess[str]:
+        if argv[0] == "ssh":
+            return subprocess.CompletedProcess(argv, 255, "", "No route to host")
+        return fake(argv, **kw)
+
+    monkeypatch.setattr(v.subprocess, "run", run)
+    with pytest.raises(SystemExit, match="unreachable"):
+        v.main(_START)
+    assert fake.runs() == []

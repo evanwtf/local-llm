@@ -4063,3 +4063,247 @@ def test_the_default_target_layout_is_sandbox() -> None:
 def test_targets_legacy_still_parses() -> None:
     args = run.build_parser().parse_args(["--backend", "b", "--targets", "legacy"])
     assert args.targets == "legacy"
+
+
+# --- #1516: the image each node serves ---------------------------------------
+#
+# A local overlay (a nightly plus a PR's files) reports the nightly's
+# vllm.__version__, and the tag names neither a rebuild nor a stale worker. So
+# a row records each node's image ID, org.local-llm.* labels and layer hash,
+# and the run refuses a split or a label off the pin.
+
+_PR_SHA = "6ca1feee4ca275b3c6ddcb3b9fc323b5ffeda1f1"
+_TWO_NODE_CMD = [
+    "vllm",
+    "serve",
+    "/models/hy4",
+    "--served-model-name",
+    "hy4-flash-nvfp4",
+    "--nnodes",
+    "2",
+    "--node-rank",
+]
+
+
+def _image(layers=("sha256:l1", "sha256:l2"), sha=_PR_SHA, image_id="sha256:aa"):
+    import node_image
+
+    labels = {} if sha is None else {node_image.PIN_LABEL: sha}
+    return node_image.ImageFacts(image_id=image_id, layers=layers, labels=labels)
+
+
+def _two_nodes(monkeypatch, head, worker, worker_containers="default"):
+    """Fake both nodes: the head's container 'h0', the worker's 'w1'."""
+    import node_image
+
+    if worker_containers == "default":
+        worker_containers = [
+            ("w1", "img", [*_TWO_NODE_CMD, "1", "--headless"]),
+            ("x", "postgres:18", ["postgres"]),
+        ]
+    ids = {(1, "w1"): "sha256:worker"}
+    images = {(0, "sha256:head"): head, (1, "sha256:worker"): worker}
+    monkeypatch.setattr(
+        node_image, "container_image_id", lambda rank, cid: ids.get((rank, cid))
+    )
+    monkeypatch.setattr(
+        node_image, "inspect_image", lambda rank, ref: images.get((rank, ref))
+    )
+    monkeypatch.setattr(
+        node_image, "running_containers", lambda rank: worker_containers
+    )
+
+
+def test_a_two_node_server_records_each_nodes_image(monkeypatch):
+    _two_nodes(monkeypatch, _image(), _image(image_id="sha256:bb"))
+    got = run.serving_image("sha256:head", [*_TWO_NODE_CMD, "0"], {"hy4-flash-nvfp4"})
+    assert got is not None and set(got) == {"rank0", "rank1"}
+    # The two stores give one image two IDs; the layer hash is the same.
+    assert got["rank0"]["id"] == "sha256:aa" and got["rank1"]["id"] == "sha256:bb"
+    assert got["rank0"]["layers_sha256"] == got["rank1"]["layers_sha256"]
+    assert got["rank0"]["labels"] == {"org.local-llm.vllm-pr-sha": _PR_SHA}
+
+
+def test_a_one_node_server_records_the_head_only(monkeypatch):
+    _two_nodes(monkeypatch, _image(), None)
+    got = run.serving_image("sha256:head", ["vllm", "serve", "/m"], {"m"})
+    assert got is not None and set(got) == {"rank0"}
+
+
+@pytest.mark.parametrize(
+    ("containers", "cause"),
+    [
+        (None, "docker ps failed on the worker"),
+        ([], "no rank-1 vLLM container"),
+        ([("w9", "img", [*_TWO_NODE_CMD, "1"])], "docker inspect of container w9"),
+        ("unreachable", "unreachable"),
+    ],
+)
+def test_an_unread_rank1_records_why(monkeypatch, containers, cause):
+    """#1516 review L2: ssh down, no rank-1 container and a failed inspect
+    are three different fixes, so the record and the refusal name which."""
+    import node_image
+
+    _two_nodes(monkeypatch, _image(), _image(), worker_containers=containers)
+    if containers == "unreachable":
+
+        def down(rank):
+            raise node_image.NodeUnreachable(1, "ssh exit 255")
+
+        monkeypatch.setattr(node_image, "running_containers", down)
+    got = run.serving_image("sha256:head", [*_TWO_NODE_CMD, "0"], {"hy4-flash-nvfp4"})
+    assert got is not None and got["rank1"] is None
+    assert cause in got["errors"]["rank1"]
+    why = node_image.serving_refusal(got, None)
+    assert why and cause in why
+
+
+def test_serving_vllm_container_carries_the_serving_image(monkeypatch):
+    monkeypatch.setattr(
+        run.subprocess,
+        "run",
+        lambda *a, **k: subprocess.CompletedProcess(a[0], 0, stdout="0.30.0|2|13\n"),
+    )
+    _two_nodes(monkeypatch, _image(), _image())
+    # One `docker inspect` of the container gives the settings and the ID.
+    monkeypatch.setattr(run, "container_inspect", lambda cid: {"Image": "sha256:head"})
+    containers = [("h0", "local/x:tag", [*_TWO_NODE_CMD, "0"])]
+    got = run.serving_vllm_container(
+        {"hy4-flash-nvfp4"}, inspect_all=lambda: containers
+    )
+    assert set(got["serving_image"]) == {"rank0", "rank1"}
+
+
+def _capture_two_node(monkeypatch, record, pin="6ca1feee4", reason=None):
+    _no_identity(monkeypatch)
+    monkeypatch.setattr(
+        run,
+        "serving_vllm_container",
+        lambda models, **kw: {"vllm_image": "local/x:tag", "serving_image": record},
+    )
+    backend = {
+        "engine": "vllm",
+        "image": "local/x:tag",
+        "model": "hy4-flash-nvfp4",
+        "base_url": "http://127.0.0.1:8888",
+        "recipe_pin": pin,
+        "tier": "gb10-spark-x2",
+    }
+    return run.capture_versions(
+        {"base_commit": "abc"},
+        {"hy4": backend},
+        allow_unstamped=True,
+        no_image_check_reason=reason,
+    )
+
+
+def _record(head, worker):
+    return {"rank0": head.record(), "rank1": worker.record()}
+
+
+def test_a_run_on_matching_nodes_at_the_pin_records_the_image(monkeypatch):
+    record = _record(_image(), _image(image_id="sha256:bb"))
+    env = _capture_two_node(monkeypatch, record)
+    assert env["serving_image"] == record
+
+
+def test_a_run_refuses_when_the_worker_serves_other_layers(monkeypatch):
+    record = _record(_image(), _image(layers=("sha256:l1", "sha256:stale")))
+    with pytest.raises(SystemExit, match="different layers"):
+        _capture_two_node(monkeypatch, record)
+
+
+def test_a_run_refuses_when_the_pr_label_is_off_the_pin(monkeypatch):
+    stale = "5aea30579ad672c3c35be43112b7a1f7b293a09e"
+    record = _record(_image(sha=stale), _image(sha=stale))
+    with pytest.raises(SystemExit, match="recipe_pin 6ca1feee4"):
+        _capture_two_node(monkeypatch, record)
+
+
+def test_a_run_refuses_when_the_worker_image_cannot_be_read(monkeypatch):
+    record = {"rank0": _image().record(), "rank1": None}
+    with pytest.raises(SystemExit, match="the worker"):
+        _capture_two_node(monkeypatch, record)
+
+
+def test_an_image_without_the_pr_label_runs_at_any_pin(monkeypatch):
+    """The inkling2 image was not built by vllm_pr_overlay.py and carries no
+    PR-sha label: there is no claim to contradict the pin."""
+    record = _record(_image(sha=None), _image(sha=None))
+    assert _capture_two_node(monkeypatch, record)["serving_image"] == record
+
+
+def test_remote_rows_take_the_serving_image_from_the_server_only():
+    import remote
+
+    assert {"serving_image", "serving_image_unchecked"} <= remote.CLIENT_ENGINE_KEYS
+    server = {"rank0": _image().record(), "rank1": _image().record()}
+    # A client that sets the field has it replaced by the server's.
+    out = remote.stamp(
+        {"serving_image": {"rank0": {"id": "client-guess"}}},
+        {"directory": "d", "facts": {}, "env": {"serving_image": server}},
+    )
+    assert out["serving_image"] == server
+    # And dropped when the server reports none: never the client's guess.
+    out = remote.stamp(
+        {"serving_image": {"rank0": {"id": "client-guess"}}},
+        {"directory": "d", "facts": {}, "env": {}},
+    )
+    assert "serving_image" not in out
+
+
+def test_a_reason_runs_past_the_image_refusal_and_lands_on_the_row(monkeypatch):
+    """#1516 review M1: --no-image-check-reason, like --no-argv-reason."""
+    record = _record(_image(), _image(layers=("sha256:l1", "sha256:stale")))
+    env = _capture_two_node(monkeypatch, record, reason="worker image rebuilding")
+    unchecked = env["serving_image_unchecked"]
+    assert unchecked["reason"] == "worker image rebuilding"
+    (refusal,) = unchecked["refusals"]
+    assert "'hy4'" in refusal and "different layers" in refusal
+    assert env["serving_image"] == record
+
+
+def test_a_blank_reason_does_not_skip_the_image_refusal(monkeypatch):
+    record = _record(_image(), _image(layers=("sha256:l1", "sha256:stale")))
+    with pytest.raises(SystemExit, match="--no-image-check-reason"):
+        _capture_two_node(monkeypatch, record, reason="  ")
+
+
+def test_a_passing_image_writes_no_unchecked_field(monkeypatch):
+    env = _capture_two_node(monkeypatch, _record(_image(), _image()), reason="x")
+    assert "serving_image_unchecked" not in env
+
+
+def test_the_run_takes_a_no_image_check_reason():
+    parse = run.build_parser().parse_args
+    assert parse(["--no-image-check-reason", "why"]).no_image_check_reason == "why"
+    assert parse([]).no_image_check_reason is None
+
+
+def test_a_two_node_tier_without_a_rank1_record_warns(monkeypatch, caplog):
+    """#1516 review L6: a launcher the head cannot see (`bash /start.sh`,
+    `docker exec`) gives no two-node record; the run says so."""
+    caplog.set_level("WARNING")
+    _capture_two_node(monkeypatch, {"rank0": _image().record()})
+    assert "no two-node serving_image record" in caplog.text
+
+
+def test_with_two_image_models_each_backend_reads_only_its_own(monkeypatch):
+    """#1516 review L8: the lone container must not answer for a backend
+    whose model it does not serve, or one pin is checked against another
+    backend's image."""
+    _no_identity(monkeypatch)
+    calls = []
+
+    def serving(models, **kw):
+        calls.append((models, kw.get("fallback_single", True)))
+        return {}
+
+    monkeypatch.setattr(run, "serving_vllm_container", serving)
+    backends = {
+        n: {"engine": "vllm", "image": "i", "model": n, "base_url": "http://h:1"}
+        for n in ("a", "b")
+    }
+    run.capture_versions({"base_commit": "abc"}, backends, allow_unstamped=True)
+    per_backend = [c for c in calls if len(c[0]) == 1]
+    assert per_backend and all(fallback is False for _, fallback in per_backend)

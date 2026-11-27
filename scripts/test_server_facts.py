@@ -287,3 +287,23 @@ def test_the_inkling2_backend_passes_the_currency_gate_at_its_pin(
     assert server_facts.check_current(name, spec, run) is None
     answers["rev-parse --short HEAD"] = "1234567"
     assert server_facts.check_current(name, spec, run) is not None
+
+
+def test_the_image_check_reason_reaches_capture_versions(tasks, monkeypatch):
+    """#1516 review M1: server_facts.py takes --no-image-check-reason like
+    --no-argv-reason, and hands it to the check in capture_versions."""
+    import run
+
+    seen: dict = {}
+
+    def capture(*a, **k):
+        seen.update(k)
+        return {"server_argv": ARGV}
+
+    monkeypatch.setattr(run, "capture_versions", capture)
+    server_facts.collect(
+        "pair", tasks, cluster_peer="peer", no_image_check_reason="rebuilding"
+    )
+    assert seen["no_image_check_reason"] == "rebuilding"
+    server_facts.collect("pair", tasks, cluster_peer="peer")
+    assert seen["no_image_check_reason"] is None

@@ -63,12 +63,16 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
+import node_image
+from node_image import node_shell
+
 import logs
 
 logger = logging.getLogger(__name__)
 
 HEAD_IP = "10.0.0.1"
-WORKER_IP = "10.0.0.2"
+#: The worker is node_image.WORKER_IP: one definition for every caller.
+WORKER_IP = node_image.WORKER_IP
 #: Every fabric interface and HCA. Naming one path of a QSFP cage walls the
 #: link at about 112 Gb/s (see scripts/cluster_allreduce.py).
 IFACES = "enp1s0f1np1,enP2p1s0f1np1,enp1s0f0np0,enP2p1s0f0np0"
@@ -167,16 +171,6 @@ def autotune_disabled(vllm_args: list[str]) -> bool:
     return False
 
 
-def node_shell(rank: int, script: str) -> subprocess.CompletedProcess[str]:
-    """Run a shell script on the head (rank 0) or on the worker (rank 1)."""
-    argv = (
-        ["bash", "-c", script]
-        if rank == 0
-        else ["ssh", "-o", "BatchMode=yes", WORKER_IP, script]
-    )
-    return subprocess.run(argv, capture_output=True, text=True, check=False)
-
-
 def head_image_id(image: str) -> str:
     """The image ID on the head, or SystemExit if the head does not have it.
 
@@ -199,17 +193,6 @@ def head_image_id(image: str) -> str:
     return image_id
 
 
-def image_layers(rank: int, image: str) -> str | None:
-    """The image's `RootFS.Layers` on one node, or None if it is not there."""
-    got = node_shell(
-        rank,
-        f"docker image inspect --format '{{{{json .RootFS.Layers}}}}' "
-        f"{shlex.quote(image)}",
-    )
-    layers = got.stdout.strip()
-    return layers if got.returncode == 0 and layers else None
-
-
 def check_same_image(image: str) -> None:
     """Refuse (SystemExit) unless both nodes hold the same image layers.
 
@@ -218,18 +201,25 @@ def check_same_image(image: str) -> None:
     both nodes re-tune at every start, the worker's sparse-MLA cache load
     fails silently, and the labels still say `found`.
     """
-    head, worker = image_layers(0, image), image_layers(1, image)
+    try:
+        head = node_image.inspect_image(0, image)
+        worker = node_image.inspect_image(1, image)
+    except node_image.NodeUnreachable as exc:
+        raise SystemExit(f"vllm_two_node: {exc} (#1514)") from None
+    if head is None:
+        raise SystemExit(
+            f"vllm_two_node: the head has no image {image!r} (#1514). Load it "
+            "first, or pass --no-autotune-cache."
+        )
     if worker is None:
         raise SystemExit(
             f"vllm_two_node: the worker has no image {image!r} (#1514). Load "
             "it on the worker first, or pass --no-autotune-cache."
         )
-    if head != worker:
+    if why := node_image.layers_refusal(head.layers, worker.layers, repr(image)):
         raise SystemExit(
-            f"vllm_two_node: {image!r} has different layers on the head and "
-            "the worker (#1514), so the two nodes would run different code "
-            "and cannot share autotune results. Copy the head's image to the "
-            "worker."
+            f"vllm_two_node: {why} (#1514). The two nodes could not share "
+            "autotune results either."
         )
 
 
