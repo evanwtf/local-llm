@@ -1,0 +1,38 @@
+# grok sweep (dgx), q1
+# requested window: last 24 hours
+# written:  2026-11-27T17:22:32Z  (local: 2026-11-27 12:22:32 EST)
+# query:    Search X for posts and replies from @MiaAI_lab, @sudoingX, @0xSero, @jayleaton, @ashxhart, @no_stp_on_snek, @Raullen, @Brooooook_lyn, @bleysg, @ViC305, @yume_arasaki, @sfxnz, @plotarmordev, @AlexanderChopra, @JoesInvestments, @mrru5s3ll in the last 24 hours about running LLMs on NVIDIA DGX Spark or GB10 (one or two Sparks): vLLM, TensorFold, SGLang, TensorRT-LLM, Hyperflare, NVFP4, FP8, EXL3 recipes, two-node tensor parallel, coding agents. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search those accounts for the last 24 hours on DGX Spark and GB10.
+
+The first pass hit the result cap. I'll page further and check the accounts that did not show up.
+
+- 2026-11-27T16:35:00Z | @ViC305 | https://x.com/ViC305/status/2126354112380072004 | He has not re-run the one-Spark radiology test and says the hosted API may be serving the NVFP4 weights, which would explain the local quant beating it.
+- 2026-11-27T16:24:41Z | @ViC305 | https://x.com/ViC305/status/2126351513622896731 | His 5.12-bit SAGE-REXL3 quant of Ling Sante 3.1 Air VL on one DGX Spark scored 81/100 on a 100-question VQA-RAD subset at 47 tok/s, against 76/100 for the hosted API.
+- 2026-11-27T15:31:33Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2126338142063997101 | She says the DGX Spark Inkling-2-Mini TensorFold numbers are prose, non-greedy, with thinking on.
+- 2026-11-27T13:59:00Z | @sudoingX | https://x.com/sudoingX/status/2126314852633231440 | He links the LingSante-3.1-air-VL weights used for the 2x DGX Spark lab-report run.
+- 2026-11-27T13:59:00Z | @sudoingX | https://x.com/sudoingX/status/2126314851697930287 | LingSante 3.1 Air VL on his 2x DGX Sparks flagged 15 of 15 out-of-range lab values and none of 13 normal ones, at about 46 tok/s on one stream.
+- 2026-11-27T13:56:39Z | @sfxnz | https://x.com/sfxnz/status/2126314261509247445 | He says the new 1x DGX Spark Inkling 2 Mini speed numbers are in the recipe.
+- 2026-11-27T13:13:06Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2126303299615817742 | Updates are coming for GLM 5.3 Flash on 2x and 4x DGX Sparks and on 2x RTX PRO 6000.
+- 2026-11-27T13:07:55Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2126301995695058963 | She confirms the Inkling-2-Mini speed update is for a DGX Spark.
+- 2026-11-27T13:00:04Z | @plotarmordev | https://x.com/plotarmordev/status/2126300019607077113 | His scheduler uses 5.15 MB on the Spark, tracks free RAM and exclusive GPU leases across four machines, and keeps live chats near 201 ms.
+- 2026-11-27T13:00:03Z | @plotarmordev | https://x.com/plotarmordev/status/2126300019183485223 | He built a 4.7 MB Rust scheduler so agents, benchmarks, and renders stop running out of memory across a Mac Studio and 3 DGX Sparks.
+- 2026-11-27T12:10:05Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2126287443255005538 | She says the Inkling 2 Mini DGX Spark update does not change answer quality when thinking is on.
+- 2026-11-27T11:52:20Z | @sfxnz | https://x.com/sfxnz/status/2126282974702305525 | Inkling 2 Mini on 1x DGX Spark, thinking off, rose from 42.25 to 54.8 tok/s on one prose stream and from 94.40 to 151.32 tok/s across eight streams.
+- 2026-11-27T10:53:41Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2126268216007856184 | She says the Inkling 2 Mini recipe update for DGX Spark is out.
+- 2026-11-27T10:41:43Z | @sudoingX | https://x.com/sudoingX/status/2126265205244178661 | He links the official MXFP4 he repacked to GGUF for the 4x DGX Spark LingSante 3.1 Flash run.
+- 2026-11-27T10:41:42Z | @sudoingX | https://x.com/sudoingX/status/2126265199678406894 | On 4x DGX Sparks, MXFP4 LingSante 3.1 Flash scored 22/30 against 23/30 for FP8 3.0 Sante, at 14.34 tok/s decode with MTP.
+- 2026-11-27T10:17:41Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2126259157401551325 | The DGX Spark build of the Inkling-2-Mini update is out, and the RTX 5090 and PRO 6000 builds are next.
+- 2026-11-27T10:17:06Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2126259007698440271 | Inkling-2-Mini on one DGX Spark now decodes prose at 64, 99, 128, and 196 tok/s for 1, 2, 4, and 8 streams, and prefill rose to 4344–2977 tok/s.
+- 2026-11-27T09:39:48Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2126249622142140787 | A large update is coming to the Inkling 2 Mini recipe for DGX Spark and for RTX 5090 and PRO 6000.
+- 2026-11-27T03:33:09Z | @sudoingX | https://x.com/sudoingX/status/2126157351409586526 | If vLLM stops Ling-3.2-air on that 2x Spark load with conflicting M-RoPE sections, add mrope_section [8, 12, 12] at the top of the config.
+- 2026-11-27T03:33:08Z | @sudoingX | https://x.com/sudoingX/status/2126157347173339218 | Official FP8 Ling-3.2-air on 2x DGX Sparks with vLLM TP=2 decodes at 47.11 tok/s with MTP off, after MTP accepted none of 29,682 drafts.
+- 2026-11-27T02:38:45Z | @yume_arasaki | https://x.com/yume_arasaki/status/2126143660362486018 | She links her verification runs of ViC305’s Spark recipes, including a two-Spark RED-SNOW writeup.
+- 2026-11-27T01:50:38Z | @yume_arasaki | https://x.com/yume_arasaki/status/2126131551180406922 | She says ViC305’s one-Spark recipes on vLLM, SGLang, EXL3, and llama.cpp check out, and her two-Spark RED-SNOW run matched his 39.57 tok/s at 39.45.
+- 2026-11-27T00:10:46Z | @ashxhart | https://x.com/ashxhart/status/2126106422651867423 | He says a TFQ3 GLM-5.3-Flash quant came within 0.004 KL of EXL3 4bpw with no calibration data, on a thread tagged for DGX Spark.
+- 2026-11-26T23:16:38Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2126092799116226858 | She calls the TensorFold 1.3.6 release great, the one that reports the GB10 TFQ3 speedup.
+- 2026-11-26T22:43:55Z | @jayleaton | https://x.com/jayleaton/status/2126084562354860259 | He says DGX Sparks are best used for longer-running tasks or orchestration agents.
+- 2026-11-26T22:23:00Z | @ashxhart | https://x.com/ashxhart/status/2126079300260475147 | Undrafted GB10 TFQ3 is listed at 15.0 tok/s decode and 590.8 tok/s prefill, and he says an undrafted MLX 4-bit and EXL3 row should sit beside it on the same box.
+- 2026-11-26T20:52:42Z | @ashxhart | https://x.com/ashxhart/status/2126056575710188011 | TensorFold 1.3.6 serves native TFQ3 on CUDA, and on an NVIDIA GB10 Qwen3.8-27B-TFQ3 went from 15.1 to 56.6 tok/s with DFlash2 and DSpine on a coding test.
+- 2026-11-26T20:21:47Z | @sfxnz | https://x.com/sfxnz/status/2126048794219581914 | He says he meant GLM 5.3 Flash and that he has 2 DGX Sparks.
+- 2026-11-26T19:16:28Z | @sfxnz | https://x.com/sfxnz/status/2126032355819487697 | He says TP8 is the best scale for DGX Sparks if you want headroom short of a DGX Station.
