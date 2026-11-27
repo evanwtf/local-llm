@@ -107,12 +107,12 @@ into the fork first, then build the fork.
 
 | port | engine |
 |---|---|
+| 5560 | sparkDash on the head, `127.0.0.1` only ([below](#sparkdash-a-second-view-loopback-only-1206)) |
 | 8000 | ds4. It is also vLLM's default port, so a single-node vLLM moves to 8030 |
 | 8020 | llama.cpp (`--metrics` is **off by default**; pass it) and ds4 under `dgx_server.py` |
 | 8030 | single-node vLLM; metrics on the API port |
 | 8043 | the video-gen gallery on the head: read-only, LAN only (`scripts/videogen/gallery_serve.py`, #1413) |
 | 8888 | the two-Spark recipes |
-| 5560 | sparkDash on the head, `127.0.0.1` only on purpose: it can power off and delete ([below](#sparkdash-a-second-view-loopback-only-1206)) |
 
 **Bind `0.0.0.0`.** Loopback binding silently broke monitoring for weeks:
 Prometheus targets sat at `up=0` because nothing they pointed at was
@@ -121,6 +121,8 @@ that reports nothing wrong.*
 
 `scripts/local_agent.py` binds `127.0.0.1` on purpose: it is a one-command
 setup for someone else's machine, and their network is not this LAN.
+sparkDash binds `127.0.0.1` on purpose too: its write actions run as root on
+the head ([below](#sparkdash-a-second-view-loopback-only-1206)).
 
 ## Before and after a launch
 
@@ -598,28 +600,119 @@ Rows from before #1516 have no `env.serving_image`.
 dashboard for DGX Sparks. It runs on the head only. Use it as a second view.
 Do not take a published number from it.
 
+**State on 2026-11-27: down until the operator sets a token.** The install
+below refuses to start without `SPARKDASH_TOKEN`.
+
 - **Version:** `main` at
   [`e6bf136b`](https://github.com/MiaAI-Lab/sparkDash/commit/e6bf136b69355cac47b0cf086351d0574b8c33d6)
-  (2.91.0, 2026-11-26). The published image stops at v2.32.0, so the head
-  builds `main` from source.
-- **Where:** a clone in the operator's git directory, container `sparkDash`,
-  started with the upstream production path, `docker compose up --build -d`.
-  A local `docker-compose.override.yml` (untracked; Compose loads it by
-  itself) sets the values below. `config/sparks.json` holds one unit: the
-  head, read locally (`isLocal: true`), with no SSH.
+  (2.91.0, committed 2026-11-25 New York time). No image is published for it:
+  the image workflow came after the v2.32.0 tag, and no tag has been cut
+  since. So the head builds `main` from source.
+- **The clone is the running code.** The upstream Compose file runs
+  `node --watch server/index.js` with `./server` mounted, so a `git pull` or an
+  edit in the clone changes the code that runs as root. Keep the clone
+  detached at the pinned commit. `./server` and `./config` are mounted
+  read-write.
 - **Bind:** `127.0.0.1:5560` only. The `dcgm` container already publishes
-  5555, the upstream default. `SPARKDASH_ALLOW_OPEN_REMOTE=0` makes a LAN bind
-  without a token refuse to start. Open it from a laptop with a tunnel:
+  5555, the upstream default.
 
-  ```sh
-  ssh -N -L 5560:127.0.0.1:5560 <user>@<head-host>
-  # then browse to http://127.0.0.1:5560
-  ```
+### Trust: the token is the control
 
-- **Trust:** anyone who can reach the port is an administrator. The container
-  is `privileged`, uses the host PID and network namespaces, and mounts `/`
-  read-only. Its power, storage-delete and GPU-clock actions run as root on
-  the head. Loopback limits this to accounts on the head.
+The container is `privileged`, uses the host PID and network namespaces, and
+mounts `/` read-only. It reaches the host through `nsenter`. Its shutdown,
+storage-delete, Docker-removal, GPU-clock and power-limit actions run as root
+on the head.
+
+**Without a token, any process that can open `127.0.0.1:5560` can act as root
+on the head, with no credential.** That includes every process in the host
+network namespace (local agent trials, peer agents, host-network containers)
+and every process on the laptop while the ssh tunnel is open. A loopback bind
+does not stop them.
+
+`SPARKDASH_TOKEN` is the control. With it set, every POST, PUT, PATCH and
+DELETE needs the token, and so does the WebSocket (`createAuthMiddleware` and
+`authorizeUpgrade` in `server/auth.js`). GET requests on a loopback bind stay
+open: telemetry, settings, bench history, and the read-only scans (storage,
+model discovery).
+
+### Install
+
+```sh
+export SPARKDASH_DIR=<sparkDash clone>
+git clone https://github.com/MiaAI-Lab/sparkDash.git "$SPARKDASH_DIR"
+cd "$SPARKDASH_DIR"
+git switch --detach e6bf136b69355cac47b0cf086351d0574b8c33d6
+```
+
+Write `$SPARKDASH_DIR/docker-compose.override.yml` (Compose loads it by
+itself; upstream does not track it):
+
+```yaml
+services:
+  sparkdash:
+    environment:
+      - PORT=5560                    # dcgm holds 5555
+      - BIND_HOST=127.0.0.1          # loopback only
+      - SPARKDASH_ALLOW_OPEN_REMOTE=0 # a LAN bind without a token refuses to start
+      - LLM_PORT=8888                # the one LLM port
+      - MODEL_PRICES_FETCH=0         # no price catalog download
+      - POLL_INTERVAL_LLM=5000       # LLM probe every 5 s, not 1 s
+      - SPARKDASH_TOKEN=${SPARKDASH_TOKEN:?set SPARKDASH_TOKEN in .env first}
+```
+
+`POLL_INTERVAL_LLM` pins the LLM poll timer and overrides the 1 s
+Settings poll interval (`resolveFastPollIntervals` in `server/config.js`).
+The server under test then renders `/metrics` for sparkDash once every 5 s.
+
+Write `$SPARKDASH_DIR/config/sparks.json` (upstream ignores it): one unit,
+the head, read locally, with no SSH.
+
+```json
+{
+  "sparks": [
+    {
+      "id": "head",
+      "name": "head",
+      "kind": "spark",
+      "isLocal": true,
+      "role": "standalone",
+      "llmPorts": [8888],
+      "llmMonitoring": true,
+      "comfyMonitoring": false,
+      "tailscaleMonitoring": false,
+      "hermesMonitoring": false,
+      "atticMonitoring": false
+    }
+  ]
+}
+```
+
+The operator sets the token. Create a 1Password item named
+`local-llm-sparkdash-token` with a generated password. Then write it to
+`$SPARKDASH_DIR/.env` as `SPARKDASH_TOKEN=<token>`, set mode 600, and start:
+
+```sh
+chmod 600 "$SPARKDASH_DIR/.env"
+cd "$SPARKDASH_DIR" && docker compose up --build -d
+```
+
+Upstream's `.gitignore` lists `.env`. Without it, `docker compose` stops with
+`required variable SPARKDASH_TOKEN is missing a value`. The browser asks for
+the token once and keeps it in its own storage.
+
+Open it from the laptop:
+
+```sh
+ssh -N -L 127.0.0.1:5560:127.0.0.1:5560 <user>@<head-host>
+# then browse to http://127.0.0.1:5560
+```
+
+### Runs: leave it running, and declare it
+
+Do not stop or pause sparkDash by hand for a run. A run declares it on
+`env.samplers`. The census does not see it yet, because it runs as
+`node server/index.js` in a container
+([#1530](https://github.com/evanwtf/local-llm/issues/1530)).
 
 ### One LLM port: 8888
 
@@ -627,48 +720,60 @@ The unit probes `127.0.0.1:8888` and no other port. Our own metrics exporter
 once connected to every TCP listener on the head, and one stray connection
 aborted a two-node flare start
 ([evanwtf/llm-metrics-exporter#25](https://github.com/evanwtf/llm-metrics-exporter/issues/25)).
-The sparkDash source (2026-11-27) has no listener scan: it reads only
+The sparkDash source at the pinned commit has no listener scan. It reads only
 `/proc/net/dev` and `/proc/net/route`, and probes only the configured
 `llmPorts`. One exception: when the port answers as llama-swap, it follows
 llama-swap's loopback engine port. Do not add a preset port (1234, 11434) or
 a second LLM port without the same check.
 
 Checked on 2026-11-27 with `strace -f -e trace=connect` on the server for
-150 s: 450 `connect()` calls, all to `127.0.0.1:8888`, and no other. With no
-server on 8888, the probe connects about 3 times a second and gets refused.
+150 s (1 s poll, before `POLL_INTERVAL_LLM`): 450 `connect()` calls, all to
+`127.0.0.1:8888`, and no other. With no server on 8888, the probe connected
+about 3 times a second and was refused.
 
 ### Left off
 
-Each of these is off by default. Keep it off.
+Each of these is off by default, or runs only on a click. Keep it that way.
 
 | feature | state |
 |---|---|
 | ComfyUI, Hermes, Tailnet, spark-attic monitoring | off in `sparks.json` |
 | spark-attic install, Hermes update | never clicked |
-| metrics history, Prometheus `/metrics`, alerts, MQTT, price catalog | off (Settings) |
+| metrics history, Prometheus `/metrics`, alerts, MQTT | off (Settings) |
+| price catalog | off: `MODEL_PRICES_FETCH=0` |
+| Stream-sample engines without gauges (`llmStreamSample`) | off (Settings). The only automatic path that sends completions: a 128-token completion at most every 15 s, to an engine that publishes no token counters |
 | decode, prefill, quality and Tool Eval benchmarks, Prompt Showcase | never started: they load the GPU and void a run |
-| shutdown, storage delete, Docker image removal, GPU clock cap, power limit | never clicked. No `spark-shutdown` helper is installed |
+| LLM launcher start and stop | never clicked: stop can kill the server under test |
+| storage scan, "Remove agent junk" | never started |
+| shutdown, storage delete, Docker image and container removal, builder-cache prune, GPU clock cap, power limit | never clicked. No `spark-shutdown` helper is installed |
 | SSH to the worker | no key is mounted and no remote unit exists |
 
-These actions have no off switch in sparkDash. A loopback bind and "never
-click" are the controls.
+These actions have no off switch in sparkDash. The token stops a process
+that does not hold it.
 
 ### Overhead
 
-Measured 2026-11-27, `docker stats --no-stream` every 15 s for 5 minutes,
-with no LLM server on 8888 (20 samples): CPU median 3.4% of one core, mean
-9.0%, peak 57% (a periodic collection burst). The machine has 20 cores.
-Memory: 84 MiB anonymous (cgroup `memory.stat`). `docker stats` showed
-99 MiB rising to 172 MiB, but the growth was page cache (`active_file`),
-which the kernel can reclaim.
+Measured 2026-11-27 with no LLM server on 8888 and a 1 s LLM poll. The cost
+with a live server on 8888 is not measured.
+
+- **CPU:** 15.09 CPU-seconds in 180 s, 8.4% of one core, from cgroup
+  `cpu.stat` at minutes 12–15 after start. The head has 20 cores. It starts
+  about 5.2 child processes a second (`nsenter`, `cat`, `ip`, `lsblk`,
+  `nvidia-smi`). `docker stats` sampled every 15 s over minutes 1–6 gave a
+  mean of 9.0%, a median of 3.4% and a peak of 57%; that window includes
+  start-up.
+- **Memory:** 84 MiB anonymous (cgroup `memory.stat`). `docker stats` showed
+  99 MiB rising to 172 MiB, but the growth was page cache (`active_file`),
+  which the kernel can reclaim.
 
 ### Stop and remove it
 
 ```sh
-cd <sparkDash clone>
+cd "${SPARKDASH_DIR:?}"
 docker compose down                   # stops and removes the container
 docker image rm sparkdash-sparkdash   # removes the local image
-sudo rm -rf <sparkDash clone>         # root owns the files it wrote in config/
+docker builder prune                  # optional: frees ALL unused BuildKit cache, not only sparkDash's
+sudo rm -rf "${SPARKDASH_DIR:?}"      # root owns config/ files and dist/
 ```
 
 The container uses `restart: always`, so a plain `docker stop` does not
@@ -679,14 +784,18 @@ survive a reboot. Use `docker compose down`.
 This needs an SSH credential, so the operator does it:
 
 1. Make a dedicated key for sparkDash (not the operator's main key), store
-   it in 1Password, and authorize it on the worker.
-2. Mount it in the override file as
-   `<key path>:/root/.ssh/id_ed25519:ro` (mode 600), then
-   `docker compose up -d`.
-3. In the UI, add the worker as a remote unit with role Worker over the
-   fabric address, and set the head's role to Head. A worker gets no LLM
-   probe. SSH uses `StrictHostKeyChecking=accept-new`, so check the host key
-   first.
+   it in 1Password, and authorize it on the worker for a non-root user.
+2. Mount the key in the override file as
+   `<key path>:/root/.ssh/id_ed25519:ro` (mode 600). Also mount a pinned
+   `known_hosts` that holds the worker's host key, as
+   `<known_hosts path>:/root/.ssh/known_hosts:ro`. SSH uses
+   `StrictHostKeyChecking=accept-new`, and the container's own file is lost
+   on every recreate. Then run `docker compose up -d`.
+3. In the UI, add the worker as a remote unit with role Worker, that
+   non-root user, and the fabric address. Set the head's role to Head.
+4. Expect two new loads. The worker gets the same 1 Hz collection, over SSH.
+   With the head's role set to Head, the moved-engine watch probes the
+   worker's `llmPorts` once a minute (`server/sparks/LlmMovedToWorker.js`).
 
 ## Packages added beyond the base image
 
