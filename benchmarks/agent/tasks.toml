@@ -5857,10 +5857,16 @@ recipe_pin_reason = "upstream bdfa59f plus two local commits: SERVE_ARGS for --r
 #   uv run python scripts/ling31_two_node.py prepare --rank 0
 #   uv run python scripts/ling31_two_node.py prepare --rank 1
 #   uv run python scripts/ling31_two_node.py start --name ling31
-# Smoke, 2026-11-27 (no benchmark): ready 170 s after launch; the server logged "context: 262144"
-# and a startup estimate of 109.09 GiB within 109.26 GiB on the head (110.52 on the worker).
-# Ready to serve, MemAvailable 3.44 GiB on the head and 4.67 GiB on the worker; lowest during two
-# requests 2.95 and 3.87 GiB. The recipe's watchdog (1.5 GiB) did not fire.
+# Smokes, 2026-11-27 (no benchmark). The server logged "context: 262144" and a startup estimate
+# of 109.09 GiB within 109.26-109.30 GiB on the head (110.52 on the worker); ready 154-170 s
+# after launch, with MemAvailable 3.4-3.7 GiB on the head and 4.7-4.8 GiB on the worker.
+# MemAvailable lows, sampled every 2 s on both nodes (head / worker):
+#   36- and 239-token prompts: 2.95 / 3.87 GiB.
+#   30,047-token prompt, prefill 56.2 s (534 tok/s): 2.66 / 3.59 GiB.
+#   212,442-token prompt (the ledger's largest since 2026-11-01 is 204,839 input tokens),
+#   prefill 906.3 s (234 tok/s): 2.24 / 3.59 GiB.
+# Every request logged thinking=False with 0 reasoning tokens. The recipe's watchdog (1.5 GiB)
+# never fired; the head is the tight node, about 0.7 GiB above it at the largest prompt.
 [backend.ling31f1019exl3tfbertnothinkdual2xrc]
 # Stage 0 (#762): 560B total, 25B active (the model card).
 active_params_b = 25
