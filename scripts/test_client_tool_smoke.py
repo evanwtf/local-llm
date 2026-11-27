@@ -68,7 +68,10 @@ def _healthy_outputs(workdir: pathlib.Path) -> dict[str, str]:
 #: the order the script sends them.
 PROBE_OUTPUTS = (
     f"sh: 1: cannot create /harness/PROBE-{TOKEN}: {mod.READ_ONLY}",
-    f"fatal: {mod.NOT_A_REPO}: .git",
+    (
+        "fatal: not a git repository (or any parent up to mount point /root/git)\n"
+        "Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set)."
+    ),
 )
 N_PROBES = len(PROBE_OUTPUTS)
 
@@ -655,3 +658,17 @@ def test_a_probe_reads_its_output_and_its_error_together(workdir):
     )
     assert mod.tool_parts(text)[n].output == "exit status 1"
     assert mod.check(text, workdir, script) == []
+
+
+@pytest.mark.parametrize(
+    "refusal",
+    [
+        # bwrap on a host: the hidden .git is an empty directory.
+        "fatal: not a git repository (or any of the parent directories): .git",
+        # In the client container, measured 2026-11-27.
+        PROBE_OUTPUTS[1],
+    ],
+)
+def test_both_discovery_failures_pass_the_git_probe(tmp_path, refusal):
+    _, git = _probe_steps(tmp_path)
+    assert git.effect(tmp_path, refusal) is None

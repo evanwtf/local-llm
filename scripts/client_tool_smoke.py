@@ -125,9 +125,12 @@ def _output_has(needle: str, what: str) -> Callable[[pathlib.Path, str], str | N
 #: and git's discovery failure once the .git is hidden (#477). The discovery
 #: wording, not the bare "not a git repository": a worktree whose main .git
 #: is not mounted prints "not a git repository: <path>" with or without the
-#: fix, and would pass without testing anything.
+#: fix, and would pass without testing anything. Discovery ends in either
+#: "(or any of the parent directories)" or, in the client container, where
+#: the hidden .git is a mount, "(or any parent up to mount point <dir>)"
+#: (measured 2026-11-27). Both start with this.
 READ_ONLY = "Read-only file system"
-NOT_A_REPO = "not a git repository (or any of the parent directories)"
+NOT_A_REPO = "not a git repository (or any "
 
 
 def _harness_probe(
