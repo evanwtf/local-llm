@@ -264,29 +264,54 @@ def check_server(name: str, block: Mapping[str, Any], media: str = "video") -> N
         raise ValueError(f"server {name}: node must be head or worker")
     if distill_with_quantization(argv):
         raise ValueError(
-            f"server {name}: --lora-backend distill with --quantization; "
-            "the LoRA would fuse into FP8 weights"
+            f"server {name}: --lora-backend distill with quantization "
+            "(-q, --quantization or --diffusion-quantization-config); "
+            "the distill backend fuses only into unquantized weights"
         )
+
+
+#: Flags that quantize the weights at load in vLLM-Omni 0.32.0: `-q` is an
+#: alias of `--quantization` (vllm/engine/arg_utils.py:967), and
+#: `--diffusion-quantization-config` is vLLM-Omni's own
+#: (vllm_omni/entrypoints/cli/serve.py:759). Names are compared after `_`
+#: becomes `-`, as vLLM's FlexibleArgumentParser does
+#: (vllm/utils/argparse_utils.py:338-358).
+QUANTIZE_FLAGS = ("-q", "--quantization", "--diffusion-quantization-config")
+
+
+def _flag_name(item: str) -> str:
+    """A long flag with `_` mapped to `-` and any `=value` cut; else `item`."""
+    name = item.split("=", 1)[0]
+    if name.startswith("--"):
+        return "--" + name[2:].replace("_", "-")
+    return name
 
 
 def distill_with_quantization(argv: Sequence[str]) -> bool:
     """True if `argv` fuses a distill LoRA and quantizes the weights.
 
     vLLM-Omni 0.32.0 quantizes online inside load_weights and fuses the
-    LoRA after it (diffusers_loader.py:893-898). The BF16 delta then meets
-    an FP8 weight: an error, or on a square layer the LoRA is dropped with
-    no error, and the server runs the base weights at 4 steps
-    (vllm-project/vllm-omni#10162, #1412). So such a server runs BF16.
+    LoRA after it (diffusers_loader.py:893-898). FP8 fails at startup;
+    INT8 can drop the LoRA on square layers with no error, and the server
+    then runs the base weights at 4 steps. vllm-project/vllm-omni#10162
+    (open) would refuse both (#1412). So such a server runs BF16.
+
+    Only argv is checked: a pre-quantized checkpoint cannot be seen here,
+    and the server block must name an unquantized one.
     """
     items = list(argv)
-    distill = any(
-        item == "--lora-backend=distill"
-        or (item == "--lora-backend" and items[i + 1 : i + 2] == ["distill"])
-        for i, item in enumerate(items)
-    )
-    quantized = any(
-        item == "--quantization" or item.startswith("--quantization=") for item in items
-    )
+    distill = False
+    quantized = False
+    for i, item in enumerate(items):
+        name = _flag_name(item)
+        if name == "--lora-backend":
+            value = item.split("=", 1)[1] if "=" in item else None
+            if value is None and i + 1 < len(items):
+                value = items[i + 1]
+            distill = distill or value == "distill"
+        # argparse also takes `-qfp8`, the short flag with its value joined.
+        if name in QUANTIZE_FLAGS or (item.startswith("-q") and item[1] != "-"):
+            quantized = True
     return distill and quantized
 
 
@@ -1007,6 +1032,10 @@ def base_record(
         "prompts_sha256": sha256(prompts_file),
         "model": plan.arm["model"],
         "revision": plan.arm["revision"],
+        # The fused LoRA and the weights' precision (#1412). Top level, not
+        # in server_config, so the runs before them still match their arms.
+        "lora": plan.arm.get("lora"),
+        "precision": plan.arm.get("precision"),
         "seed": plan.seed,
         "request": plan.request(),
         "server_config": plan.server_config(),

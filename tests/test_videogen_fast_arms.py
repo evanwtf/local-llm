@@ -113,7 +113,12 @@ def test_the_fastwan_server_is_on_the_head() -> None:
 
 @pytest.mark.parametrize(
     "extra",
-    [["--quantization", "fp8"], ["--quantization=fp8"]],
+    [
+        ["--quantization", "fp8"],
+        ["--quantization=fp8"],
+        ["-q", "fp8"],
+        ["--diffusion-quantization-config", "cfg.json"],
+    ],
 )
 def test_check_server_refuses_a_distill_lora_on_quantized_weights(
     extra: list[str],
@@ -133,6 +138,18 @@ def test_check_server_refuses_a_distill_lora_on_quantized_weights(
         (["--lora-backend", "distill"], False),
         (["--quantization", "fp8"], False),
         (["--lora-backend"], False),
+        # vLLM maps `_` to `-` in flag names (FlexibleArgumentParser).
+        (["--lora_backend", "distill", "--quantization", "fp8"], True),
+        (["--lora_backend=distill", "--quantization=fp8"], True),
+        # -q is an alias of --quantization; argparse also takes -qfp8.
+        (["--lora-backend", "distill", "-q", "fp8"], True),
+        (["--lora-backend", "distill", "-q=fp8"], True),
+        (["--lora-backend", "distill", "-qfp8"], True),
+        # vLLM-Omni's own quantization flag.
+        (["--lora-backend", "distill", "--diffusion-quantization-config", "x"], True),
+        (["--lora-backend", "distill", "--diffusion_quantization_config=x"], True),
+        (["--lora-backend", "distill", "--quiet-x"], False),
+        (["--lora-backend", "distill", "--lora-path", "a", "b"], False),
     ],
 )
 def test_distill_with_quantization(argv: list[str], expected: bool) -> None:
@@ -157,3 +174,11 @@ def test_serve_expands_the_lora_paths() -> None:
         f"{HOME}/models/Wan2.2-Distill-Loras/{LOW}",
     ]
     assert env["VLLM_OMNI_VIDEO_SYNC_TIMEOUT"] == "7200"
+
+
+def test_each_arm_names_its_precision_and_lora() -> None:
+    data = arms()["arms"]
+    assert data["fastwan-t2v"]["precision"] == "bf16"
+    assert data["fastwan-t2v"]["lora"] is None
+    assert data["wan-t2v-4step"]["precision"] == "bf16"
+    assert data["wan-t2v-4step"]["lora"]["repo"] == "lightx2v/Wan2.2-Distill-Loras"

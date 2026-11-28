@@ -13,7 +13,9 @@ block, so the command lives in the file and nowhere else.
 
 It refuses an argv that sets `--boundary-ratio`: a value set at startup
 overrides the `boundary_ratio` of every request, so the two Wan arms would
-run at one value. Run it on the node the block names (`node`), or pass
+run at one value. It also refuses an argv that fuses a distill LoRA
+(`--lora-backend distill`) and quantizes the weights: 0.32.0 fuses after it
+quantizes, so the LoRA fails to load or is dropped (#1412). Run it on the node the block names (`node`), or pass
 `--host` to start it there over ssh (#1430). `--start` refuses when the port
 already answers on the target machine.
 

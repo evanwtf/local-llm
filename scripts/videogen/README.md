@@ -194,11 +194,14 @@ Three facts from the vLLM-Omni 0.32.0 source set these arms. The file's
 - The server runs FastWan's three DMD timesteps (1000, 757, 522) for every
   request. The step count in the request does not change them.
 - `--lora-backend distill` fuses the LoRA after the weights load, and online
-  FP8 quantizes during the load. So the LoRA meets FP8 weights: the server
-  fails, or it drops the LoRA with no error
-  ([vllm-project/vllm-omni#10162](https://github.com/vllm-project/vllm-omni/pull/10162)).
-  The `wan-t2v-4step` server runs BF16, and `generate.check_server` refuses
-  a block that sets `--lora-backend distill` and `--quantization`.
+  quantization runs during the load. FP8 fails at startup; INT8 can drop the
+  LoRA on square layers with no error.
+  [vllm-project/vllm-omni#10162](https://github.com/vllm-project/vllm-omni/pull/10162)
+  (open) would refuse both. The `wan-t2v-4step` server runs BF16, and
+  `generate.check_server` refuses a block that sets `--lora-backend distill`
+  with `-q`, `--quantization` or `--diffusion-quantization-config`, in
+  either `-` or `_` spelling. A pre-quantized checkpoint does not show in
+  the argv, so a server block must name an unquantized one.
 - `--lora-path` takes the high-noise file first, then the low-noise file.
 
 Put the weights on the node that runs the server:
@@ -219,6 +222,20 @@ uv run python scripts/videogen/generate.py --arm fastwan-t2v --clip dog-a --seed
 uv run python scripts/videogen/generate.py --arm wan-t2v-4step --clip dog-a --seed 1 \
     --server "$WAN4" --probe
 ```
+
+**Check that the LoRA loaded before you count a `wan-t2v-4step` result or
+lock the file.** The server log on the worker must hold two `lora keys
+loaded` lines, one per expert, each with a count above zero, and no
+`Missing loading lora key` or `Skip LoRA` line (`vllm_omni/diffusion/lora/loader.py:330-336`
+and `:508-513` in 0.32.0). Without them the server runs the base weights at
+4 steps, and the clip measures nothing.
+
+```sh
+grep -E 'lora keys loaded|Missing loading lora key|Skip LoRA' ~/bench-logs/videogen/logs/wan-t2v-4step-omni.log
+```
+
+`run.json` records the arm's `lora` (repo, revision and files) and its
+`precision` at the top level.
 
 ## Images and image edits (#1424)
 

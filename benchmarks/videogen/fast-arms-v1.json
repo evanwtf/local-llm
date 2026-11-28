@@ -12,7 +12,7 @@
     "ti2v_expand_timesteps": "vllm_omni/diffusion/models/wan2_2/pipeline_wan2_2.py:436-446 (expand_timesteps from model_index.json, the TI2V-5B mode)",
     "distill_lora_cli": "vllm_omni/entrypoints/cli/serve.py:616-640 (--lora-path takes one file per pipeline transformer; --lora-backend distill fuses them at startup)",
     "distill_lora_order": "vllm_omni/diffusion/lora/loader.py:442-500 (WanLoraLoaderMixin: the files match [transformer, transformer_2] by position, so high noise first, then low noise)",
-    "distill_lora_needs_bf16": "vllm_omni/diffusion/model_loader/diffusers_loader.py:569-570 and :893-898: the fuse runs after load_weights, and online FP8 quantizes inside load_weights through the layerwise loader (the comment in load_weights). The fuse then adds a BF16 delta to an FP8 weight: 'add_stub not implemented for Float8_e4m3fn', or, on a square layer, the LoRA is dropped with no error (vllm-project/vllm-omni#10162, open on 2026-11-28, which makes 0.32.0's successor refuse the pair). So the wan-t2v-4step server runs BF16, with no --quantization, and check_server refuses the pair.",
+    "distill_lora_needs_bf16": "vllm_omni/diffusion/model_loader/diffusers_loader.py:569-570 and :893-898: the fuse runs after load_weights, and online FP8 quantizes inside load_weights through the layerwise loader (the comment in load_weights). FP8 fails at startup ('add_stub not implemented for Float8_e4m3fn'); INT8 can drop the LoRA on square layers with no error. vllm-project/vllm-omni#10162 (open on 2026-11-28) would refuse both. So the wan-t2v-4step server runs BF16, and generate.check_server refuses a distill LoRA with -q, --quantization or --diffusion-quantization-config.",
     "wan_sample_solver": "vllm_omni/diffusion/models/wan2_2/pipeline_wan2_2.py:131-137 (extra_params.sample_solver picks unipc or euler), :87-100 (build_wan_scheduler); serving_video.py:500 copies extra_params into the sampling extra_args",
     "wan_euler_4_steps": "WanEulerScheduler(shift=5.0).set_timesteps(4) gives timesteps 1000, 937.5, 833.3, 625.0 (run in the 0.32.0 venv, 2026-11-28). Unshifted, those are LightX2V's denoising_step_list 1000, 750, 500, 250. boundary_ratio 0.875 (875) sends the first two steps to the high-noise expert and the last two to the low-noise expert: LightX2V's boundary_step_index 2."
   },
@@ -77,6 +77,8 @@
       "server": "fastwan",
       "model": "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers",
       "revision": "3e187042",
+      "precision": "bf16",
+      "lora": null,
       "form": {
         "width": 1280,
         "height": 704,
@@ -95,6 +97,7 @@
       "server": "wan-t2v-4step",
       "model": "Wan-AI/Wan2.2-T2V-A14B-Diffusers",
       "revision": "5be7df96",
+      "precision": "bf16",
       "lora": {
         "repo": "lightx2v/Wan2.2-Distill-Loras",
         "revision": "57adea58",
