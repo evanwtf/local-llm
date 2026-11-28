@@ -575,8 +575,14 @@ def thinking_problems(log_text: str, rows: list[dict[str, object]]) -> list[str]
     The arm is thinking off (#1309). A request that sends an effort or a
     thinking switch turns it back on per request, and the row would still
     claim the arm. So before stage 1 is accepted: the rank-0 log has requests,
-    none with thinking=True, and every row of this backend has
-    reasoning_tokens == 0. A log with no request lines proves nothing.
+    none with thinking=True, and every row of this backend counts 0 reasoning
+    tokens. A log with no request lines proves nothing.
+
+    A timed-out row has no reasoning_tokens; run.py puts the count from the
+    partial transcript in partial_reasoning_tokens (results.py). The check
+    reads that one for such a row, so a timeout does not fail it on its own
+    (the 2026-11-27 screen: 3 timeouts, each with 0). A row with neither
+    count still fails: a missing count is not 0.
     """
     why = []
     done = [ln for ln in log_text.splitlines() if DONE_PREFIX in ln]
@@ -589,13 +595,20 @@ def thinking_problems(log_text: str, rows: list[dict[str, object]]) -> list[str]
     if odd:
         why.append(f"{len(odd)} request lines carry no thinking= field")
     mine = [r for r in rows if r.get("backend") == BACKEND]
-    bad = [r for r in mine if r.get("reasoning_tokens") != 0]
+    bad = [r for r in mine if _reasoning_count(r) != 0]
     if bad:
         why.append(
             f"{len(bad)} of {len(mine)} {BACKEND} rows have reasoning_tokens "
-            "other than 0"
+            "(or, for a timeout, partial_reasoning_tokens) other than 0"
         )
     return why
+
+
+def _reasoning_count(row: dict[str, object]) -> object:
+    """The row's reasoning count: the full one, else a timeout's partial one."""
+    if row.get("reasoning_tokens") is not None:
+        return row["reasoning_tokens"]
+    return row.get("partial_reasoning_tokens")
 
 
 def check_thinking(args: argparse.Namespace) -> int:
