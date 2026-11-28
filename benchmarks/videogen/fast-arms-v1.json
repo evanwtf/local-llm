@@ -1,9 +1,42 @@
 {
   "version": "fast-v1",
-  "status": "draft",
+  "status": "locked",
+  "locked": {
+    "date": "2026-11-28T03:33:08-0500",
+    "method": "One timing probe per model before any scored run: dog-a, seed 1, scripts/videogen/generate.py --probe, vLLM-Omni 0.32.0, one model per Spark (FastWan on the head, Wan 2.2 T2V A14B with the lightx2v 4-step LoRA on the worker), each GPU idle at the start, run from main at 8bd43cc5 with this file at sha256 83356565 (status draft). The two probes ran at the same time, one per node. The probe run.json files are under ~/bench-logs/1412/ (outside the repo and outside $VG).",
+    "probes": [
+      {
+        "arm": "fastwan-t2v",
+        "size": "1280x704",
+        "steps": 3,
+        "s_per_step": 7.73,
+        "wall_s": 105.4,
+        "energy_wh": 3.771,
+        "peak_memory_gib": 37.19,
+        "clip": "passed: 121 frames, 24 fps, 1280x704, no audio",
+        "run": "~/bench-logs/1412/fastwan-t2v-dog-a-s1/run.json",
+        "note": "s_per_step is the denoise loop only (server log: 3/3 in 23 s at 7.73 s/it); text encoding and the tiled VAE decode take the rest of the 105.4 s wall. Server load 143.3 s (serve.py start to /v1/models). GPU mean 30.29 W, peak 40.47 W; outlet complete (13 readings)."
+      },
+      {
+        "arm": "wan-t2v-4step",
+        "size": "832x480",
+        "steps": 4,
+        "s_per_step": 19.33,
+        "wall_s": 115.8,
+        "energy_wh": 4.32,
+        "peak_memory_gib": 79.62,
+        "clip": "passed: 81 frames, 16 fps, 832x480, no audio",
+        "run": "~/bench-logs/1412/wan-t2v-4step-dog-a-s1/run.json",
+        "lora_check": "passed: the server log shows 'Fusing distilled LoRA weights' from the high- and low-noise files, two '800 lora keys loaded into WanTransformer3DModel' lines, 0 'Missing loading lora key' lines and 0 'Skip LoRA' lines.",
+        "note": "s_per_step is the denoise loop only (server log: 4/4 in 77 s at 19.33 s/it); encoding and decoding take the rest of the 115.8 s wall. Server load 114.7 s, the LoRA fuse included. GPU mean 44.73 W, peak 52.94 W; outlet complete (23 readings)."
+      }
+    ],
+    "verdict": "Both arms keep their primary size. Each clip took under the proposed 180 s target on one Spark: fastwan-t2v 105.4 s, wan-t2v-4step 115.8 s. The operator has not yet confirmed the target (#1412 step 3).",
+    "comparison_note": "fastwan-t2v (1280x704, 121 frames at 24 fps) and wan-t2v-4step (832x480, 81 frames at 16 fps) run at different sizes. The report names each model's size beside every score."
+  },
   "issues": [1402, 1412],
   "prompts": "prompts/v1.json",
-  "note": "The few-step video arms for the meme-bot screen (#1412): FastWan2.2-TI2V-5B (3-step DMD) and Wan 2.2 T2V A14B with the lightx2v 4-step distill LoRA. Draft until one timing probe per model (dog-a, seed 1); then it is locked, and a change is a new version file. The step-1 picks and the operator's approval of the sources (2026-11-26) are on #1412.",
+  "note": "The few-step video arms for the meme-bot screen (#1412): FastWan2.2-TI2V-5B (3-step DMD) and Wan 2.2 T2V A14B with the lightx2v 4-step distill LoRA. Locked after one timing probe per model (see 'locked'); nothing here changes, and a change is a new version file. The step-1 picks and the operator's approval of the sources (2026-11-26) are on #1412.",
   "endpoint": "/v1/videos/sync",
   "verified_against": {
     "vllm_omni": "0.32.0",

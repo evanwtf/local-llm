@@ -332,12 +332,13 @@ def model_names(arms: Mapping[str, Mapping[str, Any]]) -> set[str]:
     names: set[str] = set()
     for arm, cfg in arms.items():
         names |= {arm.lower(), arm.split("-")[0].lower()}
-        model = str(cfg.get("model") or "").lower()
-        if not model:
-            continue
-        names.add(model)
-        for part in model.split("/"):
-            names |= {part, part.split("-")[0]}
+        # A fused LoRA's repo names the model too (lightx2v, #1412).
+        lora = cfg.get("lora")
+        ids = [str(cfg.get("model") or ""), str((lora or {}).get("repo") or "")]
+        for model in (m.lower() for m in ids if m):
+            names.add(model)
+            for part in model.split("/"):
+                names |= {part, part.split("-")[0]}
     return {n for n in names if n}
 
 

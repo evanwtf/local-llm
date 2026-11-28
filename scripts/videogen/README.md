@@ -180,8 +180,10 @@ needs `~/.config/gcx/token`.
 
 [`fast-arms-v1.json`](../../benchmarks/videogen/fast-arms-v1.json) holds the
 two few-step video arms for the meme-bot screen. It uses the same prompts,
-clips and seeds as `arms-v1.json`, and it is `draft` until one timing probe
-per model.
+clips and seeds as `arms-v1.json`. The file is `locked` (2026-11-28), after
+one timing probe per model. Its `locked` block records the probes: dog-a,
+seed 1, FastWan in 105.4 s and Wan with the LoRA in 115.8 s. Both arms keep
+their primary size. A change is a new version file, not an edit.
 
 | arm | server (node, port) | settings |
 |---|---|---|

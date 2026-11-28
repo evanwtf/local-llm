@@ -39,9 +39,21 @@ def test_the_file_is_registered_and_valid() -> None:
     assert data["seeds"] == [1, 2, 3]
 
 
-def test_it_stays_draft_until_the_probes() -> None:
-    """A scored run refuses a draft file; the #1412 probes lock it."""
-    assert arms()["status"] == "draft"
+def test_the_locked_values() -> None:
+    """Locked on 2026-11-28 after the #1412 timing probes. A change to these
+    is a new version file, not an edit."""
+    data = arms()
+    assert data["status"] == "locked"
+    probes = data["locked"]["probes"]
+    assert [(p["arm"], p["size"], p["steps"]) for p in probes] == [
+        ("fastwan-t2v", "1280x704", 3),
+        ("wan-t2v-4step", "832x480", 4),
+    ]
+    assert [p["wall_s"] for p in probes] == [105.4, 115.8]
+    assert "800 lora keys loaded" in probes[1]["lora_check"]
+    for arm in data["arms"].values():
+        size = f"{arm['form']['width']}x{arm['form']['height']}"
+        assert size in {p["size"] for p in probes}
 
 
 def test_fastwan_follows_its_model_card() -> None:
@@ -182,3 +194,16 @@ def test_each_arm_names_its_precision_and_lora() -> None:
     assert data["fastwan-t2v"]["lora"] is None
     assert data["wan-t2v-4step"]["precision"] == "bf16"
     assert data["wan-t2v-4step"]["lora"]["repo"] == "lightx2v/Wan2.2-Distill-Loras"
+
+
+def test_judge_reads_the_fast_arms_and_their_seeds() -> None:
+    from videogen import judge
+
+    arms_file, _, media = judge.resolve(["fastwan-t2v", "wan-t2v-4step"], None, None)
+    assert arms_file == generate.FAST_ARMS_FILE and media == "video"
+    cfg, seeds = judge.load_arms(arms_file)
+    assert seeds == [1, 2, 3]
+    names = judge.model_names(cfg)
+    for path in ("/x/fastwan-blind", "/x/wan-blind", "/x/lightx2v-run", "/x/FastVideo"):
+        assert judge.names_in_path(pathlib.Path(path), names), path
+    assert judge.names_in_path(pathlib.Path("/x/blind-20261128"), names) == []
