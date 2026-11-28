@@ -413,9 +413,37 @@ def _row(reasoning: object, backend: str = k.BACKEND) -> dict[str, object]:
     return {"backend": backend, "reasoning_tokens": reasoning}
 
 
+def _timeout_row(partial: object) -> dict[str, object]:
+    """A timed-out row: run.py writes no reasoning_tokens, only the partial."""
+    return {"backend": k.BACKEND, "partial_reasoning_tokens": partial}
+
+
 def test_a_thinking_off_run_passes_the_check() -> None:
     rows = [_row(0), _row(0), _row(57, backend="other")]
     assert k.thinking_problems(f"x\n{DONE_OFF}\n{DONE_OFF}\n", rows) == []
+
+
+def test_a_timed_out_row_with_no_reasoning_passes_the_check() -> None:
+    # The 2026-11-27 screen: 3 of 8 rows timed out. Each had no
+    # reasoning_tokens key and partial_reasoning_tokens 0, and the check
+    # failed them as "other than 0".
+    rows = [_row(0), _timeout_row(0)]
+    assert k.thinking_problems(f"{DONE_OFF}\n", rows) == []
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        _timeout_row(31),  # a timed-out trial that did think
+        _timeout_row(None),  # a count that is missing is not a count of 0
+        {"backend": k.BACKEND},  # neither field: nothing is proven
+    ],
+)
+def test_a_timed_out_row_that_thought_or_proves_nothing_fails(
+    row: dict[str, object],
+) -> None:
+    why = k.thinking_problems(f"{DONE_OFF}\n", [_row(0), row])
+    assert any("1 of 2" in w for w in why), why
 
 
 @pytest.mark.parametrize(
