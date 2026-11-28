@@ -77,7 +77,11 @@ def make_run(root: pathlib.Path, arm: str, clip: str, seed: int) -> None:
     out = root / "out" / arm / f"{clip}-s{seed}"
     out.mkdir(parents=True)
     (out / "clip.mp4").write_bytes(clip_bytes)
-    run = {"status": "ok", "output": {"sha256": sha(clip_bytes)}}
+    run = {
+        "status": "ok",
+        "arms_status": "locked",
+        "output": {"sha256": sha(clip_bytes)},
+    }
     (out / "run.json").write_text(json.dumps(run))
     frames = root / "frames-out" / arm / f"{clip}-s{seed}"
     frames.mkdir(parents=True)
@@ -451,6 +455,47 @@ def test_blind_counts_a_failed_run_as_missing(
         key = do_blind(env, tmp_path / "o", allow_missing=True)
     assert len(key["runs"]) == 7
     assert "'failed'" in caplog.text
+
+
+def edit_run(env: Env, arm: str, name: str, **fields: Any) -> None:
+    path = env[0] / "out" / arm / name / "run.json"
+    run = json.loads(path.read_text())
+    run.update(fields)
+    path.write_text(json.dumps(run))
+
+
+def test_blind_skips_a_probe_even_with_allow_draft(
+    tmp_path: pathlib.Path, env: Env, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A probe written into out/ is a timing check, never a scored run (#1412)."""
+    edit_run(env, "h3-t2v", "dog-a-s1", probe=True)
+    with caplog.at_level(logging.WARNING):
+        key = do_blind(env, tmp_path / "o", allow_missing=True, allow_draft=True)
+    assert len(key["runs"]) == 7
+    assert "is a probe" in caplog.text
+
+
+def test_blind_skips_a_draft_run(
+    tmp_path: pathlib.Path, env: Env, caplog: pytest.LogCaptureFixture
+) -> None:
+    edit_run(env, "h3-t2v", "dog-a-s1", arms_status="draft")
+    with caplog.at_level(logging.WARNING):
+        key = do_blind(env, tmp_path / "o", allow_missing=True)
+    assert len(key["runs"]) == 7
+    assert "made from a draft arms file" in caplog.text
+
+
+def test_blind_allow_draft_scores_a_draft_run(tmp_path: pathlib.Path, env: Env) -> None:
+    edit_run(env, "h3-t2v", "dog-a-s1", arms_status="draft")
+    key = do_blind(env, tmp_path / "o", allow_draft=True)
+    assert len(key["runs"]) == 8
+
+
+def test_unscored() -> None:
+    assert judge.unscored({"arms_status": "locked"}, False) == ""
+    assert judge.unscored({"arms_status": "draft"}, True) == ""
+    assert judge.unscored({}, False) == "made from a draft arms file"
+    assert judge.unscored({"probe": True, "arms_status": "locked"}, True) == "a probe"
 
 
 def test_blind_refuses_an_arm_with_no_runs(tmp_path: pathlib.Path, env: Env) -> None:
@@ -959,7 +1004,12 @@ def make_image_run(root: pathlib.Path, arm: str, clip: str, seed: int) -> bytes:
     out = root / "out" / arm / f"{clip}-s{seed}"
     out.mkdir(parents=True)
     (out / "image.png").write_bytes(image)
-    run = {"status": "ok", "media": "image", "output": {"sha256": sha(image)}}
+    run = {
+        "status": "ok",
+        "arms_status": "locked",
+        "media": "image",
+        "output": {"sha256": sha(image)},
+    }
     (out / "run.json").write_text(json.dumps(run))
     return image
 

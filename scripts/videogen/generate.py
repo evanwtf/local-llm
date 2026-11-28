@@ -77,6 +77,7 @@ from videogen import outlet
 from videogen.common import (
     DEFAULT_ROOT,
     EDIT_ARMS_FILE,
+    FAST_ARMS_FILE,
     IMAGE_ARMS_FILE,
     IMAGE_INPUTS_ROOT,
     FfmpegError,
@@ -99,7 +100,7 @@ PROMPTS_FILE = REPO / "benchmarks" / "videogen" / "prompts" / "v1.json"
 REFS_FILE = REPO / "benchmarks" / "videogen" / "refs-v1.json"
 #: Every arms file. An arm name is unique across them (a test checks), so
 #: `--arm` alone picks the file.
-ARMS_FILES = (ARMS_FILE, IMAGE_ARMS_FILE, EDIT_ARMS_FILE)
+ARMS_FILES = (ARMS_FILE, FAST_ARMS_FILE, IMAGE_ARMS_FILE, EDIT_ARMS_FILE)
 ENDPOINT = "/v1/videos/sync"
 
 #: Two hours. A 50-step H3 clip at 1280x704 can take over an hour on one
@@ -158,8 +159,10 @@ FORM_FIELDS = frozenset(
 #: Set per request, never in an arm's form.
 PER_REQUEST = ("prompt", "seed", "extra_params", "input_reference", "model")
 #: The extra_params keys H3 reads (encoder_processing.py:172 and :225 in
-#: 0.32.0, and the pipeline's audio_flow_shift). The server ignores others.
-EXTRA_PARAMS = frozenset({"task", "duration", "audio_flow_shift"})
+#: 0.32.0, and the pipeline's audio_flow_shift), and the Wan solver
+#: (pipeline_wan2_2.py:131 resolve_wan_sample_solver: unipc or euler; the
+#: lightx2v 4-step arm needs euler, #1412). The server ignores others.
+EXTRA_PARAMS = frozenset({"task", "duration", "audio_flow_shift", "sample_solver"})
 #: Server flags no server block may carry. A boundary ratio set at startup
 #: overrides the one in each request (pipeline_wan2_2.py:676), so the two Wan
 #: arms would silently run at one value.
@@ -259,6 +262,57 @@ def check_server(name: str, block: Mapping[str, Any], media: str = "video") -> N
         raise ValueError(f"server {name}: VLLM_OMNI_VIDEO_SYNC_TIMEOUT must be 7200")
     if block["node"] not in ("head", "worker"):
         raise ValueError(f"server {name}: node must be head or worker")
+    if distill_with_quantization(argv):
+        raise ValueError(
+            f"server {name}: --lora-backend distill with quantization "
+            "(-q, --quantization or --diffusion-quantization-config); "
+            "the distill backend fuses only into unquantized weights"
+        )
+
+
+#: Flags that quantize the weights at load in vLLM-Omni 0.32.0: `-q` is an
+#: alias of `--quantization` (vllm/engine/arg_utils.py:967), and
+#: `--diffusion-quantization-config` is vLLM-Omni's own
+#: (vllm_omni/entrypoints/cli/serve.py:759). Names are compared after `_`
+#: becomes `-`, as vLLM's FlexibleArgumentParser does
+#: (vllm/utils/argparse_utils.py:338-358).
+QUANTIZE_FLAGS = ("-q", "--quantization", "--diffusion-quantization-config")
+
+
+def _flag_name(item: str) -> str:
+    """A long flag with `_` mapped to `-` and any `=value` cut; else `item`."""
+    name = item.split("=", 1)[0]
+    if name.startswith("--"):
+        return "--" + name[2:].replace("_", "-")
+    return name
+
+
+def distill_with_quantization(argv: Sequence[str]) -> bool:
+    """True if `argv` fuses a distill LoRA and quantizes the weights.
+
+    vLLM-Omni 0.32.0 quantizes online inside load_weights and fuses the
+    LoRA after it (diffusers_loader.py:893-898). FP8 fails at startup;
+    INT8 can drop the LoRA on square layers with no error, and the server
+    then runs the base weights at 4 steps. vllm-project/vllm-omni#10162
+    (open) would refuse both (#1412). So such a server runs BF16.
+
+    Only argv is checked: a pre-quantized checkpoint cannot be seen here,
+    and the server block must name an unquantized one.
+    """
+    items = list(argv)
+    distill = False
+    quantized = False
+    for i, item in enumerate(items):
+        name = _flag_name(item)
+        if name == "--lora-backend":
+            value = item.split("=", 1)[1] if "=" in item else None
+            if value is None and i + 1 < len(items):
+                value = items[i + 1]
+            distill = distill or value == "distill"
+        # argparse also takes `-qfp8`, the short flag with its value joined.
+        if name in QUANTIZE_FLAGS or (item.startswith("-q") and item[1] != "-"):
+            quantized = True
+    return distill and quantized
 
 
 def check_arms(arms: Mapping[str, Any]) -> None:
@@ -978,6 +1032,10 @@ def base_record(
         "prompts_sha256": sha256(prompts_file),
         "model": plan.arm["model"],
         "revision": plan.arm["revision"],
+        # The fused LoRA and the weights' precision (#1412). Top level, not
+        # in server_config, so the runs before them still match their arms.
+        "lora": plan.arm.get("lora"),
+        "precision": plan.arm.get("precision"),
         "seed": plan.seed,
         "request": plan.request(),
         "server_config": plan.server_config(),
@@ -1274,7 +1332,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--arm",
         required=True,
-        help="an arm in arms-v1.json, image-arms-v1.json or edit-arms-v1.json",
+        help="an arm in arms-v1.json, fast-arms-v1.json, image-arms-v1.json or edit-arms-v1.json",
     )
     p.add_argument(
         "--clip",

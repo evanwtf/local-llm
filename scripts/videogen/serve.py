@@ -4,7 +4,7 @@
     serve.py --model wan-t2v --start     # launch it in a systemd scope
 
 The command comes from the model's `servers` block in
-`benchmarks/videogen/arms-v1.json` (video), `image-arms-v1.json` or
+`benchmarks/videogen/arms-v1.json` or `fast-arms-v1.json` (video, #1412), `image-arms-v1.json` or
 `edit-arms-v1.json` (images, #1424): the env, the memory scope and the argv,
 with `--served-model-name` so `generate.py` can name the model in each
 request and refuse a server that serves another. A clip is reproducible only
@@ -13,7 +13,9 @@ block, so the command lives in the file and nowhere else.
 
 It refuses an argv that sets `--boundary-ratio`: a value set at startup
 overrides the `boundary_ratio` of every request, so the two Wan arms would
-run at one value. Run it on the node the block names (`node`), or pass
+run at one value. It also refuses an argv that fuses a distill LoRA
+(`--lora-backend distill`) and quantizes the weights: 0.32.0 fuses after it
+quantizes, so the LoRA fails to load or is dropped (#1412). Run it on the node the block names (`node`), or pass
 `--host` to start it there over ssh (#1430). `--start` refuses when the port
 already answers on the target machine.
 
@@ -225,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--model",
         required=True,
-        help="a server block: h3, wan-t2v, wan-i2v, or an image server "
+        help="a server block: h3, wan-t2v, wan-i2v, fastwan, wan-t2v-4step, or an image server "
         "(qwen-image, hidream-o1, z-image-turbo, flux2-klein-4b, qwen-image-edit)",
     )
     p.add_argument("--start", action="store_true", help="launch it, not only log it")

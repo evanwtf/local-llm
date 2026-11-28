@@ -82,6 +82,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from videogen.common import (
     DEFAULT_ROOT,
     EDIT_ARMS_FILE,
+    FAST_ARMS_FILE,
     IMAGE_ARMS_FILE,
     InsideRepo,
     Refused,
@@ -98,7 +99,7 @@ logger = logging.getLogger(__name__)
 REPO = pathlib.Path(__file__).resolve().parents[2]
 PROMPTS_FILE = REPO / "benchmarks" / "videogen" / "prompts" / "v1.json"
 ARMS_FILE = REPO / "benchmarks" / "videogen" / "arms-v1.json"
-ARMS_FILES = (ARMS_FILE, IMAGE_ARMS_FILE, EDIT_ARMS_FILE)
+ARMS_FILES = (ARMS_FILE, FAST_ARMS_FILE, IMAGE_ARMS_FILE, EDIT_ARMS_FILE)
 REFUSED = 2
 IMAGE = "image.png"
 #: The folder of an edit prompt's input images, beside the candidates' ids.
@@ -378,8 +379,23 @@ def refuse_out(out: pathlib.Path, key_path: pathlib.Path, names: set[str]) -> No
         raise Refused(f"the key {key_path} exists; give a new --out name")
 
 
+def unscored(run: dict[str, Any], allow_draft: bool) -> str:
+    """Why a good run is still not one to score, or "" when it is.
+
+    A probe is a timing check, and a run from a draft arms file used
+    settings that may still change (#1412). batch.py skips both the same
+    way. `allow_draft` scores a draft run on purpose; it does not admit a
+    probe.
+    """
+    if run.get("probe"):
+        return "a probe"
+    if run.get("arms_status") != "locked" and not allow_draft:
+        return "made from a draft arms file"
+    return ""
+
+
 def find_run(
-    root: pathlib.Path, arm: str, clip: str, seed: int
+    root: pathlib.Path, arm: str, clip: str, seed: int, allow_draft: bool = False
 ) -> tuple[Run | None, str]:
     """(the run, "") if it is scored and has frames, else (None, why not).
 
@@ -396,6 +412,9 @@ def find_run(
         raise Refused(f"{out / 'run.json'} must hold a JSON object")
     if run.get("status") != "ok":
         return None, f"{out / 'run.json'} status is {run.get('status')!r}, not 'ok'"
+    why = unscored(run, allow_draft)
+    if why:
+        return None, f"{out / 'run.json'} is {why}"
     clip_file = out / "clip.mp4"
     if not clip_file.is_file():
         return None, f"no {clip_file}"
@@ -435,7 +454,7 @@ def find_run(
 
 
 def find_image_run(
-    root: pathlib.Path, arm: str, clip: str, seed: int
+    root: pathlib.Path, arm: str, clip: str, seed: int, allow_draft: bool = False
 ) -> tuple[Run | None, str]:
     """(the run, "") if it is scored and has its image, else (None, why not).
 
@@ -450,6 +469,9 @@ def find_image_run(
         raise Refused(f"{out / 'run.json'} must hold a JSON object")
     if run.get("status") != "ok":
         return None, f"{out / 'run.json'} status is {run.get('status')!r}, not 'ok'"
+    why = unscored(run, allow_draft)
+    if why:
+        return None, f"{out / 'run.json'} is {why}"
     image = out / IMAGE
     if not image.is_file():
         return None, f"no {image}"
@@ -619,6 +641,7 @@ def blind(
     arms_file: pathlib.Path | None = None,
     inputs_root: pathlib.Path | None = None,
     allow_missing: bool = False,
+    allow_draft: bool = False,
     rng: Shuffler | None = None,
 ) -> dict[str, list[str]]:
     """Write the blind directory and its key. Return clip -> ids, in prompt order.
@@ -658,7 +681,7 @@ def blind(
         found = 0
         for clip in clips:
             for seed in seeds:
-                run, why = finder(root, arm, clip, seed)
+                run, why = finder(root, arm, clip, seed, allow_draft)
                 if run is None:
                     logger.warning("missing run %s %s-s%d: %s", arm, clip, seed, why)
                     missing.append(f"{arm} {clip}-s{seed}: {why}")
@@ -1083,6 +1106,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="blind the runs that exist when some expected runs are missing",
     )
+    b.add_argument(
+        "--allow-draft",
+        action="store_true",
+        help="score runs made from a draft arms file (never a probe)",
+    )
     i = sub.add_parser("ingest", help="check a judge reply and write the scores")
     i.add_argument("--blind", type=pathlib.Path, required=True)
     i.add_argument("--answers", type=pathlib.Path, required=True)
@@ -1123,6 +1151,7 @@ def main(argv: list[str] | None = None) -> int:
                 arms_file=args.arms_file,
                 inputs_root=args.inputs_root,
                 allow_missing=args.allow_missing,
+                allow_draft=args.allow_draft,
             )
         else:
             ingest(

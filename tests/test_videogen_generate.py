@@ -472,6 +472,31 @@ def test_i2v_refuses_a_first_frame_that_is_not_the_recorded_one(
         make("h3-i2v", first_frame)
 
 
+def test_run_json_records_the_lora_and_precision(
+    tmp_path: pathlib.Path, first_frame: pathlib.Path
+) -> None:
+    """#1412: the fused LoRA and the precision sit at the top level, so
+    server_config (which batch.py compares) is unchanged for older runs."""
+    plan = generate.make_plan(
+        "wan-t2v-4step",
+        "dog-a",
+        1,
+        frames_root=first_frame,
+        arms_file=generate.FAST_ARMS_FILE,
+    )
+    out = tmp_path / "out"
+    server = FakeServer(ok_reply(), serves=(plan.fields["model"],))
+    assert go(plan, out, server, probe=True) == 0
+    run = read_run(out)
+    assert run["precision"] == "bf16"
+    assert run["lora"]["repo"] == "lightx2v/Wan2.2-Distill-Loras"
+    assert run["lora"]["revision"] == "57adea58"
+    assert "lora" not in run["server_config"]
+    h3 = tmp_path / "h3"
+    assert go(make("h3-t2v", first_frame), h3, FakeServer(ok_reply())) == 0
+    assert read_run(h3)["lora"] is None and read_run(h3)["precision"] is None
+
+
 def test_run_json_records_what_the_issues_ask_for(
     tmp_path: pathlib.Path, first_frame: pathlib.Path
 ) -> None:

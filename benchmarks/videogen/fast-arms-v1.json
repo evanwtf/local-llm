@@ -1,0 +1,126 @@
+{
+  "version": "fast-v1",
+  "status": "draft",
+  "issues": [1402, 1412],
+  "prompts": "prompts/v1.json",
+  "note": "The few-step video arms for the meme-bot screen (#1412): FastWan2.2-TI2V-5B (3-step DMD) and Wan 2.2 T2V A14B with the lightx2v 4-step distill LoRA. Draft until one timing probe per model (dog-a, seed 1); then it is locked, and a change is a new version file. The step-1 picks and the operator's approval of the sources (2026-11-26) are on #1412.",
+  "endpoint": "/v1/videos/sync",
+  "verified_against": {
+    "vllm_omni": "0.32.0",
+    "fastwan_dmd": "vllm_omni/diffusion/models/wan2_2/pipeline_wan2_2.py:74-75 (FASTWAN_DMD_TIMESTEPS 1000, 757, 522; scheduler shift 8.0), :446 (model_index _class_name WanDMDPipeline turns on the DMD path), :1237-1240 (the request's step count is ignored: always 3 steps), :751-762 (each step predicts the clean latent and re-noises it to the next timestep), :961 (default guidance 1.0 for DMD)",
+    "fastwan_registry": "vllm_omni/diffusion/registry.py:94-98 (WanDMDPipeline runs as Wan22Pipeline)",
+    "ti2v_expand_timesteps": "vllm_omni/diffusion/models/wan2_2/pipeline_wan2_2.py:436-446 (expand_timesteps from model_index.json, the TI2V-5B mode)",
+    "distill_lora_cli": "vllm_omni/entrypoints/cli/serve.py:616-640 (--lora-path takes one file per pipeline transformer; --lora-backend distill fuses them at startup)",
+    "distill_lora_order": "vllm_omni/diffusion/lora/loader.py:442-500 (WanLoraLoaderMixin: the files match [transformer, transformer_2] by position, so high noise first, then low noise)",
+    "distill_lora_needs_bf16": "vllm_omni/diffusion/model_loader/diffusers_loader.py:569-570 and :893-898: the fuse runs after load_weights, and online FP8 quantizes inside load_weights through the layerwise loader (the comment in load_weights). FP8 fails at startup ('add_stub not implemented for Float8_e4m3fn'); INT8 can drop the LoRA on square layers with no error. vllm-project/vllm-omni#10162 (open on 2026-11-28) would refuse both. So the wan-t2v-4step server runs BF16, and generate.check_server refuses a distill LoRA with -q, --quantization or --diffusion-quantization-config.",
+    "wan_sample_solver": "vllm_omni/diffusion/models/wan2_2/pipeline_wan2_2.py:131-137 (extra_params.sample_solver picks unipc or euler), :87-100 (build_wan_scheduler); serving_video.py:500 copies extra_params into the sampling extra_args",
+    "wan_euler_4_steps": "WanEulerScheduler(shift=5.0).set_timesteps(4) gives timesteps 1000, 937.5, 833.3, 625.0 (run in the 0.32.0 venv, 2026-11-28). Unshifted, those are LightX2V's denoising_step_list 1000, 750, 500, 250. boundary_ratio 0.875 (875) sends the first two steps to the high-noise expert and the last two to the low-noise expert: LightX2V's boundary_step_index 2."
+  },
+  "upstream": {
+    "fastwan_card": "https://huggingface.co/FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers/blob/3e187042a324f6f5fb68fd22110a78725253de8f/README.md (3-step inference, trained at 121x704x1280, --fps 24, --dmd-denoising-steps 1000,757,522)",
+    "lightx2v_loras": "https://huggingface.co/lightx2v/Wan2.2-Distill-Loras/blob/57adea585d1d21085e2dfc91ce3c7b646cdd9345/README.md (4-step inference; denoising_step_list 1000, 750, 500, 250)",
+    "lightx2v_t2v_config": "https://github.com/ModelTC/LightX2V/blob/38d37b17e194f270a10b911c7bb403b644576ead/configs/distill/wan22/wan_moe_t2v_distill_lora.json (infer_steps 4, sample_shift 5.0, enable_cfg false, boundary_step_index 2, 81 frames at 480x832)"
+  },
+  "servers": {
+    "fastwan": {
+      "node": "head",
+      "port": 8040,
+      "served_model_name": "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
+        "VLLM_OMNI_VIDEO_SYNC_TIMEOUT": "7200"
+      },
+      "scope": {"unit": "fastwan-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/FastWan2.2-TI2V-5B-FullAttn-Diffusers",
+        "--omni", "--host", "0.0.0.0", "--port", "8040", "--init-timeout", "3600",
+        "--num-gpus", "1", "--vae-use-tiling", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--served-model-name", "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers"
+      ],
+      "note": "BF16, the checkpoint's own precision: a 5B model fits one Spark without FP8. The flags otherwise follow the wan-t2v block of arms-v1.json."
+    },
+    "wan-t2v-4step": {
+      "node": "worker",
+      "port": 8041,
+      "served_model_name": "Wan-AI/Wan2.2-T2V-A14B-Diffusers+lightx2v-4step",
+      "vllm_omni": "0.32.0",
+      "env": {
+        "CUDA_VISIBLE_DEVICES": "0",
+        "FLASHINFER_DISABLE_VERSION_CHECK": "1",
+        "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
+        "VLLM_OMNI_VIDEO_SYNC_TIMEOUT": "7200"
+      },
+      "scope": {"unit": "wan-omni", "MemoryMax": "115G", "MemorySwapMax": "0"},
+      "argv": [
+        "~/venvs/vllm-omni-0.32.0/bin/vllm", "serve", "~/models/Wan2.2-T2V-A14B-Diffusers",
+        "--omni", "--host", "0.0.0.0", "--port", "8041", "--init-timeout", "3600",
+        "--num-gpus", "1", "--vae-use-tiling", "--enforce-eager",
+        "--diffusion-attention-backend", "CUDNN_ATTN",
+        "--lora-backend", "distill",
+        "--lora-path",
+        "~/models/Wan2.2-Distill-Loras/wan2.2_t2v_A14b_high_noise_lora_rank64_lightx2v_4step_1217.safetensors",
+        "~/models/Wan2.2-Distill-Loras/wan2.2_t2v_A14b_low_noise_lora_rank64_lightx2v_4step_1217.safetensors",
+        "--served-model-name", "Wan-AI/Wan2.2-T2V-A14B-Diffusers+lightx2v-4step"
+      ],
+      "note": "BF16: no --quantization, because 0.32.0 cannot fuse a distill LoRA into FP8 weights (verified_against.distill_lora_needs_bf16). The LoRA files go high noise first, then low noise. The served name differs from the base model's, so a request for the base model never reaches the fused weights. No --boundary-ratio: the request sets it."
+    }
+  },
+  "clips": ["dog-a", "dog-b", "dog-c"],
+  "seeds": [1, 2, 3],
+  "arms": {
+    "fastwan-t2v": {
+      "mode": "t2v",
+      "server": "fastwan",
+      "model": "FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers",
+      "revision": "3e187042",
+      "precision": "bf16",
+      "lora": null,
+      "form": {
+        "width": 1280,
+        "height": 704,
+        "num_frames": 121,
+        "fps": 24,
+        "num_inference_steps": 3,
+        "guidance_scale": 1.0
+      },
+      "extra_params": {},
+      "expect": {"frames": 121, "audio": false},
+      "fallback": {"width": 832, "height": 480},
+      "sources": "The FastWan model card: 3 steps, 1280x704, 121 frames, 24 fps. The server runs the three DMD timesteps whatever the request asks; num_inference_steps 3 only records it. guidance_scale 1.0 is the server's DMD default, sent so the record shows it. No negative_prompt: with guidance 1.0 there is no CFG pass to use it."
+    },
+    "wan-t2v-4step": {
+      "mode": "t2v",
+      "server": "wan-t2v-4step",
+      "model": "Wan-AI/Wan2.2-T2V-A14B-Diffusers",
+      "revision": "5be7df96",
+      "precision": "bf16",
+      "lora": {
+        "repo": "lightx2v/Wan2.2-Distill-Loras",
+        "revision": "57adea58",
+        "files": [
+          "wan2.2_t2v_A14b_high_noise_lora_rank64_lightx2v_4step_1217.safetensors",
+          "wan2.2_t2v_A14b_low_noise_lora_rank64_lightx2v_4step_1217.safetensors"
+        ]
+      },
+      "form": {
+        "width": 832,
+        "height": 480,
+        "num_frames": 81,
+        "fps": 16,
+        "num_inference_steps": 4,
+        "guidance_scale": 1.0,
+        "guidance_scale_2": 1.0,
+        "boundary_ratio": 0.875,
+        "flow_shift": 5.0
+      },
+      "extra_params": {"sample_solver": "euler"},
+      "expect": {"frames": 81, "audio": false},
+      "fallback": {"width": 832, "height": 480},
+      "sources": "LightX2V's wan_moe_t2v_distill_lora.json: 4 steps, sample_shift 5.0, enable_cfg false (so guidance 1.0 on both experts), boundary_step_index 2, 81 frames at 480x832. The Euler solver at shift 5.0 gives LightX2V's 4 timesteps (verified_against.wan_euler_4_steps). 16 fps: Wan 2.2 A14B's sample_fps, as in arms-v1.json. No negative_prompt: with guidance 1.0 there is no CFG pass to use it."
+    }
+  }
+}

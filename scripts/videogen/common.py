@@ -29,6 +29,9 @@ BENCH_DIR = pathlib.Path(__file__).resolve().parents[2] / "benchmarks" / "videog
 #: prompts file under `prompts`.
 IMAGE_ARMS_FILE = BENCH_DIR / "image-arms-v1.json"
 EDIT_ARMS_FILE = BENCH_DIR / "edit-arms-v1.json"
+#: The few-step video arms for the meme-bot screen (#1412): FastWan2.2-TI2V-5B
+#: and Wan 2.2 T2V A14B with the lightx2v 4-step distill LoRA.
+FAST_ARMS_FILE = BENCH_DIR / "fast-arms-v1.json"
 #: The input images of the image-edit arms (#1424). Private, like the clips.
 IMAGE_INPUTS_ROOT = DEFAULT_ROOT / "ref" / "imagegen"
 #: The first 8 bytes of every PNG file.
