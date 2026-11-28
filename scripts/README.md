@@ -149,6 +149,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `targets_ab.py` | any | Does the sandbox target layout change the pass rate? #146 |
 | `tcp_relay.py` | any | Relay a TCP port byte for byte, from one address to another. #999 |
 | `tensorfold_native_two_node.py` | any | Serve GLM-5.3-Flash on both DGX Sparks with TensorFold's native release binary. |
+| `tensorfold_watchdog_replay.py` | any | Replay TensorFold trials through the GPU-idle-stall watchdog, old rule and new (#1545). |
 | `test_build_client_image.py` | any | The client image's pins are only worth having if a drift is a test failure. |
 | `test_client_container.py` | any | The container invocation is where a silent confound would hide. #611 |
 | `test_client_tool_smoke.py` | any | The OpenCode tool self-test must fail loudly on a broken tool. #968 |

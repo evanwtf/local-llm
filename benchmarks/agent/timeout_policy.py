@@ -107,6 +107,11 @@ IdleFloorSource = Literal["flag", "backend", "tier", "default", "engine"]
 #: trial; they are idle hours with a model loaded. It still misses 9 vLLM and
 #: 5 llama.cpp quiet windows. Its "killed" counts cannot show an engine
 #: window by construction, so they are not evidence for this floor.
+#:
+#: With native TensorFold on the rule (#1545, 2026-11-27): 36 of 560 quiet
+#: windows missed (TensorFold 30 -> 22; 20 of the 22 have no stored gauge and
+#: stay on power). scripts/tensorfold_watchdog_replay.py replays all 338
+#: TensorFold trials of 600 s or more: neither rule stops any of them.
 ENGINE_IDLE_FLOOR_WATTS: float = IDLE_FLOOR_WATTS
 
 
@@ -130,11 +135,20 @@ class EngineSignal:
 #: (stored from a vLLM server; ``engine="0"``, ``model_name=...``), llama.cpp's
 #: in Prometheus and in a live capture (b10809), SGLang's in a live capture
 #: (nightly 2026-09-21; the exporter's llme_requests_running for SGLang is
-#: mapped from it). Every other engine keeps the power rule:
+#: mapped from it).
 #:
-#: * TensorFold, by decision in #1453. Native TensorFold exports
-#:   tensorfold:requests_running, so it can join; see #1545.
-#: * ds4, Ollama, mlx-serve and the rest export no such signal.
+#: Native TensorFold joined in #1545: v0.6 and later, the MiaAI-Lab and zig
+#: builds, the native 1.x releases and the Ling-3.1 fork (v0.6.6) all print
+#: ``tensorfold:requests_running`` ("Requests in prefill or decode"). Checked
+#: in the exporter's live v0.6.0 capture, in Prometheus (the native 1.0.x
+#: server's own series, and the exporter's llme_requests_running mapped from
+#: the others), and in the fork's ``server/metrics.py``. Its token counter
+#: counts *finished* requests only (a 12-min Ling decode moved it once, by
+#: 32768, at the end), so the gauge carries a request in flight, as with
+#: llama.cpp. TensorFold v0.3.4 + patch 0150 prints neither family, so those
+#: backends keep the power rule (POWER_RULE_BACKENDS). Every other engine
+#: (ds4, Ollama, mlx-serve and the rest) exports no such signal and keeps
+#: the power rule.
 ENGINE_SIGNALS: dict[str, EngineSignal] = {
     "vllm": EngineSignal(
         "vllm", "vllm:num_requests_running", "vllm:generation_tokens_total"
@@ -145,6 +159,34 @@ ENGINE_SIGNALS: dict[str, EngineSignal] = {
     "llama.cpp": EngineSignal(
         "llama.cpp", "llamacpp:requests_processing", "llamacpp:tokens_predicted_total"
     ),
+    "tensorfold": EngineSignal(
+        "tensorfold",
+        "tensorfold:requests_running",
+        "tensorfold:generation_tokens_total",
+    ),
+}
+
+#: Backends whose engine is in ENGINE_SIGNALS but whose build does not print
+#: that engine's gauge, by tasks.toml name, with the reason for the log line
+#: (#1545). They keep the power rule. Without this entry each sample would
+#: still fall back to the power rule (a body without the gauge is
+#: unreadable), but the log line would claim an engine rule that never runs.
+_PATCH0150 = (
+    "TensorFold v0.3.4 + patch 0150 (jayleaton/glm53-tensorfold-spark) prints "
+    "tensorfold_requests_inflight, not tensorfold:requests_running, and no "
+    "stored series checks that gauge (#1545)"
+)
+_ZIGJAY_OCT = (
+    "the October deepseek-v41-tensorfold-spark zig build serves no "
+    "tensorfold:requests_running: Prometheus stored its token counter but no "
+    "gauge on 2026-10-12, 10-13 and 10-18 (#1545). Its 2026-11 builds "
+    "(176024b, 13db91e) print it"
+)
+POWER_RULE_BACKENDS: dict[str, str] = {
+    "glm53ftfjaydual2xrc": _PATCH0150,
+    "glm53ftfjaydual2xrchigh": _PATCH0150,
+    "dsv41ftfzigjaydual2xrc": _ZIGJAY_OCT,
+    "dsv41f1017tfzigjaydual2xrc": _ZIGJAY_OCT,
 }
 
 
@@ -252,9 +294,13 @@ def engine_metrics_url(backend: Mapping[str, object]) -> str | None:
 
 
 def engine_signal_for(
-    backend: Mapping[str, object],
+    backend: Mapping[str, object], name: str = ""
 ) -> tuple[EngineSignal | None, str]:
-    """The engine signal for a backend, or None for the power rule, and why."""
+    """The engine signal for a backend, or None for the power rule, and why.
+
+    ``name`` is the tasks.toml backend name, checked against
+    :data:`POWER_RULE_BACKENDS`.
+    """
     engine = str(backend.get("engine") or "")
     signal = ENGINE_SIGNALS.get(engine)
     if signal is None:
@@ -262,6 +308,8 @@ def engine_signal_for(
             f"power rule: engine {engine or '(none)'} has no running-request "
             "signal the watchdog reads (#1453)"
         )
+    if name in POWER_RULE_BACKENDS:
+        return None, f"power rule: {POWER_RULE_BACKENDS[name]}"
     if engine_metrics_url(backend) is None:
         return None, f"power rule: engine {engine} but no base_url to read"
     return signal, f"engine rule: {engine} {signal.running}"

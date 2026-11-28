@@ -664,10 +664,14 @@ GPU reads at or above the floor, the watchdog skips the read: both rules call
 that sample busy. When the engine cannot be read (endpoint down, a cut or
 non-HTTP reply, no gauge in the body), that sample falls back to the power
 rule above. `--idle-floor-watts` and the backend's `idle_floor_watts` key set
-the engine-rule floor too. TensorFold, ds4, Ollama and the other engines keep
-the power rule; native TensorFold exports a running gauge and could join (see
-#1545). A hung engine whose gauge stays above 0 is never called idle (see
-#1546). The stall log line names the rule, with a sample count for each. A
+the engine-rule floor too. Native TensorFold joined in #1545: it reads
+`tensorfold:requests_running` and `tensorfold:generation_tokens_total`. That
+counter counts finished requests only, so the gauge carries a request in
+flight, as with llama.cpp. Two TensorFold builds print no such gauge and keep
+the power rule, named per backend in `POWER_RULE_BACKENDS`: v0.3.4 + patch
+0150 (the `glm53ftfjay*` backends) and the October zig-jay DeepSeek builds.
+ds4, Ollama and the other engines keep the power rule. A hung engine whose
+gauge stays above 0 is never called idle (see #1546). The stall log line names the rule, with a sample count for each. A
 row whose watchdog was configured for the engine rule carries
 `idle_engine_floor_watts`, whether or not any read succeeded.
 
@@ -681,6 +685,18 @@ Mini decode (one request, tokens rising, 15.6-16.9 W). Counted in quiet
 TensorFold holds 30 of the 44, and vLLM 9 and llama.cpp 5 still slip past.
 The windows it newly catches overlap no trial: they are idle hours with a
 model loaded.
+
+With TensorFold on the engine rule (#1545, 2026-11-27, 60 days), the rule
+misses 36 of 560 quiet windows, against 44 before and 53 for power alone.
+TensorFold's misses fall from 30 to 22. Of those 22, 20 are windows with no
+stored gauge (patch 0150, the October zig-jay builds, or no exporter data),
+which stay on the power rule, and 2 peak at 24 W and 62 W.
+`scripts/tensorfold_watchdog_replay.py` replays all 338 TensorFold trials of
+600 s or more through the watchdog: neither rule stops a trial. That
+includes the one stall in the ledger, the Qwen3.8 trial of 2026-10-21. Its
+stored series give 590 s of idle at 15 s polls before the kill, not 600 s,
+and its decode counter moved by 114 tokens 20 s before the kill, which the
+engine rule counts as work. Its GPU read 10.7-12.1 W, under the 13 W floor.
 
 Rerun the evidence when the ledger grows:
 

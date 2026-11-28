@@ -610,19 +610,191 @@ def test_an_engine_with_a_running_gauge_gets_the_engine_rule(engine: str) -> Non
     assert engine in why
 
 
-@pytest.mark.parametrize("engine", ["tensorfold", "ds4", "ollama", "mlx-serve", ""])
+@pytest.mark.parametrize("engine", ["ds4", "ollama", "mlx-serve", ""])
 def test_other_engines_keep_the_power_rule(engine: str) -> None:
     signal, why = tp.engine_signal_for({"engine": engine, "base_url": "http://s:1"})
     assert signal is None
     assert "power" in why
 
 
-def test_tensorfold_keeps_the_power_rule_and_says_why() -> None:
+# --- #1545: native TensorFold by its running-request gauge -----------------
+#
+# Real-format bodies. TF_V06 is an excerpt of the live capture
+# llm-metrics-exporter/testdata/tensorfold/v0.6.0-miaai-glm-v1.8.metrics.txt
+# (TensorFold v0.6.0, MiaAI-Lab GLM-5.3 recipe v1.8, 2026-10-06), lines
+# unchanged. TF_NATIVE_DECODE is the native 1.0.x server's own series as
+# Prometheus stored them at 2026-10-14T07:01:15Z and 07:01:30Z: one request
+# running, its in-flight tokens 843 -> 3253, and generation_tokens_total
+# flat at 457988, because that counter counts finished requests only.
+# TF_PATCH0150 is an excerpt of the live capture
+# testdata/tensorfold/v0.3.4-glm53-e9c8cbb.metrics.txt (2026-09-29).
+TF_V06 = """\
+# HELP tensorfold:requests_running Requests in prefill or decode.
+# TYPE tensorfold:requests_running gauge
+tensorfold:requests_running 1
+# HELP tensorfold:requests_waiting Requests queued or held until a lane is free.
+# TYPE tensorfold:requests_waiting gauge
+tensorfold:requests_waiting 0
+# HELP tensorfold:prompt_tokens_total Prompt tokens of finished requests.
+# TYPE tensorfold:prompt_tokens_total counter
+tensorfold:prompt_tokens_total 40840385
+# HELP tensorfold:generation_tokens_total Generated tokens of finished requests.
+# TYPE tensorfold:generation_tokens_total counter
+tensorfold:generation_tokens_total 504646
+# HELP tensorfold_health:completion_tokens_total Reply tokens, the running replies' tokens so far included.
+# TYPE tensorfold_health:completion_tokens_total counter
+tensorfold_health:completion_tokens_total 504733
+"""
+TF_NATIVE_DECODE = (
+    """\
+tensorfold:requests_running 1
+tensorfold:num_requests_running 1
+tensorfold:generation_tokens_running 843
+tensorfold:generation_tokens_total 457988
+""",
+    """\
+tensorfold:requests_running 1
+tensorfold:num_requests_running 1
+tensorfold:generation_tokens_running 3253
+tensorfold:generation_tokens_total 457988
+""",
+)
+TF_PATCH0150 = """\
+# HELP tensorfold_completion_tokens_total generated tokens
+# TYPE tensorfold_completion_tokens_total counter
+tensorfold_completion_tokens_total{model="GLM-5.3-Flash-EXL3"} 2557
+# HELP tensorfold_requests_inflight completions running now
+# TYPE tensorfold_requests_inflight gauge
+tensorfold_requests_inflight{model="GLM-5.3-Flash-EXL3"} 0
+"""
+
+
+def test_parse_reads_the_native_tensorfold_gauge_and_counter() -> None:
+    sig = tp.ENGINE_SIGNALS["tensorfold"]
+    assert sig.running == "tensorfold:requests_running"
+    assert sig.progress == "tensorfold:generation_tokens_total"
+    assert tp.parse_engine_metrics(TF_V06, sig) == tp.EngineReading(1.0, 504646.0)
+
+
+def test_the_mirror_gauge_is_not_counted_twice() -> None:
+    # Native 1.0.x and the Ling-3.1 fork print num_requests_running beside
+    # requests_running, and generation_tokens_running beside the total.
+    sig = tp.ENGINE_SIGNALS["tensorfold"]
+    got = tp.parse_engine_metrics(TF_NATIVE_DECODE[0], sig)
+    assert got == tp.EngineReading(1.0, 457988.0)
+
+
+def test_a_patch0150_body_is_unreadable_as_native_tensorfold() -> None:
+    """v0.3.4 + patch 0150 has its own gauge (tensorfold_requests_inflight),
+    not tensorfold:requests_running. Its body must never read as 0 running."""
+    assert (
+        tp.parse_engine_metrics(TF_PATCH0150, tp.ENGINE_SIGNALS["tensorfold"]) is None
+    )
+
+
+def test_native_tensorfold_gets_the_engine_rule() -> None:
     signal, why = tp.engine_signal_for(
         {"engine": "tensorfold", "base_url": "http://srv:8888"}
     )
+    assert signal is tp.ENGINE_SIGNALS["tensorfold"]
+    assert "tensorfold:requests_running" in why
+
+
+@pytest.mark.parametrize("name", ["glm53ftfjaydual2xrc", "glm53ftfjaydual2xrchigh"])
+def test_tensorfold_v034_patch0150_keeps_the_power_rule_and_says_why(
+    name: str,
+) -> None:
+    cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
+    signal, why = tp.engine_signal_for(cfg["backend"][name], name)
     assert signal is None
-    assert "tensorfold" in why
+    assert "power rule" in why
+    assert "patch 0150" in why
+    assert "tensorfold:requests_running" in why
+
+
+@pytest.mark.parametrize(
+    "name", ["dsv41ftfzigjaydual2xrc", "dsv41f1017tfzigjaydual2xrc"]
+)
+def test_october_zigjay_deepseek_keeps_the_power_rule(name: str) -> None:
+    cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
+    signal, why = tp.engine_signal_for(cfg["backend"][name], name)
+    assert signal is None
+    assert "no tensorfold:requests_running" in why
+
+
+def test_every_power_rule_tensorfold_backend_is_a_tensorfold_backend() -> None:
+    """A stale or misspelled name would silently put nothing on the power rule."""
+    cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
+    for name in tp.POWER_RULE_BACKENDS:
+        assert cfg["backend"][name]["engine"] == "tensorfold", name
+
+
+def test_every_other_tensorfold_backend_gets_the_engine_rule() -> None:
+    cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
+    for name, b in cfg["backend"].items():
+        if b.get("engine") != "tensorfold" or name in tp.POWER_RULE_BACKENDS:
+            continue
+        signal, why = tp.engine_signal_for(b, name)
+        assert signal is tp.ENGINE_SIGNALS["tensorfold"], (name, why)
+
+
+def _tf_watchdog(
+    watts: list[float | None], engine: list[tp.EngineReading | None], clock: _Now
+) -> IdleStallWatchdog:
+    return IdleStallWatchdog(
+        _Sampler(watts),
+        idle_floor_watts=13.0,
+        idle_floor_source="tier",
+        engine=_Engine(engine),
+        engine_floor_watts=20.0,
+        engine_floor_source="engine",
+        engine_name="tensorfold (tensorfold:requests_running)",
+        idle_stall_secs=600.0,
+        monotonic=clock,
+    )
+
+
+def test_tensorfold_stall_is_caught() -> None:
+    """The 2026-10-21 Qwen3.8 TensorFold stall as Prometheus stored it from
+    02:54:00Z: 0 running, decode tokens flat at 49337, the head at 12.1 W
+    falling to 10.7 W. Both rules call it idle, and the trial stops at 600 s."""
+    sig = tp.ENGINE_SIGNALS["tensorfold"]
+    body = "tensorfold:requests_running 0\ntensorfold:generation_tokens_total 49337\n"
+    reading = tp.parse_engine_metrics(body, sig)
+    watts: list[float | None] = [12.121, 12.121, 11.609, 11.609, 11.094, 10.956]
+    watts += [10.8] * 40
+    clock = _Now()
+    wd = _tf_watchdog(watts, [reading], clock)
+    _run(wd, clock, 41)  # 0..600 s
+    assert wd.stalled() is True
+    assert wd.rule_summary().startswith("engine rule: tensorfold")
+
+
+def test_tensorfold_decode_with_a_flat_counter_is_never_killed() -> None:
+    """generation_tokens_total moves only when a request finishes. The stored
+    native 1.0.x bodies show it flat across a live decode, and the Ling-3.1
+    decode of 2026-11-28 held 1 running for 12 min with the counter flat at
+    173085, then it rose by 32768 at once. The gauge alone keeps the trial,
+    even at 5 W, under every floor."""
+    sig = tp.ENGINE_SIGNALS["tensorfold"]
+    first, second = (tp.parse_engine_metrics(b, sig) for b in TF_NATIVE_DECODE)
+    assert first is not None and second is not None
+    assert first.progress == second.progress  # flat across a live decode
+    clock = _Now()
+    wd = _tf_watchdog([5.0], [first, second], clock)
+    _run(wd, clock, 200)  # 50 min
+    assert wd.stalled() is False
+    assert wd.idle_seconds() == 0.0
+
+
+def test_a_patch0150_server_falls_back_to_the_power_rule_per_sample() -> None:
+    """Were a patch 0150 backend put on the engine rule by mistake, each read
+    is None, and 14 W stays work under the 13 W power floor."""
+    reading = tp.parse_engine_metrics(TF_PATCH0150, tp.ENGINE_SIGNALS["tensorfold"])
+    clock = _Now()
+    wd = _tf_watchdog([14.0], [reading], clock)
+    _run(wd, clock, 100)
+    assert wd.stalled() is False
 
 
 def test_a_backend_with_no_url_keeps_the_power_rule() -> None:

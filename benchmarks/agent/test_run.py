@@ -3290,7 +3290,15 @@ def _oracle_repo(tmp_path):
     return repo, run.git(["rev-parse", "HEAD"], repo)
 
 
-def _agent_trial(tmp_path, monkeypatch, shell, backend=None, idle_watchdog=False, **kw):
+def _agent_trial(
+    tmp_path,
+    monkeypatch,
+    shell,
+    backend=None,
+    idle_watchdog=False,
+    backend_name="seam",
+    **kw,
+):
     """One real trial whose agent is a shell command run in the checkout."""
     repo, commit = _oracle_repo(tmp_path)
     monkeypatch.setitem(
@@ -3310,7 +3318,7 @@ def _agent_trial(tmp_path, monkeypatch, shell, backend=None, idle_watchdog=False
             "tests": [],
             "test_command": "python3 tests/check.py",
         },
-        "seam",
+        backend_name,
         backend or {"model": "stub", "context_tokens": 1},
         trial=1,
         workdir=tmp_path / "work",
@@ -3400,20 +3408,34 @@ def test_a_vllm_trial_with_an_idle_engine_is_stopped(tmp_path, monkeypatch):
     assert row["timeout_reason"] == "gpu-idle-stall"
 
 
-def test_a_tensorfold_trial_keeps_the_power_rule(tmp_path, monkeypatch):
+TF_BACKEND = {**VLLM_BACKEND, "engine": "tensorfold"}
+
+
+def test_a_native_tensorfold_trial_gets_the_engine_rule(tmp_path, monkeypatch):
+    # #1545: native TensorFold prints tensorfold:requests_running.
     row = _agent_trial(
         tmp_path,
         monkeypatch,
         SOLVE,
-        backend={
-            "model": "stub",
-            "context_tokens": 1,
-            "tier": "gb10-spark-x2",
-            "engine": "tensorfold",
-            "base_url": "http://127.0.0.1:9",
-            "auth_token": "stub",
-        },
+        backend=TF_BACKEND,
         idle_watchdog=True,
+        watts_sampler=lambda: 999.0,
+    )
+    assert results.verdict(row) is True, row["pytest"]
+    assert row["idle_floor_watts"] == 13.0
+    assert row["idle_engine_floor_watts"] == 20.0
+
+
+def test_a_tensorfold_patch0150_trial_keeps_the_power_rule(tmp_path, monkeypatch):
+    # v0.3.4 + patch 0150 has no tensorfold:requests_running (#1545). The rule
+    # is chosen by the backend's name, so the name must reach the choice.
+    row = _agent_trial(
+        tmp_path,
+        monkeypatch,
+        SOLVE,
+        backend=TF_BACKEND,
+        idle_watchdog=True,
+        backend_name="glm53ftfjaydual2xrc",
         watts_sampler=lambda: 999.0,
     )
     assert results.verdict(row) is True, row["pytest"]
