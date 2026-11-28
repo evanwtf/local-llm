@@ -33,22 +33,26 @@ in the NGC PyTorch image, one rank per Spark, with five local choices:
 
     uv run python scripts/ling31_two_node.py prepare --rank 0
     uv run python scripts/ling31_two_node.py prepare --rank 1   # from the head too
-    uv run python scripts/ling31_two_node.py start --name ling31
+    uv run python scripts/ling31_two_node.py start --name ling31 --arm mtp
     uv run python scripts/ling31_two_node.py status --name ling31
     uv run python scripts/ling31_two_node.py stop --name ling31
-    uv run python scripts/ling31_two_node.py check-thinking \
+    uv run python scripts/ling31_two_node.py check-thinking --arm mtp \
         --log ~/bench-logs/ling31-rank0.log --results <ledger>
 
 `prepare` runs once per node: it checks the split, writes the node's rank
 folder from the verified checkpoint (`~/models/<MODEL>`, a full copy on each
 node), and builds the CUDA extensions with no model loaded (the recipe's
 `serve/prebuild.py`). `start` takes no server arguments: the arm is
-`SERVE_ARGS` plus the flags of one named arm (`--arm`, see `ARMS`), and a
-passthrough would change it while the row still pooled (argparse keeps the
-last value, so `-- --thinking` turned thinking on with `--no-thinking` still
-in the recorded argv). A new setting is a new arm and a new backend.
+`SERVE_ARGS` plus the flags of one named arm (`--arm`, required, see `ARMS`),
+and a passthrough would change it while the row still pooled (argparse keeps
+the last value, so `-- --thinking` turned thinking on with `--no-thinking`
+still in the recorded argv). A new setting is a new arm and a new backend.
+Each arm gets its own `--name`, so its rank-0 log holds only its own starts:
 
-    uv run python scripts/ling31_two_node.py start --name ling31 --arm nomtp
+    uv run python scripts/ling31_two_node.py start --name ling31nomtp --arm nomtp
+    uv run python scripts/ling31_two_node.py check-thinking --arm nomtp \
+        --log ~/bench-logs/ling31nomtp-rank0.log --results <ledger>
+
 Both containers run as the calling user, so nothing they write is owned by
 root. Rank 0 logs `READY_LINE` when it is about to serve; wait on a real
 completion, not on that line.
@@ -192,7 +196,7 @@ def container_env() -> dict[str, str]:
     }
 
 
-def serve_argv(rank: int, arm: str = "mtp") -> list[str]:
+def serve_argv(rank: int, arm: str) -> list[str]:
     """`tensorfold serve` for one rank. Only rank 0 listens on the LAN.
 
     Both ranks get the arm's flags: the engine refuses to start when the
@@ -239,9 +243,7 @@ def _mounts(home: str) -> list[str]:
     ]  # fmt: skip
 
 
-def docker_run(
-    *, rank: int, name: str, home: str, user: str, arm: str = "mtp"
-) -> list[str]:
+def docker_run(*, rank: int, name: str, home: str, user: str, arm: str) -> list[str]:
     """The foreground `docker run` argv for one rank (the recipe's flags).
 
     `user` is the node's `uid:gid`: the build dir and the logs stay the
@@ -269,9 +271,7 @@ def log_path(home: str, name: str, rank: int) -> str:
     return f"{home}/bench-logs/{unit_name(name, rank)}.log"
 
 
-def systemd_unit(
-    *, rank: int, name: str, home: str, user: str, arm: str = "mtp"
-) -> list[str]:
+def systemd_unit(*, rank: int, name: str, home: str, user: str, arm: str) -> list[str]:
     """`systemd-run` wrapping one rank's `docker run` as the unit's main process."""
     log = log_path(home, name, rank)
     return [
@@ -604,20 +604,56 @@ def status(args: argparse.Namespace) -> int:
 
 
 #: The engine logs one line per finished request (tensorfold/cuda/server.py,
-#: "[tensorfold] done req-... thinking=<bool>", at 72f16e48).
+#: "[tensorfold] done req-... thinking=<bool> ... accepted=<A>/<D>", at
+#: 72f16e48, print_done at server.py:691-694).
 DONE_PREFIX = "[tensorfold] done req-"
+#: Rank 0 logs this banner once per start, with "drafts: off" or "drafts: on"
+#: (tensorfold/cli.py:329-330 at 72f16e48). The units append to one log per
+#: `--name`, so only the lines after the last banner belong to this start.
+SERVING_PREFIX = "[tensorfold] serving "
+#: A serial reply logs no drafts. With `--no-drafts` the policy is "0"
+#: (cuda/engine.py:570), which `encode_policy` makes kind 0 and
+#: `decode_policy` returns as None (engine.py:58-70), so the reply decodes in
+#: `serial_decode` and its stats get no drafted or accepted count
+#: (engine.py:539-556); `print_done` prints the default 0 for each.
+SERIAL_ACCEPTED = " accepted=0/0"
 BACKEND = BACKENDS["mtp"]
+#: Every arm flag. A row's recorded argv must carry exactly its arm's flags.
+ARM_FLAGS = frozenset(flag for flags in ARMS.values() for flag in flags)
 
 
-def thinking_problems(log_text: str, rows: list[dict[str, object]]) -> list[str]:
-    """Why a thinking-off run is not proven thinking-off; empty means proven.
+def _this_start(log_text: str) -> tuple[str | None, list[str]]:
+    """The last serving banner in the log and the lines after it."""
+    lines = log_text.splitlines()
+    at = [i for i, ln in enumerate(lines) if SERVING_PREFIX in ln]
+    if not at:
+        return None, []
+    return lines[at[-1]], lines[at[-1] + 1 :]
+
+
+def _row_argv(row: dict[str, object]) -> str | None:
+    env = row.get("env")
+    argv = env.get("server_argv") if isinstance(env, dict) else None
+    return argv if isinstance(argv, str) and argv.strip() else None
+
+
+def thinking_problems(
+    log_text: str, rows: list[dict[str, object]], arm: str
+) -> list[str]:
+    """Why a run of this arm is not proven thinking-off; empty means proven.
 
     The arm is thinking off (#1309). A request that sends an effort or a
     thinking switch turns it back on per request, and the row would still
-    claim the arm. So before stage 1 is accepted: the rank-0 log has requests,
-    none with thinking=True, and every row of these backends (`BACKENDS`, one
-    per arm) counts 0 reasoning tokens. A log with no request lines proves
-    nothing, and nor do rows of which none is one of these backends.
+    claim the arm. So the check reads only this start's part of the rank-0
+    log (after the last serving banner) and only the rows of this arm's
+    backend, and it needs both: requests, none with thinking=True, and at
+    least one row, each with 0 reasoning tokens. An empty log, ledger or
+    selection proves nothing.
+
+    It also proves the arm (#680 finding 2): the banner says "drafts: off"
+    exactly for an arm with `--no-drafts`, each request of such an arm logs
+    no drafts, and each row's recorded server_argv carries exactly its arm's
+    flags, so a row labeled with one arm and served by the other fails.
 
     A timed-out row has no reasoning_tokens; run.py puts the count from the
     partial transcript in partial_reasoning_tokens (results.py). The check
@@ -626,24 +662,59 @@ def thinking_problems(log_text: str, rows: list[dict[str, object]]) -> list[str]
     count still fails: a missing count is not 0.
     """
     why = []
-    done = [ln for ln in log_text.splitlines() if DONE_PREFIX in ln]
+    serial = "--no-drafts" in ARMS[arm]
+    banner, after = _this_start(log_text)
+    if banner is None:
+        why.append("the rank-0 log has no serving banner: no start is proven")
+    else:
+        want = "drafts: off" if serial else "drafts: on"
+        if want not in banner:
+            why.append(f"the last serving banner does not say {want!r}: {banner}")
+    done = [ln for ln in after if DONE_PREFIX in ln]
     if not done:
-        why.append("the rank-0 log has no finished requests: nothing is proven")
+        why.append(
+            "the rank-0 log has no finished requests after its last serving "
+            "banner: nothing is proven"
+        )
     on = [ln for ln in done if " thinking=True " in ln]
     if on:
         why.append(f"{len(on)} of {len(done)} requests ran with thinking=True")
     odd = [ln for ln in done if " thinking=" not in ln]
     if odd:
         why.append(f"{len(odd)} request lines carry no thinking= field")
-    ours = set(BACKENDS.values())
-    mine = [r for r in rows if r.get("backend") in ours]
-    if rows and not mine:
-        why.append(f"none of the {len(rows)} rows is a {' or '.join(sorted(ours))} row")
+    if serial:
+        drafted = [ln for ln in done if SERIAL_ACCEPTED not in ln]
+        if drafted:
+            why.append(
+                f"{len(drafted)} of {len(done)} requests of the {arm} arm do not "
+                f"log{SERIAL_ACCEPTED}: they drafted"
+            )
+    backend = BACKENDS[arm]
+    mine = [r for r in rows if r.get("backend") == backend]
+    if not mine:
+        why.append(f"none of the {len(rows)} rows is a {backend} row")
     bad = [r for r in mine if _reasoning_count(r) != 0]
     if bad:
         why.append(
-            f"{len(bad)} of {len(mine)} Ling rows have reasoning_tokens "
+            f"{len(bad)} of {len(mine)} {backend} rows have reasoning_tokens "
             "(or, for a timeout, partial_reasoning_tokens) other than 0"
+        )
+    want_flags = set(ARMS[arm])
+    no_argv = [r for r in mine if _row_argv(r) is None]
+    if no_argv:
+        why.append(
+            f"{len(no_argv)} of {len(mine)} {backend} rows record no server_argv"
+        )
+    wrong = [
+        r
+        for r in mine
+        if (argv := _row_argv(r)) is not None
+        and {t for t in argv.split() if t in ARM_FLAGS} != want_flags
+    ]
+    if wrong:
+        why.append(
+            f"{len(wrong)} of {len(mine)} {backend} rows record a server_argv "
+            f"whose arm flags are not {sorted(want_flags)}: another arm served them"
         )
     return why
 
@@ -664,12 +735,17 @@ def check_thinking(args: argparse.Namespace) -> int:
         for line in pathlib.Path(path).expanduser().read_text().splitlines():
             if line.strip():
                 rows.append(json.loads(line))
-    why = thinking_problems(log_text, rows)
+    why = thinking_problems(log_text, rows, args.arm)
     for reason in why:
         logger.error("thinking check: %s", reason)
     if why:
         return 1
-    logger.info("thinking check: every request and row ran with thinking off")
+    logger.info(
+        "thinking check: every request and %s row of the %s arm ran with "
+        "thinking off and the arm's drafts",
+        BACKENDS[args.arm],
+        args.arm,
+    )
     return 0
 
 
@@ -687,7 +763,7 @@ def main(argv: list[str] | None = None) -> int:
     p_start.add_argument(
         "--arm",
         choices=sorted(ARMS),
-        default="mtp",
+        required=True,
         help="mtp: the recipe's MTP drafting; nomtp: --no-drafts (see ARMS)",
     )
     for cmd, text in (("stop", "stop both ranks"), ("status", "show both ranks")):
@@ -695,6 +771,12 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--name", default="ling31")
     p_check = sub.add_parser(
         "check-thinking", help="prove no request or row ran with thinking on"
+    )
+    p_check.add_argument(
+        "--arm",
+        choices=sorted(ARMS),
+        required=True,
+        help="the arm the log and rows must prove (see ARMS and BACKENDS)",
     )
     p_check.add_argument("--log", required=True, help="the rank-0 log")
     p_check.add_argument(
