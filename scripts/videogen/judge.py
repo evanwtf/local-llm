@@ -82,6 +82,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from videogen.common import (
     DEFAULT_ROOT,
     EDIT_ARMS_FILE,
+    FAST_ARMS_FILE,
     IMAGE_ARMS_FILE,
     InsideRepo,
     Refused,
@@ -98,7 +99,7 @@ logger = logging.getLogger(__name__)
 REPO = pathlib.Path(__file__).resolve().parents[2]
 PROMPTS_FILE = REPO / "benchmarks" / "videogen" / "prompts" / "v1.json"
 ARMS_FILE = REPO / "benchmarks" / "videogen" / "arms-v1.json"
-ARMS_FILES = (ARMS_FILE, IMAGE_ARMS_FILE, EDIT_ARMS_FILE)
+ARMS_FILES = (ARMS_FILE, FAST_ARMS_FILE, IMAGE_ARMS_FILE, EDIT_ARMS_FILE)
 REFUSED = 2
 IMAGE = "image.png"
 #: The folder of an edit prompt's input images, beside the candidates' ids.

@@ -176,6 +176,50 @@ under `outlet`, and the top-level `energy_wh` is null. The arm's server
 `node` (`head` or `worker`) picks the plug; `--node` overrides it. `gcx`
 needs `~/.config/gcx/token`.
 
+## The few-step arms (#1412)
+
+[`fast-arms-v1.json`](../../benchmarks/videogen/fast-arms-v1.json) holds the
+two few-step video arms for the meme-bot screen. It uses the same prompts,
+clips and seeds as `arms-v1.json`, and it is `draft` until one timing probe
+per model.
+
+| arm | server (node, port) | settings |
+|---|---|---|
+| `fastwan-t2v` | `fastwan` (head, :8040) | FastWan2.2-TI2V-5B, BF16. 1280x704, 121 frames at 24 fps, 3 DMD steps |
+| `wan-t2v-4step` | `wan-t2v-4step` (worker, :8041) | Wan 2.2 T2V A14B with the lightx2v 4-step distill LoRA, BF16. 832x480, 81 frames at 16 fps, 4 Euler steps at shift 5.0, guidance 1.0 |
+
+Three facts from the vLLM-Omni 0.32.0 source set these arms. The file's
+`verified_against` block cites each one.
+
+- The server runs FastWan's three DMD timesteps (1000, 757, 522) for every
+  request. The step count in the request does not change them.
+- `--lora-backend distill` fuses the LoRA after the weights load, and online
+  FP8 quantizes during the load. So the LoRA meets FP8 weights: the server
+  fails, or it drops the LoRA with no error
+  ([vllm-project/vllm-omni#10162](https://github.com/vllm-project/vllm-omni/pull/10162)).
+  The `wan-t2v-4step` server runs BF16, and `generate.check_server` refuses
+  a block that sets `--lora-backend distill` and `--quantization`.
+- `--lora-path` takes the high-noise file first, then the low-noise file.
+
+Put the weights on the node that runs the server:
+`~/models/FastWan2.2-TI2V-5B-FullAttn-Diffusers` on the head, and the two
+T2V LoRA files in `~/models/Wan2.2-Distill-Loras/` on the worker, beside the
+base model.
+
+```sh
+# Replace HEAD_HOST with the head's name.
+export FAST=http://HEAD_HOST:8040
+export WAN4=http://10.0.0.2:8041
+
+uv run python scripts/videogen/serve.py --model fastwan --start
+uv run python scripts/videogen/serve.py --model wan-t2v-4step --start --host 10.0.0.2
+
+uv run python scripts/videogen/generate.py --arm fastwan-t2v --clip dog-a --seed 1 \
+    --server "$FAST" --probe
+uv run python scripts/videogen/generate.py --arm wan-t2v-4step --clip dog-a --seed 1 \
+    --server "$WAN4" --probe
+```
+
 ## Images and image edits (#1424)
 
 The image screen uses the same scripts. Two more arms files hold its

@@ -4,7 +4,7 @@
     serve.py --model wan-t2v --start     # launch it in a systemd scope
 
 The command comes from the model's `servers` block in
-`benchmarks/videogen/arms-v1.json` (video), `image-arms-v1.json` or
+`benchmarks/videogen/arms-v1.json` or `fast-arms-v1.json` (video, #1412), `image-arms-v1.json` or
 `edit-arms-v1.json` (images, #1424): the env, the memory scope and the argv,
 with `--served-model-name` so `generate.py` can name the model in each
 request and refuse a server that serves another. A clip is reproducible only
@@ -225,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--model",
         required=True,
-        help="a server block: h3, wan-t2v, wan-i2v, or an image server "
+        help="a server block: h3, wan-t2v, wan-i2v, fastwan, wan-t2v-4step, or an image server "
         "(qwen-image, hidream-o1, z-image-turbo, flux2-klein-4b, qwen-image-edit)",
     )
     p.add_argument("--start", action="store_true", help="launch it, not only log it")

@@ -360,7 +360,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--arm",
         required=True,
-        help="an arm in arms-v1.json, image-arms-v1.json or edit-arms-v1.json",
+        help="an arm in arms-v1.json, fast-arms-v1.json, image-arms-v1.json or edit-arms-v1.json",
     )
     p.add_argument("--server", required=True, help="http://HOST:PORT of vLLM-Omni")
     p.add_argument("--out-root", type=pathlib.Path, default=DEFAULT_ROOT / "out")
