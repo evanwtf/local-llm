@@ -27,9 +27,10 @@ Then, for each floor:
   as idle. The light-model column is the generating windows of `--light`.
 
 The **rule** line counts the watchdog's #1453 rule: a window whose resident
-engine exports a running-request signal (vLLM, SGLang, llama.cpp) is judged
-at the engine-rule floor (20 W), because the engine says when a request runs;
-every other window is judged by power alone at the GB10 tier floor (13 W).
+engine exports a running-request signal (vLLM, SGLang, llama.cpp, and native
+TensorFold since #1545) and whose gauge was stored is judged at the
+engine-rule floor (20 W), because the engine says when a request runs; every
+other window is judged by power alone at the GB10 tier floor (13 W).
 Its killed columns count power-rule windows only: an engine window that
 generated cannot count as killed, by construction, so those columns say
 nothing about whether the engine rule is safe. The evidence for that is a
@@ -203,6 +204,14 @@ def has_engine_signal(engines: Sequence[str]) -> bool:
     )
 
 
+def engine_judged(w: Window) -> bool:
+    """Is the window judged by the engine rule? Its engine must have a signal
+    and the window must carry the gauge. TensorFold v0.3.4 + patch 0150 and
+    the October zig-jay DeepSeek builds printed none (#1545); the watchdog
+    falls back to power there."""
+    return has_engine_signal(w.engines) and w.running_max is not None
+
+
 def windows(
     series: Mapping[str, Mapping[int, float]],
     models: Mapping[int, tuple[str, ...]],
@@ -301,7 +310,7 @@ def count_rule(
     lite = [w for w in gen if any(light in m.lower() for m in w.models)]
 
     def floor(w: Window) -> float:
-        return engine_floor if has_engine_signal(w.engines) else power_floor
+        return engine_floor if engine_judged(w) else power_floor
 
     def missed(ws: Sequence[Window]) -> int:
         return sum(1 for w in ws if w.peak_w is not None and w.peak_w >= floor(w))
@@ -310,9 +319,7 @@ def count_rule(
         return sum(
             1
             for w in ws
-            if not has_engine_signal(w.engines)
-            and w.peak_w is not None
-            and w.peak_w < power_floor
+            if not engine_judged(w) and w.peak_w is not None and w.peak_w < power_floor
         )
 
     return FloorRow(
@@ -340,7 +347,7 @@ def missed_by_engine(
         if w.peak_w is None or not w.quiet:
             continue
         key = "+".join(w.engines) or "unknown"
-        floor = engine_floor if has_engine_signal(w.engines) else power_floor
+        floor = engine_floor if engine_judged(w) else power_floor
         q, old, new = out.get(key, (0, 0, 0))
         out[key] = (
             q + 1,
@@ -489,7 +496,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     power = timeout_policy.TIER_IDLE_FLOOR_WATTS["gb10-spark-x2"]
     engine = timeout_policy.ENGINE_IDLE_FLOOR_WATTS
     rule = count_rule(wins, power, engine, args.light)
-    engine_wins = sum(1 for w in wins if w.quiet and has_engine_signal(w.engines))
+    engine_wins = sum(1 for w in wins if w.quiet and engine_judged(w))
     logger.info(
         "#1453 rule: engine windows at %g W, the rest by power at %g W"
         " (%d of %d quiet windows have an engine signal)",

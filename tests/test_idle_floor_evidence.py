@@ -217,14 +217,27 @@ def test_the_engine_rule_covers_the_watchdogs_engines() -> None:
     assert ev.has_engine_signal(("vllm",))
     assert ev.has_engine_signal(("llamacpp",))
     assert ev.has_engine_signal(("sglang",))
-    assert not ev.has_engine_signal(("tensorfold",))
+    assert ev.has_engine_signal(("tensorfold",))  # native, #1545
+    assert not ev.has_engine_signal(("ds4",))
     assert not ev.has_engine_signal(())
+
+
+def test_a_window_without_the_gauge_is_judged_by_power() -> None:
+    """TensorFold v0.3.4 + patch 0150 and the October zig-jay DeepSeek builds
+    printed no running gauge: the exporter stored no llme_requests_running.
+    The watchdog falls back to power there, so the count does too (#1545)."""
+    with_gauge = _w(14.0, engines=("tensorfold",))
+    without = _w(14.0, engines=("tensorfold",), running_max=None, running_min=None)
+    assert ev.engine_judged(with_gauge)
+    assert not ev.engine_judged(without)
+    row = ev.count_rule([with_gauge, without], power_floor=13.0, engine_floor=20.0)
+    assert (row.quiet, row.missed) == (2, 1)
 
 
 def test_rule_count_judges_engine_windows_at_the_engine_floor() -> None:
     wins = [
         _w(14.0, engines=("vllm",)),  # quiet, 13 <= 14 < 20: power misses it
-        _w(14.0, engines=("tensorfold",)),  # quiet, power rule: missed
+        _w(14.0, engines=("ds4",)),  # quiet, power rule: missed
         _w(21.0, engines=("vllm",)),  # quiet, above the engine floor: missed
         _w(10.0, engines=("vllm",)),  # quiet, caught by both
     ]
@@ -237,11 +250,11 @@ def test_rule_count_judges_engine_windows_at_the_engine_floor() -> None:
 def test_rule_count_never_kills_a_working_engine_window() -> None:
     wins = [
         _w(5.0, engines=("vllm",), tokens=100.0, running_max=1.0),
-        _w(5.0, engines=("tensorfold",), tokens=100.0, running_max=1.0),
+        _w(5.0, engines=("ds4",), tokens=100.0, running_max=1.0),
     ]
     row = ev.count_rule(wins, power_floor=13.0, engine_floor=20.0)
-    # The vLLM window has the engine's word; the TensorFold one is judged by
-    # power alone, as the watchdog does.
+    # The vLLM window has the engine's word; the ds4 one is judged by power
+    # alone, as the watchdog does.
     assert (row.generating, row.gen_killed) == (2, 1)
 
 
@@ -262,9 +275,11 @@ def test_a_saved_window_without_engines_loads() -> None:
 def test_missed_by_engine_splits_the_gain() -> None:
     wins = [
         _w(14.0, engines=("vllm",)),
+        _w(14.0, engines=("ds4",)),
+        _w(10.0, engines=("ds4",)),
         _w(14.0, engines=("tensorfold",)),
-        _w(10.0, engines=("tensorfold",)),
+        _w(14.0, engines=("tensorfold",), running_max=None),  # no gauge: power
         _w(14.0, engines=("vllm",), tokens=5.0),  # not quiet: left out
     ]
     got = ev.missed_by_engine(wins, power_floor=13.0, engine_floor=20.0)
-    assert got == {"tensorfold": (2, 1, 1), "vllm": (1, 1, 0)}
+    assert got == {"ds4": (2, 1, 1), "tensorfold": (2, 2, 1), "vllm": (1, 1, 0)}
