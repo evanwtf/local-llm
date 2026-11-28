@@ -804,6 +804,19 @@ def test_tensorfold_thinking_on_and_context_are_graph_flags():
     assert not server_argv_compatible(row, smaller)
 
 
+def test_tensorfold_drafts_off_does_not_pool_with_drafts_on():
+    """#1309: `--no-drafts` decodes serially, a different arm (#680 finding 2)."""
+    base = "python3 -m tensorfold serve /model --context 262144 --no-thinking"
+    on = {"env": {"server_argv": base}}
+    off = {"env": {"server_argv": base + " --no-drafts"}}
+    assert graph_flags(off["env"]["server_argv"])["--no-drafts"] == "1"
+    assert "--no-drafts" not in graph_flags(base)
+    assert not server_argv_compatible(off, on)
+    assert server_argv_compatible(
+        off, {"env": {"server_argv": off["env"]["server_argv"] + " --port 9"}}
+    )
+
+
 def test_vllm_server_side_reasoning_effort_is_a_graph_flag():
     """#1503: a server without its effort default must not pool with one that sets it."""
     kw = '{"reasoning_effort":"no_think"}'

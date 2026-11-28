@@ -832,6 +832,9 @@ GRAPH_BOOLEAN_PREFIXES: tuple[str, ...] = (
     "--no-thinking",
     # The explicit opposite. A prefix, so `--thinking-budget` is caught too.
     "--thinking",
+    # #1309: TensorFold's serial decoding (no MTP or drafter drafts). Its rows
+    # come from a different arm from the default drafting, so they never pool.
+    "--no-drafts",
 )
 
 

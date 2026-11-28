@@ -83,6 +83,60 @@ def test_start_takes_no_server_arguments(
     assert calls == []
 
 
+def test_the_drafts_off_arm_adds_only_no_drafts_on_both_ranks() -> None:
+    # #1309: the drafts-off rerun. The engine refuses ranks that differ in
+    # drafts, and the row's argv must tell the arms apart (#680 finding 2).
+    assert set(k.ARMS) == set(k.BACKENDS) == {"mtp", "nomtp"}
+    for rank in (0, 1):
+        on, off = k.serve_argv(rank), k.serve_argv(rank, "nomtp")
+        assert "--no-drafts" not in on and "--mtp-drafts" not in on
+        assert [a for a in off if a != "--no-drafts"] == on
+        assert off.count("--no-drafts") == 1
+    assert k.serve_argv(0, "mtp") == k.serve_argv(0)
+
+
+def test_the_drafts_off_container_records_no_drafts_as_server_argv() -> None:
+    argv = k.docker_run(
+        rank=1, name="ling", home="/home/u", user="1000:1000", arm="nomtp"
+    )
+    cmd = argv[argv.index(k.IMAGE) + 1 :]
+    assert cmd[3:] == k.serve_argv(1, "nomtp")
+    unit = k.systemd_unit(
+        rank=1, name="ling", home="/home/u", user="1000:1000", arm="nomtp"
+    )
+    assert unit[-len(argv) :] == argv
+
+
+@pytest.mark.parametrize(("arm", "drafts_off"), [("nomtp", True), ("mtp", False)])
+def test_start_serves_the_chosen_arm_on_both_ranks(
+    arm: str, drafts_off: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    units: list[tuple[int, str]] = []
+
+    def fake(rank: int, command: str) -> _Done:
+        if command.startswith("systemd-run"):
+            units.append((rank, command))
+        return _Done(_good())
+
+    monkeypatch.setattr(k, "on_node", fake)
+    assert k.main(["start", "--name", "ling", "--arm", arm]) == 0
+    assert [r for r, _ in units] == [0, 1]
+    for rank, line in units:
+        assert shlex.split(line)[-len(k.serve_argv(rank, arm)) :] == k.serve_argv(
+            rank, arm
+        )
+        assert ("--no-drafts" in shlex.split(line)) is drafts_off
+
+
+def test_start_refuses_an_unknown_arm(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(k, "on_node", lambda rank, cmd: calls.append(cmd))
+    with pytest.raises(SystemExit) as got:
+        k.main(["start", "--name", "ling", "--arm", "mtp4"])
+    assert got.value.code == 2
+    assert calls == []
+
+
 def test_the_sampler_is_named_in_the_argv() -> None:
     argv = k.serve_argv(0)
     assert _after(argv, "--temperature") == "1.0"
@@ -319,34 +373,51 @@ def test_the_script_runs_its_arguments_as_the_server(tmp_path: pathlib.Path) -> 
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 BACKEND = "ling31f1019exl3tfbertnothinkdual2xrc"
+NOMTP = "ling31f1019exl3tfbertnothinknomtpdual2xrc"
 
 
-def _backend() -> dict[str, object]:
+def _backend(name: str = BACKEND) -> dict[str, object]:
     import tomllib
 
     text = (REPO / "benchmarks" / "agent" / "tasks.toml").read_text()
-    backend: dict[str, object] = tomllib.loads(text)["backend"][BACKEND]
+    backend: dict[str, object] = tomllib.loads(text)["backend"][name]
     return backend
 
 
-def test_the_backend_matches_what_the_launcher_serves() -> None:
-    b = _backend()
+def test_the_launcher_names_both_backends() -> None:
+    assert k.BACKENDS == {"mtp": BACKEND, "nomtp": NOMTP}
+    assert k.BACKEND == BACKEND
+
+
+@pytest.mark.parametrize("name", [BACKEND, NOMTP])
+def test_the_backend_matches_what_the_launcher_serves(name: str) -> None:
+    b = _backend(name)
     assert b["model"] == k.SERVED_NAME
     assert b["base_url"] == f"http://127.0.0.1:{k.PORT}"
     assert b["context_tokens"] == int(_after(list(k.SERVE_ARGS), "--context"))
     assert b["client_effort"] == "unset"
     assert b["recipe_dir"] == f"~/{k.RECIPE_TREE}"
-    assert "nothink" in BACKEND
+    assert "nothink" in name
 
 
-def test_the_reference_opencode_entry_sends_no_effort() -> None:
+def test_the_drafts_off_backend_differs_only_in_its_description() -> None:
+    on, off = _backend(BACKEND), _backend(NOMTP)
+    assert {key for key in on.keys() | off.keys() if on.get(key) != off.get(key)} == {
+        "description"
+    }
+    assert "--no-drafts" in str(off["description"])
+    assert "start --arm nomtp" in str(off["description"])
+
+
+@pytest.mark.parametrize("name", [BACKEND, NOMTP])
+def test_the_reference_opencode_entry_sends_no_effort(name: str) -> None:
     # A client effort turns thinking back on in this engine (#1309).
     sys.path.insert(0, str(REPO / "scripts"))
     import client_container
 
     path = REPO / "config" / "opencode.json"
     why = client_container.check_opencode_provider(
-        BACKEND, _backend(), path.read_text(), path
+        name, _backend(name), path.read_text(), path
     )
     assert why is None, why
 
@@ -463,6 +534,19 @@ def test_a_run_that_thought_or_proves_nothing_fails_the_check(
     assert any(says in w for w in why), why
 
 
+def test_drafts_off_rows_are_checked_too() -> None:
+    # The drafts-off rerun's rows carry the nomtp backend; a check that read
+    # only the drafts-on backend would pass them unread.
+    assert k.thinking_problems(f"{DONE_OFF}\n", [_row(0, backend=NOMTP)]) == []
+    why = k.thinking_problems(f"{DONE_OFF}\n", [_row(9, backend=NOMTP)])
+    assert any("1 of 1" in w for w in why), why
+
+
+def test_rows_of_no_ling_backend_prove_nothing() -> None:
+    why = k.thinking_problems(f"{DONE_OFF}\n", [_row(0, backend="other")])
+    assert any("none of the 1 rows" in w for w in why), why
+
+
 def test_check_thinking_exits_nonzero_on_a_thinking_request(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -478,7 +562,8 @@ def test_check_thinking_exits_nonzero_on_a_thinking_request(
     assert k.main(args) == 1
 
 
-def test_the_recipe_pin_is_the_launchers_recipe() -> None:
-    b = _backend()
+@pytest.mark.parametrize("name", [BACKEND, NOMTP])
+def test_the_recipe_pin_is_the_launchers_recipe(name: str) -> None:
+    b = _backend(name)
     assert k.RECIPE_SHA.startswith(str(b["recipe_pin"]))
     assert "not approved" in str(b["recipe_pin_reason"])

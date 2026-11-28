@@ -43,9 +43,12 @@ in the NGC PyTorch image, one rank per Spark, with five local choices:
 folder from the verified checkpoint (`~/models/<MODEL>`, a full copy on each
 node), and builds the CUDA extensions with no model loaded (the recipe's
 `serve/prebuild.py`). `start` takes no server arguments: the arm is
-`SERVE_ARGS`, and a passthrough would change it while the row still pooled
-(argparse keeps the last value, so `-- --thinking` turned thinking on with
-`--no-thinking` still in the recorded argv). A new setting is a new backend.
+`SERVE_ARGS` plus the flags of one named arm (`--arm`, see `ARMS`), and a
+passthrough would change it while the row still pooled (argparse keeps the
+last value, so `-- --thinking` turned thinking on with `--no-thinking` still
+in the recorded argv). A new setting is a new arm and a new backend.
+
+    uv run python scripts/ling31_two_node.py start --name ling31 --arm nomtp
 Both containers run as the calling user, so nothing they write is owned by
 root. Rank 0 logs `READY_LINE` when it is about to serve; wait on a real
 completion, not on that line.
@@ -124,6 +127,24 @@ SERVE_ARGS = (
     "--no-thinking",
     "--no-update-check",
 )  # fmt: skip
+#: The arms `start --arm` serves: each adds its flags to `SERVE_ARGS` on both
+#: ranks, so the row's recorded argv names the arm (#680 finding 2: two arms
+#: with one argv cannot be told apart). `mtp` is the recipe's MTP drafting at
+#: adaptive depth. `nomtp` (#1309, operator 2026-11-27) decodes one token a
+#: round: `--no-drafts` (tensorfold/cli_args.py:82 at 72f16e48) reaches the
+#: engine as `serial_only` (families/bailing_v3/__init__.py:108), which sets
+#: the policy to "0" (cuda/engine.py:230) and overrides a request's
+#: `tf_policy` (cuda/engine.py:570). The MTP head still loads (`mtp_head`
+#: reads only TF_LING_MTP, cuda/engine.py:92-98), so memory is the same arm's.
+ARMS: dict[str, tuple[str, ...]] = {
+    "mtp": (),
+    "nomtp": ("--no-drafts",),
+}
+#: The backend in tasks.toml that each arm's rows belong to.
+BACKENDS: dict[str, str] = {
+    "mtp": "ling31f1019exl3tfbertnothinkdual2xrc",
+    "nomtp": "ling31f1019exl3tfbertnothinknomtpdual2xrc",
+}
 #: The recipe's watchdog floor in GiB; earlyoom acts at 1 GiB.
 WATCHDOG_FLOOR_GIB = "1.5"
 #: The least MemAvailable a node may have before a start. The engine's own
@@ -171,12 +192,16 @@ def container_env() -> dict[str, str]:
     }
 
 
-def serve_argv(rank: int) -> list[str]:
-    """`tensorfold serve` for one rank. Only rank 0 listens on the LAN."""
+def serve_argv(rank: int, arm: str = "mtp") -> list[str]:
+    """`tensorfold serve` for one rank. Only rank 0 listens on the LAN.
+
+    Both ranks get the arm's flags: the engine refuses to start when the
+    ranks differ in drafts (cuda/engine.py:261-270 at 72f16e48).
+    """
     host = "0.0.0.0" if rank == 0 else "127.0.0.1"
     return [
         "python3", "-m", "tensorfold", "serve", "/model",
-        *SERVE_ARGS, "--rank", str(rank), "--host", host,
+        *SERVE_ARGS, *ARMS[arm], "--rank", str(rank), "--host", host,
     ]  # fmt: skip
 
 
@@ -214,7 +239,9 @@ def _mounts(home: str) -> list[str]:
     ]  # fmt: skip
 
 
-def docker_run(*, rank: int, name: str, home: str, user: str) -> list[str]:
+def docker_run(
+    *, rank: int, name: str, home: str, user: str, arm: str = "mtp"
+) -> list[str]:
     """The foreground `docker run` argv for one rank (the recipe's flags).
 
     `user` is the node's `uid:gid`: the build dir and the logs stay the
@@ -230,7 +257,7 @@ def docker_run(*, rank: int, name: str, home: str, user: str) -> list[str]:
     for key, value in container_env().items():
         argv += ["-e", f"{key}={value}"]
     argv += ["--entrypoint", "bash", IMAGE, "-c", rank_shell(), "ling31"]
-    argv += serve_argv(rank)
+    argv += serve_argv(rank, arm)
     return argv
 
 
@@ -242,7 +269,9 @@ def log_path(home: str, name: str, rank: int) -> str:
     return f"{home}/bench-logs/{unit_name(name, rank)}.log"
 
 
-def systemd_unit(*, rank: int, name: str, home: str, user: str) -> list[str]:
+def systemd_unit(
+    *, rank: int, name: str, home: str, user: str, arm: str = "mtp"
+) -> list[str]:
     """`systemd-run` wrapping one rank's `docker run` as the unit's main process."""
     log = log_path(home, name, rank)
     return [
@@ -250,7 +279,7 @@ def systemd_unit(*, rank: int, name: str, home: str, user: str) -> list[str]:
         "--property=KillMode=process",
         f"--property=StandardOutput=append:{log}",
         f"--property=StandardError=append:{log}",
-        *docker_run(rank=rank, name=name, home=home, user=user),
+        *docker_run(rank=rank, name=name, home=home, user=user, arm=arm),
     ]  # fmt: skip
 
 
@@ -507,7 +536,13 @@ def start(args: argparse.Namespace) -> int:
     # recipe starts the two within a second of each other.
     for rank in (0, 1):
         line = shlex.join(
-            systemd_unit(rank=rank, name=args.name, home=homes[rank], user=users[rank])
+            systemd_unit(
+                rank=rank,
+                name=args.name,
+                home=homes[rank],
+                user=users[rank],
+                arm=args.arm,
+            )
         )
         logger.info("rank %d: %s", rank, line)
         r = on_node(rank, line)
@@ -519,7 +554,12 @@ def start(args: argparse.Namespace) -> int:
             return 1
         logger.info("rank %d log: %s", rank, log_path(homes[rank], args.name, rank))
     logger.info(
-        "started %s; rank 0 serves :%d; ready line %r", args.name, PORT, READY_LINE
+        "started %s (arm %s, backend %s); rank 0 serves :%d; ready line %r",
+        args.name,
+        args.arm,
+        BACKENDS[args.arm],
+        PORT,
+        READY_LINE,
     )
     return 0
 
@@ -566,7 +606,7 @@ def status(args: argparse.Namespace) -> int:
 #: The engine logs one line per finished request (tensorfold/cuda/server.py,
 #: "[tensorfold] done req-... thinking=<bool>", at 72f16e48).
 DONE_PREFIX = "[tensorfold] done req-"
-BACKEND = "ling31f1019exl3tfbertnothinkdual2xrc"
+BACKEND = BACKENDS["mtp"]
 
 
 def thinking_problems(log_text: str, rows: list[dict[str, object]]) -> list[str]:
@@ -575,8 +615,9 @@ def thinking_problems(log_text: str, rows: list[dict[str, object]]) -> list[str]
     The arm is thinking off (#1309). A request that sends an effort or a
     thinking switch turns it back on per request, and the row would still
     claim the arm. So before stage 1 is accepted: the rank-0 log has requests,
-    none with thinking=True, and every row of this backend counts 0 reasoning
-    tokens. A log with no request lines proves nothing.
+    none with thinking=True, and every row of these backends (`BACKENDS`, one
+    per arm) counts 0 reasoning tokens. A log with no request lines proves
+    nothing, and nor do rows of which none is one of these backends.
 
     A timed-out row has no reasoning_tokens; run.py puts the count from the
     partial transcript in partial_reasoning_tokens (results.py). The check
@@ -594,11 +635,14 @@ def thinking_problems(log_text: str, rows: list[dict[str, object]]) -> list[str]
     odd = [ln for ln in done if " thinking=" not in ln]
     if odd:
         why.append(f"{len(odd)} request lines carry no thinking= field")
-    mine = [r for r in rows if r.get("backend") == BACKEND]
+    ours = set(BACKENDS.values())
+    mine = [r for r in rows if r.get("backend") in ours]
+    if rows and not mine:
+        why.append(f"none of the {len(rows)} rows is a {' or '.join(sorted(ours))} row")
     bad = [r for r in mine if _reasoning_count(r) != 0]
     if bad:
         why.append(
-            f"{len(bad)} of {len(mine)} {BACKEND} rows have reasoning_tokens "
+            f"{len(bad)} of {len(mine)} Ling rows have reasoning_tokens "
             "(or, for a timeout, partial_reasoning_tokens) other than 0"
         )
     return why
@@ -640,6 +684,12 @@ def main(argv: list[str] | None = None) -> int:
         "start", help="start rank 0 here, then rank 1 (takes no server arguments)"
     )
     p_start.add_argument("--name", default="ling31")
+    p_start.add_argument(
+        "--arm",
+        choices=sorted(ARMS),
+        default="mtp",
+        help="mtp: the recipe's MTP drafting; nomtp: --no-drafts (see ARMS)",
+    )
     for cmd, text in (("stop", "stop both ranks"), ("status", "show both ranks")):
         p = sub.add_parser(cmd, help=text)
         p.add_argument("--name", default="ling31")
