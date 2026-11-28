@@ -654,25 +654,28 @@ watchdog reads the busier node, so 12 W would miss most real stalls.
 `idle_floor_watts`.
 
 Power alone cannot tell a stuck client from a light decode, so the watchdog
-also asks the engine (#1453). For a vLLM, SGLang or llama.cpp backend it reads
-the engine's own `/metrics`: the running-request gauge
-(`vllm:num_requests_running`, `sglang:num_running_reqs`,
-`llamacpp:requests_processing`) and the generated-token counter. A sample is
-idle only when no request runs, the counter has not moved, and the GPU reads
-under 20 W. A running request is never called idle at any power. While the
-GPU reads at or above the floor, the watchdog skips the read: both rules call
-that sample busy. When the engine cannot be read (endpoint down, a cut or
-non-HTTP reply, no gauge in the body), that sample falls back to the power
-rule above. `--idle-floor-watts` and the backend's `idle_floor_watts` key set
-the engine-rule floor too. Native TensorFold joined in #1545: it reads
-`tensorfold:requests_running` and `tensorfold:generation_tokens_total`. That
-counter counts finished requests only, so the gauge carries a request in
-flight, as with llama.cpp. Two TensorFold builds print no such gauge and keep
-the power rule, named per backend in `POWER_RULE_BACKENDS`: v0.3.4 + patch
-0150 (the `glm53ftfjay*` backends) and the October zig-jay DeepSeek builds.
-ds4, Ollama and the other engines keep the power rule. A hung engine whose
-gauge stays above 0 is never called idle (see #1546). The stall log line names the rule, with a sample count for each. A
-row whose watchdog was configured for the engine rule carries
+also asks the engine (#1453). For a vLLM, SGLang, llama.cpp or native
+TensorFold backend it reads the engine's own `/metrics`: the running-request
+gauge (`vllm:num_requests_running`, `sglang:num_running_reqs`,
+`llamacpp:requests_processing`, `tensorfold:requests_running`) and the
+generated-token counter. A sample is idle only when no request runs, the
+counter has not moved, and the GPU reads under 20 W. A running request is
+never called idle at any power. While the GPU reads at or above the floor,
+the watchdog skips the read: both rules call that sample busy. When the
+engine cannot be read (endpoint down, a cut or non-HTTP reply, a body
+without the gauge or without the counter), that sample falls back to the
+power rule above. `--idle-floor-watts` and the backend's `idle_floor_watts`
+key set the engine-rule floor too.
+
+Native TensorFold joined in #1545. Its counter,
+`tensorfold:generation_tokens_total`, counts finished requests only, so the
+gauge carries a request in flight, as with llama.cpp. Two TensorFold builds
+print no such gauge and keep the power rule, named per backend in
+`POWER_RULE_BACKENDS`: v0.3.4 + patch 0150 (the `glm53ftfjay*` backends)
+and the October zig-jay DeepSeek builds. ds4, Ollama and the other engines
+keep the power rule. A hung engine whose gauge stays above 0 is never called
+idle (see #1546). The stall log line names the rule, with a sample count for
+each. A row whose watchdog was configured for the engine rule carries
 `idle_engine_floor_watts`, whether or not any read succeeded.
 
 The evidence is a replay of all 460 trials of 600 s or more on vLLM,
@@ -691,12 +694,22 @@ misses 36 of 560 quiet windows, against 44 before and 53 for power alone.
 TensorFold's misses fall from 30 to 22. Of those 22, 20 are windows with no
 stored gauge (patch 0150, the October zig-jay builds, or no exporter data),
 which stay on the power rule, and 2 peak at 24 W and 62 W.
-`scripts/tensorfold_watchdog_replay.py` replays all 338 TensorFold trials of
-600 s or more through the watchdog: neither rule stops a trial. That
-includes the one stall in the ledger, the Qwen3.8 trial of 2026-10-21. Its
-stored series give 590 s of idle at 15 s polls before the kill, not 600 s,
-and its decode counter moved by 114 tokens 20 s before the kill, which the
-engine rule counts as work. Its GPU read 10.7-12.1 W, under the 13 W floor.
+`scripts/tensorfold_watchdog_replay.py` replays the 338 TensorFold trials
+of 600 s or more through the watchdog, each with power at every 15 s poll.
+The engine rule ran with the gauge on 208 of them (207 in every sample, 1 in
+some). 49 are on `POWER_RULE_BACKENDS`, and 81 are MiaAI GLM trials from
+2026-10-01 to 10-07, before the exporter stored their gauge, so power judged
+them. The engine rule stops none of the 338. The 13 W power rule stops one:
+the only stall in the ledger, the Qwen3.8 trial killed at
+2026-10-20T23:03:50-0400. Power stops it at 23:04:00-0400, the first poll
+after the kill, 600 s into an idle stretch at 10.7-12.1 W. The engine rule
+does not stop it. The server log shows the last reply finished at
+22:53:23-0400 and the next request arrived at 23:03:23.9-0400, 600.2 s later,
+with 48 new prompt tokens. That request finished at 23:03:25.8-0400 with 114
+tokens, so the engine counter moved and the engine rule reset 20 s before
+the kill. The agent had resumed work; the engine rule's verdict is the
+correct one there. The client transcript is on the client laptop and was not
+read.
 
 Rerun the evidence when the ledger grows:
 

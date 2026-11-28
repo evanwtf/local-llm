@@ -110,8 +110,12 @@ IdleFloorSource = Literal["flag", "backend", "tier", "default", "engine"]
 #:
 #: With native TensorFold on the rule (#1545, 2026-11-27): 36 of 560 quiet
 #: windows missed (TensorFold 30 -> 22; 20 of the 22 have no stored gauge and
-#: stay on power). scripts/tensorfold_watchdog_replay.py replays all 338
-#: TensorFold trials of 600 s or more: neither rule stops any of them.
+#: stay on power). scripts/tensorfold_watchdog_replay.py replays the 338
+#: TensorFold trials of 600 s or more; the engine rule ran with a gauge on
+#: 208 (49 are power-rule backends, 81 predate the stored gauge). It stops
+#: none. The 13 W power rule stops one, the 2026-10-20T23:03:50-0400 Qwen3.8
+#: kill. The engine rule keeps that trial: a 114-token request finished 20 s
+#: before the kill, after a 600.2 s gap in the server log.
 ENGINE_IDLE_FLOOR_WATTS: float = IDLE_FLOOR_WATTS
 
 
@@ -137,16 +141,18 @@ class EngineSignal:
 #: (nightly 2026-09-21; the exporter's llme_requests_running for SGLang is
 #: mapped from it).
 #:
-#: Native TensorFold joined in #1545: v0.6 and later, the MiaAI-Lab and zig
-#: builds, the native 1.x releases and the Ling-3.1 fork (v0.6.6) all print
+#: Native TensorFold joined in #1545: v0.6 and later, the MiaAI-Lab builds,
+#: the November zig-jay builds (176024b, 13db91e) and the other zig recipes,
+#: the native 1.x releases and the Ling-3.1 fork (v0.6.6) print
 #: ``tensorfold:requests_running`` ("Requests in prefill or decode"). Checked
 #: in the exporter's live v0.6.0 capture, in Prometheus (the native 1.0.x
 #: server's own series, and the exporter's llme_requests_running mapped from
 #: the others), and in the fork's ``server/metrics.py``. Its token counter
 #: counts *finished* requests only (a 12-min Ling decode moved it once, by
 #: 32768, at the end), so the gauge carries a request in flight, as with
-#: llama.cpp. TensorFold v0.3.4 + patch 0150 prints neither family, so those
-#: backends keep the power rule (POWER_RULE_BACKENDS). Every other engine
+#: llama.cpp. TensorFold v0.3.4 + patch 0150 and the October zig-jay
+#: DeepSeek builds print no such gauge, so those backends keep the power rule
+#: (POWER_RULE_BACKENDS). Every other engine
 #: (ds4, Ollama, mlx-serve and the rest) exports no such signal and keeps
 #: the power rule.
 ENGINE_SIGNALS: dict[str, EngineSignal] = {
@@ -294,12 +300,13 @@ def engine_metrics_url(backend: Mapping[str, object]) -> str | None:
 
 
 def engine_signal_for(
-    backend: Mapping[str, object], name: str = ""
+    backend: Mapping[str, object], *, name: str
 ) -> tuple[EngineSignal | None, str]:
     """The engine signal for a backend, or None for the power rule, and why.
 
     ``name`` is the tasks.toml backend name, checked against
-    :data:`POWER_RULE_BACKENDS`.
+    :data:`POWER_RULE_BACKENDS`. It is required: a default would let a
+    caller skip that list without a sign (#1545 review).
     """
     engine = str(backend.get("engine") or "")
     signal = ENGINE_SIGNALS.get(engine)
@@ -342,15 +349,22 @@ def _family_sum(text: str, name: str) -> float | None:
 
 
 def parse_engine_metrics(text: str, signal: EngineSignal) -> EngineReading | None:
-    """The engine's reading from its /metrics body; None without the gauge.
+    """The engine's reading from its /metrics body; None without both families.
 
     A body with no running gauge is unreadable, never "0 running": a
-    llama-server without ``--metrics`` or a shim must not read as idle.
+    llama-server without ``--metrics`` or a shim must not read as idle. A
+    body with the gauge but no token counter is unreadable too: the gauge is
+    a snapshot, and only the counter shows a short request between two
+    reads. Judged on the gauge alone, such a body could kill a trial the
+    power rule would keep (#1545 review). That sample falls back to power.
+    An engine that adds the counter only after its first request (SGLang
+    labels it per request kind) reads as unreadable until then.
     """
     running = _family_sum(text, signal.running)
-    if running is None:
+    progress = _family_sum(text, signal.progress)
+    if running is None or progress is None:
         return None
-    return EngineReading(running, _family_sum(text, signal.progress))
+    return EngineReading(running, progress)
 
 
 def fetch_engine_reading(

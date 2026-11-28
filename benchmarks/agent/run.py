@@ -6087,7 +6087,7 @@ def one_trial(
             # idle only when it runs none AND the GPU is under the engine-rule
             # floor. A failed engine read falls back to the power rule above.
             engine_signal, rule_why = timeout_policy.engine_signal_for(
-                backend, backend_name
+                backend, name=backend_name
             )
             engine_kw: dict[str, Any] = {"power_only_reason": rule_why}
             if engine_signal is not None:

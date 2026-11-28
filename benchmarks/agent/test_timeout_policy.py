@@ -585,10 +585,32 @@ def test_a_body_without_the_gauge_is_unreadable() -> None:
     assert tp.parse_engine_metrics("", tp.ENGINE_SIGNALS["vllm"]) is None
 
 
-def test_a_body_without_the_counter_still_reads_the_gauge() -> None:
+def test_a_body_without_the_counter_is_unreadable() -> None:
+    """The gauge alone cannot show a short request between two reads, so a
+    body without the counter falls back to the power rule (#1545 review)."""
     body = 'vllm:num_requests_running{engine="0"} 0.0\n'
-    got = tp.parse_engine_metrics(body, tp.ENGINE_SIGNALS["vllm"])
-    assert got == tp.EngineReading(0.0, None)
+    assert tp.parse_engine_metrics(body, tp.ENGINE_SIGNALS["vllm"]) is None
+    body = "tensorfold:requests_running 0\n"
+    assert tp.parse_engine_metrics(body, tp.ENGINE_SIGNALS["tensorfold"]) is None
+
+
+def test_a_gauge_only_body_never_kills_what_power_keeps() -> None:
+    """At 14 W, over the 13 W power floor, a gauge-only body reading 0 must
+    not stop the trial: each sample is judged by power, and 14 W is work."""
+    reading = tp.parse_engine_metrics(
+        "tensorfold:requests_running 0\n", tp.ENGINE_SIGNALS["tensorfold"]
+    )
+    clock = _Now()
+    wd = IdleStallWatchdog(
+        _Sampler([14.0]),
+        idle_floor_watts=13.0,
+        engine=lambda: reading,
+        engine_floor_watts=20.0,
+        idle_stall_secs=600.0,
+        monotonic=clock,
+    )
+    _run(wd, clock, 100)
+    assert wd.stalled() is False
 
 
 def test_the_metrics_url_is_the_engine_root() -> None:
@@ -605,14 +627,16 @@ def test_the_metrics_url_is_the_engine_root() -> None:
 @pytest.mark.parametrize("engine", ["vllm", "sglang", "llama.cpp"])
 def test_an_engine_with_a_running_gauge_gets_the_engine_rule(engine: str) -> None:
     backend = {"engine": engine, "base_url": "http://srv:8888"}
-    signal, why = tp.engine_signal_for(backend)
+    signal, why = tp.engine_signal_for(backend, name="b")
     assert signal is tp.ENGINE_SIGNALS[engine]
     assert engine in why
 
 
 @pytest.mark.parametrize("engine", ["ds4", "ollama", "mlx-serve", ""])
 def test_other_engines_keep_the_power_rule(engine: str) -> None:
-    signal, why = tp.engine_signal_for({"engine": engine, "base_url": "http://s:1"})
+    signal, why = tp.engine_signal_for(
+        {"engine": engine, "base_url": "http://s:1"}, name="b"
+    )
     assert signal is None
     assert "power" in why
 
@@ -694,7 +718,7 @@ def test_a_patch0150_body_is_unreadable_as_native_tensorfold() -> None:
 
 def test_native_tensorfold_gets_the_engine_rule() -> None:
     signal, why = tp.engine_signal_for(
-        {"engine": "tensorfold", "base_url": "http://srv:8888"}
+        {"engine": "tensorfold", "base_url": "http://srv:8888"}, name="tf"
     )
     assert signal is tp.ENGINE_SIGNALS["tensorfold"]
     assert "tensorfold:requests_running" in why
@@ -705,7 +729,7 @@ def test_tensorfold_v034_patch0150_keeps_the_power_rule_and_says_why(
     name: str,
 ) -> None:
     cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
-    signal, why = tp.engine_signal_for(cfg["backend"][name], name)
+    signal, why = tp.engine_signal_for(cfg["backend"][name], name=name)
     assert signal is None
     assert "power rule" in why
     assert "patch 0150" in why
@@ -717,9 +741,21 @@ def test_tensorfold_v034_patch0150_keeps_the_power_rule_and_says_why(
 )
 def test_october_zigjay_deepseek_keeps_the_power_rule(name: str) -> None:
     cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
-    signal, why = tp.engine_signal_for(cfg["backend"][name], name)
+    signal, why = tp.engine_signal_for(cfg["backend"][name], name=name)
     assert signal is None
     assert "no tensorfold:requests_running" in why
+
+
+def test_every_patch0150_clone_is_on_the_power_rule() -> None:
+    """A new backend on the patch 0150 tree must not slip off the list."""
+    cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
+    clones = {
+        name
+        for name, b in cfg["backend"].items()
+        if b.get("recipe_dir") == "~/jay-tensorfold"
+    }
+    assert clones, "the patch 0150 backends are in tasks.toml"
+    assert clones <= set(tp.POWER_RULE_BACKENDS)
 
 
 def test_every_power_rule_tensorfold_backend_is_a_tensorfold_backend() -> None:
@@ -734,7 +770,7 @@ def test_every_other_tensorfold_backend_gets_the_engine_rule() -> None:
     for name, b in cfg["backend"].items():
         if b.get("engine") != "tensorfold" or name in tp.POWER_RULE_BACKENDS:
             continue
-        signal, why = tp.engine_signal_for(b, name)
+        signal, why = tp.engine_signal_for(b, name=name)
         assert signal is tp.ENGINE_SIGNALS["tensorfold"], (name, why)
 
 
@@ -754,17 +790,57 @@ def _tf_watchdog(
     )
 
 
-def test_tensorfold_stall_is_caught() -> None:
-    """The 2026-10-21 Qwen3.8 TensorFold stall as Prometheus stored it from
-    02:54:00Z: 0 running, decode tokens flat at 49337, the head at 12.1 W
-    falling to 10.7 W. Both rules call it idle, and the trial stops at 600 s."""
+#: The 2026-10-21 Qwen3.8 TensorFold kill, as Prometheus stored it at the
+#: watchdog's 15 s poll from 2026-10-20T22:54:00-0400 to 23:04:00-0400
+#: (02:54:00Z-03:04:00Z), 41 samples. The head's DCGM power (scraped every
+#: 30 s, so each value shows twice), and the decode counter: flat at 49337,
+#: then 49451 from 23:03:30-0400, when a 114-token request finished. The
+#: gauge read 0 at every sample. The server log shows that request arrived at
+#: 23:03:23.9-0400, 600.2 s after the reply before it finished.
+_STALL_PAIRS = (
+    12.121, 11.609, 11.094, 10.956, 10.844, 10.759, 10.692, 10.737, 10.765,
+    10.789, 10.793, 10.789, 10.771, 10.765, 10.776, 10.759, 10.758, 10.748,
+    10.746, 10.752,
+)  # fmt: skip
+STALL_WATTS: list[float | None] = [w for pair in _STALL_PAIRS for w in (pair, pair)]
+STALL_WATTS.append(10.806)
+STALL_TOKENS = [49337.0] * 38 + [49451.0] * 3
+
+
+def test_the_stored_stall_is_stopped_by_power_and_kept_by_the_engine() -> None:
+    """The 13 W power rule reads all 41 samples as idle and stops the trial at
+    23:04:00-0400, 600 s in. The engine rule resets at 23:03:30-0400, when the
+    counter moved: a request had just run, so the agent was working again."""
+    assert len(STALL_WATTS) == len(STALL_TOKENS) == 41
+    sig = tp.ENGINE_SIGNALS["tensorfold"]
+    readings: list[tp.EngineReading | None] = [
+        tp.parse_engine_metrics(
+            f"tensorfold:requests_running 0\ntensorfold:generation_tokens_total {n:g}\n",
+            sig,
+        )
+        for n in STALL_TOKENS
+    ]
+    power = IdleStallWatchdog(
+        _Sampler(STALL_WATTS), idle_floor_watts=13.0, monotonic=(c := _Now())
+    )
+    _run(power, c, 41)
+    assert power.stalled() is True
+
+    clock = _Now()
+    wd = _tf_watchdog(STALL_WATTS, readings, clock)
+    _run(wd, clock, 41)
+    assert wd.stalled() is False
+    # Work at 23:03:30; the stretch opens at 23:03:45 and is 15 s old at 23:04:00.
+    assert wd.idle_seconds() == 15.0
+
+
+def test_a_flat_tensorfold_stretch_is_stopped_by_the_engine_rule() -> None:
+    """A synthetic flat stretch (not stored data): 0 running, the counter
+    still, under 13 W. The engine rule stops it at 600 s."""
     sig = tp.ENGINE_SIGNALS["tensorfold"]
     body = "tensorfold:requests_running 0\ntensorfold:generation_tokens_total 49337\n"
-    reading = tp.parse_engine_metrics(body, sig)
-    watts: list[float | None] = [12.121, 12.121, 11.609, 11.609, 11.094, 10.956]
-    watts += [10.8] * 40
     clock = _Now()
-    wd = _tf_watchdog(watts, [reading], clock)
+    wd = _tf_watchdog([10.8], [tp.parse_engine_metrics(body, sig)], clock)
     _run(wd, clock, 41)  # 0..600 s
     assert wd.stalled() is True
     assert wd.rule_summary().startswith("engine rule: tensorfold")
@@ -798,14 +874,17 @@ def test_a_patch0150_server_falls_back_to_the_power_rule_per_sample() -> None:
 
 
 def test_a_backend_with_no_url_keeps_the_power_rule() -> None:
-    signal, why = tp.engine_signal_for({"engine": "vllm"})
+    signal, why = tp.engine_signal_for({"engine": "vllm"}, name="b")
     assert signal is None
     assert "no base_url" in why
 
 
 def test_every_backend_in_tasks_toml_gets_a_rule() -> None:
     cfg = tomllib.loads((pathlib.Path(__file__).parent / "tasks.toml").read_text())
-    rules = {tp.engine_signal_for(b)[0] is not None for b in cfg["backend"].values()}
+    rules = {
+        tp.engine_signal_for(b, name=n)[0] is not None
+        for n, b in cfg["backend"].items()
+    }
     assert rules == {True, False}, "both kinds of backend exist in tasks.toml"
 
 
@@ -992,7 +1071,13 @@ def test_the_stall_log_names_the_engine_rule(caplog) -> None:
 
 def test_the_stall_log_says_power_rule_and_why(caplog) -> None:
     clock = _Now()
-    _, why = tp.engine_signal_for({"engine": "tensorfold", "base_url": "http://s:1"})
+    # A patch 0150 backend: the reason is a power-rule reason (#1545 review;
+    # a native TensorFold backend now gets an engine-rule string here).
+    _, why = tp.engine_signal_for(
+        {"engine": "tensorfold", "base_url": "http://s:1"},
+        name="glm53ftfjaydual2xrc",
+    )
+    assert why.startswith("power rule")
     wd = IdleStallWatchdog(
         _Sampler([5.0]),
         idle_floor_watts=13.0,
@@ -1015,7 +1100,8 @@ def test_the_stall_log_says_power_rule_and_why(caplog) -> None:
         )
     assert "power rule" in caplog.text
     assert "13 W (tier)" in caplog.text
-    assert "tensorfold" in caplog.text
+    assert "patch 0150" in caplog.text
+    assert "engine rule" not in caplog.text
 
 
 def test_fetch_engine_reading_is_none_when_the_endpoint_is_down() -> None:
